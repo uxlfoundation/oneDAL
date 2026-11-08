@@ -343,9 +343,8 @@ jobs:
           path: ${{ steps.bazel-disk.outputs.dir }}/bazel-disk
           key: bazel-disk-linux-nocompiler-${{ steps.bazel-disk.outputs.fingerprint }}-${{ github.sha }}
           restore-keys: bazel-disk-linux-nocompiler-${{ steps.bazel-disk.outputs.fingerprint }}-
-      # Downloads pinned by these files (MKL, TBB, compilers, ...). The key holds their
-      # hash, so it changes only with them; the disk cache key changes with every commit.
-      # Its own key: this job fetches the hermetic gcc, which the NoOneAPI legs do not.
+      # Keyed by the files that pin the downloads, so it changes only with them. Own key:
+      # this job fetches the hermetic gcc, which the NoOneAPI legs do not.
       - name: Restore the Bazel repository cache
         id: repo-cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -425,9 +424,8 @@ jobs:
         run: |
           .ci/env/bazelisk.sh
           echo "$(pwd)/bazel/bin" >> "$GITHUB_PATH"
-      # Bazel does not hash the host compiler binary, so the key carries what this
-      # leg actually runs: the clang legs have no gcc driver, and the libc++ leg
-      # adds the libc++ packages. Each leg has its own key, since the compilers differ.
+      # Bazel does not hash the host compiler binary, so each leg's key names what it runs
+      # (clang without gcc drivers, libc++ packages).
       - name: Configure the Bazel disk cache
         id: bazel-disk
         run: |
@@ -527,20 +525,16 @@ jobs:
           path: ${{ runner.temp }}/bazel-disk
           key: bazel-disk-linux-${{ matrix.leg }}-${{ matrix.runner }}-${{ steps.bazel-disk.outputs.fingerprint }}-${{ github.sha }}
       - name: Save the Bazel repository cache
-        # Only pushes to main write, and only when this hash has no entry yet. The legs
-        # share this key, and the first save wins, so only the gcc leg saves: it builds
-        # the release and the DAAL and MPI tests, so it fetches what the other legs do.
+        # Main pushes only, when this hash has no entry. Legs share the key and the first save
+        # wins, so only gcc saves: it builds the release and DAAL/MPI tests, the widest fetch.
         if: matrix.leg == 'gcc' && github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.repo-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/bazel-repo
           key: bazel-repo-linux-x64-${{ hashFiles('.bazelversion', 'MODULE.bazel', 'dev/bazel/deps/*.bzl') }}
 
-  # Each main push saves one entry per leg under a SHA-keyed name, and the
-  # repository's 10 GB Actions cache quota is shared with the ABI baselines.
-  # Keep the newest entry per leg and fingerprint. Runs as its own job so that
-  # only it holds `actions: write`; the build jobs run PR code and keep read-only
-  # permissions. `!cancelled()` so one failed leg does not block the other pruning.
+  # SHA-keyed saves fill the 10 GB quota shared with the ABI baselines: keep the newest per leg.
+  # Own job so only it holds `actions: write`; `!cancelled()` so one failed leg does not block it.
   prune-bazel-disk-cache:
     needs: [LinuxBazelNoCompiler, LinuxBazelNoOneAPI]
     if: ${{ !cancelled() && github.repository == 'uxlfoundation/oneDAL' && github.event_name == 'push' && github.ref == 'refs/heads/main' }}

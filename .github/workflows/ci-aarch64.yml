@@ -292,13 +292,8 @@ jobs:
           source .ci/env/bazelisk.sh
           echo "$(pwd)/bazel/bin" >> "$GITHUB_PATH"
 
-      # Bazel disk cache kept in the Actions cache. Only pushes to main save it;
-      # pull requests restore main's copy and never write, so a PR cannot plant
-      # entries that a later run reads. The GC flags cap each leg at 400 MB (the
-      # repository shares one 10 GB Actions cache).
-      # The key carries a toolchain fingerprint: Bazel does not track the host
-      # compiler binary, so a runner image that updates GCC at the same path
-      # would otherwise reuse outputs built by the previous compiler.
+      # Only main pushes save (PRs only read, so they cannot plant entries); GC caps each leg at 400 MB.
+      # The key has a toolchain fingerprint: Bazel does not hash the host compiler binary.
       - name: Configure the Bazel disk cache
         id: bazel-disk
         run: |
@@ -489,13 +484,8 @@ jobs:
           path: ${{ runner.temp }}/bazel-repo
           key: bazel-repo-linux-arm64-${{ hashFiles('.bazelversion', 'MODULE.bazel', 'dev/bazel/deps/*.bzl') }}
 
-  # Every save on main adds an entry, since its key holds the commit SHA, and
-  # the repository's 10 GB cache quota is shared. Keep only the newest entry per
-  # RNG. This runs as its own job so that only it holds `actions: write`; the
-  # build legs, which also run PR code, keep read-only permissions.
-  # `!cancelled()` rather than the default `success()`: when one RNG leg fails
-  # on main, the other leg's save still needs pruning. Keeping the newest entry
-  # per RNG stays safe either way.
+  # SHA-keyed saves fill the shared 10 GB quota: keep the newest per RNG. Own job so only it
+  # holds `actions: write`; `!cancelled()` so one failed RNG leg does not block pruning the other.
   prune-bazel-disk-cache:
     needs: bazel-build-and-test
     if: ${{ !cancelled() && github.repository == 'uxlfoundation/oneDAL' && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
@@ -506,9 +496,8 @@ jobs:
       matrix:
         rng: [ ref, openrng ]
     steps:
-      # gh resolves the repository from the working directory when GH_REPO is
-      # unset, and this job has no checkout, so set it. `pipefail` makes a
-      # failed list fail the step rather than silently prune nothing.
+      # No checkout here, so gh needs GH_REPO; `pipefail` makes a failed list
+      # fail the step rather than silently prune nothing.
       - name: Delete older Bazel disk caches
         env:
           GH_TOKEN: ${{ github.token }}

@@ -70,9 +70,8 @@ jobs:
         run: |
           docker run onedal-dev .ci/scripts/build.sh --compiler gnu --optimizations avx2 --target daal --conda-env ci-env
 
-      # The cache directory is a host path bind-mounted into the container, so
-      # the actions/cache steps see it directly. The key follows the Dockerfile
-      # because the image defines the toolchain the action keys depend on.
+      # The cache dir is a host path bind-mounted into the container; the key follows the
+      # Dockerfile, since the image defines the toolchain the action keys depend on.
       - name: Restore the Bazel disk cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:

@@ -244,10 +244,8 @@ jobs:
         shell: pwsh
         run: .\.ci\env\bazelisk.ps1
 
-      # Bazel reads ~/.bazelrc from %USERPROFILE%. The cache path is written with
-      # forward slashes: Bazel's rc parser does not treat backslashes as separators.
-      # The fingerprint covers the clang-cl that compiles here; `action_env=PATH`
-      # already puts the runner image's PATH into every action key.
+      # ~/.bazelrc is read from %USERPROFILE%; forward slashes, since the rc parser does not split on
+      # backslashes. The fingerprint covers clang-cl; `action_env=PATH` already keys the image PATH.
       - name: Configure the Bazel disk cache
         id: bazel-disk
         shell: pwsh
