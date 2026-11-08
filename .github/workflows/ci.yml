@@ -317,7 +317,6 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
-      pull-requests: write   # the delta comment
     env:
       # Tag, profile and generation must match a published asset (resolve-baseline enforces it).
       ABICHECK_BASELINE_TAG: 2026.0.0
@@ -389,13 +388,13 @@ jobs:
           set: |
             gate.fail_on_removed_library=${{ ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"') }}
           policy: .github/abicheck/policy.yaml
-          build-config: .github/abicheck/abicheck.yml
           # The publisher's pinned CastXML; the default (conda-forge) is a fingerprint mismatch.
           dependency-source: system
           output-file: __abi_report/release.md
           extra-args: -o json=__abi_report/release.json
           pr-comment: false
-      # The comment shows only this PR's changes: main's cached build against the PR, never gating.
+      # This PR's own delta: main's cached build against the PR, never gating.
+      # abicheck-comment.yml posts it, so fork PRs get the comment too.
       - name: Find main's cached build
         id: main-key
         if: ${{ !cancelled() }}   # a red gate still gets its comment
@@ -410,7 +409,8 @@ jobs:
         with:
           path: ./__release_lnx_main
           key: ${{ steps.main-key.outputs.key }}
-      - name: Comment this PR's ABI changes against main
+      - name: Compare main's build with this PR
+        id: delta
         if: ${{ !cancelled() && steps.main-build.outputs.cache-hit == 'true' }}
         continue-on-error: true
         uses: abicheck/abicheck@597e47ae7cf9657f4ea987175bf9463d70dba594 # v0.8.0
@@ -427,10 +427,17 @@ jobs:
           new-include: ${{ env.ABICHECK_INCLUDE_DIR }}
           fail-on-breaking: 'false'
           policy: .github/abicheck/policy.yaml
-          build-config: .github/abicheck/abicheck.yml
           dependency-source: system
           add-job-summary: 'false'
-          pr-comment-on: changes
+          format: json
+          output-file: __abi_delta/delta.json
+          pr-comment: false
+      - name: Archive this PR's ABI delta
+        if: ${{ !cancelled() && steps.delta.outputs.report-path != '' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: abicheck-delta-report
+          path: __abi_delta/
       - name: Archive the full ABI report
         if: always() && steps.abicheck.outputs.report-path != ''
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

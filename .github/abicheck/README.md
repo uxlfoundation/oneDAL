@@ -20,10 +20,10 @@
 `ci.yml` job `LinuxAbicheckScan` compares the public headers and exports of the six shipped
 libraries (header depth, castxml) with the `2026.0.0` baseline. A binary or source break fails
 the job; the `API/ABI breaking change` label lifts that. A second, non-gating compare of `main`'s
-cached build against the PR posts a sticky comment with this PR's own changes (additions, risks,
-breaks), so a symbol added after the baseline is not re-reported on every PR. Fork PRs have a
-read-only token and get no comment. abicheck is pinned to v0.8.0
-(`597e47ae7cf9657f4ea987175bf9463d70dba594`) in both workflows. Config: `abicheck.yml`, `policy.yaml`.
+cached build against the PR is archived, and `abicheck-comment.yml` (`workflow_run`, write token,
+no PR code) posts it as a sticky comment when this PR changes the surface: additions, risks,
+breaks. A symbol added after the baseline is not re-reported on every PR; fork PRs get it too. abicheck is pinned to v0.8.0
+(`597e47ae7cf9657f4ea987175bf9463d70dba594`) in both workflows. Config: `.abicheck.yml` (auto-discovered), `policy.yaml` (`policy:` input; a reclassify file has no config key).
 
 ## Rotate
 

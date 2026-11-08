@@ -1,0 +1,63 @@
+#===============================================================================
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+# Posts the ABI delta that ci.yml's Abicheck job archived, fork PRs included.
+# Runs from main with a write token; it never checks out or builds PR code.
+name: Abicheck PR comment
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: write
+
+jobs:
+  Comment:
+    if: github.repository == 'uxlfoundation/oneDAL' && github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      # No artifact (no main cache, or the job did not run): no comment.
+      - name: Verify the CI run and fetch its delta report
+        id: verify
+        continue-on-error: true
+        uses: abicheck/abicheck/actions/verify-source-run@597e47ae7cf9657f4ea987175bf9463d70dba594 # v0.8.0
+        with:
+          source-run-id: ${{ github.event.workflow_run.id }}
+          expect-repository: ${{ github.repository }}
+          expect-workflow: .github/workflows/ci.yml
+          expect-event: pull_request
+          allowed-conclusions: success,failure
+          artifact-name: abicheck-delta-report
+          destination: incoming
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Post the sticky comment
+        if: steps.verify.outcome == 'success'
+        uses: abicheck/abicheck/actions/report@597e47ae7cf9657f4ea987175bf9463d70dba594 # v0.8.0
+        with:
+          report: incoming/delta.json
+          pr-number: ${{ steps.verify.outputs.pr-number }}
+          source-run-id: ${{ github.event.workflow_run.id }}
+          source-run-attempt: ${{ github.event.workflow_run.run_attempt }}
+          profile: linux-x86_64-icx-avx2-nodbg-headers
+          post-on: changes
+          run-label: "run #${{ github.event.workflow_run.run_number }}"
+          report-url: ${{ github.event.workflow_run.html_url }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
