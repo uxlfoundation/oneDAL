@@ -310,9 +310,8 @@ void close_task(thread_state & ts, const frame & f, std::uint64_t end)
             }
             else
             {
-                // No enclosing window to restore: the next task starts from live memory. Written
-                // only when the task allocated, so tasks that run at the same time on other
-                // threads do not contend on this line.
+                // No enclosing window to restore: the next task starts from live memory. Written only
+                // when the task allocated, so concurrent tasks on other threads do not contend here.
                 const std::int64_t live = global.live[k].load(std::memory_order_relaxed);
                 if (global.region_peak[k].load(std::memory_order_relaxed) != live) global.region_peak[k].store(live, std::memory_order_relaxed);
             }
@@ -348,9 +347,8 @@ int begin_task(thread_state & ts, const char * name, bool threading, bool on_que
         for (int k = 0; k < memory_kinds; ++k)
         {
             f.live_at_start[k] = global.live[k].load(std::memory_order_relaxed);
-            // Reset the window of the enclosing task. Nothing allocated since it started is the
-            // common case, where the window already equals live memory and no write is needed, so
-            // threads that run tasks at the same time do not contend on this line.
+            // Reset the enclosing task's window; usually nothing was allocated since it started, so
+            // the window equals live memory and the write, which other threads contend on, is skipped.
             f.outer_peak[k] = global.region_peak[k].load(std::memory_order_relaxed);
             if (f.outer_peak[k] != f.live_at_start[k])
                 f.outer_peak[k] = global.region_peak[k].exchange(f.live_at_start[k], std::memory_order_relaxed);
@@ -387,9 +385,8 @@ void region_enter(const void * region)
     const node * parent = static_cast<const node *>(region);
     frame chunk { parent, nullptr, 0 };
     chunk.parallel = true;
-    // A thread that waits inside other work, for example in a nested parallel loop, may be given a
-    // chunk of an unrelated region. Its time is not part of the tasks it interrupts: those above the
-    // region's parent, or every open task when the parent is not on this thread.
+    // A thread waiting inside other work may run a chunk of an unrelated region; its time is taken out
+    // of the tasks above the region's parent, or of every open task when the parent is not on this thread.
     if (!ts.stack.empty() && ts.stack.back().anchor != parent)
     {
         chunk.interrupts = true;

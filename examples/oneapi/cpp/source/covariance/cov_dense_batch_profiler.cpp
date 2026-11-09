@@ -14,17 +14,8 @@
 * limitations under the License.
 *******************************************************************************/
 
-// Covariance under the kernel profiler. Run with ONEDAL_VERBOSE set, for example
-//
-//     ONEDAL_VERBOSE=3 ./cov_dense_batch_profiler --result all --repeat 10
-//
-// and the library prints the per-stage time and memory report when the process exits. The
-// profiler reads ONEDAL_VERBOSE before the first oneDAL call, so it must be set in the environment.
-//
-// Options:
-//   --data FILE               CSV input (default: data/covcormoments_dense.csv)
-//   --result cov|cor|means|all  what to compute (default: all)
-//   --repeat N                number of compute calls; the report merges them into one row (default: 1)
+// Covariance under the kernel profiler: with ONEDAL_VERBOSE=3 set in the environment, the per-stage
+// time and memory report is printed at exit. `--help` lists the options.
 
 #include <chrono>
 
@@ -38,9 +29,13 @@ namespace dal = oneapi::dal;
 
 int main(int argc, char const *argv[]) {
     if (has_flag(argc, argv, "--help")) {
-        std::cout << "Usage: cov_dense_batch_profiler [--data FILE] [--result cov|cor|means|all] "
-                     "[--repeat N]\n"
-                     "Set ONEDAL_VERBOSE=3 to get the per-stage report; see docs/profiling.\n";
+        std::cout
+            << "Usage: ONEDAL_VERBOSE=3 cov_dense_batch_profiler [options]\n"
+               "  --data FILE                 CSV input (default: data/covcormoments_dense.csv)\n"
+               "  --result cov|cor|means|all  what to compute (default: all)\n"
+               "  --repeat N                  compute calls, merged into one report row "
+               "(default: 1)\n"
+               "ONEDAL_VERBOSE is read before the first oneDAL call; see docs/profiling.\n";
         return 0;
     }
     const auto input_file_name =

@@ -14,18 +14,8 @@
 * limitations under the License.
 *******************************************************************************/
 
-// PCA under the kernel profiler. Run with ONEDAL_VERBOSE set, for example
-//
-//     ONEDAL_VERBOSE=3 ./pca_dense_batch_profiler --method svd --components 3 --repeat 10
-//
-// and the library prints the per-stage time and memory report when the process exits. The
-// profiler reads ONEDAL_VERBOSE before the first oneDAL call, so it must be set in the environment.
-//
-// Options:
-//   --data FILE       CSV input (default: data/pca_normalized.csv)
-//   --method cov|svd  training method (default: cov)
-//   --components N    number of components (default: 5)
-//   --repeat N        number of train and infer calls; the report merges them (default: 1)
+// PCA under the kernel profiler: with ONEDAL_VERBOSE=3 set in the environment, the per-stage time
+// and memory report is printed at exit. `--help` lists the options.
 
 #include <chrono>
 
@@ -63,9 +53,13 @@ void run(const dal::table &x_train, std::int64_t component_count, std::int64_t r
 
 int main(int argc, char const *argv[]) {
     if (has_flag(argc, argv, "--help")) {
-        std::cout << "Usage: pca_dense_batch_profiler [--data FILE] [--method cov|svd] "
-                     "[--components N] [--repeat N]\n"
-                     "Set ONEDAL_VERBOSE=3 to get the per-stage report; see docs/profiling.\n";
+        std::cout
+            << "Usage: ONEDAL_VERBOSE=3 pca_dense_batch_profiler [options]\n"
+               "  --data FILE       CSV input (default: data/pca_normalized.csv)\n"
+               "  --method cov|svd  training method (default: cov)\n"
+               "  --components N    number of components (default: 5)\n"
+               "  --repeat N        train and infer calls, merged in the report (default: 1)\n"
+               "ONEDAL_VERBOSE is read before the first oneDAL call; see docs/profiling.\n";
         return 0;
     }
     const auto train_data_file_name =
