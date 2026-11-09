@@ -115,15 +115,17 @@ inline compute_result<task::clustering> compute_with_gemm_tiles(
         const auto data_nd = pr::table2ndarray<Float>(queue, local_data, sycl::usm::alloc::device);
         const auto [centered, center_event] = make_centered<Float>(queue, data_nd, {});
 
-        // `distance_block_size` rows per search block and MST tile if set, else about 256 MB of
-        // `block x n` distances.
-        const std::int64_t block_rows =
-            std::min(row_count,
-                     (desc.get_distance_block_size() > 0)
-                         ? desc.get_distance_block_size()
-                         : std::max<std::int64_t>(1,
-                                                  (std::int64_t(2048) * 1024 * 1024) /
-                                                      (row_count * std::int64_t(sizeof(Float)))));
+        // `distance_block_size` rows per search block and MST tile if set, else 2 GB of `block x n`
+        // distances; a tile never exceeds the device's largest allocation.
+        const std::int64_t tile_bytes =
+            std::min<std::int64_t>(std::int64_t(2048) * 1024 * 1024,
+                                   bk::device_max_mem_alloc_size(queue));
+        const std::int64_t max_rows =
+            std::max<std::int64_t>(1, tile_bytes / (row_count * std::int64_t(sizeof(Float))));
+        const std::int64_t block_rows = std::min(
+            { row_count,
+              max_rows,
+              (desc.get_distance_block_size() > 0) ? desc.get_distance_block_size() : max_rows });
         auto [norms, norms_event] = pr::compute_squared_l2_norms(queue, centered);
         norms_event.wait_and_throw();
         const std::int64_t min_samples = std::min(desc.get_min_samples(), row_count);
