@@ -14,6 +14,8 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include <algorithm>
+#include <iterator>
 #include <new>
 #include <stdexcept>
 #include <type_traits>
@@ -46,8 +48,11 @@ static_assert(std::is_same_v<decltype(static_cast<PlacementDelete>(&DerivedFromB
 
 TEST("a throwing constructor in placement new leaves the caller's storage alone", "[services][unit]")
 {
+    constexpr unsigned char pattern = 0xA5;
     alignas(ThrowsOnConstruction) unsigned char storage[sizeof(ThrowsOnConstruction)];
+    std::fill(std::begin(storage), std::end(storage), pattern);
     REQUIRE_THROWS_AS(new (storage) ThrowsOnConstruction(), std::runtime_error);
+    REQUIRE(std::all_of(std::begin(storage), std::end(storage), [](unsigned char byte) { return byte == pattern; }));
 }
 
 TEST("placement new constructs a SharedPtr in caller-owned storage", "[services][unit]")
@@ -59,7 +64,7 @@ TEST("placement new constructs a SharedPtr in caller-owned storage", "[services]
     ptr->~Ptr();
 }
 
-TEST("new and delete of a Base subclass still go through the DAAL allocator", "[services][unit]")
+TEST("new and delete of a Base subclass still work for objects and arrays", "[services][unit]")
 {
     DerivedFromBase * const single = new DerivedFromBase();
     REQUIRE(single != nullptr);
