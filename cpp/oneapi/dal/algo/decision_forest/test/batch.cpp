@@ -364,7 +364,6 @@ DF_BATCH_CLS_TEST("df cls trees draw different random streams") {
 
 DF_BATCH_CLS_TEST("df cls OOB error and importance are the same in two fits") {
     SKIP_IF(this->not_available_on_device());
-    SKIP_IF(this->not_float64_friendly());
     SKIP_IF(this->is_gpu());
 
     this->check_two_fits_match();
@@ -580,7 +579,6 @@ DF_BATCH_REG_TEST("df reg trees draw different random streams") {
 
 DF_BATCH_REG_TEST("df reg OOB error and importance are the same in two fits") {
     SKIP_IF(this->not_available_on_device());
-    SKIP_IF(this->not_float64_friendly());
     SKIP_IF(this->is_gpu());
 
     this->check_two_fits_match();

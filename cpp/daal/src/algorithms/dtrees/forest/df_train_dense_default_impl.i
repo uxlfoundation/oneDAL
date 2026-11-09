@@ -317,7 +317,7 @@ services::Status TreeThreadCtxBase<algorithmFPType, cpu>::finalizeVarImp(trainin
         }
         else
         {
-            for (size_t i = 0; i < nVars; ++i) varImp[i] = 0;
+            services::internal::service_memset_seq<algorithmFPType, cpu>(varImp, algorithmFPType(0), nVars);
         }
     }
 
@@ -349,14 +349,12 @@ services::Status TreeThreadCtxBase<algorithmFPType, cpu>::finalizeVarImp(trainin
 template <typename algorithmFPType, CpuType cpu, class Ctx>
 Ctx * createTlsContext(const NumericTable * x, const Parameter & par, size_t nClasses, const Ctx & mainCtx)
 {
-    byte * ptr = service_scalable_calloc<byte, cpu>(sizeof(Ctx));
-    if (!ptr) return nullptr;
-    Ctx * ctx = new (ptr) Ctx();
+    Ctx * ctx = new Ctx();
+    if (!ctx) return nullptr;
     if (!ctx->init(par, x, nClasses, mainCtx))
     {
         //allocation of extra data hasn't succeeded
-        ctx->~Ctx();
-        service_scalable_free<byte, cpu>(ptr);
+        delete ctx;
         return nullptr;
     }
     return ctx;
@@ -520,8 +518,7 @@ services::Status computeImpl(const NumericTable * x, const NumericTable * y, con
         if (ctx && bThreaded)
         {
             ctx->reduceTo(mainCtx, nRows);
-            ctx->~Ctx();
-            service_scalable_free<byte, cpu>((byte *)ctx);
+            delete ctx;
         }
     });
     tlsTask.parallel_reduce([&](TaskType * task) -> void {
