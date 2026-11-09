@@ -33,9 +33,8 @@ on:
 permissions:
   contents: read
 
-# A literal name: in a called workflow `github.workflow` is the caller's.
-# A PR push cancels the older run of that PR. A push to main waits behind the
-# running one, and a newer push replaces the waiting one, so the latest commit runs.
+# A literal name, since a called workflow sees the caller's `github.workflow`. A PR push cancels
+# its older run; a push to main waits behind the running one and replaces an older waiting one.
 concurrency:
   group: CI-${{ github.event.pull_request.number || github.ref }}${{ inputs.part }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}

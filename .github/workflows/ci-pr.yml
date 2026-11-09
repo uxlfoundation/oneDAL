@@ -16,16 +16,13 @@
 
 name: PR CI
 
-# Pull request CI. The label check and LinuxBazelNoCompiler run first, and the
-# test workflows start only after both pass, so a change that does not build
-# does not hold the other runners. Pushes to main start ci.yml, ci-win.yml and
-# ci-aarch64.yml directly, without the gate.
+# The label check and LinuxBazelNoCompiler gate the test workflows, so a change that does not
+# build holds no other runners. Pushes to main start ci.yml, ci-win.yml and ci-aarch64.yml directly.
 
 on:
   pull_request:
-    # ready_for_review starts the jobs a draft skipped. labeled and unlabeled
-    # rerun the label check; the build reruns only if this commit has no
-    # passing or running build yet.
+    # ready_for_review starts the jobs a draft skipped. Label events rerun the label check, and
+    # the build only when `build_needed` finds no other build of the commit.
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
     branches:
       - main
@@ -72,8 +69,8 @@ jobs:
     if: github.event.pull_request.state == 'open'
     uses: ./.github/workflows/label-enforcement.yml
 
-  # On a label event the build is skipped when another PR CI run of this
-  # commit has passed or is still running.
+  # On a label event the build is skipped when another PR CI run of this commit passed its
+  # label check and built in its own gate, and has not failed.
   build_needed:
     name: Build needed
     if: github.event.pull_request.state == 'open'
@@ -89,14 +86,24 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           ACTION: ${{ github.event.action }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          WORKFLOW: ${{ github.workflow }}
           RUN_ID: ${{ github.run_id }}
         run: |
+          set -euo pipefail
           needed=true
           if [ "$ACTION" = labeled ] || [ "$ACTION" = unlabeled ]; then
-            others=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${HEAD_SHA}&event=pull_request&per_page=100" \
-              --jq "[.workflow_runs[] | select(.name == \"$WORKFLOW\" and .id != $RUN_ID and (.status != \"completed\" or .conclusion == \"success\"))] | length")
-            [ "$others" = 0 ] || needed=false
+            runs=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/workflows/ci-pr.yml/runs?head_sha=${HEAD_SHA}&event=pull_request&per_page=100" \
+              --jq ".workflow_runs[] | select(.id != ${RUN_ID}) | \"\(.id) \(.status) \(.conclusion)\"")
+            while read -r id status conclusion; do
+              [ -n "$id" ] || continue
+              [ "$status" != completed ] || [ "$conclusion" = success ] || continue
+              marks=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs/${id}/jobs?per_page=100" \
+                --jq '.jobs[] | if (.name | startswith("Labels /")) and .conclusion == "success" then "L"
+                  elif (.name | startswith("Gate /")) and (.conclusion == null or .conclusion == "success") then "G"
+                  else empty end')
+              if grep -qx L <<< "$marks" && grep -qx G <<< "$marks"; then
+                needed=false
+              fi
+            done <<< "$runs"
           fi
           echo "needed=$needed" >> "$GITHUB_OUTPUT"
 
