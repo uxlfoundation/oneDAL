@@ -355,9 +355,9 @@ public:
     }
 
     /// Trains a forest twice with the same seed and checks that the trees and the inference
-    /// results are bitwise identical. The response follows a strong pattern, and the features
-    /// repeat it as exact, scaled, mirrored and near duplicates on a coarse grid, so split gains
-    /// and thresholds tie and any order-dependent choice changes the forest.
+    /// results are bitwise identical. The response is a strong pattern of two grid values u and v;
+    /// the features repeat u as exact, scaled, mirrored and near duplicates and add v, so split
+    /// gains and thresholds tie and any order-dependent choice changes the forest.
     ///
     /// @param[in] splitter    The splitter mode of the forest.
     /// @param[in] class_count The number of classes; ignored for regression.
@@ -370,12 +370,15 @@ public:
         auto y_arr = array<Float>::empty(row_count);
         Float* x_ptr = x_arr.get_mutable_data();
         Float* y_ptr = y_arr.get_mutable_data();
+        // std::mt19937 output is fixed by the standard, unlike the std distributions
         std::mt19937 rng(2024);
-        std::uniform_int_distribution<int> grid(-8, 8);
+        const auto grid = [&rng]() {
+            return static_cast<int>(rng() % 17) - 8;
+        };
         for (std::int64_t i = 0; i < row_count; ++i) {
-            const float u = grid(rng) / 8.0f;
-            const float v = grid(rng) / 8.0f;
-            const float row[column_count] = { u, u, 2.0f * u, -u, u + 1e-4f * grid(rng), v };
+            const float u = grid() / 8.0f;
+            const float v = grid() / 8.0f;
+            const float row[column_count] = { u, u, 2.0f * u, -u, u + 1e-4f * grid(), v };
             for (std::int64_t j = 0; j < column_count; ++j) {
                 x_ptr[i * column_count + j] = row[j];
             }
