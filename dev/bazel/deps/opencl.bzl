@@ -28,7 +28,8 @@ def _opencl_repo_impl(repo_ctx):
         lib_dir = paths.join(dpcpp_root, "lib")
         # Lets the linker resolve what these libraries need from the compiler's
         # own lib directory (libz for libur_loader under conda-forge).
-        linkopts.append("-Wl,-rpath-link," + lib_dir)
+        # Quoted because rules_cc splits `linkopts` like a shell.
+        linkopts.append("-Wl,-rpath-link,'" + lib_dir.replace("'", "'\\''") + "'")
         libs = [
             "libOpenCL*.so*",
             "libsvml.so",

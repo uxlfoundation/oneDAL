@@ -83,6 +83,8 @@ def _detect_compiler_by_macros(repo_ctx, compiler_path):
 
     Returns `None` when the compiler cannot be run or is none of gcc, clang and icx.
     """
+    if not compiler_path:
+        return None
     tool = repo_ctx.path(compiler_path) if compiler_path.startswith("/") else repo_ctx.which(compiler_path)
     if not tool or not tool.exists:
         return None
@@ -92,6 +94,9 @@ def _detect_compiler_by_macros(repo_ctx, compiler_path):
     macros = result.stdout
 
     # icx also defines __clang__ and __GNUC__, and clang defines __GNUC__.
+    # Classic icc defines __INTEL_COMPILER and __GNUC__ and is not supported.
+    if "#define __INTEL_COMPILER " in macros:
+        return None
     if "__INTEL_LLVM_COMPILER" in macros:
         return "icx"
     if "__clang__" in macros:
