@@ -33,6 +33,7 @@
 #include "data_management/features/defines.h"
 #include "services/error_handling.h"
 #include "src/data_management/service_numeric_table.h"
+#include "src/data_management/finiteness_checker.h"
 #include "src/services/service_data_utils.h"
 #include "src/services/service_allocators.h"
 #include "src/services/service_arrays.h"
@@ -910,7 +911,9 @@ services::Status copyCentered(const NumericTable & table, TArrayScalable<FPType,
     {
         double sum = 0;
         for (size_t iBlock = 0; iBlock < nBlocks; iBlock++) sum += blockSums.get()[iBlock * nCols + j];
-        means.get()[j] = static_cast<FPType>(nRows ? sum / nRows : 0);
+        // A column with a NaN or Inf stays uncentered, so the non-finite value affects its own row only.
+        const bool finite = !data_management::internal::valuesAreNotFinite(&sum, 1, false);
+        means.get()[j]    = static_cast<FPType>(nRows && finite ? sum / nRows : 0);
     }
 
     const FPType * const mean = means.get();

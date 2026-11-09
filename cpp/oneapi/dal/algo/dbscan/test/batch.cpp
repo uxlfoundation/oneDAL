@@ -15,6 +15,7 @@
 *******************************************************************************/
 
 #include <array>
+#include <limits>
 #include <random>
 
 #include "oneapi/dal/algo/dbscan/test/fixture.hpp"
@@ -252,6 +253,43 @@ TEMPLATE_LIST_TEST_M(dbscan_batch_test,
             REQUIRE(observations[k * column_count + j] == x[indices[k] * column_count + j]);
         }
     }
+}
+
+TEMPLATE_LIST_TEST_M(dbscan_batch_test,
+                     "dbscan euclidean confines a non-finite value to its row",
+                     "[dbscan][batch]",
+                     dbscan_types) {
+    SKIP_IF(this->not_float64_friendly());
+    // The GPU kernels can count a NaN distance as within epsilon.
+    SKIP_IF(this->get_policy().is_gpu());
+    using float_t = std::tuple_element_t<0, TestType>;
+    using method_t = std::tuple_element_t<1, TestType>;
+
+    constexpr std::int64_t row_count = 120;
+    constexpr std::int64_t column_count = 4;
+    constexpr std::int64_t min_observations = 5;
+    auto x = te::make_blobs<float_t>(40, 3, column_count, 4.0, 3.0);
+    const std::vector<float_t> w(row_count, 1);
+    const double epsilon = this->pick_epsilon(
+        this->reference_distances(x, column_count, distance_metric::euclidean, 2.0),
+        row_count,
+        0.03);
+
+    const float_t bad = GENERATE(std::numeric_limits<float_t>::quiet_NaN(),
+                                 std::numeric_limits<float_t>::infinity());
+    CAPTURE(bad);
+    x[5 * column_count + 1] = bad;
+    const auto dist = this->reference_distances(x, column_count, distance_metric::euclidean, 2.0);
+
+    const auto desc =
+        dbscan::descriptor<float_t, method_t>(epsilon, min_observations)
+            .set_result_options(result_options::responses | result_options::core_flags |
+                                result_options::core_observation_indices);
+    const auto result = te::compute(this->get_policy(),
+                                    desc,
+                                    homogen_table::wrap(x.data(), row_count, column_count));
+    REQUIRE(result.get_cluster_count() > 0);
+    this->check_against_definition(result, dist, w, epsilon, min_observations);
 }
 
 TEMPLATE_LIST_TEST_M(dbscan_batch_test,
