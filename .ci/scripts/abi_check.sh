@@ -59,11 +59,15 @@ do
     old=$i
     new=$release_dir/$name
 
-    # The cached main build may differ from this branch in having debug info.
-    # abidiff then silently falls back to symbols only, so warn and compare
-    # stripped copies of both. A missing $new is reported by abidiff below.
+    # abidiff silently compares symbols only if one side lacks debug info, so say so
+    # and compare stripped copies of both. A missing $new is reported by abidiff.
     dwarf_old=no; dwarf_new=no
     if [ -f "$new" ]; then
+        if ! readelf -h "$old" > /dev/null || ! readelf -h "$new" > /dev/null; then
+            echo "::error:: ${name}: not a readable ELF file in one of the builds"
+            RETURN_CODE=$((RETURN_CODE+1))
+            continue
+        fi
         has_dwarf "$old" && dwarf_old=yes
         has_dwarf "$new" && dwarf_new=yes
     fi
@@ -94,17 +98,8 @@ do
     fi
 done
 
-# Cross-flavor public-symbol drift report.
-#
-# The DPC++ libraries are built without debug info, so abidiff only checks
-# their symbols for addition and removal. Report public symbols added to a
-# DPC++ library but not to its host library: that surface is not type-checked.
-# Warnings only, since every new GPU implementation adds such symbols.
-#
-# Internal namespaces come from the unconditional suppressions in .abignore
-# ('drop = yes', no 'change_kind'). The change_kind stanzas cover all of
-# oneapi::dal, so taking them would filter out the whole public surface.
-# symbol_name_regexp is POSIX ERE, so awk can use the patterns verbatim.
+# The DPC++ libraries have no debug info, so warn about public symbols added only to them.
+# Internal names are the 'drop = yes' stanzas without change_kind; those with it cover all of oneapi::dal.
 abignore=.github/.abignore
 if [ ! -f "$abignore" ]; then
     echo "::error:: ${abignore} not found (required to know which namespaces are internal)"
@@ -206,15 +201,22 @@ for pair in "${pairs[@]}"; do
         RETURN_CODE=$((RETURN_CODE+1))
         continue
     fi
-    only_in_dpc=$(comm -13 <(printf '%s' "$host_new") <(printf '%s' "$dpc_new"))
-    only_in_host=$(comm -23 <(printf '%s' "$host_new") <(printf '%s' "$dpc_new"))
+    # Compare each delta with the other library's full set, so that a symbol
+    # moved between host and DPC++ sources is not reported.
+    host_all=$(public_syms "$release_dir/$host_lib") && dpc_all=$(public_syms "$release_dir/$dpc_lib") || {
+        echo "::error:: nm failed for ${host_lib} or ${dpc_lib}"
+        RETURN_CODE=$((RETURN_CODE+1))
+        continue
+    }
+    only_in_dpc=$(comm -13 <(printf '%s' "$host_all") <(printf '%s' "$dpc_new"))
+    only_in_host=$(comm -23 <(printf '%s' "$host_new") <(printf '%s' "$dpc_all"))
     if [ -n "$only_in_dpc" ]; then
-        report_syms "new public symbol(s) in ${dpc_lib} with no counterpart in ${host_lib}. \
+        report_syms "new public symbol(s) in ${dpc_lib} that are not in ${host_lib}. \
 These are only checked for addition/removal, as ${dpc_lib} is built without debug info; \
 review any layout or signature change to them by hand." "$only_in_dpc"
     fi
     if [ -n "$only_in_host" ]; then
-        report_syms "new public symbol(s) in ${host_lib} with no counterpart in ${dpc_lib}. \
+        report_syms "new public symbol(s) in ${host_lib} that are not in ${dpc_lib}. \
 The DPC++ library is built from a superset of the host sources, so this is unexpected: \
 check whether a declaration is guarded on ONEDAL_DATA_PARALLEL by mistake." "$only_in_host"
     fi
