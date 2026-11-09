@@ -1178,9 +1178,10 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     const auto x = make_table<Float>(single_root_data, single_root_row_count, 2);
 
     // Every point falls out of the root at the same lambda, so scikit-learn keeps them all in
-    // one cluster with membership 1.
+    // one cluster with membership 1, and the leaf root's size of 0 never trips max_cluster_size.
     const std::int64_t min_cluster_size = GENERATE(17, 100);
-    CAPTURE(min_cluster_size);
+    const std::int64_t max_cluster_size = GENERATE(0, 4);
+    CAPTURE(min_cluster_size, max_cluster_size);
     const std::vector<std::int32_t> ref_labels(single_root_row_count, 0);
     const std::vector<double> ref_probabilities(single_root_row_count, 1.0);
 
@@ -1188,7 +1189,8 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
         this->get_descriptor(min_cluster_size,
                              3,
                              result_options::responses | result_options::probabilities)
-            .set_allow_single_cluster(true);
+            .set_allow_single_cluster(true)
+            .set_max_cluster_size(max_cluster_size);
     const auto result = this->compute(desc, x);
 
     REQUIRE(result.get_cluster_count() == 1);
