@@ -22,6 +22,7 @@
 
 namespace oneapi::dal::backend::primitives {
 
+#ifdef ONEDAL_DATA_PARALLEL
 namespace mkl = oneapi::dal::backend::math;
 
 inline constexpr mkl::job ident_job(mkl::job order) {
@@ -43,5 +44,6 @@ inline constexpr mkl::jobsvd ident_jobsvd(mkl::jobsvd order) {
         default: return novec;
     }
 }
+#endif
 
 } // namespace oneapi::dal::backend::primitives

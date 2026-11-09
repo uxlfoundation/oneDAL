@@ -81,11 +81,13 @@ public:
 
     /// Skips ahead in the random number sequence for mt2203 on the GPU.
     /// @param[in] nSkip The number of steps to skip in the sequence.
+#ifdef ONEDAL_MATH_BACKEND_ONEMATH
+    void skip_ahead_gpu(std::int64_t) override {}
+#else
     void skip_ahead_gpu(std::int64_t nSkip) override {
         skip_ahead(_gen, nSkip);
     }
 
-#ifndef ONEDAL_MATH_BACKEND_ONEMATH
     /// Retrieves a pointer to the underlying mt2203 generator.
     /// @return A pointer to the `mt2203` RNG.
     mkl::rng::mt2203* get() {

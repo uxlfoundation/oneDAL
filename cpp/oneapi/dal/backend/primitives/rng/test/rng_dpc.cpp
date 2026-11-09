@@ -312,6 +312,25 @@ TEMPLATE_LIST_TEST_M(rng_test, "default engine and seed", "[rng]", rng_types_def
     this->check_tail_matches(arr_defaulted, arr_explicit, 0);
 }
 
+#ifdef ONEDAL_MATH_BACKEND_ONEMATH
+using rng_types_no_device_engine = COMBINE_TYPES((float), (mt2203, mt19937, mcg59));
+
+TEMPLATE_LIST_TEST_M(rng_test,
+                     "device draw without a device engine leaves the host stream",
+                     "[rng]",
+                     rng_types_no_device_engine) {
+    SKIP_IF(this->get_policy().is_cpu());
+
+    constexpr std::int64_t count = 256;
+    auto failed = this->get_device_engine(default_seed);
+    auto fresh = this->get_device_engine(default_seed);
+    REQUIRE_THROWS_AS(this->draw_on_device(count, failed), unimplemented);
+    this->check_tail_matches(this->draw_on_host(count, fresh),
+                             this->draw_on_host(count, failed),
+                             0);
+}
+#endif
+
 TEMPLATE_LIST_TEST_M(rng_test, "skip ahead offsets host and device streams", "[rng]", rng_types) {
     SKIP_IF(this->get_policy().is_cpu());
     SKIP_IF(this->not_float64_friendly());

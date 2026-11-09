@@ -94,8 +94,9 @@ sycl::event uniform(sycl::queue& queue,
         throw domain_error(dal::detail::error_messages::unsupported_data_type());
     }
     mkl::rng::uniform<Type> distr(a, b);
-    engine_.skip_ahead_cpu(count);
+    // Advance the host mirror only after `generate_rng`, so a throw leaves the stream untouched.
     auto event = generate_rng(distr, engine_, count, dst, deps);
+    engine_.skip_ahead_cpu(count);
     return event;
 }
 

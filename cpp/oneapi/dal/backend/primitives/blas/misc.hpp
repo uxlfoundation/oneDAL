@@ -22,9 +22,9 @@
 
 namespace oneapi::dal::backend::primitives {
 
+#ifdef ONEDAL_DATA_PARALLEL
 namespace mkl = oneapi::dal::backend::math;
 
-#ifdef ONEDAL_DATA_PARALLEL
 /// Convert oneDAL `ndorder` to oneMKL `layout`
 inline constexpr mkl::layout order_as_layout(ndorder order) {
     return (order == ndorder::c) ? mkl::layout::R /* row-major */
