@@ -519,7 +519,8 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     const auto metric = GENERATE(distance_metric::euclidean, distance_metric::manhattan);
     CAPTURE(column_count, metric);
 
-    // 600 rows run every Prim step serially; 2400 rows run the early steps in parallel.
+    // Prim scans a step serially below 32768 row values: at 600 rows only 64 columns starts in
+    // parallel, at 2400 rows 32 columns does too.
     const std::int64_t per_cluster = GENERATE(150, 600);
     CAPTURE(per_cluster);
     constexpr std::int64_t cluster_count = 4;
