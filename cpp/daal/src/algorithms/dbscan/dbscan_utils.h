@@ -584,15 +584,14 @@ private:
                 for (size_t i = 0; i < iSize; i++)
                 {
                     const size_t indexes = getIndex(idx, local + i * jSize, jSize, epsP);
-                    FPType weight        = 0;
+                    // Per neighbor, in row order: a regrouped float sum can flip core status at the threshold.
                     for (size_t j = 0; j < indexes; j++)
                     {
-                        weight += weights[idx[j]];
+                        neighs[i + i1].addWeight(weights[idx[j]]);
                         pairs[0] = i;
                         pairs[1] = idx[j] + j1;
                         pairs += 2;
                     }
-                    neighs[i + i1].addWeight(weight);
                 }
                 hits->resize(pairs - hits->ptr());
             }

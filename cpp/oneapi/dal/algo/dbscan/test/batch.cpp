@@ -211,6 +211,49 @@ TEMPLATE_LIST_TEST_M(dbscan_batch_test,
 }
 
 TEMPLATE_LIST_TEST_M(dbscan_batch_test,
+                     "dbscan sums float neighbor weights in row order",
+                     "[dbscan][batch]",
+                     dbscan_types) {
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->get_policy().is_gpu());
+    using float_t = std::tuple_element_t<0, TestType>;
+    using method_t = std::tuple_element_t<1, TestType>;
+
+    // 30 coincident rows of weight 0.1, split 6 + 24 across two 128-row blocks:
+    // in float the row-order sum stays below min_observations, a per-block sum reaches it.
+    constexpr std::int64_t row_count = 256;
+    constexpr std::int64_t min_observations = 3;
+    std::vector<float_t> x(row_count);
+    const std::vector<float_t> w(row_count, float_t(0.1));
+    std::vector<bool> coincident(row_count);
+    float_t coincident_weight = 0;
+    for (std::int64_t i = 0; i < row_count; i++) {
+        coincident[i] = i < 6 || (i >= 128 && i < 152);
+        x[i] = coincident[i] ? float_t(0) : float_t(10 * (i + 1));
+        if (coincident[i]) {
+            coincident_weight += w[i];
+        }
+    }
+    const bool coincident_core = !(coincident_weight < float_t(min_observations));
+
+    const bool mem_save_mode = GENERATE(false, true);
+    const auto desc =
+        dbscan::descriptor<float_t, method_t>(1.0, min_observations)
+            .set_mem_save_mode(mem_save_mode)
+            .set_result_options(result_options::responses | result_options::core_flags |
+                                result_options::core_observation_indices);
+    const auto result = te::compute(this->get_policy(),
+                                    desc,
+                                    homogen_table::wrap(x.data(), row_count, 1),
+                                    homogen_table::wrap(w.data(), row_count, 1));
+    const auto core_flags = row_accessor<const std::int32_t>(result.get_core_flags()).pull();
+    for (std::int64_t i = 0; i < row_count; i++) {
+        CAPTURE(i, mem_save_mode);
+        REQUIRE(core_flags[i] == std::int32_t(coincident[i] && coincident_core));
+    }
+}
+
+TEMPLATE_LIST_TEST_M(dbscan_batch_test,
                      "dbscan with neighborhoods of more than 1024 rows matches the definition",
                      "[dbscan][batch]",
                      dbscan_types) {
