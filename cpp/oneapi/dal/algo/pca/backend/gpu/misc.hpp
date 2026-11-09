@@ -86,16 +86,20 @@ auto compute_eigenpairs(sycl::queue& queue,
     // Same bound as the one-thread rule of the CPU partial eigensolver.
     if (4 * component_count >= column_count) {
         auto [eigenvalues, event] = syevd_computation(queue, corr, deps);
-        return std::make_tuple(eigenvalues, corr, Float(0), event);
+        return std::make_tuple(eigenvalues, corr, 0.0, event);
     }
     // SYEVX overwrites `corr`, so its trace (the sum of all eigenvalues) is taken first
     auto diagonal = pr::ndarray<Float, 1>::empty(queue, { column_count }, alloc::device);
     auto diagonal_event = pr::variances(queue, corr, diagonal, deps);
-    const Float trace =
-        pr::reduce_1d(queue, diagonal, pr::sum<Float>{}, pr::identity<Float>{}, { diagonal_event });
+    // Summed in double: the noise variance subtracts the top eigenvalues from it.
+    const auto diagonal_host = diagonal.to_host(queue, { diagonal_event });
+    double trace = 0.0;
+    for (std::int64_t i = 0; i < column_count; ++i) {
+        trace += diagonal_host.get_data()[i];
+    }
     auto all_eigenvalues = pr::ndarray<Float, 1>::empty(queue, { column_count }, alloc::device);
     auto eigenvectors =
-        pr::ndarray<Float, 2>::empty(queue, { component_count, column_count }, alloc::device);
+        pr::ndarray<Float, 2>::empty(queue, { column_count, column_count }, alloc::device);
     auto syevx_event = pr::syevx<mkl::uplo::upper>(queue,
                                                    corr,
                                                    column_count - component_count + 1,
@@ -110,7 +114,7 @@ auto compute_eigenpairs(sycl::queue& queue,
                                component_count,
                                { syevx_event });
     copy_event.wait_and_throw();
-    return std::make_tuple(eigenvalues, eigenvectors, trace, copy_event);
+    return std::make_tuple(eigenvalues, eigenvectors.slice(0, component_count), trace, copy_event);
 }
 
 ///  Prepares eigenvectors from the gesvd result in the required order.
@@ -322,7 +326,7 @@ double compute_noise_variance(sycl::queue& queue,
                               pr::ndarray<Float, 1> eigenvalues,
                               std::int64_t column_count,
                               std::int64_t component_count,
-                              Float trace,
+                              double trace,
                               const dal::backend::event_vector& deps = {}) {
     ONEDAL_PROFILER_TASK(compute_noise_variance);
     ONEDAL_ASSERT(eigenvalues.has_data());
@@ -334,7 +338,7 @@ double compute_noise_variance(sycl::queue& queue,
     // Eigenvalues are in ascending order from SYEVD.
     // The first (column_count - component_count) are the "noise" eigenvalues.
     const std::int64_t noise_count = column_count - component_count;
-    Float sum = 0;
+    double sum = 0.0;
     if (eigenvalues.get_dimension(0) == column_count) {
         for (std::int64_t i = 0; i < noise_count; ++i) {
             sum += eigvals_ptr[i];
@@ -347,7 +351,7 @@ double compute_noise_variance(sycl::queue& queue,
         }
     }
 
-    return static_cast<double>(sum) / static_cast<double>(noise_count);
+    return sum / static_cast<double>(noise_count);
 }
 
 ///  A wrapper that computes 1d array of explained variances ratio from the eigenvalues

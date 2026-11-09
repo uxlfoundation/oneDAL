@@ -15,6 +15,7 @@
 *******************************************************************************/
 
 #include <cmath>
+#include <limits>
 #include <vector>
 
 #include "oneapi/dal/algo/pca/train.hpp"
@@ -117,6 +118,22 @@ public:
     /// @return `row_count x column_count` table: orthogonal zero-mean cosine columns
     ///         rotated by a Householder reflection
     table get_separated_spectrum_data(std::int64_t row_count, std::int64_t column_count) const {
+        std::vector<double> variances(column_count);
+        for (std::int64_t j = 0; j < column_count; ++j) {
+            variances[j] = double(column_count - j);
+        }
+        return get_spectrum_data(row_count, variances);
+    }
+
+    /// Generates data whose covariance eigenvalues are `variances * row_count / (2 * (row_count - 1))`.
+    ///
+    /// @param[in] row_count The number of rows, at least `2 * variances.size() + 2`
+    /// @param[in] variances The column scales squared, one per column
+    ///
+    /// @return `row_count x variances.size()` table: orthogonal zero-mean cosine columns
+    ///         rotated by a Householder reflection
+    table get_spectrum_data(std::int64_t row_count, const std::vector<double>& variances) const {
+        const std::int64_t column_count = std::int64_t(variances.size());
         REQUIRE(row_count >= 2 * column_count + 2);
         constexpr double pi = 3.14159265358979323846;
         auto data = array<Float>::empty(row_count * column_count);
@@ -133,7 +150,7 @@ public:
         for (std::int64_t i = 0; i < row_count; ++i) {
             double b_dot_v = 0.0;
             for (std::int64_t j = 0; j < column_count; ++j) {
-                const double scale = std::sqrt(double(column_count - j));
+                const double scale = std::sqrt(variances[j]);
                 b[j] = scale * std::cos(2.0 * pi * double((j + 1) * i) / double(row_count));
                 b_dot_v += b[j] * v[j];
             }

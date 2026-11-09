@@ -34,7 +34,8 @@ namespace mkl = oneapi::mkl;
 /// @param[in]     il           The index of the smallest eigenvalue to compute, from 1
 /// @param[in]     iu           The index of the largest eigenvalue to compute, at most `n`
 /// @param[out]    eigenvalues  The `n` entries; the first `iu - il + 1` hold the eigenvalues
-/// @param[out]    eigenvectors The `iu - il + 1` x `n` eigenvectors, one per row
+/// @param[out]    eigenvectors The `n` x `n` array; the first `iu - il + 1` rows hold the
+///                              eigenvectors. The GPU solver writes all `n` rows.
 /// @param[in]     deps         Events indicating availability of `a` for reading and writing
 template <mkl::uplo uplo, typename Float>
 sycl::event syevx(sycl::queue& queue,

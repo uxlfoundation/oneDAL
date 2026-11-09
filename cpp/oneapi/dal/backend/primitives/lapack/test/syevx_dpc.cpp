@@ -40,7 +40,7 @@ public:
         auto& q = this->get_queue();
         auto a = ndarray<Float, 2>::wrap_mutable(s.copy().get_array(), { dim, dim }).to_device(q);
         auto w = ndarray<Float, 1>::empty(q, { dim }, sycl::usm::alloc::device);
-        auto z = ndarray<Float, 2>::empty(q, { count, dim }, sycl::usm::alloc::device);
+        auto z = ndarray<Float, 2>::empty(q, { dim, dim }, sycl::usm::alloc::device);
         const auto event = syevx<mkl::uplo::upper>(q, a, dim - count + 1, dim, w, z, {});
         // syevx owns its scratchpad, so the event it returns must already be complete
         const auto status = event.template get_info<sycl::info::event::command_execution_status>();
@@ -50,7 +50,8 @@ public:
         for (std::int64_t i = 0; i < count; ++i) {
             eigenvalues.set(0, i) = w_host.get_data()[i];
         }
-        return std::make_tuple(la::matrix<Float>::wrap_nd(z.to_host(q)), eigenvalues);
+        return std::make_tuple(la::matrix<Float>::wrap_nd(z.slice(0, count).to_host(q)),
+                               eigenvalues);
     }
 
     /// Returns all eigenvalues of `s` in ascending order.

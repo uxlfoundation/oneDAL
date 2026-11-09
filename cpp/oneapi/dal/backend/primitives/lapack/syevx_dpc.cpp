@@ -36,7 +36,7 @@ sycl::event syevx(sycl::queue& queue,
     ONEDAL_ASSERT(a.get_dimension(0) == n);
     ONEDAL_ASSERT(1 <= il && il <= iu && iu <= n);
     ONEDAL_ASSERT(eigenvalues.get_count() >= n);
-    ONEDAL_ASSERT(eigenvectors.get_dimension(0) == iu - il + 1);
+    ONEDAL_ASSERT(eigenvectors.get_dimension(0) == n);
     ONEDAL_ASSERT(eigenvectors.get_dimension(1) == n);
 
     constexpr auto jobz = mkl::compz::vectors;
