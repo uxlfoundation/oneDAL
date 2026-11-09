@@ -409,9 +409,7 @@ struct MinkowskiDist
                    FPType * outDists) const
     {
         if (count <= 0) return;
-        // nCols >= 1: the oneAPI entry rejects a table without columns before any kernel runs.
-        DAAL_ASSERT(nCols > 0);
-        const size_t rowsPerBuf = powBufSize / nCols;
+        const size_t rowsPerBuf = (nCols > 0) ? powBufSize / nCols : 0;
         if (twoP > 0 || rowsPerBuf < 2)
         {
             for (DAAL_INT i = 0; i < count; i++)
@@ -451,6 +449,15 @@ struct MinkowskiDist
 
         if (twoP == 4)
         {
+            daal::internal::MathInst<FPType, cpu>::vSqrt(count, outDists, outDists);
+        }
+        else if (twoP == 6)
+        {
+            daal::internal::MathInst<FPType, cpu>::vCbrt(count, outDists, outDists);
+        }
+        else if (twoP == 8)
+        {
+            daal::internal::MathInst<FPType, cpu>::vSqrt(count, outDists, outDists);
             daal::internal::MathInst<FPType, cpu>::vSqrt(count, outDists, outDists);
         }
         else if (twoP != 2)
@@ -503,6 +510,8 @@ private:
     {
         if (twoP == 2) return sum;
         if (twoP == 4) return daal::internal::MathInst<FPType, cpu>::sSqrt(sum);
+        if (twoP == 6) return daal::internal::MathInst<FPType, cpu>::sCbrt(sum);
+        if (twoP == 8) return daal::internal::MathInst<FPType, cpu>::sSqrt(daal::internal::MathInst<FPType, cpu>::sSqrt(sum));
         return daal::internal::MathInst<FPType, cpu>::sPowx(sum, static_cast<FPType>(invp));
     }
 };

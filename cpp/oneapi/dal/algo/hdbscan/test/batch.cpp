@@ -682,9 +682,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     SKIP_IF(this->not_float64_friendly());
     using Float = std::tuple_element_t<0, TestType>;
 
-    // 1.5 and 3 are raised by multiplication and 2.7 through vPowx; 300 columns do not fit one
-    // vPowx buffer.
-    const double degree = GENERATE(1.5, 2.7, 3.0);
+    // 1.5, 3 and 4 are raised by multiplication and 2.7 through vPowx; 300 columns do not fit
+    // one vPowx buffer.
+    const double degree = GENERATE(1.5, 2.7, 3.0, 4.0);
     const std::int64_t column_count = GENERATE(3, 300);
     CAPTURE(degree, column_count);
 

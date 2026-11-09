@@ -60,6 +60,8 @@ struct MklMath<double, cpu>
 
     static double sSqrt(double in) { return sqrt(in); }
 
+    static double sCbrt(double in) { return cbrt(in); }
+
     static double sPowx(double in, double in1)
     {
         double r;
@@ -143,6 +145,11 @@ struct MklMath<double, cpu>
         __DAAL_MKLFN_CALL_MATH(vmdSqrt, ((int)n, in, out, (VML_HA | VML_FTZDAZ_ON | VML_ERRMODE_IGNORE)));
     }
 
+    static void vCbrt(SizeType n, const double * in, double * out)
+    {
+        __DAAL_MKLFN_CALL_MATH(vmdCbrt, ((int)n, in, out, (VML_HA | VML_FTZDAZ_ON | VML_ERRMODE_IGNORE)));
+    }
+
     static void vInvSqrt(SizeType n, const double * a, double * b)
     {
         __DAAL_MKLFN_CALL_MATH(vmdInvSqrt, (n, a, b, (VML_HA | VML_FTZDAZ_ON | VML_ERRMODE_IGNORE)));
@@ -185,6 +192,8 @@ struct MklMath<float, cpu>
     static float sMax(float in1, float in2) { return (in1 < in2) ? in2 : in1; }
 
     static float sSqrt(float in) { return sqrt(in); }
+
+    static float sCbrt(float in) { return cbrt(in); }
 
     static float sPowx(float in, float in1)
     {
@@ -267,6 +276,11 @@ struct MklMath<float, cpu>
     static void vSqrt(SizeType n, const float * in, float * out)
     {
         __DAAL_MKLFN_CALL_MATH(vmsSqrt, ((int)n, in, out, (VML_HA | VML_FTZDAZ_ON | VML_ERRMODE_IGNORE)));
+    }
+
+    static void vCbrt(SizeType n, const float * in, float * out)
+    {
+        __DAAL_MKLFN_CALL_MATH(vmsCbrt, ((int)n, in, out, (VML_HA | VML_FTZDAZ_ON | VML_ERRMODE_IGNORE)));
     }
 
     static void vInvSqrt(SizeType n, const float * a, float * b)
