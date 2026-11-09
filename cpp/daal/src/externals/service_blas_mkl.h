@@ -25,8 +25,11 @@
 #define __SERVICE_BLAS_MKL_H__
 
 #include "services/daal_defines.h"
+#include "src/externals/service_blas_declar_mkl.h"
 #include "src/services/cpu_type.h"
-#include <mkl.h>
+#include <mkl_blas.h>
+#include <mkl_service.h>
+#include <mkl_cblas.h>
 
 #define __DAAL_MKLFN_CALL_BLAS(f_name, f_args) f_name f_args;
 
@@ -52,6 +55,12 @@ template <CpuType cpu>
 struct MklBlas<double, cpu>
 {
     typedef DAAL_INT SizeType;
+
+    static void xomatcopy(const char * ordering, const char * trans, const DAAL_INT * rows, const DAAL_INT * cols, const double * alpha,
+                          const double * a, const DAAL_INT * lda, double * b, const DAAL_INT * ldb)
+    {
+        __DAAL_MKLFN_CALL_BLAS(mkl_domatcopy_, (ordering, trans, (MKL_INT *)rows, (MKL_INT *)cols, alpha, a, (MKL_INT *)lda, b, (MKL_INT *)ldb));
+    }
 
     static void xsyrk(const char * uplo, const char * trans, const DAAL_INT * p, const DAAL_INT * n, const double * alpha, const double * a,
                       const DAAL_INT * lda, const double * beta, double * ata, const DAAL_INT * ldata)
@@ -148,6 +157,18 @@ struct MklBlas<double, cpu>
         return res;
     }
 
+    static void xcopy(const DAAL_INT * n, const double * x, const DAAL_INT * incx, double * y, const DAAL_INT * incy)
+    {
+        __DAAL_MKLFN_CALL_BLAS(dcopy, ((MKL_INT *)n, x, (MKL_INT *)incx, y, (MKL_INT *)incy));
+    }
+
+    static void xxcopy(const DAAL_INT * n, const double * x, const DAAL_INT * incx, double * y, const DAAL_INT * incy)
+    {
+        int old_nthr = mkl_set_num_threads_local(1);
+        __DAAL_MKLFN_CALL_BLAS(dcopy, ((MKL_INT *)n, x, (MKL_INT *)incx, y, (MKL_INT *)incy));
+        mkl_set_num_threads_local(old_nthr);
+    }
+
     static void xscal(const DAAL_INT * n, const double * a, double * x, const DAAL_INT * incx)
     {
         __DAAL_MKLFN_CALL_BLAS(dscal, ((const MKL_INT *)n, a, x, (const MKL_INT *)incx));
@@ -169,6 +190,12 @@ template <CpuType cpu>
 struct MklBlas<float, cpu>
 {
     typedef DAAL_INT SizeType;
+
+    static void xomatcopy(const char * ordering, const char * trans, const DAAL_INT * rows, const DAAL_INT * cols, const float * alpha,
+                          const float * a, const DAAL_INT * lda, float * b, const DAAL_INT * ldb)
+    {
+        __DAAL_MKLFN_CALL_BLAS(mkl_somatcopy_, (ordering, trans, (MKL_INT *)rows, (MKL_INT *)cols, alpha, a, (MKL_INT *)lda, b, (MKL_INT *)ldb));
+    }
 
     static void xsyrk(const char * uplo, const char * trans, const DAAL_INT * p, const DAAL_INT * n, const float * alpha, const float * a,
                       const DAAL_INT * lda, const float * beta, float * ata, const DAAL_INT * ldata)
@@ -263,6 +290,18 @@ struct MklBlas<float, cpu>
         __DAAL_MKLFN_CALL_RETURN_BLAS(sdot, ((MKL_INT *)n, x, (MKL_INT *)incx, y, (MKL_INT *)incy), res);
         mkl_set_num_threads_local(old_nthr);
         return res;
+    }
+
+    static void xcopy(const DAAL_INT * n, const float * x, const DAAL_INT * incx, float * y, const DAAL_INT * incy)
+    {
+        __DAAL_MKLFN_CALL_BLAS(scopy, ((MKL_INT *)n, x, (MKL_INT *)incx, y, (MKL_INT *)incy));
+    }
+
+    static void xxcopy(const DAAL_INT * n, const float * x, const DAAL_INT * incx, float * y, const DAAL_INT * incy)
+    {
+        int old_nthr = mkl_set_num_threads_local(1);
+        __DAAL_MKLFN_CALL_BLAS(scopy, ((MKL_INT *)n, x, (MKL_INT *)incx, y, (MKL_INT *)incy));
+        mkl_set_num_threads_local(old_nthr);
     }
 
     static void xscal(const DAAL_INT * n, const float * a, float * x, const DAAL_INT * incx)

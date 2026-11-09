@@ -21,8 +21,8 @@ cc_library(
 cc_library(
     name = "core_static",
     srcs = select({
-        "@config//:msvc_runtime_debug": ["lib/intel64/onedal_cored.lib"],
-        "//conditions:default": ["lib/intel64/onedal_core.lib"],
+        "@config//:msvc_runtime_debug": ["lib/%{arch_dir}/onedal_cored.lib"],
+        "//conditions:default": ["lib/%{arch_dir}/onedal_core.lib"],
     }),
     deps = [
         ":headers",
@@ -34,8 +34,8 @@ cc_library(
 cc_library(
     name = "thread_static",
     srcs = select({
-        "@config//:msvc_runtime_debug": ["lib/intel64/onedal_threadd.lib"],
-        "//conditions:default": ["lib/intel64/onedal_thread.lib"],
+        "@config//:msvc_runtime_debug": ["lib/%{arch_dir}/onedal_threadd.lib"],
+        "//conditions:default": ["lib/%{arch_dir}/onedal_thread.lib"],
     }),
     deps = [
         ":headers",
@@ -47,8 +47,8 @@ cc_library(
 cc_library(
     name = "onedal_static",
     srcs = select({
-        "@config//:msvc_runtime_debug": ["lib/intel64/onedald.lib"],
-        "//conditions:default": ["lib/intel64/onedal.lib"],
+        "@config//:msvc_runtime_debug": ["lib/%{arch_dir}/onedald.lib"],
+        "//conditions:default": ["lib/%{arch_dir}/onedal.lib"],
     }),
     deps = [
         ":headers",
@@ -61,15 +61,15 @@ cc_library(
 cc_library(
     name = "core_dynamic",
     srcs = select({
-        "@config//:msvc_runtime_debug": ["lib/intel64/onedal_cored_dll.lib"],
-        "//conditions:default": ["lib/intel64/onedal_core_dll.lib"],
+        "@config//:msvc_runtime_debug": ["lib/%{arch_dir}/onedal_cored_dll.lib"],
+        "//conditions:default": ["lib/%{arch_dir}/onedal_core_dll.lib"],
     }),
     data = select({
         "@config//:msvc_runtime_debug": [
-            "redist/intel64/onedal_cored.%{version_binary_major}.dll",
+            "redist/%{arch_dir}/onedal_cored.%{version_binary_major}.dll",
         ],
         "//conditions:default": [
-            "redist/intel64/onedal_core.%{version_binary_major}.dll",
+            "redist/%{arch_dir}/onedal_core.%{version_binary_major}.dll",
         ],
     }),
     deps = [
@@ -82,10 +82,10 @@ filegroup(
     name = "core_dynamic_runtime",
     srcs = select({
         "@config//:msvc_runtime_debug": [
-            "redist/intel64/onedal_cored.%{version_binary_major}.dll",
+            "redist/%{arch_dir}/onedal_cored.%{version_binary_major}.dll",
         ],
         "//conditions:default": [
-            "redist/intel64/onedal_core.%{version_binary_major}.dll",
+            "redist/%{arch_dir}/onedal_core.%{version_binary_major}.dll",
         ],
     }),
 )
@@ -95,10 +95,10 @@ cc_library(
     srcs = [],
     data = select({
         "@config//:msvc_runtime_debug": [
-            "redist/intel64/onedal_threadd.%{version_binary_major}.dll",
+            "redist/%{arch_dir}/onedal_threadd.%{version_binary_major}.dll",
         ],
         "//conditions:default": [
-            "redist/intel64/onedal_thread.%{version_binary_major}.dll",
+            "redist/%{arch_dir}/onedal_thread.%{version_binary_major}.dll",
         ],
     }),
     deps = [
@@ -112,10 +112,10 @@ filegroup(
     name = "thread_dynamic_runtime",
     srcs = select({
         "@config//:msvc_runtime_debug": [
-            "redist/intel64/onedal_threadd.%{version_binary_major}.dll",
+            "redist/%{arch_dir}/onedal_threadd.%{version_binary_major}.dll",
         ],
         "//conditions:default": [
-            "redist/intel64/onedal_thread.%{version_binary_major}.dll",
+            "redist/%{arch_dir}/onedal_thread.%{version_binary_major}.dll",
         ],
     }),
 )
@@ -123,15 +123,15 @@ filegroup(
 cc_library(
     name = "onedal_dynamic",
     srcs = select({
-        "@config//:msvc_runtime_debug": ["lib/intel64/onedald_dll.lib"],
-        "//conditions:default": ["lib/intel64/onedal_dll.lib"],
+        "@config//:msvc_runtime_debug": ["lib/%{arch_dir}/onedald_dll.lib"],
+        "//conditions:default": ["lib/%{arch_dir}/onedal_dll.lib"],
     }),
     data = select({
         "@config//:msvc_runtime_debug": [
-            "redist/intel64/onedald.%{version_binary_major}.dll",
+            "redist/%{arch_dir}/onedald.%{version_binary_major}.dll",
         ],
         "//conditions:default": [
-            "redist/intel64/onedal.%{version_binary_major}.dll",
+            "redist/%{arch_dir}/onedal.%{version_binary_major}.dll",
         ],
     }),
     deps = [
@@ -143,8 +143,8 @@ cc_library(
 filegroup(
     name = "onedal_dynamic_runtime",
     srcs = glob([
-        "lib/intel64/onedal*.dll",
-        "redist/intel64/onedal*.dll",
+        "lib/%{arch_dir}/onedal*.dll",
+        "redist/%{arch_dir}/onedal*.dll",
     ], allow_empty = True),
 )
 

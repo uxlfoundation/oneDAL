@@ -215,7 +215,7 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
             for (size_t iMain = 0; iMain < itersSimdLoop; iMain++)
             {
                 const size_t iStart = iMain * simdBatchSize;
-#if defined(__GNUC__) && !defined(__clang__)
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ >= 13
                 // Note: GCC is unable to determine that the pointer offset plus the
                 // vectorized section will be within the limits of pointer ranges
                 // from the start of the array, and without this hint, ends up issuing
@@ -313,7 +313,7 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
             for (size_t iMain = 0; iMain < itersSimdLoop; iMain++)
             {
                 const size_t iStart = iMain * simdBatchSize;
-#if defined(__GNUC__) && !defined(__clang__)
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ >= 13
                 __attribute__((__assume__(iStart < std::numeric_limits<std::ptrdiff_t>::max())));
 #endif
                 const auto aIdxStart = aIdx + iStart;

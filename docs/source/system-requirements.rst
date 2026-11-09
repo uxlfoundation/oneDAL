@@ -40,10 +40,16 @@ Hardware Requirements
 Software Requirements
 *********************
 
-- GCC* 7.x or higher or Intel® C++ Compiler 19.1 and later
+- One of the following C/C++ compilers:
+
+  - GCC* 9.x or higher (Linux*)
+  - Clang* (Linux*), or clang-cl (Windows* on Arm*)
+  - Microsoft Visual C++* (Windows* on x86-64)
+  - Intel® oneAPI DPC++/C++ Compiler (Linux* and Windows* on x86-64)
+
 - Intel® oneAPI DPC++ Compiler latest release (for oneAPI DPC++ interfaces)
 - Intel® oneAPI Threading Building Blocks latest release (for the multi-threaded version of oneDAL)
-- C/C++ Compiler with C++11 support (or C++14 support on Windows*)
+- C/C++ Compiler with C++11 support (or C++14 support on Windows*) for the DAAL interface, and C++17 support for the oneAPI interface
 - Microsoft Visual Studio* (2019 and 2022 versions) needed only if using Visual Studio IDE for development
 
 .. rubric:: Operating Systems

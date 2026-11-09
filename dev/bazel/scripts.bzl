@@ -16,7 +16,7 @@
 
 """Rules for generating release scripts and configuration files."""
 
-load("@onedal//dev/bazel/config:config.bzl", "ConfigFlagInfo", "VersionInfo")
+load("@onedal//dev/bazel/config:config.bzl", "ConfigFlagInfo", "RELEASE_ARCH_ATTRS", "VersionInfo", "release_arch_dir")
 
 # ---------------------------------------------------------------------------
 # Versioned template files
@@ -92,7 +92,7 @@ def _generate_cmake_config_impl(ctx):
             "@VERSIONS_SET@": "FALSE",
             "@DAL_VER_MAJOR_BIN@": "",
             "@DAL_VER_MINOR_BIN@": "",
-            "@ARCH_DIR_ONEDAL@": "intel64",
+            "@ARCH_DIR_ONEDAL@": release_arch_dir(ctx),
             "@DLL_REL_PATH@": "redist",
             "@INC_REL_PATH@": "include",
             "@oneDAL_VERSION@": "",
@@ -114,7 +114,10 @@ _generate_cmake_config = rule(
             default = "@config//:version",
             providers = [VersionInfo],
         ),
-    },
+        "_windows_constraint": attr.label(
+            default = "@platforms//os:windows",
+        ),
+    } | RELEASE_ARCH_ATTRS,
 )
 
 def generate_cmake_config(name, template, out, **kwargs):
@@ -154,8 +157,10 @@ def _generate_pkgconfig_impl(ctx):
     """Generate pkg-config files matching deploy/pkg-config/pkg-config.cpp."""
     vi = ctx.attr._version_info[VersionInfo]
     out = ctx.actions.declare_file(ctx.attr.out)
+    is_windows = ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo])
+    arch_dir = release_arch_dir(ctx)
 
-    if ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo]):
+    if is_windows:
         # A debug MSVC runtime renames every oneDAL library (`onedal_cored.lib`)
         # and switches both the CRT flag and the TBB variant, so the .pc file has
         # to follow. See `_msvc_runtime_suffix` in dev/bazel/cc.bzl.
@@ -182,7 +187,7 @@ def _generate_pkgconfig_impl(ctx):
             output = out,
             content = _PKGCONFIG_LICENSE_HEADER + """prefix=${{pcfiledir}}/../../
 exec_prefix=${{prefix}}
-libdir=${{exec_prefix}}/lib/intel64
+libdir=${{exec_prefix}}/lib/{arch_dir}
 includedir=${{prefix}}/include
 
 Name: oneDAL
@@ -192,6 +197,7 @@ URL: https://www.intel.com/content/www/us/en/developer/tools/oneapi/onedal.html
 Libs: {onedal_libs} mkl_core.lib mkl_intel_lp64.lib mkl_tbb_thread{mkl_d}.lib tbb12{tbb_d}.lib tbbmalloc{tbb_d}.lib
 Cflags: /std:c++17 {crt} /wd4996 /EHsc -I${{includedir}}
 """.format(
+                arch_dir = arch_dir,
                 major = vi.major,
                 minor = vi.minor,
                 onedal_libs = onedal_libs,
@@ -236,7 +242,7 @@ Cflags: /std:c++17 {crt} /wd4996 /EHsc -I${{includedir}}
             output = out,
             content = _PKGCONFIG_LICENSE_HEADER + """prefix=${{pcfiledir}}/../../
 exec_prefix=${{prefix}}
-libdir=${{exec_prefix}}/lib/intel64
+libdir=${{exec_prefix}}/lib/{arch_dir}
 includedir=${{prefix}}/include
 
 Name: oneDAL
@@ -246,6 +252,7 @@ URL: https://www.intel.com/content/www/us/en/developer/tools/oneapi/onedal.html
 Libs: {onedal_libs}
 Cflags: -std=c++17 -Wno-deprecated-declarations -I${{includedir}}
 """.format(
+                arch_dir = arch_dir,
                 major = vi.major,
                 minor = vi.minor,
                 onedal_libs = onedal_libs,
@@ -281,7 +288,7 @@ _generate_pkgconfig = rule(
             default = "@config//:msvc_runtime",
             providers = [ConfigFlagInfo],
         ),
-    },
+    } | RELEASE_ARCH_ATTRS,
 )
 
 def generate_pkgconfig(name, out = "lib/pkgconfig/onedal.pc", static = False, **kwargs):
