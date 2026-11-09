@@ -63,8 +63,20 @@ extern "C"
     extern float sdot_(const DAAL_INT *, const float *, const DAAL_INT *, const float *, const DAAL_INT *);
     extern double ddot_(const DAAL_INT *, const double *, const DAAL_INT *, const double *, const DAAL_INT *);
 
+    extern void scopy_(const DAAL_INT *, const float *, const DAAL_INT *, float *, const DAAL_INT *);
+    extern void dcopy_(const DAAL_INT *, const double *, const DAAL_INT *, double *, const DAAL_INT *);
+
     extern void sscal_(const DAAL_INT *, const float *, float *, const DAAL_INT *);
     extern void dscal_(const DAAL_INT *, const double *, double *, const DAAL_INT *);
+
+    extern void somatcopy_(const char *, const char *, const DAAL_INT *, const DAAL_INT *, const float *, const float *, const DAAL_INT *, float *,
+                           const DAAL_INT *);
+    extern void domatcopy_(const char *, const char *, const DAAL_INT *, const DAAL_INT *, const double *, const double *, const DAAL_INT *, double *,
+                           const DAAL_INT *);
+
+    extern void sgeadd_(const DAAL_INT *, const DAAL_INT *, const float *, const float *, const DAAL_INT *, const float *, float *, const DAAL_INT *);
+    extern void dgeadd_(const DAAL_INT *, const DAAL_INT *, const double *, const double *, const DAAL_INT *, const double *, double *,
+                        const DAAL_INT *);
 
     extern float sasum_(const DAAL_INT *, const float *, const DAAL_INT *);
     extern double dasum_(const DAAL_INT *, const double *, const DAAL_INT *);

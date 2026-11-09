@@ -214,7 +214,8 @@ jobs:
   # the apt oneAPI packages, so it guards the dependency layout that the
   # conda-forge feedstock and the sklearnex conda builds see.
   LinuxMakeGNU_MKL_Conda:
-    if: github.repository == 'uxlfoundation/oneDAL' && !github.event.pull_request.draft
+    # TEMP(runner shortage): not on pull requests.
+    if: github.repository == 'uxlfoundation/oneDAL' && github.event_name != 'pull_request'
     runs-on: ubuntu-26.04
     timeout-minutes: 300
     env:
@@ -333,7 +334,8 @@ jobs:
   # runs the tests and the example of one algorithm; the clang legs remove the gcc
   # drivers, so the toolchain has to find clang by itself.
   LinuxBazelNoOneAPI:
-    if: github.repository == 'uxlfoundation/oneDAL'
+    # TEMP(runner shortage): not on pull requests; LinuxBazelNoCompiler still runs there.
+    if: github.repository == 'uxlfoundation/oneDAL' && github.event_name != 'pull_request'
     strategy:
       fail-fast: false
       matrix:
