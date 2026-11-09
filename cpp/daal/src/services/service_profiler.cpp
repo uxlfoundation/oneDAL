@@ -25,9 +25,10 @@
 //  profiler_region_hooks. The report merges the threads' trees by call path.
 //
 //  Allocations made through oneDAL's allocators are charged to the task open on the allocating
-//  thread. Live memory is counted process-wide, so the peak of a sequential task also includes
-//  what other threads of the process allocate at the same time. Copies between host and device are
-//  charged the same way, without a process-wide counter.
+//  thread. Live memory is counted process-wide in one peak window, so while other threads run tasks
+//  the peak of a sequential task is approximate: it includes what they allocate, and their tasks
+//  starting or ending restart the window. Copies between host and device are charged to the task
+//  the same way, without a process-wide counter.
 //--
 */
 
@@ -62,23 +63,23 @@ inline std::uint64_t now_ns()
         std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());
 }
 
-/// A call path in one thread's tree. Only the owning thread writes to it; its parent may belong
-/// to another thread.
+/// A call path in one thread's tree; its parent may belong to another thread. The fields the owning
+/// thread alone writes are atomic too, because a report may read them while the task runs.
 struct node
 {
     const node * parent;
     const char * name;
     std::uint64_t seq; // creation order, which the report keeps
-    std::uint64_t count    = 0;
-    std::uint64_t total_ns = 0;
-    std::uint64_t max_ns   = 0;
-    bool threading         = false; // ran as the body of a parallel region
-    bool on_queue          = false; // timed on a SYCL queue
-    bool traced            = false; // the tracer has written this path once
-    // Written by any thread running a chunk under this task, hence atomic.
+    std::atomic<std::uint64_t> count    = { 0 };
+    std::atomic<std::uint64_t> total_ns = { 0 };
+    std::atomic<std::uint64_t> max_ns   = { 0 };
+    std::atomic<bool> threading         = { false }; // ran as the body of a parallel region
+    std::atomic<bool> on_queue          = { false }; // timed on a SYCL queue
+    bool traced                         = false;     // the tracer has written this path once
+    // Written by any thread running a chunk under this task.
     std::atomic<std::uint64_t> alloc_bytes[memory_kinds]      = {};
     std::atomic<std::uint64_t> alloc_count[memory_kinds]      = {};
-    std::uint64_t peak_bytes[memory_kinds]                    = {};
+    std::atomic<std::uint64_t> peak_bytes[memory_kinds]       = {};
     std::atomic<std::uint64_t> transfer_bytes[transfer_kinds] = {};
     std::atomic<std::uint64_t> transfer_count[transfer_kinds] = {};
 };
@@ -113,6 +114,7 @@ struct thread_state
 {
     std::vector<frame> stack;
     std::unordered_map<node_key, node *, node_key_hash> index;
+    std::mutex nodes_mutex; // guards `nodes` against a report that walks it while this thread adds a node
     std::vector<std::unique_ptr<node> > nodes;
     // Every copy made on this thread, in a task or not. Written by this thread only.
     std::atomic<std::uint64_t> transfer_bytes[transfer_kinds] = {};
@@ -153,6 +155,12 @@ block_shard & shard_for(global_state & global, const void * ptr)
     // alone would send every thread to one shard; the multiply spreads the whole address.
     const std::uint64_t h = (reinterpret_cast<std::uintptr_t>(ptr) >> 4) * 0x9E3779B97F4A7C15ull;
     return global.shards[h >> (64 - shard_bits)];
+}
+
+/// Adds to a counter that only the calling thread writes, without a read-modify-write.
+void owner_add(std::atomic<std::uint64_t> & target, std::uint64_t value)
+{
+    target.store(target.load(std::memory_order_relaxed) + value, std::memory_order_relaxed);
 }
 
 void atomic_max(std::atomic<std::int64_t> & target, std::int64_t value)
@@ -259,8 +267,11 @@ node * find_node(thread_state & ts, const node * parent, const char * name)
     const node_key key { parent, name };
     auto found = ts.index.find(key);
     if (found != ts.index.end()) return found->second;
-    ts.nodes.emplace_back(new node { parent, name, state().next_seq.fetch_add(1, std::memory_order_relaxed) });
-    node * created = ts.nodes.back().get();
+    node * created = new node { parent, name, state().next_seq.fetch_add(1, std::memory_order_relaxed) };
+    {
+        std::lock_guard<std::mutex> lock(ts.nodes_mutex);
+        ts.nodes.emplace_back(created);
+    }
     ts.index.emplace(key, created);
     return created;
 }
@@ -282,16 +293,17 @@ void close_task(thread_state & ts, const frame & f, std::uint64_t end)
     node * n                    = f.task;
     const std::uint64_t elapsed = end > f.start ? end - f.start : 0;
     const std::uint64_t spent   = elapsed > f.paused ? elapsed - f.paused : 0;
-    n->count += 1;
-    n->total_ns += spent;
-    n->max_ns = std::max(n->max_ns, spent);
+    owner_add(n->count, 1);
+    owner_add(n->total_ns, spent);
+    if (spent > n->max_ns.load(std::memory_order_relaxed)) n->max_ns.store(spent, std::memory_order_relaxed);
     if (!f.parallel)
     {
         global_state & global = state();
         for (int k = 0; k < memory_kinds; ++k)
         {
             const std::int64_t peak = global.region_peak[k].load(std::memory_order_relaxed) - f.live_at_start[k];
-            if (peak > 0) n->peak_bytes[k] = std::max(n->peak_bytes[k], static_cast<std::uint64_t>(peak));
+            if (peak > 0 && static_cast<std::uint64_t>(peak) > n->peak_bytes[k].load(std::memory_order_relaxed))
+                n->peak_bytes[k].store(static_cast<std::uint64_t>(peak), std::memory_order_relaxed);
             if (!ts.stack.empty())
             {
                 atomic_max(global.region_peak[k], f.outer_peak[k]);
@@ -326,8 +338,8 @@ int begin_task(thread_state & ts, const char * name, bool threading, bool on_que
     const node * parent = ts.stack.empty() ? nullptr : ts.stack.back().anchor;
     const bool in_chunk = !ts.stack.empty() && !ts.stack.back().task;
     node * n            = find_node(ts, parent, name);
-    if (threading || in_chunk) n->threading = true;
-    if (on_queue) n->on_queue = true;
+    if (threading || in_chunk) n->threading.store(true, std::memory_order_relaxed);
+    if (on_queue) n->on_queue.store(true, std::memory_order_relaxed);
     frame f { n, n, 0 };
     f.parallel = threading || (!ts.stack.empty() && ts.stack.back().parallel);
     if (!f.parallel)
@@ -513,22 +525,23 @@ std::unique_ptr<merged> build_tree()
     std::unordered_map<const node *, merged *, node_ptr_hash> memo;
     global_state & global = state();
     std::lock_guard<std::mutex> lock(global.threads_mutex);
-    for (const thread_state * ts : global.threads)
+    for (thread_state * ts : global.threads)
     {
+        std::lock_guard<std::mutex> nodes_lock(ts->nodes_mutex);
         for (const auto & n : ts->nodes)
         {
             merged * m = resolve(*root, memo, n.get());
-            m->count += n->count;
-            m->max_ns = std::max(m->max_ns, n->max_ns);
+            m->count += n->count.load(std::memory_order_relaxed);
+            m->max_ns = std::max(m->max_ns, n->max_ns.load(std::memory_order_relaxed));
             m->seq    = std::min(m->seq, n->seq);
-            m->parallel |= n->threading;
-            m->on_queue |= n->on_queue;
-            add_time(*m, ts, n->total_ns);
+            m->parallel |= n->threading.load(std::memory_order_relaxed);
+            m->on_queue |= n->on_queue.load(std::memory_order_relaxed);
+            add_time(*m, ts, n->total_ns.load(std::memory_order_relaxed));
             for (int k = 0; k < memory_kinds; ++k)
             {
                 m->alloc_bytes[k] += n->alloc_bytes[k].load(std::memory_order_relaxed);
                 m->alloc_count[k] += n->alloc_count[k].load(std::memory_order_relaxed);
-                m->peak_bytes[k] = std::max(m->peak_bytes[k], n->peak_bytes[k]);
+                m->peak_bytes[k] = std::max(m->peak_bytes[k], n->peak_bytes[k].load(std::memory_order_relaxed));
             }
             for (int k = 0; k < transfer_kinds; ++k)
             {
@@ -686,9 +699,8 @@ DAAL_EXPORT void profiler_record_transfer(std::size_t size, profiler_transfer_ki
     const int k       = static_cast<int>(kind);
     thread_state & ts = this_thread();
     node * owner      = charge_target(ts);
-    // Only this thread writes these, so no read-modify-write is needed.
-    ts.transfer_bytes[k].store(ts.transfer_bytes[k].load(std::memory_order_relaxed) + size, std::memory_order_relaxed);
-    ts.transfer_count[k].store(ts.transfer_count[k].load(std::memory_order_relaxed) + 1, std::memory_order_relaxed);
+    owner_add(ts.transfer_bytes[k], size);
+    owner_add(ts.transfer_count[k], 1);
     if (owner)
     {
         owner->transfer_bytes[k].fetch_add(size, std::memory_order_relaxed);
@@ -806,6 +818,7 @@ DAAL_EXPORT void profiler_reset()
     {
         ts->stack.clear();
         ts->index.clear();
+        std::lock_guard<std::mutex> nodes_lock(ts->nodes_mutex);
         ts->nodes.clear();
         for (int k = 0; k < transfer_kinds; ++k)
         {
@@ -830,7 +843,7 @@ DAAL_EXPORT void profiler_reset()
 } // namespace internal
 } // namespace daal
 
-extern "C" DAAL_EXPORT void _onedal_profiler_report(const char * path, int clear)
+extern "C" DAAL_EXPORT int _onedal_profiler_report(const char * path, int clear)
 {
     std::ostringstream out;
     daal::internal::profiler_print_report(out);
@@ -839,10 +852,18 @@ extern "C" DAAL_EXPORT void _onedal_profiler_report(const char * path, int clear
     {
         std::ofstream file(path, std::ios::app);
         file.write(text.data(), static_cast<std::streamsize>(text.size()));
+        file.flush();
+        if (!file)
+        {
+            const std::string error = std::string("DAAL KERNEL_PROFILER: cannot write the report to '") + path + "'\n";
+            daal::internal::profiler_log(error.data(), error.size());
+            return -1;
+        }
     }
     else
     {
         daal::internal::profiler_log(text.data(), text.size());
     }
     if (clear) daal::internal::profiler_reset();
+    return 0;
 }
