@@ -23,6 +23,7 @@ on:
     branches:
       - main
       - 'feature/**'
+      - 'rls/*'
     # Skip PR builds for changes that cannot affect the library build or tests.
     # Pushes to main are not filtered.
     paths-ignore:
@@ -55,6 +56,7 @@ on:
     branches:
       - main
       - 'feature/**'
+      - 'rls/*'
   
 permissions:
   contents: read
