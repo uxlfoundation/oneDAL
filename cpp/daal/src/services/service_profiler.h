@@ -71,9 +71,8 @@
 #define DAAL_PROFILER_MACRO_2(name, queue)                daal::internal::profiler::start_task(#name)
 #define DAAL_PROFILER_GET_MACRO(arg_1, arg_2, MACRO, ...) MACRO
 
-// LOGGER OUTPUT
-// Each call site is logged the first time it runs (every time at level 5), as one write, so a
-// stderr pipe nobody drains does not fill up and lines from different threads do not interleave.
+// Logger output: each call site once (every time at level 5), as one write, so an undrained stderr
+// pipe does not fill up and lines from different threads do not interleave.
 #define DAAL_PROFILER_LOG(...)                                                                                      \
     do                                                                                                              \
     {                                                                                                               \
