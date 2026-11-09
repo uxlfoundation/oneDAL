@@ -86,7 +86,14 @@ train_result<Task> finalize_train_kernel_norm_eq_impl<Float, Task>::operator()(
     double alpha = desc.get_alpha();
     sycl::event ridge_event;
     if (alpha != 0.0) {
-        ridge_event = add_ridge_penalty<Float>(q, xtx_nd, compute_intercept, alpha);
+        sycl::event copy_event;
+        // add_ridge_penalty writes in place, and with one process xtx_nd is the partial result's xtx
+        if (comm_.get_rank_count() == 1) {
+            auto xtx_nd_copy = pr::ndarray<Float, 2>::empty(q, xtx_shape, sycl::usm::alloc::device);
+            copy_event = copy(q, xtx_nd_copy, xtx_nd, {});
+            xtx_nd = xtx_nd_copy;
+        }
+        ridge_event = add_ridge_penalty<Float>(q, xtx_nd, compute_intercept, alpha, { copy_event });
     }
 
     auto nxtx = pr::ndarray<Float, 2>::empty(q, xtx_shape, alloc);
