@@ -642,7 +642,9 @@ TEST("check begin() + end() iterators for random access") {
     {
         CountingAllocator<std::int32_t> alloc;
         std::int64_t n = 5;
-        vector_container<std::int32_t, CountingAllocator<std::int32_t>> vec(n, alloc);
+        // vector_container leaves trivial elements uninitialized, so fill
+        // them explicitly before the checks below read them.
+        vector_container<std::int32_t, CountingAllocator<std::int32_t>> vec(n, 0, alloc);
         REQUIRE(std::distance(vec.begin(), vec.end()) == n);
         REQUIRE(vec[3] == 0);
         *(vec.begin() + 3) = 3;

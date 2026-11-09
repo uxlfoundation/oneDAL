@@ -123,21 +123,8 @@ static train_result<Task> call_daal_kernel(const context_cpu& ctx,
     const auto feature_count = data.get_column_count();
     const auto response_count = resp.get_column_count();
 
-    const auto ext_feature_count = feature_count + intp;
-
-    const auto xtx_size = check_mul_overflow(ext_feature_count, ext_feature_count);
-    auto xtx_arr = array<Float>::zeros(xtx_size);
-
-    const auto xty_size = check_mul_overflow(response_count, ext_feature_count);
-    auto xty_arr = array<Float>::zeros(xty_size);
-
     const auto betas_size = check_mul_overflow(response_count, feature_count + 1);
     auto betas_arr = array<Float>::zeros(betas_size);
-
-    auto xtx_daal_table =
-        interop::convert_to_daal_homogen_table(xtx_arr, ext_feature_count, ext_feature_count);
-    auto xty_daal_table =
-        interop::convert_to_daal_homogen_table(xty_arr, response_count, ext_feature_count);
     auto betas_daal_table =
         interop::convert_to_daal_homogen_table(betas_arr, response_count, feature_count + 1);
 
@@ -145,6 +132,24 @@ static train_result<Task> call_daal_kernel(const context_cpu& ctx,
     auto y_daal_table = interop::convert_to_daal_table<Float>(resp);
 
     double alpha = desc.get_alpha();
+
+    // If the system is underdetermined, oneDAL uses dual-form solution on CPU.
+    // In this case xtx stores X * X^t of size nRows x nRows instead of X^t * X;
+    // and xty stores dual coefficients of size nResponses x nRows.
+    bool underdetermined = data.get_row_count() < feature_count;
+
+    const auto ext_feature_count = underdetermined ? data.get_row_count() : feature_count + intp;
+
+    const auto xtx_size = check_mul_overflow(ext_feature_count, ext_feature_count);
+    auto xtx_arr = array<Float>::zeros(xtx_size);
+
+    const auto xty_size = check_mul_overflow(response_count, ext_feature_count);
+    auto xty_arr = array<Float>::zeros(xty_size);
+    auto xtx_daal_table =
+        interop::convert_to_daal_homogen_table(xtx_arr, ext_feature_count, ext_feature_count);
+    auto xty_daal_table =
+        interop::convert_to_daal_homogen_table(xty_arr, response_count, ext_feature_count);
+
     if (alpha != 0.0) {
         auto ridge_matrix_array = array<Float>::full(1, static_cast<Float>(alpha));
         auto ridge_matrix = interop::convert_to_daal_homogen_table<Float>(ridge_matrix_array, 1, 1);

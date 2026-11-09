@@ -19,7 +19,8 @@
 set -euo pipefail
 
 bazel_cmd="${BAZEL:-bazel}"
-common=(--noshow_progress --cpu=avx2)
+# --release_dpc=true analyses the DPC++ targets even when icpx is not in PATH.
+common=(--noshow_progress --cpu=avx2 --release_dpc=true)
 
 work="$(mktemp -d)"
 trap 'rm -rf "${work}"' EXIT

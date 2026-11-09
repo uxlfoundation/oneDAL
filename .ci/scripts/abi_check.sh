@@ -51,6 +51,11 @@ for i in "${solibs[@]}"
 do
     name=$(basename $i)
     echo "======== ${name} ========"
+    # Only the oneDAL libraries shipped with it load libonedal_thread, so its exports are not product ABI.
+    if [ "$name" = "libonedal_thread.so" ]; then
+        echo "skipped"
+        continue
+    fi
     old=$i
     new=$release_dir/$name
 

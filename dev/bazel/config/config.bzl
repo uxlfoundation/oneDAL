@@ -16,7 +16,7 @@
 
 load("@onedal//dev/bazel:utils.bzl", "utils", "sets")
 load("@onedal//dev/bazel:version.bzl", "VERSION")
-load("@onedal//dev/bazel/toolchains:common.bzl", "detect_os", "detect_host_arch", "detect_target_arch")
+load("@onedal//dev/bazel/toolchains:common.bzl", "detect_os", "detect_compiler", "detect_host_arch", "detect_target_arch", "is_dpc_compiler_found")
 
 ConfigFlagInfo = provider(
     fields = [
@@ -286,6 +286,25 @@ dump_config_info = rule(
     },
 )
 
+# C++ drivers that pair with the C drivers `detect_compiler` knows.
+_CXX_DRIVER = {"gcc": "g++", "clang": "clang++", "icx": "icpx", "icpx": "icpx"}
+
+def _find_cxx_compiler(repo_ctx):
+    """The C++ compiler the toolchain will use, for compiling the cpu-detector.
+
+    CXX wins; otherwise the C++ driver that pairs with CC (keeping a version
+    suffix or a directory, so `clang-19` gives `clang++-19`); otherwise the
+    driver of the compiler the toolchain picks from PATH.
+    """
+    cxx = repo_ctx.os.environ.get("CXX")
+    if cxx:
+        return cxx
+    cc = repo_ctx.os.environ.get("CC", "")
+    for c_driver, cxx_driver in _CXX_DRIVER.items():
+        if c_driver in cc:
+            return cc.replace(c_driver, cxx_driver, 1)
+    return _CXX_DRIVER.get(detect_compiler(repo_ctx, "lnx"), "g++")
+
 def _detect_cpu_extension(repo_ctx):
     cpudetect_src = repo_ctx.path(repo_ctx.attr._cpudetect_src)
     is_windows = "windows" in repo_ctx.os.name
@@ -298,7 +317,7 @@ def _detect_cpu_extension(repo_ctx):
         ]
     else:
         compile_command = [
-            "g++", "-pedantic", "-Wall", "-std=c++17",
+            _find_cxx_compiler(repo_ctx), "-pedantic", "-Wall", "-std=c++17",
             cpudetect_src, "-o{}".format(cpudetect_exe),
         ]
     compile_result = repo_ctx.execute(compile_command)
@@ -332,6 +351,7 @@ def _declare_onedal_config_impl(repo_ctx):
         substitutions = {
             "%{auto_cpu}":              auto_cpu,
             "%{arch}":                  target_arch,
+            "%{dpc_compiler_found}":    str(is_dpc_compiler_found(repo_ctx, os_id)),
             "%{version_major}":         VERSION.major,
             "%{version_minor}":         VERSION.minor,
             "%{version_update}":        VERSION.update,
@@ -348,6 +368,8 @@ declare_onedal_config = repository_rule(
     environ = [
         "CC",
         "CXX",
+        # PATH, so that sourcing setvars.sh re-detects the DPC++ compiler.
+        "PATH",
         # Windows host-arch detection (see toolchains/common.bzl).
         "PROCESSOR_ARCHITECTURE",
         "PROCESSOR_ARCHITEW6432",

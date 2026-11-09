@@ -229,6 +229,7 @@ def _cc_module_impl(ctx):
         system_includes = ctx.attr.system_includes,
         quote_includes = ctx.attr.quote_includes,
         disallow_nopic_outputs = not is_windows,
+        short_paths = is_windows,
     )
     if compilation_outputs.objects and compilation_outputs.pic_objects:
         fail("Non-PIC object files found, oneDAL assumes " +
@@ -315,7 +316,14 @@ _cc_module = rule(
     fragments = ["cpp"],
 )
 
-def cc_module(name, hdrs=[], deps=[], **kwargs):
+def cc_module(name, hdrs=[], deps=[], target_compatible_with=[], **kwargs):
+    # With --release_dpc=false, the default when icpx is not in PATH, skip
+    # DPC++ modules and everything that depends on them.
+    if "dpc++" in kwargs.get("features", []):
+        target_compatible_with = target_compatible_with + select({
+            "@config//:release_dpc_disabled": ["@config//:dpc_needs_icpx_in_PATH"],
+            "//conditions:default": [],
+        })
     # Workaround restriction on possible extensions for cc_common.compile:
     # > The list of possible extensions for 'public_hdrs' is:
     #   .h,.hh,.hpp,.ipp,.hxx,.h++,.inc,.inl,.tlh,.tli,.H,.tcc
@@ -329,6 +337,7 @@ def cc_module(name, hdrs=[], deps=[], **kwargs):
         deps = deps + ([
             ":__{}_headers__".format(name),
         ] if hdrs else []),
+        target_compatible_with = target_compatible_with,
         **kwargs,
     )
 
@@ -582,13 +591,35 @@ def _cc_exec_impl(ctx):
     )
     return [default_info]
 
+_TEST_LINK_MODE_SETTING = str(Label("@config//:test_link_mode"))
+
+def _test_link_mode_transition_impl(settings, attr):
+    # A private test reaches internals the release package does not ship: its
+    # include tree leaves out `backend/` and DAAL source headers, and those
+    # symbols are not exported from the shared libraries. A release link mode
+    # replaces the test's `dal_deps` with the package, so such a test is always
+    # built from sources, as in the `dev` link mode.
+    if attr.build_from_sources:
+        return {_TEST_LINK_MODE_SETTING: "dev"}
+    return {_TEST_LINK_MODE_SETTING: settings[_TEST_LINK_MODE_SETTING]}
+
+_test_link_mode_transition = transition(
+    implementation = _test_link_mode_transition_impl,
+    inputs = [_TEST_LINK_MODE_SETTING],
+    outputs = [_TEST_LINK_MODE_SETTING],
+)
+
 cc_test = rule(
     implementation = _cc_exec_impl,
     attrs = {
         "lib_tags": attr.string_list(),
-        "deps": attr.label_list(),
-        "data": attr.label_list(allow_files=True),
+        # The transition is on the edges rather than on the test itself, so
+        # that the test binary and its logs stay in the top-level output
+        # directory (`bazel-out/<cpu>-opt/testlogs`).
+        "deps": attr.label_list(cfg=_test_link_mode_transition),
+        "data": attr.label_list(allow_files=True, cfg=_test_link_mode_transition),
         "user_link_flags": attr.string_list(),
+        "build_from_sources": attr.bool(default=False),
         "_is_test": attr.bool(default=True),
         "_linux_constraint": attr.label(
             default = "@platforms//os:linux",

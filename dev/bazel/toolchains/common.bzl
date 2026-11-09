@@ -41,15 +41,17 @@ def detect_os(repo_ctx):
         return "win"
 
 def detect_default_compiler(repo_ctx, os_id):
-    default = "icx"
-    is_icx_available = repo_ctx.which(default) != None
-    if not is_icx_available:
-        default = {
-            "lnx": "gcc",
-            "mac": "clang",
-            "win": "cl",
-        }[os_id]
-    return default
+    candidates = {
+        "lnx": ["icx", "gcc", "clang"],
+        "mac": ["icx", "clang"],
+        "win": ["icx", "cl"],
+    }[os_id]
+    for compiler in candidates:
+        if repo_ctx.which(compiler) != None:
+            return compiler
+
+    # None found: return the usual default so the toolchain reports it missing.
+    return candidates[1]
 
 def detect_compiler(repo_ctx, os_id):
     if not "CC" in repo_ctx.os.environ:
@@ -66,6 +68,22 @@ def detect_compiler(repo_ctx, os_id):
         return "icx"
     elif "icpx" in compiler_path:
         return "icpx"
+    if os_id == "lnx":
+        fail("CC={} is not a supported compiler; set CC to gcc, clang or icx ".format(compiler_path) +
+             "(a versioned name such as gcc-14 or clang-19, or a full path, also works), " +
+             "or unset it to pick the first of icx, gcc and clang found in PATH.")
+    return None
+
+def is_dpc_compiler_found(repo_ctx, os_id):
+    """Returns whether the DPC++ targets can be built.
+
+    On Linux they need icpx in PATH, the DPC++ compiler the toolchain looks up.
+    The Windows toolchain picks its DPC++ compiler on its own, so DPC++ targets
+    stay enabled there.
+    """
+    if os_id != "lnx":
+        return True
+    return repo_ctx.which("icpx") != None
 
 # oneDAL's arch IDs, matching ARCH_DIR_ONEDAL in dev/make/function_definitions/*.mk.
 # Keyed by the machine name a cross-compiler triple starts with
@@ -342,16 +360,10 @@ def _prepare_include_path(repo_ctx, path):
       repo_ctx: repository_ctx object.
       path: an include path to be sanitized.
     Returns:
-      Sanitized include path that can be written to the crosstoot. Resulting path
-      is absolute if it is outside the repository and relative otherwise.
+      Absolute include path. The compiler is always run by its absolute path, so
+      it reports absolute paths even for a compiler downloaded into this repository.
     """
     path = path.strip()
     if path.endswith(_MAC_FRAMEWORK_SUFFIX):
         path = path[:-_MAC_FRAMEWORK_SUFFIX_LEN].strip()
-
-    # We're on UNIX, so the path delimiter is '/'.
-    repo_root = str(repo_ctx.path(".")) + "/"
-    path = str(repo_ctx.path(path))
-    if path.startswith(repo_root):
-        return path[len(repo_root):]
-    return path
+    return str(repo_ctx.path(path))
