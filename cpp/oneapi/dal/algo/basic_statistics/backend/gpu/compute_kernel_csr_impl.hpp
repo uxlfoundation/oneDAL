@@ -172,29 +172,17 @@ private:
         return res;
     }
 
-    /// Extracts row `index` of the computed statistics into a table of its own, keeping the
-    /// data in device memory.
+    /// Copies row `index` of the computed statistics into a device table of its own.
     ///
-    /// The table stays on the device because that is where its consumers are. Handing back a
-    /// host copy instead makes every later read of the statistic pay a transfer: the merge in
-    /// `partial_compute` and the allreduce in `finalize_compute` both ask for their inputs with
-    /// `pr::table2ndarray_1d(.., alloc::device)`, which wraps a table in place only when the
-    /// table already holds device memory and otherwise allocates and copies (see
-    /// `homogen_table_to_same_order_ndarray` in `backend/primitives/utils.hpp`). The dense GPU
-    /// kernel wraps its results the same way.
-    ///
-    /// A copy rather than a view into `computed_result`, so that a result table does not pin
-    /// the whole `(num_data_blocks * res_opt_count_) x column_count` scratch block for as long
-    /// as the caller holds it.
+    /// The result stays on the device like the dense GPU results; a copy rather than a view, so
+    /// that the table does not pin the whole scratch block.
     ///
     /// @param q               SYCL queue.
-    /// @param computed_result The statistics block written by the kernels.
-    /// @param index           Row of `computed_result` to extract, i.e. a `stat` value.
-    /// @param deps            Events indicating availability of `computed_result` for reading.
-    /// @return                The extracted statistic as a `1 x column_count` table, and the
-    ///                        event tracking the copy that fills it. The table is only safe to
-    ///                        read once that event has completed, which is what the caller
-    ///                        (`get_result`) waits for.
+    /// @param computed_result Input: statistics block written by the kernels.
+    /// @param index           Input: row of `computed_result` to extract, a `stat` value.
+    /// @param deps            Input: events after which `computed_result` can be read.
+    /// @return                The `1 x column_count` table and the copy event; `get_result`
+    ///                        waits for the event before the table is read.
     std::tuple<table, sycl::event> get_result_table(sycl::queue q,
                                                     const pr::ndarray<Float, 2> computed_result,
                                                     std::int32_t index,
@@ -208,10 +196,8 @@ private:
                                         computed_res_ptr,
                                         column_count,
                                         deps);
-        // `flatten` is given no dependency on purpose: `dal::array`'s queue constructor waits
-        // for the events it is handed, so passing `event` here would serialize the extraction
-        // of the statistics one by one instead of letting `get_result` wait for all of them
-        // once at the end.
+        // No dependency for `flatten`: it would wait on `event` and serialize the extractions,
+        // while `get_result` waits for all of them once.
         return std::make_tuple(homogen_table::wrap(extracted.flatten(q), 1, column_count), event);
     }
 
