@@ -223,19 +223,18 @@ DAALAY   ?= a y
 DPC_MATH_BACKEND ?= mkl
 $(if $(filter $(DPC_MATH_BACKEND),mkl onemath),,$(error unknown dpc math backend $(DPC_MATH_BACKEND)))
 
-# A non-default device math backend gets its own working directory. The
-# incremental build only re-examines a command line when a makefile is newer than
-# the object, so sharing one directory would otherwise mix objects compiled
-# against two different math libraries and fail at link. The default path keeps
-# the directory name it has always had.
-WORKDIR.dpc_math_suffix := $(if $(filter-out mkl,$(DPC_MATH_BACKEND)),_$(DPC_MATH_BACKEND))
+# A non-default device math backend or SYCL target gets its own working and
+# release directories. The incremental build only re-examines a command line when
+# a makefile is newer than the object, so a shared directory would mix objects
+# built for two configurations. The default paths keep their names.
+WORKDIR.dpc_suffix := $(if $(filter-out mkl,$(DPC_MATH_BACKEND)),_$(DPC_MATH_BACKEND))$(if $(ONEDAL_SYCL_TARGETS),_$(subst $(comma),_,$(ONEDAL_SYCL_TARGETS)))
 
 DIR:=.
 CPPDIR:=$(DIR)/cpp
 CPPDIR.daal:=$(CPPDIR)/daal
 CPPDIR.onedal:=$(CPPDIR)/oneapi/dal
-WORKDIR    ?= $(DIR)/__work$(CMPLRDIRSUFF.$(COMPILER))$(WORKDIR.dpc_math_suffix)/$(if $(MSVC_RT_is_release),md,mdd)/$(PLAT)
-RELEASEDIR ?= $(DIR)/__release_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
+WORKDIR    ?= $(DIR)/__work$(CMPLRDIRSUFF.$(COMPILER))$(WORKDIR.dpc_suffix)/$(if $(MSVC_RT_is_release),md,mdd)/$(PLAT)
+RELEASEDIR ?= $(DIR)/__release_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))$(WORKDIR.dpc_suffix)
 RELEASEDIR.daal        := $(RELEASEDIR)/daal/latest
 RELEASEDIR.data        := $(RELEASEDIR.daal)/data
 RELEASEDIR.lib         := $(RELEASEDIR.daal)/lib

@@ -33,19 +33,15 @@ load("@onedal//dev/bazel:repos.bzl", "repos")
 # oneMath install, so they are found through `LD_LIBRARY_PATH` (see
 # `--config=nvidia-gpu` in dev/bazel/README.md) and are not staged here.
 #
-# Every pattern is globbed the way `mkl.bzl` globs its shared objects, because
-# oneMath installs `libonemath.so` as a symlink to the SONAME'd
-# `libonemath.so.<abi>`. Staging only the symlink links fine -- `ld` follows it
-# -- but records a `DT_NEEDED` on the SONAME that is then absent from the test
-# runfiles, and every binary dies at startup with `libonemath.so.0: cannot open
-# shared object file`. Bazel treats the versioned file as a runtime-only input,
-# so naming both is exactly what is wanted.
+# Only the SONAME'd `libonemath.so.<abi>` is staged and linked, as with
+# `libtbb.so.12`: it is what `DT_NEEDED` names, so it must be in the runfiles,
+# and staging the `libonemath.so` symlink as well would link the library twice.
 onemath_repo = repos.prebuilt_libs_repo_rule(
     includes = [
         "include",
     ],
     libs = [
-        "lib/libonemath.so*",
+        "lib/libonemath.so.*",
     ],
     build_template = "@onedal//dev/bazel/deps:onemath.tpl.BUILD",
 )

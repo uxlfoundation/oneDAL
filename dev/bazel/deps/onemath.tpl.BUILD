@@ -24,7 +24,7 @@ cc_library(
     # Only the run-time dispatching library is linked; the dispatcher loads the
     # per-domain backend libraries itself (see onemath.bzl).
     srcs = glob([
-        "lib/libonemath.so*",
+        "lib/libonemath.so.*",
     ]),
     linkopts = [
         # Same cap as `@mkl//:mkl_dpc`: a fixed 16 gives the best trade-off

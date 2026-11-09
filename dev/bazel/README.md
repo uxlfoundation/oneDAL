@@ -1121,10 +1121,11 @@ make -f makefile oneapi_dpc PLAT=lnx32e DPC_MATH_BACKEND=onemath
 ```
 
 `DPC_MATH_BACKEND` is independent of `BACKEND_CONFIG` there too, and the
-non-default value gets its own `__work_onemath` directory: the incremental build
-only re-examines a command line when a makefile is newer than the object, so a
-shared working directory would mix objects compiled against two different math
-libraries. `$ONEMATHROOT/lib` is recorded as an rpath on `libonedal_dpc.so`, so
+non-default value gets its own `__work_onemath` and `__release_<os>_onemath`
+directories, with `_<targets>` appended when `ONEDAL_SYCL_TARGETS` is set: the
+incremental build only re-examines a command line when a makefile is newer than
+the object, so a shared directory would mix objects built for two
+configurations. `$ONEMATHROOT/lib` is recorded as an rpath on `libonedal_dpc.so`, so
 consumers link and run without `LD_LIBRARY_PATH`; an absolute rpath is warranted
 here because oneMath has no redistributable and no standard prefix, and without
 it `ld` reports every oneMath symbol undefined when a consumer links against the

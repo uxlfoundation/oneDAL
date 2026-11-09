@@ -316,7 +316,7 @@ It is possible to integrate various sanitizers by specifying the REQSAN flag, av
 
             make -f makefile oneapi_dpc PLAT=lnx32e DPC_MATH_BACKEND=onemath
 
-    `DPC_MATH_BACKEND` is independent of `BACKEND_CONFIG`, which selects the *host* math library: a build can use oneMKL on the CPU and oneMath on the GPU. Intermediate objects go to `__work_onemath` rather than `__work`, so switching back and forth does not need a `clean`.
+    `DPC_MATH_BACKEND` is independent of `BACKEND_CONFIG`, which selects the *host* math library: a build can use oneMKL on the CPU and oneMath on the GPU. Intermediate objects and the release go to `__work_onemath` and `__release_{os_name}_onemath` (plus `_{targets}` when `ONEDAL_SYCL_TARGETS` is set), so switching back and forth does not need a `clean`.
 
 ---
 **NOTE:** Built libraries are located in the `__release_{os_name}[_{compiler_name}]/daal` directory.
