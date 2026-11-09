@@ -168,7 +168,8 @@ device memory separately:
 
 - the bytes and blocks allocated by the task and the tasks under it;
 - ``peak``, the most memory live at once while the task ran, above the level at its start. Only
-  sequential rows have it, and it counts what other threads of the process allocate meanwhile;
+  sequential rows have it. It is approximate while other threads run tasks: it counts what they
+  allocate, and their tasks starting or ending restart the window, which can hide part of the peak;
 - ``held``, the bytes the task allocated that were not freed when the report was built.
 
 Example rows (for ``cov_dense_batch`` on a GPU):
@@ -236,7 +237,9 @@ kernel, can ask for it at any point through a C entry point of ``libonedal_core`
     core._onedal_profiler_report(b"report.txt", 1)  # append the report to the file, then clear
 
 The first argument is the file to append to, or ``None`` for ``stderr``; a non-zero second argument
-drops everything recorded so far, so the next report covers only the calls made after it.
+drops everything recorded so far, so the next report covers only the calls made after it. Clear only
+while no oneDAL call runs on another thread. The function returns 0, or -1 when the file cannot be
+written; then the error goes to ``stderr`` and nothing is dropped.
 
 
 

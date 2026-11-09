@@ -333,6 +333,7 @@ struct profiler_report_row
 };
 
 /// Returns the merged task tree recorded so far, parents before children. Open tasks are skipped.
+/// Other threads may record tasks meanwhile.
 DAAL_EXPORT std::vector<profiler_report_row> profiler_report();
 
 /// Writes the analyzer report for everything recorded so far.
@@ -438,6 +439,8 @@ extern "C"
     /// such as Python through ctypes.
     ///
     /// @param[in] path   File to append the report to, or nullptr for stderr
-    /// @param[in] clear  If not 0, everything recorded so far is dropped afterwards
-    DAAL_EXPORT void _onedal_profiler_report(const char * path, int clear);
+    /// @param[in] clear  If not 0, everything recorded so far is dropped afterwards; no task may be
+    ///                   open on any thread then
+    /// @return 0, or -1 when the file cannot be written, in which case nothing is dropped
+    DAAL_EXPORT int _onedal_profiler_report(const char * path, int clear);
 }

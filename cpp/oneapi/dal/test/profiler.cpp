@@ -14,6 +14,7 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cstdio>
@@ -261,6 +262,47 @@ TEST("profiler report can be requested through the C entry point and cleared") {
     REQUIRE(text.find("|-- requested time: ") != std::string::npos);
     REQUIRE(text.find("1 times in a sequential region") != std::string::npos);
     REQUIRE(prof::profiler_report().empty());
+}
+
+TEST("profiler keeps the recording when the report file cannot be written") {
+    start_recording();
+    {
+        auto task = prof::profiler::start_task("kept");
+    }
+    REQUIRE(_onedal_profiler_report("profiler_no_such_dir/report.txt", 1) == -1);
+    const rows_t rows = prof::profiler_report();
+    REQUIRE(find_row(rows, "kept", -1) >= 0);
+}
+
+TEST("profiler report can be built while another thread adds tasks") {
+    start_recording();
+    // Distinct names make the worker add a node on every task, which grows its node list.
+    constexpr int task_count = 4000;
+    static std::vector<std::string> names = [] {
+        std::vector<std::string> result(task_count);
+        for (int i = 0; i < task_count; ++i) {
+            result[i] = "concurrent_" + std::to_string(i);
+        }
+        return result;
+    }();
+    std::atomic<bool> started{ false };
+    std::atomic<bool> done{ false };
+    std::thread worker([&] {
+        while (!started.load()) {
+        }
+        for (int i = 0; i < task_count; ++i) {
+            auto task = prof::profiler::start_task(names[i].c_str());
+        }
+        done.store(true);
+    });
+    std::size_t max_rows = 0;
+    started.store(true);
+    while (!done.load()) {
+        max_rows = std::max(max_rows, prof::profiler_report().size());
+    }
+    worker.join();
+    REQUIRE(max_rows <= static_cast<std::size_t>(task_count));
+    REQUIRE(prof::profiler_report().size() == static_cast<std::size_t>(task_count));
 }
 
 TEST("profiler prints parallel rows with their thread count") {
