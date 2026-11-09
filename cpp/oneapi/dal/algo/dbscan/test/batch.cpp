@@ -15,6 +15,7 @@
 *******************************************************************************/
 
 #include <array>
+#include <limits>
 #include <random>
 
 #include "oneapi/dal/algo/dbscan/test/fixture.hpp"
@@ -248,6 +249,97 @@ TEMPLATE_LIST_TEST_M(dbscan_batch_test,
                                     desc,
                                     homogen_table::wrap(x.data(), row_count, column_count));
     this->check_against_definition(result, dist, w, epsilon, min_observations);
+}
+
+TEMPLATE_LIST_TEST_M(dbscan_batch_test,
+                     "dbscan GPU GEMM path keeps neighbors at exactly epsilon across a binade",
+                     "[dbscan][batch]",
+                     dbscan_types) {
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(!this->get_policy().is_gpu());
+    using float_t = std::tuple_element_t<0, TestType>;
+    using method_t = std::tuple_element_t<1, TestType>;
+
+    // Pairs 1 apart in column 0 at +-2^b, and one lone row that makes the column mean 100 / 301:
+    // centering puts the two rows of a pair in different binades, so their centered difference rounds.
+    constexpr std::int64_t pair_count = 150;
+    constexpr std::int64_t row_count = 2 * pair_count + 1;
+    constexpr std::int64_t column_count = 8;
+    constexpr std::int64_t min_observations = 2;
+    constexpr double epsilon = 1.0;
+    std::vector<float_t> x(row_count * column_count, 0);
+    for (std::int64_t p = 0; p < pair_count; p++) {
+        const std::int64_t b = 8 + p % 6;
+        const float_t base =
+            p < 12 ? float_t(p % 12 < 6 ? 1 : -1) * float_t(std::int64_t(1) << b) : float_t(0);
+        x[(2 * p) * column_count] = base;
+        x[(2 * p + 1) * column_count] = base + 1;
+        x[(2 * p) * column_count + 1] = float_t(10 * p);
+        x[(2 * p + 1) * column_count + 1] = float_t(10 * p);
+    }
+    x[(row_count - 1) * column_count] = -50;
+    x[(row_count - 1) * column_count + 1] = -1000;
+    const std::vector<float_t> w(row_count, 1);
+    const auto dist = this->reference_distances(x, column_count, distance_metric::euclidean, 2.0);
+
+    const auto desc =
+        dbscan::descriptor<float_t, method_t>(epsilon, min_observations)
+            .set_result_options(result_options::responses | result_options::core_flags |
+                                result_options::core_observation_indices);
+    const auto result = te::compute(this->get_policy(),
+                                    desc,
+                                    homogen_table::wrap(x.data(), row_count, column_count));
+    this->check_against_definition(result, dist, w, epsilon, min_observations);
+}
+
+TEMPLATE_LIST_TEST_M(dbscan_batch_test,
+                     "dbscan GPU GEMM path matches the exact kernels with an infinite value",
+                     "[dbscan][batch]",
+                     dbscan_types) {
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(!this->get_policy().is_gpu());
+    using float_t = std::tuple_element_t<0, TestType>;
+    using method_t = std::tuple_element_t<1, TestType>;
+
+    // The GPU uses GEMM above 4 columns: zero padding keeps the distances of the 4-column data.
+    constexpr std::int64_t row_count = 120;
+    constexpr std::int64_t column_count = 4;
+    constexpr std::int64_t padded_count = 8;
+    constexpr std::int64_t min_observations = 5;
+    auto x = te::make_blobs<float_t>(40, 3, column_count, 4.0, 3.0);
+    const double epsilon = this->pick_epsilon(
+        this->reference_distances(x, column_count, distance_metric::euclidean, 2.0),
+        row_count,
+        0.03);
+    x[5 * column_count + 1] = std::numeric_limits<float_t>::infinity();
+    std::vector<float_t> padded(row_count * padded_count, 0);
+    for (std::int64_t i = 0; i < row_count; i++) {
+        for (std::int64_t j = 0; j < column_count; j++) {
+            padded[i * padded_count + j] = x[i * column_count + j];
+        }
+    }
+
+    const auto desc =
+        dbscan::descriptor<float_t, method_t>(epsilon, min_observations)
+            .set_result_options(result_options::responses | result_options::core_flags |
+                                result_options::core_observation_indices);
+    const auto exact = te::compute(this->get_policy(),
+                                   desc,
+                                   homogen_table::wrap(x.data(), row_count, column_count));
+    const auto gemm = te::compute(this->get_policy(),
+                                  desc,
+                                  homogen_table::wrap(padded.data(), row_count, padded_count));
+    REQUIRE(exact.get_cluster_count() > 0);
+    REQUIRE(gemm.get_cluster_count() == exact.get_cluster_count());
+    const auto exact_labels = row_accessor<const std::int32_t>(exact.get_responses()).pull();
+    const auto gemm_labels = row_accessor<const std::int32_t>(gemm.get_responses()).pull();
+    const auto exact_cores = row_accessor<const std::int32_t>(exact.get_core_flags()).pull();
+    const auto gemm_cores = row_accessor<const std::int32_t>(gemm.get_core_flags()).pull();
+    for (std::int64_t i = 0; i < row_count; i++) {
+        CAPTURE(i);
+        REQUIRE(gemm_labels[i] == exact_labels[i]);
+        REQUIRE(gemm_cores[i] == exact_cores[i]);
+    }
 }
 
 TEMPLATE_LIST_TEST_M(dbscan_batch_test,

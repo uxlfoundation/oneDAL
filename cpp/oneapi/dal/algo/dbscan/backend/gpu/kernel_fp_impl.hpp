@@ -681,16 +681,6 @@ sycl::event kernels_fp<Float>::get_cores_send_recv_replace(sycl::queue& queue,
                                                    deps);
 }
 
-///  A function that finds the init/next unassigned core to start clustering
-///
-/// @tparam Float  Floating-point type used to perform computations
-///
-/// @param[in]  queue      The SYCL queue
-/// @param[in]  cores      The current cores of size `row_count` x `1`
-/// @param[in]  responses  The current responses of size `row_count` x `1`
-/// @param[in]  deps       Events indicating availability of the `data` for reading or writing
-///
-/// @return The index of the init/next unassigned core point
 /// The GEMM tile entry is `-2 x.y` for squared_l2, with the norms added here, and `-x.y` for
 /// neg_dot, which needs nothing more.
 template <typename Float>
@@ -726,6 +716,7 @@ inline bool gemm_within(distance_kind kind,
 template <typename Float>
 void kernels_fp<Float>::get_cores_gemm(sycl::queue& queue,
                                        const pr::ndview<Float, 2>& data,
+                                       const pr::ndview<Float, 2>& exact,
                                        const pr::ndview<Float, 1>& norms,
                                        const pr::ndview<Float, 2>& weights,
                                        pr::ndview<std::int32_t, 1>& cores,
@@ -744,7 +735,7 @@ void kernels_fp<Float>::get_cores_gemm(sycl::queue& queue,
     auto tile = pr::ndarray<Float, 2>::empty(queue, { block_rows, n }, sycl::usm::alloc::device);
 
     const Float* tile_ptr = tile.get_data();
-    const Float* data_ptr = data.get_data();
+    const Float* exact_ptr = exact.get_data();
     const std::int64_t d = data.get_dimension(1);
     const Float* norms_ptr = norms.get_data();
     const Float* weights_ptr = weights.get_data();
@@ -781,8 +772,8 @@ void kernels_fp<Float>::get_cores_gemm(sycl::queue& queue,
                                                                     tile_ptr[r * n + j],
                                                                     norm_i,
                                                                     norms_ptr[j],
-                                                                    data_ptr + i * d,
-                                                                    data_ptr + j * d,
+                                                                    exact_ptr + i * d,
+                                                                    exact_ptr + j * d,
                                                                     d,
                                                                     threshold);
                             count += near ? (use_weights ? weights_ptr[j] : Float(1)) : Float(0);
@@ -802,9 +793,11 @@ void kernels_fp<Float>::get_cores_gemm(sycl::queue& queue,
 template <typename Float>
 void kernels_fp<Float>::update_points_queue_gemm(sycl::queue& queue,
                                                  const pr::ndview<Float, 2>& data,
+                                                 const pr::ndview<Float, 2>& exact,
                                                  const pr::ndview<Float, 1>& norms,
                                                  const pr::ndview<std::int32_t, 1>& cores,
                                                  const pr::ndview<Float, 2>& current_points_queue,
+                                                 const pr::ndview<std::int32_t, 1>& queue_rows,
                                                  pr::ndview<std::int32_t, 1>& responses,
                                                  pr::ndview<std::int32_t, 1>& queue_size_arr,
                                                  pr::ndview<bool, 1>& indices_cores,
@@ -837,8 +830,8 @@ void kernels_fp<Float>::update_points_queue_gemm(sycl::queue& queue,
     const Float alpha = metric.kind == distance_kind::squared_l2 ? Float(-2) : Float(-1);
 
     const Float* tile_ptr = tile.get_data();
-    const Float* data_ptr = data.get_data();
-    const Float* queue_ptr = current_points_queue.get_data();
+    const Float* exact_ptr = exact.get_data();
+    const std::int32_t* queue_rows_ptr = queue_rows.get_data();
     const std::int64_t d = data.get_dimension(1);
     const Float* norms_ptr = norms.get_data();
     const Float* queue_norms_ptr = queue_norms.get_data();
@@ -873,8 +866,8 @@ void kernels_fp<Float>::update_points_queue_gemm(sycl::queue& queue,
                                      tile_ptr[q * n + j],
                                      queue_norms_ptr[first + q],
                                      norm_j,
-                                     queue_ptr + (first + q) * d,
-                                     data_ptr + j * d,
+                                     exact_ptr + queue_rows_ptr[first + q] * d,
+                                     exact_ptr + j * d,
                                      d,
                                      threshold)) {
                         continue;
@@ -898,6 +891,17 @@ void kernels_fp<Float>::update_points_queue_gemm(sycl::queue& queue,
     last.wait_and_throw();
 }
 
+///  A function that finds the init/next unassigned core to start clustering
+///
+/// @tparam Float  Floating-point type used to perform computations
+///
+/// @param[in]  queue      The SYCL queue
+/// @param[in]  cores      The current cores of size `row_count` x `1`
+/// @param[in]  responses  The current responses of size `row_count` x `1`
+/// @param[in]  first      The first row to scan; every unassigned core is at or after it
+/// @param[in]  deps       Events indicating availability of the `data` for reading or writing
+///
+/// @return The index of the init/next unassigned core point
 template <typename Float>
 std::int32_t kernels_fp<Float>::start_next_cluster(sycl::queue& queue,
                                                    const pr::ndview<std::int32_t, 1>& cores,
@@ -1021,6 +1025,7 @@ sycl::event set_arr_value(sycl::queue& queue,
 /// @param[in]  indices                      The indicies of the points which should be copied
 ///                                          `row_count` x `1`
 /// @param[in]  current_points_queue         The array where points should be copied
+/// @param[out] queue_rows                   If not empty, the row index of each copied point
 /// @param[in]  local_points_queue_size_arr  The count of points which should be copied
 /// @param[in]  block_start                  The offset for distributed usage
 ///
@@ -1032,6 +1037,7 @@ sycl::event kernels_fp<Float>::fill_current_points_queue(
     const pr::ndview<Float, 2>& data,
     const pr::ndview<bool, 1>& indices,
     pr::ndview<Float, 2>& current_points_queue,
+    const pr::ndview<std::int32_t, 1>& queue_rows,
     pr::ndview<std::int32_t, 1>& local_points_queue_size_arr,
     std::int64_t block_start,
     const bk::event_vector& deps) {
@@ -1046,6 +1052,8 @@ sycl::event kernels_fp<Float>::fill_current_points_queue(
     const Float* data_host_ptr = data.get_data();
     std::int32_t* queue_size_arr_ptr = local_points_queue_size_arr.get_mutable_data();
     Float* current_queue_ptr = current_points_queue.get_mutable_data();
+    std::int32_t* queue_rows_ptr =
+        queue_rows.get_count() > 0 ? queue_rows.get_mutable_data() : nullptr;
 
     const sycl::nd_range<1> nd_range = bk::make_multiple_nd_range_1d(local_row_count, 1);
     return queue.submit([&](sycl::handler& cgh) {
@@ -1059,6 +1067,9 @@ sycl::event kernels_fp<Float>::fill_current_points_queue(
                                  sycl::access::address_space::global_space>
                     counter_atomic(queue_size_arr_ptr[0]);
                 auto cur_idx = counter_atomic.fetch_add(1);
+                if (queue_rows_ptr) {
+                    queue_rows_ptr[block_start + cur_idx] = row_id;
+                }
                 for (std::int32_t col_idx = 0; col_idx < column_count; col_idx += 1) {
                     current_queue_ptr[block_start * column_count + cur_idx * column_count +
                                       col_idx] = data_host_ptr[row_id * column_count + col_idx];

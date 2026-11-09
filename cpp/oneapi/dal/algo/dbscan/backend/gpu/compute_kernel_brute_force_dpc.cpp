@@ -154,15 +154,30 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                                      local_row_count * column_count);
         auto [sums, sums_event] = pr::compute_sums(queue, data_nd, false);
         auto [means, means_event] = pr::compute_means(queue, sums, local_row_count, { sums_event });
-        pr::get_centered(queue, centered, means, { copy_event, means_event }).wait_and_throw();
+        // A column with a NaN or Inf stays uncentered, so the non-finite value affects its own row only.
+        Float* const means_ptr = means.get_mutable_data();
+        const sycl::event means_ready = means_event;
+        auto finite_event = queue.submit([&](sycl::handler& h) {
+            h.depends_on(means_ready);
+            h.parallel_for(sycl::range<1>(column_count), [=](sycl::id<1> j) {
+                if (sycl::isinf(means_ptr[j]) || sycl::isnan(means_ptr[j])) {
+                    means_ptr[j] = Float(0);
+                }
+            });
+        });
+        pr::get_centered(queue, centered, means, { copy_event, finite_event }).wait_and_throw();
         dist_nd = centered;
     }
+    // The GEMM re-check of a pair near epsilon reads the rows the exact kernels measure.
+    const pr::ndarray<Float, 2> exact_nd =
+        metric.kind == distance_kind::squared_l2 ? data_nd : dist_nd;
     pr::ndarray<Float, 1> dist_norms;
-    // About 1 GB of `rows x n` distances per GEMM tile.
-    const std::int64_t gemm_block_rows = std::max<std::int64_t>(
-        1,
-        (std::int64_t(1024) * 1024 * 1024) / (local_row_count * std::int64_t(sizeof(Float))));
+    std::int64_t gemm_block_rows = 0;
     if (use_gemm) {
+        // About 1 GB of `rows x n` distances per GEMM tile.
+        gemm_block_rows = std::max<std::int64_t>(
+            1,
+            (std::int64_t(1024) * 1024 * 1024) / (local_row_count * std::int64_t(sizeof(Float))));
         auto [norms, norms_event] = pr::compute_squared_l2_norms(queue, dist_nd);
         norms_event.wait_and_throw();
         dist_norms = norms;
@@ -237,6 +252,7 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
     if (use_gemm) {
         kernels_fp<Float>::get_cores_gemm(queue,
                                           dist_nd,
+                                          exact_nd,
                                           dist_norms,
                                           weights_nd,
                                           arr_cores,
@@ -373,6 +389,13 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                 .wait_and_throw();
 
             sycl::event fill_queue_event;
+            // The GEMM path runs on one rank, so the queue rows are local row indices.
+            pr::ndarray<std::int32_t, 1> queue_rows;
+            if (use_gemm) {
+                queue_rows = pr::ndarray<std::int32_t, 1>::empty(queue,
+                                                                 { total_points_queue_size },
+                                                                 sycl::usm::alloc::device);
+            }
 
             if (local_points_queue_size != 0) {
                 fill_queue_event =
@@ -380,6 +403,7 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                                                                  dist_nd,
                                                                  observation_indices,
                                                                  current_points_queue,
+                                                                 queue_rows,
                                                                  local_points_queue_size_arr,
                                                                  displs_ptr[current_rank],
                                                                  { current_points_queue_event });
@@ -396,9 +420,11 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
             if (use_gemm) {
                 kernels_fp<Float>::update_points_queue_gemm(queue,
                                                             dist_nd,
+                                                            exact_nd,
                                                             dist_norms,
                                                             arr_cores,
                                                             current_points_queue,
+                                                            queue_rows,
                                                             arr_responses,
                                                             total_points_queue_size_arr,
                                                             observation_indices,
