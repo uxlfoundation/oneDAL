@@ -432,8 +432,13 @@ jobs:
   # the overall required check name.
   status:
     needs: [build-and-test, openrng-build-and-test, bazel-build-and-test]
+    # A failed needed job skips a job without `if:`, and a skipped required check passes.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     name: "CI AArch64"
     steps:
-      - name: Print success
-        run: echo Success
+      - name: Check needed jobs
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          echo "$NEEDS" | jq -e 'all(.[]; .result == "success" or .result == "skipped")'

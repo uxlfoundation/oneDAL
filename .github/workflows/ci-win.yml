@@ -222,6 +222,9 @@ jobs:
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: windows-11-vs2026-arm
     timeout-minutes: 180
+    # Part of the OpenBLAS cache key, as in `build-and-test`.
+    env:
+      VS_VER: 2026_build_tools
     steps:
       - name: Checkout oneDAL
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -412,11 +415,8 @@ jobs:
           bazel --output_user_root=C:\b test --cpu=avx2 --test_link_mode=dev --enable_runfiles --test_output=errors ^
             //examples/oneapi/cpp:kmeans_lloyd_dense_batch_host
 
-  # x86_64 Make build with the Microsoft compiler, the GitHub Actions twin of
-  # Azure's `WindowsMakeVC` (.ci/pipeline/ci.yml): `daal` and `onedal_c` with
-  # `vc` against the toolkit's MKL and TBB, then the CMake examples and the
-  # nuget package. `VS_VER` stays unset, so .ci/scripts/build.bat and test.bat
-  # take the Visual Studio that the toolkit's setvars-vcvarsall.bat finds.
+  # GitHub Actions twin of Azure's `WindowsMakeVC`. `VS_VER` stays unset, so build.bat and
+  # test.bat take the Visual Studio that the toolkit's setvars-vcvarsall.bat finds.
   make-msvc:
     if: '!github.event.pull_request.draft'
     name: WindowsMakeVC_MKL(AVX2)-GitHub hosted

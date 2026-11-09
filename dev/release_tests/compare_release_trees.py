@@ -239,34 +239,8 @@ WINDOWS_IGNORED_EXPORTS = frozenset([
 ])
 
 
-# The exported oneAPI exception classes that inherit their constructors, that is,
-# whose body is nothing but `using std::<base>::<base>;`. The headers are the
-# source of truth; this reproduces the set below, and reports the difference if
-# one is ever added or removed:
-#
-#     awk '/class ONEDAL_EXPORT/ {
-#              match($0, /class ONEDAL_EXPORT [a-z_]+/)
-#              c = substr($0, RSTART + 20, RLENGTH - 20)
-#          }
-#          /using std::[a-z_]+::[a-z_]+;/ { if (c) print c }' \
-#         cpp/oneapi/dal/exceptions.hpp cpp/oneapi/dal/spmd/exceptions.hpp | sort
-#
-# cl materialises and exports the inherited constructors of a
-# `__declspec(dllexport)` class whether or not the DLL uses them; icx and
-# clang-cl emit them only where they are odr-used. Classes that declare a
-# constructor of their own instead (`spmd::error_holder`) are emitted by both,
-# and are correctly absent from this set because they have no `using`.
-#
-# The nightly comparison (.github/workflows/nightly-test.yml) sees these: it
-# builds the Make release with `vc` (cl) and the Bazel release with icx. An icx
-# Make tree would show no export differences at all.
-#
-# Not part of a consumer's link surface. `ONEDAL_EXPORT` is defined only under
-# `__ONEDAL_ENABLE_EXPORT__` (cpp/oneapi/dal/common.hpp:35), which only oneDAL's
-# own builds set (makefile:709,723 and dev/bazel/dal.bzl:532). For a consumer the
-# macro expands to nothing, so `throw oneapi::dal::invalid_argument{ msg }`
-# instantiates the constructor in the consumer's own object file and never emits
-# a reference the DLL has to satisfy.
+# Exported exception classes whose body is only `using std::<base>::<base>;`: cl exports their
+# inherited constructors, icx does not, and consumers never link them (#3757).
 WINDOWS_INHERITED_CTOR_CLASSES = (
     # cpp/oneapi/dal/exceptions.hpp -- oneapi::dal::v1
     "domain_error",
