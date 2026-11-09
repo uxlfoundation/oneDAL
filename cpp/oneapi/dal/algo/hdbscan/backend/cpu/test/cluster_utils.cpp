@@ -77,7 +77,7 @@ TEST("hdbscan: host extraction rejects an invalid MST", "[hdbscan][cpu]") {
 TEST("hdbscan: host extraction rejects an MST with a cycle", "[hdbscan][cpu]") {
     // Both inputs have nRows - 1 finite edges, but one edge closes a cycle and a point stays
     // disconnected, so the edges do not form a spanning tree.
-    constexpr std::int64_t row_count = 4;
+    static constexpr std::int64_t row_count = 4;
     const auto extract = [](const std::int32_t* from, const std::int32_t* to) {
         const double weights[] = { 0.1, 0.2, 0.3 };
         return backend::extract_clusters_from_mst<double>(
