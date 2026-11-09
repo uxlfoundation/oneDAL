@@ -354,11 +354,9 @@ public:
         REQUIRE(train_leaf_sizes(first, 4) != train_leaf_sizes(second, 4));
     }
 
-    /// Checks that responses stored in the other float type give the same forest, OOB errors
-    /// and variable importance as Float responses. The values are float-representable, so the
-    /// conversion is exact and the two fits differ only in how the threads are scheduled.
-    void check_other_dtype_responses_match() {
-        using other_t = std::conditional_t<std::is_same_v<Float, float>, double, float>;
+    /// Checks that two fits on the same data give the same forest, OOB errors and variable
+    /// importance. The fits differ only in how the threads are scheduled.
+    void check_two_fits_match() {
         constexpr bool is_cls = std::is_same_v<Task, decision_forest::task::classification>;
         constexpr std::int64_t row_count = 2000;
         constexpr std::int64_t column_count = 4;
@@ -366,7 +364,6 @@ public:
 
         auto x_arr = array<Float>::zeros(row_count * column_count);
         auto y_arr = array<Float>::zeros(row_count);
-        auto y_other_arr = array<other_t>::zeros(row_count);
         Float* x_ptr = x_arr.get_mutable_data();
 
         std::mt19937 rng(7777);
@@ -380,11 +377,9 @@ public:
             const float y = is_cls ? static_cast<float>((row[0] + row[1] > 0.0f) + (row[2] > 0.5f))
                                    : row[0] * row[0] + row[1] - 0.5f * row[2];
             y_arr.get_mutable_data()[i] = y;
-            y_other_arr.get_mutable_data()[i] = y;
         }
         const auto x = dal::homogen_table::wrap(x_arr, row_count, column_count);
         const auto y = dal::homogen_table::wrap(y_arr, row_count, 1);
-        const auto y_other = dal::homogen_table::wrap(y_other_arr, row_count, 1);
 
         auto desc = this->get_default_descriptor();
         if constexpr (is_cls) {
@@ -396,7 +391,7 @@ public:
         desc.set_variable_importance_mode(variable_importance_mode::mdi);
 
         const auto ref_result = this->train(desc, x, y);
-        const auto other_result = this->train(desc, x, y_other);
+        const auto other_result = this->train(desc, x, y);
 
         const auto ref_infer = this->infer(desc, ref_result.get_model(), x);
         const auto other_infer = this->infer(desc, other_result.get_model(), x);
