@@ -84,10 +84,6 @@ struct kernels_fp {
                                                   const pr::ndview<Float, 2>& closest_distances,
                                                   pr::ndview<Float, 1>& objective_function,
                                                   const bk::event_vector& deps = {});
-    /// Squared distance of every row to the centroid of its cluster, summed from the
-    /// coordinate differences. The expanded form |x|^2 - 2 x.c + |c|^2 that assigns
-    /// the clusters loses small distances to cancellation, so the objective function
-    /// is computed from these instead.
     static sycl::event compute_exact_distances(sycl::queue& queue,
                                                const pr::ndview<Float, 2>& data,
                                                const pr::ndview<Float, 2>& centroids,

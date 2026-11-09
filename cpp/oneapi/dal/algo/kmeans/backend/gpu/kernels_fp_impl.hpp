@@ -412,6 +412,7 @@ sycl::event kernels_fp<Float>::compute_exact_distances(sycl::queue& queue,
     ONEDAL_PROFILER_TASK(compute_exact_distances, queue);
     const std::int64_t row_count = data.get_dimension(0);
     const std::int64_t column_count = data.get_dimension(1);
+    const std::int64_t cluster_count = centroids.get_dimension(0);
     ONEDAL_ASSERT(centroids.get_dimension(1) == column_count);
     ONEDAL_ASSERT(responses.get_dimension(0) == row_count);
     ONEDAL_ASSERT(responses.get_dimension(1) == 1);
@@ -424,6 +425,8 @@ sycl::event kernels_fp<Float>::compute_exact_distances(sycl::queue& queue,
     Float* distances_ptr = distances.get_mutable_data();
     const std::int64_t sg_size = bk::device_max_sg_size(queue);
 
+    // The expanded form |x|^2 - 2 x.c + |c|^2 used for the assignment cancels for points close
+    // to their centroid, so the objective is summed from the coordinate differences instead.
     // One work-group of sub-group width per row; its work-items stride over the columns.
     return queue.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
@@ -432,8 +435,14 @@ sycl::event kernels_fp<Float>::compute_exact_distances(sycl::queue& queue,
             [=](sycl::nd_item<2> item) {
                 const std::int64_t row = item.get_global_id(0);
                 const std::int64_t local_id = item.get_local_id(1);
+                const std::int64_t response = responses_ptr[row];
+                // A row whose distances are all NaN or infinite gets no cluster; it keeps the
+                // distance from the assignment step.
+                if (response < 0 || response >= cluster_count) {
+                    return;
+                }
                 const Float* const x = data_ptr + row * column_count;
-                const Float* const c = centroids_ptr + responses_ptr[row] * column_count;
+                const Float* const c = centroids_ptr + response * column_count;
                 Float sum = Float(0);
                 for (std::int64_t col = local_id; col < column_count; col += sg_size) {
                     const Float diff = x[col] - c[col];

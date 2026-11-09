@@ -281,7 +281,7 @@ public:
         const auto centroids =
             row_accessor<const float_t>(train_result.get_model().get_centroids()).pull({ 0, -1 });
         const auto responses =
-            row_accessor<const int>(train_result.get_responses()).pull({ 0, -1 });
+            row_accessor<const std::int32_t>(train_result.get_responses()).pull({ 0, -1 });
 
         double expected = 0;
         for (std::int64_t i = 0; i < row_count; i++) {
@@ -302,6 +302,27 @@ public:
         CAPTURE(infer_result.get_objective_function_value());
         REQUIRE(
             check_value_with_ref_tol(infer_result.get_objective_function_value(), expected, 1e-3));
+    }
+
+    void check_exact_objective_with_nan_row() {
+        // A NaN row is closer to no centroid, so the assignment leaves it without a valid
+        // cluster index; the exact objective must not index the centroids with it.
+        const std::int64_t cluster_count = 2;
+        float_t train_data[] = { -1.0001, -0.9999, 0.9999, 1.0001 };
+        const auto x_train = make_data_table(train_data, 4, 1);
+        float_t initial_centroids[] = { -1, 1 };
+        const auto c_init = homogen_table::wrap(initial_centroids, cluster_count, 1);
+        const auto train_result =
+            this->train(get_descriptor(cluster_count, 10, 0.0), x_train, c_init);
+
+        float_t infer_data[] = { -1.0001, std::numeric_limits<float_t>::quiet_NaN(), 1.0001 };
+        const auto x_infer = make_data_table(infer_data, 3, 1);
+        const auto infer_desc =
+            get_descriptor(cluster_count, 10, 0.0)
+                .set_result_options(kmeans::result_options::compute_exact_objective_function);
+        const auto infer_result = this->infer(infer_desc, train_result.get_model(), x_infer);
+        CAPTURE(infer_result.get_objective_function_value());
+        REQUIRE(std::isnan(infer_result.get_objective_function_value()));
     }
 
     void check_empty_clusters_distinct_inits() {
