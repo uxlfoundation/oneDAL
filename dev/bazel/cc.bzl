@@ -151,10 +151,10 @@ def _check_msvc_runtime(ctx, feature_config, is_windows):
     flag_debug = ctx.attr._msvc_runtime[ConfigFlagInfo].flag == "debug"
     if feature_enabled != flag_debug:
         fail(
-            "--msvc_runtime={} but the C++ toolchain {} the msvc_runtime_debug " +
-            "feature. The debug MSVC runtime is implemented for the icx and " +
-            "clang-cl toolchains only, and the feature must not be set through " +
-            "--features; select the runtime with --msvc_runtime (--config=mdd)."
+            ("--msvc_runtime={} but the C++ toolchain {} the msvc_runtime_debug " +
+             "feature. The debug MSVC runtime is implemented for the icx and " +
+             "clang-cl toolchains only, and the feature must not be set through " +
+             "--features; select the runtime with --msvc_runtime (--config=mdd).")
             .format("debug" if flag_debug else "release",
                     "enables" if feature_enabled else "does not enable"),
         )

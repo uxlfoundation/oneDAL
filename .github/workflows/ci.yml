@@ -513,7 +513,7 @@ jobs:
           }
           expect_failure dpc_target.log dpc_needs_icpx_in_PATH \
             build --cpu=avx2 //cpp/oneapi/dal/algo/kmeans:test_batch_dpc
-          expect_failure config_dpc.log "icpx is not found" \
+          expect_failure config_dpc.log "icpx was not found in PATH" \
             test --cpu=avx2 --config=dpc //cpp/oneapi/dal/algo/kmeans:tests
       - name: Trim the Bazel disk cache
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
