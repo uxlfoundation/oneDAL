@@ -346,9 +346,8 @@ struct TileDimensions
     // maximal number of tree traversals (nTrees * nRows) that are not worth threading
     static constexpr size_t maxTreeTraversalsInSingleThread = 256;
 
-    // Number of blocks in tree-parallel prediction of nRows, 0 if row-parallel prediction is preferable.
-    // Small work is done by tree-parallel prediction in a single block, i.e. without threading.
-    // Otherwise each thread visits only its slice of trees, so tree blocks are faster even with 2x fewer blocks than minimal row blocks
+    // Number of tree-parallel blocks for nRows (1 = no threading for small work), 0 if row-parallel is preferable.
+    // Threads visit only their slice of trees, so tree blocks win even with 2x fewer blocks than minimal row blocks.
     static size_t getNumberOfTreeParallelBlocks(size_t nTrees, size_t nRows)
     {
         if (nTrees * nRows <= maxTreeTraversalsInSingleThread) return 1;
