@@ -18,7 +18,7 @@
 #include "oneapi/dal/test/engine/blobs.hpp"
 #include "oneapi/dal/detail/error_messages.hpp"
 
-#include "daal/include/services/env_detect.h"
+#include "services/env_detect.h"
 
 #include <algorithm>
 #include <cmath>
@@ -1690,11 +1690,17 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     // One thread sorts the MST edges serially, more threads in parallel.
     auto* const env = daal::services::Environment::getInstance();
     const std::size_t default_thread_count = env->getNumberOfThreads();
+    struct thread_count_guard {
+        daal::services::Environment* env;
+        std::size_t thread_count;
+        ~thread_count_guard() {
+            env->setNumberOfThreads(thread_count);
+        }
+    };
     const auto compute_with_threads = [&](std::size_t thread_count) {
+        const thread_count_guard restore{ env, default_thread_count };
         env->setNumberOfThreads(thread_count);
-        auto result = this->compute(desc, x);
-        env->setNumberOfThreads(default_thread_count);
-        return result;
+        return this->compute(desc, x);
     };
     const auto serial = compute_with_threads(1);
     const auto parallel = compute_with_threads(4);
