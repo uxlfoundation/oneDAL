@@ -207,7 +207,6 @@ daal_module(
     stdalloc = False,
     # Make builds these as THR_TBB.objs, outside GCOV_BUILD-scoped CORE.objs_a/y.
     define_gcov_build = False,
-    visibility_hidden = False,
     local_defines = [
         "__TBB_NO_IMPLICIT_LINKAGE",
         "__TBB_LEGACY_MODE",
