@@ -114,6 +114,21 @@ def main():
     us = units()
     path = f"{U}/units-{B}.json"
     done = {x["id"]: x for x in json.load(open(path))} if os.path.exists(path) else {}
+    if not FILT:
+        # a full run drops the record and the coverage of a unit that is gone (a removed test):
+        # report2.py would still count it from the old files
+        keep = {u["id"] for u in us}
+        # collect_bazel.py adds its own record (kind bazel) to this file: only the kinds units() makes are pruned
+        gone = [done.pop(k) for k in [k for k, x in done.items()
+                                      if k not in keep and x.get("kind") in ("pytest", "mpi", "example")]]
+        for rec in gone:
+            shutil.rmtree(f"{U}/cov-{B}/u/{rec['uid']}", ignore_errors=True)
+            if os.path.exists(f"{U}/data/{B}/{rec['uid']}.json.gz"):
+                os.remove(f"{U}/data/{B}/{rec['uid']}.json.gz")
+        if gone:
+            with open(path + ".tmp", "w") as fh:
+                json.dump(list(done.values()), fh, indent=1)
+            os.replace(path + ".tmp", path)
     # long pytest units first so the pool drains evenly
     us.sort(key=lambda u: (u["kind"] != "pytest", -done.get(u["id"], {}).get("seconds", 0)))
     jobs = max(1, min(int(os.environ.get("JOBS", "24")), 32))      # the box is shared
