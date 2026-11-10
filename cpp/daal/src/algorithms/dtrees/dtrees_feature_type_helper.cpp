@@ -42,6 +42,15 @@ bool FeatureTypes::init(const NumericTable & data)
     _lastUnordered  = -1;
     _nFeat          = data.getNumberOfColumns();
 
+    // All features have the type of the first one in a dictionary with equal features
+    const data_management::NumericTableDictionaryPtr dict = data.getDictionarySharedPtr();
+    if (_nFeat && dict && dict->getFeaturesEqual() == data_management::DictionaryIface::equal
+        && data.getFeatureType(0) != data_management::features::DAAL_CATEGORICAL)
+    {
+        _bAllUnordered = false;
+        return true;
+    }
+
     for (size_t i = 0; i < _nFeat; ++i)
     {
         if (data.getFeatureType(i) != data_management::features::DAAL_CATEGORICAL) continue;

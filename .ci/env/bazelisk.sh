@@ -15,7 +15,7 @@
 # limitations under the License.
 #===============================================================================
 
-BAZELISK_VERSION=v1.29.0
+BAZELISK_VERSION=v1.30.0
 
 # Bazelisk itself always runs on the CI *exec* host (even when the build
 # cross-compiles to another target arch, e.g. the riscv64 job below), so pick
@@ -37,8 +37,8 @@ BAZELISK_ASSET="bazelisk-linux-${arch}"
 # call. Add the digests for every new BAZELISK_VERSION:
 #   gh api repos/bazelbuild/bazelisk/releases/tags/<version> --jq '.assets[] | "\(.name) \(.digest)"'
 case "${BAZELISK_VERSION}/${BAZELISK_ASSET}" in
-  v1.29.0/bazelisk-linux-amd64) SHA256=5a408715e932c0250d28bd84555f12edbf70117de42f9181691c736eacc4a992 ;;
-  v1.29.0/bazelisk-linux-arm64) SHA256=e20e8b0f4f240091b7a55bf17b9398bd4f40ee70ae0208dff95dd4c445fb4010 ;;
+  v1.30.0/bazelisk-linux-amd64) SHA256=a248ae2b2b62b5baebb748f6fba7203bff1a27e5d01b55399a8406744cb539e8 ;;
+  v1.30.0/bazelisk-linux-arm64) SHA256=b2bcc040c213b44586b121bda6d983c35df121b917c3a7a66fb16f2fa0df1a4f ;;
   *)
     echo ":error: .ci/env/bazelisk.sh has no pinned SHA256 for ${BAZELISK_ASSET} at ${BAZELISK_VERSION}. Add it from:" >&2
     echo ":error:   gh api repos/bazelbuild/bazelisk/releases/tags/${BAZELISK_VERSION} --jq '.assets[] | \"\(.name) \(.digest)\"'" >&2
