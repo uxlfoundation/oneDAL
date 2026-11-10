@@ -215,8 +215,9 @@ def _strip_os_suffix(dst_path, os_suffix):
     stripped = "{}.{}".format(stem[:-len(os_suffix)], extension)
     return paths.join(paths.dirname(dst_path), stripped)
 
-def _copy_include(ctx, prefix, version_info, build_date):
+def _copy_include(ctx, prefix, version_info):
     include_prefix = paths.join(prefix, "include")
+    build_date = ctx.attr._build_date[BuildDateInfo]
     is_windows = ctx.target_platform_has_constraint(
         ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
     )
@@ -566,7 +567,7 @@ def _copy_to_release_impl(ctx):
     prefix = ctx.attr.name + "/daal/latest"
     version_info = ctx.attr._version_info[VersionInfo] if ctx.attr._version_info else None
     files = []
-    files += _copy_include(ctx, prefix, version_info, ctx.attr._build_date[BuildDateInfo])
+    files += _copy_include(ctx, prefix, version_info)
     files += _copy_lib(ctx, prefix, version_info)
     files += _copy_extra_files(ctx, prefix)
     files += _copy_data(ctx, prefix)
