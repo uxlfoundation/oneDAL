@@ -19,8 +19,7 @@
 
 `ci.yml` job `LinuxAbicheckScan` compares the public headers and exports of the six shipped
 libraries (header depth, clang AST) with the first public release of the same major version (the tag in `ABICHECK_BASELINE_TAG`). A binary or source break fails
-the job; the `API/ABI breaking change` label lifts that. abicheck is pinned to v0.8.0
-(`597e47ae7cf9657f4ea987175bf9463d70dba594`) in both workflows. Config: `.abicheck.yml` (auto-discovered), `policy.yaml` (`policy:` input; a reclassify file has no config key).
+the job; the `API/ABI breaking change` label lifts that. The abicheck pin lives in both workflows. Config: `.abicheck.yml` (auto-discovered), `policy.yaml` (`policy:` input; a reclassify file has no config key).
 
 ## Rotate
 
