@@ -642,7 +642,7 @@ protected:
                     for (size_t k = 0; k < nPairs; ++k)
                     {
                         FPType d = 0;
-                        PRAGMA_OMP_SIMD_ARGS(reduction(+:d))
+                        PRAGMA_OMP_SIMD_ARGS(reduction(+ : d))
                         for (size_t i = 0; i < nDims; ++i) d += buf[k * nDims + i];
                         res[ix * nY + iy0 + k] = _powered ? d : math.sPowx(d, rootOf);
                     }
@@ -659,7 +659,7 @@ protected:
                         const size_t n = services::internal::min<cpu, size_t>(chunkSize, nDims - i0);
                         for (size_t i = 0; i < n; ++i) buf[i] = math.sFabs(x[i0 + i] - y[i0 + i]);
                         math.vPowx(n, buf, p, buf);
-                        PRAGMA_OMP_SIMD_ARGS(reduction(+:d))
+                        PRAGMA_OMP_SIMD_ARGS(reduction(+ : d))
                         for (size_t i = 0; i < n; ++i) d += buf[i];
                     }
                     res[ix * nY + iy] = _powered ? d : math.sPowx(d, rootOf);
