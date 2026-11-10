@@ -642,6 +642,7 @@ protected:
                     for (size_t k = 0; k < nPairs; ++k)
                     {
                         FPType d = 0;
+                        PRAGMA_OMP_SIMD_ARGS(reduction(+:d))
                         for (size_t i = 0; i < nDims; ++i) d += buf[k * nDims + i];
                         res[ix * nY + iy0 + k] = _powered ? d : math.sPowx(d, rootOf);
                     }
