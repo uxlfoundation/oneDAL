@@ -18,20 +18,20 @@
 # ABI gate
 
 `ci.yml` job `LinuxAbicheckScan` compares the public headers and exports of the six shipped
-libraries (header depth, clang AST) with the first public release of the same major version (the tag in `ABICHECK_BASELINE_TAG`). A binary or source break fails
+libraries (header depth, clang AST) with the baseline release named by `ABICHECK_BASELINE_TAG` in `ci.yml`. A binary or source break fails
 the job; the `API/ABI breaking change` label lifts that. The abicheck pin lives in both workflows. Config: `.abicheck.yml` (auto-discovered), `policy.yaml` (`policy:` input; a reclassify file has no config key).
 
 ## How it differs from the libabigail check
 
-`LinuxABICheck` (libabigail `abidiff`, `.ci/scripts/abi_check.sh`) compares two binaries: this
-PR's `.so` files against the baseline build keyed by the parent commit. Its reference moves with
-`main`, so a break that landed earlier is invisible once `main` carries it on both sides. It never
-parses the headers.
+`LinuxABICheck` (libabigail `abidiff`, `.ci/scripts/abi_check.sh`) compares each `.so` of this PR's
+build with the baseline build keyed by the parent commit; `libonedal_thread.so` is skipped. Its
+reference moves with `main`, so a break that landed earlier is invisible once `main` carries it on
+both sides. It never parses the headers.
 
-`LinuxAbicheckScan` (this gate) compares the public headers and the exported symbols of this tree
-against the published release baseline. Its reference is fixed, so a break stays reported until it
-is fixed or accepted in the policy file, and a header edit that silently drops a declaration is
-caught even when both binaries were built from that header.
+`LinuxAbicheckScan` (this gate) compares the public headers and the exported symbols of this PR's
+build against the published release baseline. Its reference is fixed, so a break stays reported until
+it is fixed or accepted in the policy file, and a header edit that silently drops a declaration is
+caught even when no exported symbol changes.
 
 Neither check covers ISAs other than the one built here (`avx2`), or Windows.
 
