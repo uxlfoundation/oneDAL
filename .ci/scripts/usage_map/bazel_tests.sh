@@ -14,15 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #===============================================================================
-# oneDAL's own Bazel tests (//cpp/oneapi/dal:tests) on the cov2 commit with gcc --coverage.
-# gcda go to cov-cov2/u/bazel_onedal-tests via GCOV_PREFIX; never set MKLROOT/TBBROOT here.
-# Writes bazel-tests.json ({seconds, rc}) and bazel-tests.log for collect_bazel.py.
+# oneDAL's Bazel tests (//cpp/oneapi/dal:tests) with gcc --coverage; gcda go to cov-cov2/u/bazel_onedal-tests.
+# Writes bazel-tests.json and bazel-tests.log for collect_bazel.py; never set MKLROOT/TBBROOT here.
 set -x
 U=${USAGE_MAP_WORK:-$PWD}
 unset MKLROOT TBBROOT
 export CC=gcc
 mkdir -p $U/cov-cov2/u/bazel_onedal-tests
-cd $U/oneDAL-bzt
+cd $U/oneDAL-bzt || exit 1
 t0=$(date +%s)
 ${BAZEL:-bazel} --output_user_root=$U/bzroot test //cpp/oneapi/dal:tests \
   --cpu=avx2 --copt=--coverage --copt=-O0 --linkopt=--coverage --spawn_strategy=local \

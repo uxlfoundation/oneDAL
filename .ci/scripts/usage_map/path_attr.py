@@ -113,9 +113,8 @@ def main():
     for m, (f, _, d) in fm.items():
         key2m[(f, CPU.sub("CPU", d))].add(m)
     cg_raw = load(f"{U}/data/{B}/callgraph.json.gz")
-    # Node = (file, CPU-normalized demangled name). Mangled names of one function differ between
-    # C1/C2 (ctor) and D0/D1/D2 (dtor) aliases; the call graph names the alias that was called, so
-    # names absent from the universe are demangled (c++filt) and joined on the normalized name.
+    # Node = (file, CPU-normalized demangled name); ctor and dtor aliases differ in mangled name,
+    # so names absent from the universe are demangled (c++filt) and joined on the normalized name.
     nid_of = {m: (f, CPU.sub("CPU", d)) for m, (f, _, d) in fm.items()}
     dem2nid = defaultdict(set)
     for nid in set(nid_of.values()):
@@ -172,8 +171,7 @@ def main():
         P_line[f] = p
 
     # ---- forward labels: oneapi algorithm X -> nodes it reaches ----------------------------
-    # BFS from X's oneapi functions; never enters another algorithm's oneapi functions, so the
-    # label is the entry algorithm. Shared oneapi backend code is passed through.
+    # BFS from X's oneapi functions, never into another algorithm's (the entry labels the node); shared backend passes through.
     label = defaultdict(set)
     srcs = defaultdict(list)
     for nid in list(rev) + list(cg):
@@ -234,11 +232,7 @@ def main():
 
     rows = candidate_rows()
     # ---- static reachability from sklearnex-run code (bridge evidence) ----------------------
-    # reach_all: reachable from any function run by a sklearnex CPU unit.
-    # reach_np : reachable from such a function without entering DAAL public-layer files.
-    # sk-public: reachable from sklearnex-run code only through the public layer (every static
-    # path enters it). sk-internal: some path avoids it. sk-nopath: no static path (virtual,
-    # function-pointer and Python-side calls are invisible to the direct-call graph).
+    # reach_all: from sklearnex-run code; reach_np: not via the DAAL public layer; sk-*: path classes.
     sk_nodes = [r["nid"] for r in fn if set(r["groups_l"]) & SK_CPU]
 
     def bfs(srcs, block_pub):
@@ -396,10 +390,8 @@ def main():
               dict(o["line_cats"]), o["verdict"])
 
 
-# Hand-written daal4py bridges. Each site is re-read and its regex checked by check_bridges();
-# DAAL headers are checked for existence under SRC_ROOT (USAGE_MAP_SRC). The daal4py C++ sources are not in the
-# checkout, so the daal4py function -> DAAL component link is the Python call site plus the DAAL
-# header that carries the same algorithm name. keys: rows (comp or comp/sub) a live bridge covers.
+# Hand-written daal4py bridges, each checked by check_bridges(); DAAL headers are checked under USAGE_MAP_SRC.
+# The daal4py C++ sources are not in the checkout: each bridge's keys (the rows it covers) are set by hand.
 BRIDGES = [
     dict(id="B1 sklearn.metrics.pairwise_distances (cosine, correlation)",
          sk=[("sklearnex/metrics/pairwise.py", 17, r"import pairwise_distances")],
