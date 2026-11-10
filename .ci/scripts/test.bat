@@ -59,7 +59,7 @@ if /I "%ARCH%"=="AMD64" (
 
 IF "%VS_VER%"=="2026_build_tools" (
     @call "%ProgramFiles(x86)%\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
-    echo "%ProgramFiles(x86)%\Microsoft Visual Studio\q8\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
+    echo "%ProgramFiles(x86)%\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
     set "sln=slnx"
 ) ELSE IF "%VS_VER%"=="2017_build_tools" (
     @call "%ProgramFiles(x86)%\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
@@ -106,7 +106,7 @@ cd %release_dir%\daal\latest\examples\%examples%
 
 set cmake_link_mode_short=so
 set cmake_link_mode=dynamic
-if "%link_mode%"=="lib" (
+if "%linking%"=="lib" (
     set cmake_link_mode_short=a
     set cmake_link_mode=static
 )
