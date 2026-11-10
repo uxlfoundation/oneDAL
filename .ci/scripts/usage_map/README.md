@@ -114,6 +114,8 @@ GPU (Intel GPU, oneAPI 2026.1):
 build_cpu.sh rel                 # O2, timed through tcxx -> compile-rel.log
 build_cpu.sh cov2                # O0, --coverage, -fcallgraph-info
 python cost.py rel               # build seconds and object bytes per file
+# the C++ examples are a separate cmake build, not made by build_cpu.sh: build them into
+# _cmake_results/intel_intel64_so first (examples/cmake/setup_examples.cmake), or run_units.py exits
 python run_units.py cov2         # every pytest file / C++ example as one unit
 bazel_tests.sh                   # oneDAL's own tests, gcc --coverage
 python collect_bazel.py bazel_onedal-tests   # reads bazel-tests.json and .log from bazel_tests.sh

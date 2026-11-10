@@ -68,7 +68,13 @@ def units():
                     args=["-s", f"{SRC}/tests/test_daal4py_spmd_examples.py"]))
     # sklearnex/onedal spmd tests need a GPU queue: on CPU all 2113 skip
     for k in ("oneapi", "daal"):
-        for e in sorted(glob.glob(f"{REL}/examples/{k}/cpp/_cmake_results/intel_intel64_so/*")):
+        exes = sorted(glob.glob(f"{REL}/examples/{k}/cpp/_cmake_results/intel_intel64_so/*"))
+        if not exes and FILT in f"ex:{k}/":
+            # the examples are a separate cmake build (build_cpu.sh does not make them): without it they
+            # would be left out of the coverage without a word (a filter that selects no example is no error)
+            sys.exit(f"no C++ example executables under {REL}/examples/{k}/cpp/_cmake_results/intel_intel64_so: "
+                     "build the examples with cmake first (examples/cmake/setup_examples.cmake)")
+        for e in exes:
             out.append(dict(id=f"ex:{k}/{os.path.basename(e)}", consumer=f"examples-{k}", kind="example",
                             path=e, cwd=f"{REL}/examples/{k}/cpp"))
     return [u for u in out if FILT in u["id"]]
