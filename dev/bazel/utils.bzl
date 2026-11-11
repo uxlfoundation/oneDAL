@@ -90,9 +90,6 @@ def _info(msg):
 # Other functions
 # ===============
 
-def _datestamp(repo_ctx):
-    return repo_ctx.execute(["date", "+%Y%m%d"]).stdout.strip()
-
 utils = struct(
     unique = _unique,
     unique_files = _unique_files,
@@ -104,5 +101,4 @@ utils = struct(
     remove_substring = _remove_substring,
     warn = _warn,
     info = _info,
-    datestamp = _datestamp,
 )
