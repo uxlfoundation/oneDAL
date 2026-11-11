@@ -502,3 +502,12 @@ jobs:
           if errorlevel 1 exit /b 1
           tree -h -I include __nuget/inteldal*/
           ls -lh __nuget/inteldal*.nupkg
+
+      # As Azure's `win32e fail`: the release tree, with the examples' .res logs.
+      - name: Upload the release tree on failure
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: win32e-vc-fail
+          path: __release_win_vc
+          if-no-files-found: ignore
