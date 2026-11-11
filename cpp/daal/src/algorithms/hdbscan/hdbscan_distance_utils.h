@@ -431,6 +431,7 @@ struct MinkowskiDist
                 for (size_t r = 0; r < nBufRows; r++)
                 {
                     const FPType * row = scratchRows + (i0 + r) * rowStride;
+                    PRAGMA_OMP_SIMD
                     for (size_t d = 0; d < nCols; d++)
                     {
                         const FPType diff  = pivotPt[d] - row[d];
@@ -441,6 +442,7 @@ struct MinkowskiDist
                 for (size_t r = 0; r < nBufRows; r++)
                 {
                     FPType sum = FPType(0);
+                    PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
                     for (size_t d = 0; d < nCols; d++) sum += buf[r * nCols + d];
                     outDists[i0 + r] = sum;
                 }
@@ -493,8 +495,10 @@ private:
         for (size_t d0 = 0; d0 < nCols; d0 += powBufSize)
         {
             const size_t len = (nCols - d0 < powBufSize) ? nCols - d0 : powBufSize;
+            PRAGMA_OMP_SIMD
             for (size_t d = 0; d < len; d++) buf[d] = term(d0 + d);
             daal::internal::MathInst<FPType, cpu>::vPowx(len, buf, static_cast<FPType>(p), buf);
+            PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
             for (size_t d = 0; d < len; d++) sum += buf[d];
         }
         return sum;

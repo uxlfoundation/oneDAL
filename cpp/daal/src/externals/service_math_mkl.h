@@ -147,7 +147,7 @@ struct MklMath<double, cpu>
 
     static void vCbrt(SizeType n, const double * in, double * out)
     {
-        __DAAL_MKLFN_CALL_MATH(vmdCbrt, ((int)n, in, out, (VML_HA | VML_FTZDAZ_ON | VML_ERRMODE_IGNORE)));
+        __DAAL_MKLFN_CALL_MATH(vmdCbrt, (n, in, out, (VML_HA | VML_FTZDAZ_ON | VML_ERRMODE_IGNORE)));
     }
 
     static void vInvSqrt(SizeType n, const double * a, double * b)
@@ -280,7 +280,7 @@ struct MklMath<float, cpu>
 
     static void vCbrt(SizeType n, const float * in, float * out)
     {
-        __DAAL_MKLFN_CALL_MATH(vmsCbrt, ((int)n, in, out, (VML_HA | VML_FTZDAZ_ON | VML_ERRMODE_IGNORE)));
+        __DAAL_MKLFN_CALL_MATH(vmsCbrt, (n, in, out, (VML_HA | VML_FTZDAZ_ON | VML_ERRMODE_IGNORE)));
     }
 
     static void vInvSqrt(SizeType n, const float * a, float * b)
