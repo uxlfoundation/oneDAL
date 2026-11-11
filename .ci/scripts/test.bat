@@ -133,12 +133,13 @@ if "%build_system%"=="cmake" (
         set exe_log=%%G.res
         if exist !results_dir!\%%G.exe (
             !results_dir!\%%G.exe 2>&1 > !exe_log!
-            set errorcode=!errorlevel!
-            if !errorcode! EQU 0 (
+            set example_errorcode=!errorlevel!
+            if !example_errorcode! EQU 0 (
                 set status_ex=PASSED !ExampleName!
                 echo !status_ex!
             ) else (
-                echo FAILED !ExampleName! with errno !errorcode!
+                echo FAILED !ExampleName! with errno !example_errorcode!
+                set errorcode=!example_errorcode!
             )
         )
     )
