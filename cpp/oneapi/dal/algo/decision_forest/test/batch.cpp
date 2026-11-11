@@ -634,7 +634,7 @@ DF_BATCH_REG_TEST("df reg oob r2 for constant responses") {
     REQUIRE(oob_r2 == 1.0);
 }
 
-DF_BATCH_REG_TEST("df reg oob r2 without oob rows") {
+DF_BATCH_REG_TEST("df reg oob r2 without oob rows scores zero predictions") {
     SKIP_IF(this->is_gpu()); // the GPU kernel does not compute the OOB R2
     SKIP_IF(this->not_available_on_device());
     SKIP_IF(this->not_float64_friendly());
@@ -659,7 +659,68 @@ DF_BATCH_REG_TEST("df reg oob r2 without oob rows") {
 
     REQUIRE(train_result.get_oob_err_r2().has_data());
     const double oob_r2 = dal::row_accessor<const double>(train_result.get_oob_err_r2()).pull()[0];
-    REQUIRE(std::isnan(oob_r2));
+    // as scikit-learn's r2_score(y, oob_prediction_), with a zero prediction for every row: 1 - 91 / 17.5
+    using Float = std::tuple_element_t<0, TestType>;
+    const double tolerance = std::is_same_v<Float, float> ? 1e-5 : 1e-12;
+    REQUIRE(std::abs(oob_r2 - (-4.2)) < tolerance);
+}
+
+DF_BATCH_REG_TEST("df reg oob r2 counts rows without oob predictions") {
+    SKIP_IF(this->is_gpu()); // the GPU kernel does not compute the OOB R2
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+
+    constexpr std::int64_t row_count = 10;
+    constexpr std::int64_t column_count = 3;
+
+    static const float train_arr[] = { 0.1f,  0.25f, 1.f,   0.15f, 0.35f, 3.f,   0.25f, 0.55f,
+                                       2.f,   0.3f,  0.65f, 5.f,   0.4f,  0.85f, 4.f,   0.45f,
+                                       0.95f, 6.f,   0.55f, 1.15f, 5.f,   0.6f,  1.25f, 7.f,
+                                       0.7f,  1.45f, 9.f,   0.8f,  1.65f, 8.f };
+
+    const te::dataframe data{ array<float>::wrap(train_arr, row_count * column_count),
+                              row_count,
+                              column_count };
+
+    auto desc = this->get_default_descriptor();
+
+    // two trees leave some rows out of the OOB set of every tree
+    desc.set_tree_count(2);
+    desc.set_error_metric_mode(error_metric_mode::out_of_bag_error_r2 |
+                               error_metric_mode::out_of_bag_error_per_observation |
+                               error_metric_mode::out_of_bag_error_prediction);
+
+    const auto train_result = this->train_base_checks(desc, data, this->get_homogen_table_id());
+
+    const auto per_obs =
+        dal::row_accessor<const double>(train_result.get_oob_err_per_observation()).pull();
+    const auto pred = dal::row_accessor<const double>(train_result.get_oob_err_prediction()).pull();
+    const double oob_r2 = dal::row_accessor<const double>(train_result.get_oob_err_r2()).pull()[0];
+
+    // scikit-learn's oob_score_ is r2_score(y, oob_prediction_) over all rows, a row without OOB predictions predicting 0
+    double y_mean = 0;
+    for (std::int64_t i = 0; i < row_count; ++i) {
+        y_mean += train_arr[i * column_count + 2];
+    }
+    y_mean /= row_count;
+    double numerator = 0;
+    double denominator = 0;
+    std::int64_t unpredicted = 0;
+    for (std::int64_t i = 0; i < row_count; ++i) {
+        const double y = train_arr[i * column_count + 2];
+        unpredicted += per_obs[i] == -1;
+        if (per_obs[i] == -1) {
+            REQUIRE(pred[i] == 0);
+        }
+        numerator += (y - pred[i]) * (y - pred[i]);
+        denominator += (y - y_mean) * (y - y_mean);
+    }
+    REQUIRE(unpredicted > 0);
+    REQUIRE(unpredicted < row_count);
+    // the kernel accumulates in the training precision
+    using Float = std::tuple_element_t<0, TestType>;
+    const double tolerance = std::is_same_v<Float, float> ? 1e-5 : 1e-12;
+    REQUIRE(std::abs(oob_r2 - (1 - numerator / denominator)) < tolerance);
 }
 
 DF_BATCH_REG_TEST("df reg oob r2 with a nan response") {

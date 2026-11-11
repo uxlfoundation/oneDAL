@@ -1411,6 +1411,7 @@ public:
         intermSummFPType _res               = 0;
         intermSummFPType yMean              = 0;
         intermSummFPType sumMeanDiff        = 0;
+        intermSummFPType sumSquaredError    = 0;
         RegErr<intermSummFPType, cpu> * ptr = (RegErr<intermSummFPType, cpu> *)this->oobBuf;
 
         PRAGMA_OMP_SIMD_ARGS(reduction(+ : yMean))
@@ -1432,23 +1433,25 @@ public:
                 ++nPredicted;
 
                 if (resPrediction) resPrediction[i] = ptr[i].value;
-                sumMeanDiff += (py[i] - yMean) * (py[i] - yMean);
+                sumSquaredError += oobForObs;
             }
             else
             {
                 if (resPerObs) resPerObs[i] = intermSummFPType(-1); //was not in OOB set of any tree and hence not predicted
                 if (resPrediction) resPrediction[i] = intermSummFPType(0);
+                sumSquaredError += intermSummFPType(py[i]) * py[i];
             }
+            sumMeanDiff += (py[i] - yMean) * (py[i] - yMean);
         }
         if (res && nPredicted > 0) *res = _res / static_cast<intermSummFPType>(nPredicted);
-        // Undefined without OOB predictions or with a non-finite denominator (a NaN or infinite response). Constant
-        // responses give a zero denominator; as in scikit-learn's r2_score, R2 is then 1 for an exact fit and 0 otherwise.
+        // As scikit-learn's oob_score_: r2_score over all rows, a row without OOB predictions predicting 0.
+        // r2_score is NaN for fewer than 2 rows, 1 for a zero error and 0 for a zero denominator otherwise.
         if (resR2)
         {
-            const bool finiteDenominator = sumMeanDiff >= 0 && sumMeanDiff <= daal::services::internal::MaxVal<intermSummFPType>::get();
-            *resR2                       = !nPredicted || !finiteDenominator ? std::numeric_limits<intermSummFPType>::quiet_NaN() :
-                                           (sumMeanDiff > 0)                 ? 1 - _res / sumMeanDiff :
-                                                                               intermSummFPType(_res > 0 ? 0 : 1);
+            *resR2 = nSamples < 2         ? std::numeric_limits<intermSummFPType>::quiet_NaN() :
+                     sumSquaredError == 0 ? intermSummFPType(1) :
+                     sumMeanDiff == 0     ? intermSummFPType(0) :
+                                            1 - sumSquaredError / sumMeanDiff;
         }
         return Status();
     }
