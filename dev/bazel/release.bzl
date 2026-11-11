@@ -110,31 +110,26 @@ def _make_implib_for_dll(ctx, dll_file, lib_dst_path):
     return lib_file
 
 def _copy(ctx, src_file, dst_path):
-    # TODO: Use extra toolchain
     dst_file = ctx.actions.declare_file(dst_path)
     if ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo]):
-        ctx.actions.run(
-            executable = "cmd.exe",
-            inputs = [ src_file ],
-            outputs = [ dst_file ],
-            use_default_shell_env = True,
-            arguments = [
-                "/d",
-                "/c",
-                'copy /Y "{}" "{}"'.format(
-                    src_file.path.replace("/", "\\"),
-                    dst_file.path.replace("/", "\\"),
-                ),
-            ],
-        )
+        executable = "cmd.exe"
+        # `copy` reports "1 file(s) copied." on stdout, which Bazel would echo for every file.
+        arguments = ["/d", "/c", 'copy /Y "{}" "{}" >NUL'.format(
+            src_file.path.replace("/", "\\"),
+            dst_file.path.replace("/", "\\"),
+        )]
     else:
-        ctx.actions.run(
-            executable = "cp",
-            inputs = [ src_file ],
-            outputs = [ dst_file ],
-            use_default_shell_env = True,
-            arguments = [ src_file.path, dst_file.path ],
-        )
+        executable = "cp"
+        arguments = [src_file.path, dst_file.path]
+    ctx.actions.run(
+        executable = executable,
+        inputs = [src_file],
+        outputs = [dst_file],
+        arguments = arguments,
+        use_default_shell_env = True,
+        mnemonic = "CopyFile",
+        progress_message = "Copying %s" % dst_file.short_path,
+    )
     return dst_file
 
 def _copy_crlf(ctx, src_file, dst_path):
