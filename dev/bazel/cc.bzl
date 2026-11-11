@@ -237,6 +237,9 @@ _cc_module = rule(
         "hdrs": attr.label_list(allow_files=True),
         "private_hdrs": attr.label_list(allow_files=True),
         "export_hdrs": attr.bool(default=True),
+        # Set for DPC++ library modules (see dal.bzl `_dal_module`): their
+        # objects are compiled without MKL_ILP64, as Make's DPC objects are.
+        "drop_mkl_ilp64": attr.bool(default=False),
         "deps": attr.label_list(),
         "copts": attr.string_list(),
         "defines": attr.string_list(),
@@ -328,12 +331,30 @@ def _cc_static_lib_impl(ctx):
     )
     return [default_info, cc_info]
 
-cc_static_lib = rule(
+_STATIC_EXPORT_FREE_SETTING = str(Label("@config//:static_export_free"))
+
+def _static_export_free_transition_impl(settings, attr):
+    # Export-free static archives: no __DAAL_IMPLEMENTATION or ONEDAL export defines, as Make's static objects.
+    # Applied only when static_export_free is True (Windows cc_static_lib); elsewhere unchanged.
+    if attr.static_export_free:
+        return {_STATIC_EXPORT_FREE_SETTING: True}
+    return {_STATIC_EXPORT_FREE_SETTING: settings[_STATIC_EXPORT_FREE_SETTING]}
+
+_static_export_free_transition = transition(
+    implementation = _static_export_free_transition_impl,
+    inputs = [_STATIC_EXPORT_FREE_SETTING],
+    outputs = [_STATIC_EXPORT_FREE_SETTING],
+)
+
+_cc_static_lib = rule(
     implementation = _cc_static_lib_impl,
     attrs = {
         "lib_name": attr.string(),
         "lib_tags": attr.string_list(),
-        "deps": attr.label_list(mandatory=True),
+        # Transitioned: the deps (and their own deps) are compiled export-free
+        # when `static_export_free` is set.
+        "deps": attr.label_list(mandatory=True, cfg=_static_export_free_transition),
+        "static_export_free": attr.bool(default=False),
         "_windows_constraint": attr.label(
             default = "@platforms//os:windows",
         ),
@@ -350,6 +371,42 @@ cc_static_lib = rule(
     fragments = ["cpp"],
 )
 
+
+def cc_static_lib(name, **kwargs):
+    # Only Windows archives are export-free; see the transition above.
+    _cc_static_lib(
+        name = name,
+        static_export_free = select({
+            "@platforms//os:windows": True,
+            "//conditions:default": False,
+        }),
+        **kwargs
+    )
+
+def _compile_windows_resource(ctx, cc_toolchain, rc_file, rc_headers, defines, out_name):
+    """Compile a Windows resource script as Make's `RC.COMPILE` does.
+
+    clang uses `llvm-rc`, icx and MSVC `rc.exe`. Each header's directory is an include path.
+    """
+    out = ctx.actions.declare_file(out_name)
+    rc_tool = "llvm-rc" if cc_toolchain.compiler.split("-")[0] == "clang" else "rc.exe"
+    include_dirs = []
+    for header in rc_headers:
+        if header.dirname not in include_dirs:
+            include_dirs.append(header.dirname)
+    ctx.actions.run(
+        executable = "cmd.exe",
+        inputs = [rc_file] + rc_headers,
+        outputs = [out],
+        arguments = ["/d", "/c", rc_tool] +
+                    ["-D" + define for define in defines] +
+                    ["-I" + d.replace("/", "\\") for d in include_dirs] +
+                    ["-fo" + out.path.replace("/", "\\"), rc_file.path.replace("/", "\\")],
+        use_default_shell_env = True,
+        mnemonic = "WindowsResource",
+        progress_message = "Compiling resource script %s" % rc_file.short_path,
+    )
+    return out
 
 def _cc_dynamic_lib_impl(ctx):
     is_windows = _is_windows(ctx)
@@ -373,6 +430,18 @@ def _cc_dynamic_lib_impl(ctx):
         "-Wl,--version-script,{}".format(script.path)
         for script in ctx.files.linker_scripts
     ]
+    # Make links the version resource into every Windows DLL (dll.res, makefile:586, 870, 874).
+    # Only this DLL links it, so it is kept out of the returned linking context.
+    res_files = []
+    if is_windows and ctx.file.rc_file:
+        res_files.append(_compile_windows_resource(
+            ctx,
+            toolchain,
+            ctx.file.rc_file,
+            ctx.files.rc_headers,
+            ctx.attr.rc_defines,
+            rt_name + ".res",
+        ))
     linking_context, dynamic_outputs = onedal_cc_link.dynamic(
         owner = ctx.label,
         name = link_name,
@@ -381,9 +450,9 @@ def _cc_dynamic_lib_impl(ctx):
         feature_configuration = feature_config,
         linking_contexts = linking_contexts,
         def_file = ctx.file.def_file,
-        user_link_flags = linux_soname_flags + linux_linker_script_flags + (["-Wl,--exclude-libs=ALL"] if not is_windows else []) + ctx.attr.linkopts + coverage.link_flags,
+        user_link_flags = linux_soname_flags + linux_linker_script_flags + (["-Wl,--exclude-libs=ALL"] if not is_windows else []) + ctx.attr.linkopts + coverage.link_flags + [res.path for res in res_files],
         is_windows = is_windows,
-        additional_inputs = ctx.files.linker_scripts,
+        additional_inputs = ctx.files.linker_scripts + res_files,
     )
     # On Windows `<name>.<major>.dll` and `<name>.<major>.if.lib`; the release rule renames the latter.
     default_info = DefaultInfo(
@@ -407,6 +476,15 @@ cc_dynamic_lib = rule(
             doc = "Additional linker flags (e.g. --exclude-libs for MKL symbol hiding).",
         ),
         "linker_scripts": attr.label_list(allow_files=True),
+        "rc_file": attr.label(
+            allow_single_file = [".rc"],
+            doc = "Windows resource script for the version resource (Make's dll.rc).",
+        ),
+        "rc_headers": attr.label_list(
+            allow_files = True,
+            doc = "Headers that `rc_file` includes; their directories are include paths.",
+        ),
+        "rc_defines": attr.string_list(),
         "_windows_constraint": attr.label(
             default = "@platforms//os:windows",
         ),

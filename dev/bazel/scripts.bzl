@@ -124,6 +124,86 @@ def generate_cmake_config(name, template, out, **kwargs):
         **kwargs
     )
 
+# --- NuGet nuspec ---
+
+# Content summary per distribution type, as in deploy/nuget/prepare_dal_nuget.sh.
+_NUSPEC_CONTENT = {
+    "redist": "dynamic libraries and headers",
+    "devel": "dynamic and static libraries and headers",
+    "static": "static libraries and headers",
+}
+
+def _generate_nuspec_impl(ctx):
+    """Expand deploy/nuget/inteldal.nuspec.tpl as prepare_dal_nuget.sh does."""
+    vi = ctx.attr._version_info[VersionInfo]
+    def _has(attr):
+        return ctx.target_platform_has_constraint(attr[platform_common.ConstraintValueInfo])
+    # Same ids as prepare_dal_nuget.sh: x64 keeps linux, win-x64, osx-x64.
+    # ARM64 and RISC-V get their own ids, so they never publish under an x64 name.
+    if _has(ctx.attr._windows_constraint):
+        platform = "win-arm64" if _has(ctx.attr._aarch64_constraint) else "win-x64"
+        tbb_platform = "win"
+    elif _has(ctx.attr._osx_constraint):
+        # Make has no macOS ARM64 platform.
+        platform, tbb_platform = "osx-x64", "osx"
+    elif _has(ctx.attr._aarch64_constraint):
+        platform, tbb_platform = "linux-arm64", "linux"
+    elif _has(ctx.attr._riscv64_constraint):
+        platform, tbb_platform = "linux-riscv64", "linux"
+    else:
+        platform, tbb_platform = "linux", "linux"
+    out = ctx.actions.declare_file("inteldal.{}.nuspec".format(ctx.attr.distr_type))
+    ctx.actions.expand_template(
+        template = ctx.file.template,
+        output = out,
+        substitutions = {
+            "__DISTRTYPE__": ctx.attr.distr_type,
+            "__PLATFORM__": platform,
+            "__TBB_PLATFORM__": tbb_platform,
+            "__VERSION__": "{}.{}.{}".format(vi.major, vi.minor, vi.update),
+            "__CONTENT__": _NUSPEC_CONTENT[ctx.attr.distr_type],
+        },
+    )
+    return [DefaultInfo(files = depset([out]))]
+
+_generate_nuspec = rule(
+    implementation = _generate_nuspec_impl,
+    attrs = {
+        "template": attr.label(
+            allow_single_file = True,
+            mandatory = True,
+        ),
+        "distr_type": attr.string(
+            mandatory = True,
+            values = ["redist", "devel", "static"],
+        ),
+        "_version_info": attr.label(
+            default = "@config//:version",
+            providers = [VersionInfo],
+        ),
+        "_windows_constraint": attr.label(
+            default = "@platforms//os:windows",
+        ),
+        "_osx_constraint": attr.label(
+            default = "@platforms//os:osx",
+        ),
+        "_aarch64_constraint": attr.label(
+            default = "@platforms//cpu:aarch64",
+        ),
+        "_riscv64_constraint": attr.label(
+            default = "@platforms//cpu:riscv64",
+        ),
+    },
+)
+
+def generate_nuspec(name, template, distr_type, **kwargs):
+    _generate_nuspec(
+        name = name,
+        template = template,
+        distr_type = distr_type,
+        **kwargs
+    )
+
 # --- pkg-config ---
 
 # The header Make's `_release_c` recipe copies from pkg-config.cpp into every .pc file.

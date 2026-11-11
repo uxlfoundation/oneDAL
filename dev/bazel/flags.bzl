@@ -14,10 +14,10 @@
 # limitations under the License.
 #===============================================================================
 
+# Per-compiler -fwrapv and -fno-delete-null-pointer-checks, as in Make: gcc both, icpx -fwrapv, icx/clang neither.
+# icx stops vectorizing some loops (e.g. argmax) with -fwrapv, so it does not get it.
 lnx_cc_common_flags = [
-    "-fwrapv",
     "-fstack-protector-strong",
-    "-fno-delete-null-pointer-checks",
     "-Werror",
     "-Wno-empty-body",
     "-Wformat",
@@ -46,8 +46,7 @@ lnx_cc_flags = {
 win_icx_common_flags = [
     "-nologo",
     "-WX",
-    # clang-cl disables C++ exceptions by default.
-    "-EHsc",
+    # No -EHsc: as in Make, only oneAPI objects get it, from dal_module.
     # Keeps __svml_* references out of the released .lib files (`-Zl.icx` in Make).
     "-Qno-intel-lib",
     "-Wno-deprecated-declarations",
@@ -78,8 +77,7 @@ win_clang_common_flags = [
     "-Wno-empty-body",
     "-Wreturn-type",
     "-Wno-deprecated-declarations",
-    # clang-cl disables C++ exceptions by default.
-    "-EHsc",
+    # No -EHsc, as for icx.
     # clang-cl reports every vectorization pragma it cannot honor.
     "-Wno-pass-failed",
 ]
@@ -114,6 +112,7 @@ def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
             ]
         if compiler_id == "icpx":
             flags = flags + [
+                "-fwrapv",
                 "-no-intel-lib",
                 "-fsycl",
                 "-fno-canonical-system-headers",
@@ -133,8 +132,12 @@ def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
                 "-Wno-pass-failed",
             ]
         if compiler_id == "gcc":
-            # clang implies it from -fwrapv and reports it as unused.
-            flags = flags + ["-fno-strict-overflow"]
+            # Make: COMPILER.all.gnu.
+            flags = flags + [
+                "-fwrapv",
+                "-fno-strict-overflow",
+                "-fno-delete-null-pointer-checks",
+            ]
         if arch_id in ["arm", "riscv64"]:
             # A single ISA variant, so -march goes on every compile action.
             flags = flags + _get_single_variant_march_flags(arch_id)

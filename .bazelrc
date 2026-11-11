@@ -107,8 +107,11 @@ test:dpc-private \
 
 
 # //:release builds every ISA unless --cpu is set and adds the DPC++ libraries when icpx is found.
+# release-dpc also stamps the build date (dev/bazel/stamp.bzl); other configs keep the placeholder.
 build:release-dpc \
-    --release_dpc=true
+    --release_dpc=true \
+    --stamp \
+    --workspace_status_command="sh dev/bazel/workspace_status.sh"
 
 # Host ISA only, for local iteration. The platform suffix gives it its own
 # output tree, so switching to and from the default build rebuilds nothing.

@@ -149,7 +149,9 @@ def _get_gcc_toolchain_path(repo_ctx, cc):
     return str(gcc.dirname.dirname.realpath) if gcc else None
 
 def _add_gcc_toolchain_if_needed(repo_ctx, cc):
-    gcc_toolchain = _get_gcc_toolchain_path(repo_ctx, cc) if ("clang" in cc) or ("icpx" in cc) else None
+    # Pin icx to the same gcc as icpx (the one on PATH), as Make does. Without it, icx's cc
+    # actions fall back to icx's default gcc lookup, which can be a different install.
+    gcc_toolchain = _get_gcc_toolchain_path(repo_ctx, cc) if ("clang" in cc) or ("icx" in cc) or ("icpx" in cc) else None
     if gcc_toolchain:
         return ["--gcc-toolchain=" + gcc_toolchain]
     else:
@@ -163,9 +165,21 @@ def _add_sycl_linkage(repo_ctx, cc):
         return []
 
 def _add_new_offload_driver_link(repo_ctx, dpcc):
-    flags = add_compiler_option_if_supported(repo_ctx, dpcc, "--offload-new-driver")
-    if not flags:
+    # Probe --offload-compress with a shared link, as Make's dpcpp.mk:84-92 does.
+    # A compile-only probe misses an icpx 2025.3 link failure; the probe runs in a fresh temp dir.
+    tmp = repo_ctx.execute(["mktemp", "-d"])
+    if tmp.return_code != 0:
         return []
+    tmp_dir = tmp.stdout.strip()
+    result = repo_ctx.execute([
+        dpcc, "-fsycl", "--offload-new-driver", "--offload-compress",
+        "-shared", "-fPIC", str(repo_ctx.path(TEST_CPP_FILE)),
+        "-o", tmp_dir + "/probe.so",
+    ], environment = {"TMPDIR": tmp_dir})
+    repo_ctx.execute(["rm", "-rf", "--", tmp_dir])
+    if result.return_code != 0:
+        return []
+    flags = ["--offload-new-driver"]
 
     # The GRF option the legacy driver embeds, for PVC only: on every device it breaks the
     # CPU OpenCL JIT ("Unrecognized build options").
@@ -182,7 +196,16 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
 
     cxx_opts = []
     link_opts = []
-    dynamic_link_libs = ["-lstdc++", "-lm", "-ldl"]
+    # -lpthread -ldl stay outside --as-needed, as in Make (lnx32e.mk, deps.mkl.mk).
+    # They add NEEDED entries on glibc < 2.34 and resolve to empty stubs after it.
+    dynamic_link_libs = [
+        "-lstdc++",
+        "-lm",
+        "-Wl,--no-as-needed",
+        "-lpthread",
+        "-ldl",
+        "-Wl,--as-needed",
+    ]
 
     tools = _find_tools(repo_ctx, reqs)
     builtin_include_directories = _preapre_builtin_include_directory_paths(repo_ctx, tools)

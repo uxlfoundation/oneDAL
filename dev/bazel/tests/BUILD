@@ -6,4 +6,5 @@ exports_files([
     "mkl_linkage_test.sh",
     "parameters_layout_test.sh",
     "code_coverage_test.sh",
+    "dpc_mkl_defines_test.sh",
 ])
