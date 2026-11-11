@@ -16,7 +16,7 @@ daal_module(
 
 dal_collect_test_suites(
     name = "tests",
-    root = "@onedal//cpp/oneapi/dal/algo",
+    root = "@onedal//cpp/daal/src/algorithms/dtrees/gbt",
     modules = [
         "regression"
     ],
