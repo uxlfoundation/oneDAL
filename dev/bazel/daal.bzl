@@ -70,9 +70,14 @@ def daal_module(name, features=[], lib_tag="daal",
             "//conditions:default": [],
         })),
         define_gcov_build = define_gcov_build,
-        local_defines = select({
-            "@config//:assert_enabled": local_defines + ["__DAAL_IMPLEMENTATION", "DEBUG_ASSERT=1"],
-            "//conditions:default": local_defines + ["__DAAL_IMPLEMENTATION"],
+        # __DAAL_IMPLEMENTATION makes DAAL_EXPORT dllexport on Windows.
+        # Export-free static archives omit it, as Make's static objects do.
+        local_defines = local_defines + select({
+            "@config//:static_export_free_enabled": [],
+            "//conditions:default": ["__DAAL_IMPLEMENTATION"],
+        }) + select({
+            "@config//:assert_enabled": ["DEBUG_ASSERT=1"],
+            "//conditions:default": [],
         }) + (select({
             "@config//:stdalloc_enabled": ["USE_STD_ALLOC"],
             "//conditions:default": [],
@@ -118,6 +123,12 @@ _MKL_EXCLUDE_LIBS_FLAGS = select({
 
 def daal_dynamic_lib(name, lib_tags=["daal", "mkl_embed"], **kwargs):
     linkopts = kwargs.pop("linkopts", [])
+    # Core and threading DLLs share services/dll.rc (makefile:586, 918).
+    kwargs.setdefault("rc_file", "@onedal//cpp/daal:src/services/dll.rc")
+    kwargs.setdefault("rc_headers", [
+        "@onedal//cpp/daal:src/services/daal_version.h",
+        "@onedal//cpp/daal:version",
+    ])
     cc_dynamic_lib(
         name = name,
         lib_tags = lib_tags,
