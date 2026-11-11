@@ -213,6 +213,17 @@ def _copy_lib(ctx, prefix, version_info):
     libs = _collect_default_files(ctx.attr.lib)
     dst_files = []
 
+    if is_windows:
+        implib_stems = [
+            lib.basename[:-len(".if.lib")]
+            for lib in libs
+            if lib.basename.endswith(".if.lib")
+        ]
+        for lib in libs:
+            if lib.extension == "dll" and lib.basename[:-len(".dll")] not in implib_stems:
+                fail("{} has no import library: the Windows toolchain must emit {}.if.lib".format(
+                    lib.basename, lib.basename[:-len(".dll")]))
+
     for lib in libs:
         # macOS .dylib files are not versioned yet.
         is_shared_lib = lib.extension == "so"

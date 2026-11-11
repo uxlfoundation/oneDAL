@@ -75,8 +75,9 @@ def _init_cc_rule(ctx, features=[], disable_features=[]):
     )
     if (cc_common.is_enabled(feature_configuration = feature_config, feature_name = "dpc++") and
         not cc_common.is_enabled(feature_configuration = feature_config, feature_name = "has_dpc_compiler")):
-        fail(("{} needs the DPC++ compiler, but icpx was not found in PATH when " +
-              "the toolchain was configured").format(ctx.label))
+        fail(("{} needs the DPC++ compiler (icpx on Linux, icx on Windows; clang-cl has none), " +
+              "but the C++ toolchain was configured without it. Put it in PATH, or pass " +
+              "--release_dpc=false to skip the DPC++ targets.").format(ctx.label))
     _check_msvc_runtime(ctx, feature_config, _is_windows(ctx))
     return cc_toolchain, feature_config
 
@@ -148,8 +149,8 @@ def _check_msvc_runtime(ctx, feature_config, is_windows):
         fail(
             ("--msvc_runtime={} but the C++ toolchain {} the msvc_runtime_debug " +
              "feature. The debug MSVC runtime is implemented for the icx and " +
-             "clang-cl toolchains only, and the feature must not be set through " +
-             "--features; select the runtime with --msvc_runtime (--config=mdd).")
+             "clang-cl toolchains only, and --features must not contradict " +
+             "--msvc_runtime; select the runtime with --msvc_runtime (--config=mdd).")
             .format("debug" if flag_debug else "release",
                     "enables" if feature_enabled else "does not enable"),
         )

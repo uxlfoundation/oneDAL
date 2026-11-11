@@ -167,8 +167,8 @@ false, the DPC++ targets are skipped: `//:release` has no DPC++ libraries,
 `bazel test` reports the DPC++ tests as `SKIPPED`, and requesting a DPC++
 target by name fails with an `incompatible` error that names
 `dpc_needs_icpx_in_PATH`. `--release_dpc=true` builds them regardless, and their
-analysis fails with `needs the DPC++ compiler, but icpx was not found in PATH`
-if the compiler is missing.
+analysis fails with `needs the DPC++ compiler ... but the C++ toolchain was
+configured without it` if the compiler is missing.
 `--config=dpc` (and `dpc-public`, `dpc-private`) sets `--release_dpc=true`, so
 without icpx it fails that way instead of skipping every test.
 
