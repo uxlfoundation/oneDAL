@@ -63,11 +63,12 @@ std::int64_t covariance_block_size(const dal::backend::context_cpu& ctx,
     return block_size;
 }
 
-#define INSTANTIATE(T)                                                                   \
-    template std::int64_t covariance_block_size<T>(const dal::backend::context_cpu& ctx, \
-                                                   const system_parameters& sys_params,  \
-                                                   const std::int64_t row_count,         \
-                                                   const std::int64_t column_count);
+#define INSTANTIATE(T)                                            \
+    template ONEDAL_EXPORT std::int64_t covariance_block_size<T>( \
+        const dal::backend::context_cpu& ctx,                     \
+        const system_parameters& sys_params,                      \
+        const std::int64_t row_count,                             \
+        const std::int64_t column_count);
 
 INSTANTIATE(float)
 INSTANTIATE(double)
