@@ -290,8 +290,8 @@ protected:
      * \param[out] res Output prediction result
      */
     template <bool hasAnyMissing, bool isResValidPtr, bool reuseBuffer, size_t vectorBlockSize>
-    inline void predict(size_t iFirstTree, size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns, const algorithmFPType * x,
-                        algorithmFPType * buff, algorithmFPType * res);
+    inline void predictDispatchUnordered(size_t iFirstTree, size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns, const algorithmFPType * x,
+                                         algorithmFPType * buff, algorithmFPType * res);
 
     /**
      * \brief Traverse a number of trees to get prediction results
@@ -309,8 +309,8 @@ protected:
      * \param[out] res Output prediction result
      */
     template <bool isResValidPtr, bool reuseBuffer, size_t vectorBlockSize>
-    inline void predict(size_t iFirstTree, size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns, const algorithmFPType * x,
-                        algorithmFPType * buff, algorithmFPType * res);
+    inline void predictDispatchMissing(size_t iFirstTree, size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns, const algorithmFPType * x,
+                                       algorithmFPType * buff, algorithmFPType * res);
 
     /**
      * \brief Traverse a number of trees to get prediction results
@@ -328,8 +328,8 @@ protected:
      * \param[out] res Output prediction result
      */
     template <bool isResValidPtr, bool reuseBuffer, size_t vectorBlockSizeFactor>
-    inline void predict(size_t iFirstTree, size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns, const algorithmFPType * x,
-                        algorithmFPType * buff, algorithmFPType * res, const DimType & dim, BooleanConstant<true> keepLooking);
+    inline void predictDispatchBlockSize(size_t iFirstTree, size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns, const algorithmFPType * x,
+                                         algorithmFPType * buff, algorithmFPType * res, const DimType & dim, BooleanConstant<true> keepLooking);
 
     /**
      * \brief Traverse a number of trees to get prediction results
@@ -349,8 +349,8 @@ protected:
      * \param keepLooking
      */
     template <bool isResValidPtr, bool reuseBuffer, size_t vectorBlockSizeFactor>
-    inline void predict(size_t iFirstTree, size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns, const algorithmFPType * x,
-                        algorithmFPType * buff, algorithmFPType * res, const DimType & dim, BooleanConstant<false> keepLooking);
+    inline void predictDispatchBlockSize(size_t iFirstTree, size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns, const algorithmFPType * x,
+                                         algorithmFPType * buff, algorithmFPType * res, const DimType & dim, BooleanConstant<false> keepLooking);
 
     /**
      * \brief Traverse a number of trees to get prediction results
@@ -619,8 +619,9 @@ void PredictMulticlassTask<algorithmFPType, cpu>::predict(size_t iFirstTree, siz
 
 template <typename algorithmFPType, CpuType cpu>
 template <bool hasAnyMissing, bool isResValidPtr, bool reuseBuffer, size_t vectorBlockSize>
-void PredictMulticlassTask<algorithmFPType, cpu>::predict(size_t iFirstTree, size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns,
-                                                          const algorithmFPType * x, algorithmFPType * buff, algorithmFPType * res)
+void PredictMulticlassTask<algorithmFPType, cpu>::predictDispatchUnordered(size_t iFirstTree, size_t nTrees, size_t nClasses, size_t nRows,
+                                                                           size_t nColumns, const algorithmFPType * x, algorithmFPType * buff,
+                                                                           algorithmFPType * res)
 {
     if (this->_featHelper.hasUnorderedFeatures())
     {
@@ -634,46 +635,52 @@ void PredictMulticlassTask<algorithmFPType, cpu>::predict(size_t iFirstTree, siz
 
 template <typename algorithmFPType, CpuType cpu>
 template <bool isResValidPtr, bool reuseBuffer, size_t vectorBlockSize>
-void PredictMulticlassTask<algorithmFPType, cpu>::predict(size_t iFirstTree, size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns,
-                                                          const algorithmFPType * x, algorithmFPType * buff, algorithmFPType * res)
+void PredictMulticlassTask<algorithmFPType, cpu>::predictDispatchMissing(size_t iFirstTree, size_t nTrees, size_t nClasses, size_t nRows,
+                                                                         size_t nColumns, const algorithmFPType * x, algorithmFPType * buff,
+                                                                         algorithmFPType * res)
 {
     const bool hasAnyMissing = checkForMissing(x, iFirstTree, nTrees, nRows, nColumns);
     if (hasAnyMissing)
     {
-        predict<true, isResValidPtr, reuseBuffer, vectorBlockSize>(iFirstTree, nTrees, nClasses, nRows, nColumns, x, buff, res);
+        predictDispatchUnordered<true, isResValidPtr, reuseBuffer, vectorBlockSize>(iFirstTree, nTrees, nClasses, nRows, nColumns, x, buff, res);
     }
     else
     {
-        predict<false, isResValidPtr, reuseBuffer, vectorBlockSize>(iFirstTree, nTrees, nClasses, nRows, nColumns, x, buff, res);
+        predictDispatchUnordered<false, isResValidPtr, reuseBuffer, vectorBlockSize>(iFirstTree, nTrees, nClasses, nRows, nColumns, x, buff, res);
     }
 }
 
 template <typename algorithmFPType, CpuType cpu>
 template <bool isResValidPtr, bool reuseBuffer, size_t vectorBlockSizeFactor>
-void PredictMulticlassTask<algorithmFPType, cpu>::predict(size_t iFirstTree, size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns,
-                                                          const algorithmFPType * x, algorithmFPType * buff, algorithmFPType * res,
-                                                          const DimType & dim, BooleanConstant<true> keepLooking)
+void PredictMulticlassTask<algorithmFPType, cpu>::predictDispatchBlockSize(size_t iFirstTree, size_t nTrees, size_t nClasses, size_t nRows,
+                                                                           size_t nColumns, const algorithmFPType * x, algorithmFPType * buff,
+                                                                           algorithmFPType * res, const DimType & dim,
+                                                                           BooleanConstant<true> keepLooking)
 {
     constexpr size_t vectorBlockSizeStep = DimType::vectorBlockSizeStep;
     if (dim.vectorBlockSizeFactor == vectorBlockSizeFactor)
     {
-        predict<isResValidPtr, reuseBuffer, vectorBlockSizeFactor * vectorBlockSizeStep>(iFirstTree, nTrees, nClasses, nRows, nColumns, x, buff, res);
+        predictDispatchMissing<isResValidPtr, reuseBuffer, vectorBlockSizeFactor * vectorBlockSizeStep>(iFirstTree, nTrees, nClasses, nRows, nColumns,
+                                                                                                        x, buff, res);
     }
     else
     {
-        predict<isResValidPtr, reuseBuffer, vectorBlockSizeFactor - 1>(iFirstTree, nTrees, nClasses, nRows, nColumns, x, buff, res, dim,
-                                                                       BooleanConstant<vectorBlockSizeFactor != DimType::minVectorBlockSizeFactor>());
+        predictDispatchBlockSize<isResValidPtr, reuseBuffer, vectorBlockSizeFactor - 1>(
+            iFirstTree, nTrees, nClasses, nRows, nColumns, x, buff, res, dim,
+            BooleanConstant<vectorBlockSizeFactor != DimType::minVectorBlockSizeFactor>());
     }
 }
 
 template <typename algorithmFPType, CpuType cpu>
 template <bool isResValidPtr, bool reuseBuffer, size_t vectorBlockSizeFactor>
-void PredictMulticlassTask<algorithmFPType, cpu>::predict(size_t iFirstTree, size_t nTrees, size_t nClasses, size_t nRows, size_t nColumns,
-                                                          const algorithmFPType * x, algorithmFPType * buff, algorithmFPType * res,
-                                                          const DimType & dim, BooleanConstant<false> keepLooking)
+void PredictMulticlassTask<algorithmFPType, cpu>::predictDispatchBlockSize(size_t iFirstTree, size_t nTrees, size_t nClasses, size_t nRows,
+                                                                           size_t nColumns, const algorithmFPType * x, algorithmFPType * buff,
+                                                                           algorithmFPType * res, const DimType & dim,
+                                                                           BooleanConstant<false> keepLooking)
 {
     constexpr size_t vectorBlockSizeStep = DimType::vectorBlockSizeStep;
-    predict<isResValidPtr, reuseBuffer, vectorBlockSizeFactor * vectorBlockSizeStep>(iFirstTree, nTrees, nClasses, nRows, nColumns, x, buff, res);
+    predictDispatchMissing<isResValidPtr, reuseBuffer, vectorBlockSizeFactor * vectorBlockSizeStep>(iFirstTree, nTrees, nClasses, nRows, nColumns, x,
+                                                                                                    buff, res);
 }
 
 template <typename algorithmFPType, CpuType cpu>
@@ -685,13 +692,13 @@ void PredictMulticlassTask<algorithmFPType, cpu>::predict(size_t iFirstTree, siz
     constexpr size_t maxVectorBlockSizeFactor = DimType::maxVectorBlockSizeFactor;
     if (maxVectorBlockSizeFactor > 1)
     {
-        predict<isResValidPtr, reuseBuffer, maxVectorBlockSizeFactor>(iFirstTree, nTrees, nClasses, nRows, nColumns, x, buff, res, dim,
-                                                                      BooleanConstant<true>());
+        predictDispatchBlockSize<isResValidPtr, reuseBuffer, maxVectorBlockSizeFactor>(iFirstTree, nTrees, nClasses, nRows, nColumns, x, buff, res,
+                                                                                       dim, BooleanConstant<true>());
     }
     else
     {
-        predict<isResValidPtr, reuseBuffer, maxVectorBlockSizeFactor>(iFirstTree, nTrees, nClasses, nRows, nColumns, x, buff, res, dim,
-                                                                      BooleanConstant<false>());
+        predictDispatchBlockSize<isResValidPtr, reuseBuffer, maxVectorBlockSizeFactor>(iFirstTree, nTrees, nClasses, nRows, nColumns, x, buff, res,
+                                                                                       dim, BooleanConstant<false>());
     }
 }
 

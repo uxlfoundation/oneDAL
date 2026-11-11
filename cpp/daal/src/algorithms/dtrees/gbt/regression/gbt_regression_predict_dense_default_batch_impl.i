@@ -120,7 +120,7 @@ protected:
     }
 
     template <bool hasAnyMissing, size_t vectorBlockSize>
-    inline void predict(size_t iTree, size_t nTrees, size_t nRows, size_t nColumns, const algorithmFPType * x, algorithmFPType * res)
+    inline void predictDispatchUnordered(size_t iTree, size_t nTrees, size_t nRows, size_t nColumns, const algorithmFPType * x, algorithmFPType * res)
     {
         if (_featHelper.hasUnorderedFeatures())
         {
@@ -133,16 +133,16 @@ protected:
     }
 
     template <size_t vectorBlockSize>
-    inline void predict(size_t iTree, size_t nTrees, size_t nRows, size_t nColumns, const algorithmFPType * x, algorithmFPType * res)
+    inline void predictDispatchMissing(size_t iTree, size_t nTrees, size_t nRows, size_t nColumns, const algorithmFPType * x, algorithmFPType * res)
     {
         const bool hasAnyMissing = checkForMissing(x, iTree, nTrees, nRows, nColumns);
         if (hasAnyMissing)
         {
-            predict<true, vectorBlockSize>(iTree, nTrees, nRows, nColumns, x, res);
+            predictDispatchUnordered<true, vectorBlockSize>(iTree, nTrees, nRows, nColumns, x, res);
         }
         else
         {
-            predict<false, vectorBlockSize>(iTree, nTrees, nRows, nColumns, x, res);
+            predictDispatchUnordered<false, vectorBlockSize>(iTree, nTrees, nRows, nColumns, x, res);
         }
     }
 
@@ -222,28 +222,28 @@ protected:
 
     // Recursively checking template parameter until it becomes equal to dim.vectorBlockSizeFactor or equal to DimType::minVectorBlockSizeFactor.
     template <size_t vectorBlockSizeFactor>
-    inline void predict(size_t iTree, size_t nTrees, size_t nRows, const algorithmFPType * x, algorithmFPType * res, const DimType & dim,
-                        BooleanConstant<true> keepLooking)
+    inline void predictDispatchBlockSize(size_t iTree, size_t nTrees, size_t nRows, const algorithmFPType * x, algorithmFPType * res,
+                                         const DimType & dim, BooleanConstant<true> keepLooking)
     {
         const size_t nColumns                = dim.nCols;
         constexpr size_t vectorBlockSizeStep = DimType::vectorBlockSizeStep;
         if (dim.vectorBlockSizeFactor == vectorBlockSizeFactor)
         {
-            predict<vectorBlockSizeFactor * vectorBlockSizeStep>(iTree, nTrees, nRows, nColumns, x, res);
+            predictDispatchMissing<vectorBlockSizeFactor * vectorBlockSizeStep>(iTree, nTrees, nRows, nColumns, x, res);
         }
         else
         {
-            predict<vectorBlockSizeFactor - 1>(iTree, nTrees, nRows, x, res, dim,
-                                               BooleanConstant<vectorBlockSizeFactor != DimType::minVectorBlockSizeFactor>());
+            predictDispatchBlockSize<vectorBlockSizeFactor - 1>(iTree, nTrees, nRows, x, res, dim,
+                                                                BooleanConstant<vectorBlockSizeFactor != DimType::minVectorBlockSizeFactor>());
         }
     }
 
     template <size_t vectorBlockSizeFactor>
-    inline void predict(size_t iTree, size_t nTrees, size_t nRows, const algorithmFPType * x, algorithmFPType * res, const DimType & dim,
-                        BooleanConstant<false> keepLooking)
+    inline void predictDispatchBlockSize(size_t iTree, size_t nTrees, size_t nRows, const algorithmFPType * x, algorithmFPType * res,
+                                         const DimType & dim, BooleanConstant<false> keepLooking)
     {
         constexpr size_t vectorBlockSizeStep = DimType::vectorBlockSizeStep;
-        predict<vectorBlockSizeFactor * vectorBlockSizeStep>(iTree, nTrees, nRows, dim.nCols, x, res);
+        predictDispatchMissing<vectorBlockSizeFactor * vectorBlockSizeStep>(iTree, nTrees, nRows, dim.nCols, x, res);
     }
 
     inline void predict(size_t iTree, size_t nTrees, size_t nRows, const algorithmFPType * x, algorithmFPType * res, const DimType & dim)
@@ -252,11 +252,11 @@ protected:
         constexpr size_t maxVectorBlockSizeFactor = DimType::maxVectorBlockSizeFactor;
         if (maxVectorBlockSizeFactor > 1)
         {
-            predict<maxVectorBlockSizeFactor>(iTree, nTrees, nRows, x, res, dim, BooleanConstant<true>());
+            predictDispatchBlockSize<maxVectorBlockSizeFactor>(iTree, nTrees, nRows, x, res, dim, BooleanConstant<true>());
         }
         else
         {
-            predict<maxVectorBlockSizeFactor>(iTree, nTrees, nRows, x, res, dim, BooleanConstant<false>());
+            predictDispatchBlockSize<maxVectorBlockSizeFactor>(iTree, nTrees, nRows, x, res, dim, BooleanConstant<false>());
         }
     }
 
