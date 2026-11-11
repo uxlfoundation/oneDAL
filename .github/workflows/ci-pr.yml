@@ -16,14 +16,13 @@
 
 name: PR CI
 
-# The label check and LinuxBazelNoCompiler gate the test workflows, so a change that does not
-# build holds no other runners. Pushes to main start ci.yml, ci-win.yml and ci-aarch64.yml directly.
+# LinuxBazelNoCompiler gates the test workflows, so a change that does not build holds no other
+# runners. Pushes to main start ci.yml, ci-win.yml and ci-aarch64.yml directly.
 
 on:
   pull_request:
-    # ready_for_review starts the jobs a draft skipped. Label events rerun the label check, and
-    # the build only when `build_needed` finds no other build of the commit.
-    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+    # ready_for_review starts the jobs a draft skipped.
+    types: [opened, synchronize, reopened, ready_for_review]
     branches:
       - main
     # Skip PR builds for changes that cannot affect the library build or tests.
@@ -46,6 +45,7 @@ on:
       - '.github/workflows/coverity.yml'
       - '.github/workflows/docker-validation-nightly.yml'
       - '.github/workflows/docs-release.yml'
+      - '.github/workflows/label-enforcement.yml'
       - '.github/workflows/nightly-build.yml'
       - '.github/workflows/nightly-test.yml'
       - '.github/workflows/openssf-scorecard.yml'
@@ -57,79 +57,32 @@ on:
 permissions:
   contents: read
 
-# Label events have their own group, so changing a label never cancels a
-# running build.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.number }}-${{ contains(fromJSON('["labeled", "unlabeled"]'), github.event.action) && 'labels' || 'build' }}
+  group: ${{ github.workflow }}-${{ github.event.number }}
   cancel-in-progress: true
 
 jobs:
-  labels:
-    name: Labels
-    if: github.event.pull_request.state == 'open'
-    uses: ./.github/workflows/label-enforcement.yml
-
-  # On a label event the build is skipped when another PR CI run of this commit passed its
-  # label check and built in its own gate, and has not failed.
-  build_needed:
-    name: Build needed
-    if: github.event.pull_request.state == 'open'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      actions: read
-    outputs:
-      needed: ${{ steps.check.outputs.needed }}
-    steps:
-      - id: check
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ACTION: ${{ github.event.action }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          RUN_ID: ${{ github.run_id }}
-        run: |
-          set -euo pipefail
-          needed=true
-          if [ "$ACTION" = labeled ] || [ "$ACTION" = unlabeled ]; then
-            runs=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/workflows/ci-pr.yml/runs?head_sha=${HEAD_SHA}&event=pull_request&per_page=100" \
-              --jq ".workflow_runs[] | select(.id != ${RUN_ID}) | \"\(.id) \(.status) \(.conclusion)\"")
-            while read -r id status conclusion; do
-              [ -n "$id" ] || continue
-              [ "$status" != completed ] || [ "$conclusion" = success ] || continue
-              marks=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs/${id}/jobs?per_page=100" \
-                --jq '.jobs[] | if (.name | startswith("Labels /")) and .conclusion == "success" then "L"
-                  elif (.name | startswith("Gate /")) and (.conclusion == null or .conclusion == "success") then "G"
-                  else empty end')
-              if grep -qx L <<< "$marks" && grep -qx G <<< "$marks"; then
-                needed=false
-              fi
-            done <<< "$runs"
-          fi
-          echo "needed=$needed" >> "$GITHUB_OUTPUT"
-
   gate:
     name: Gate
-    needs: build_needed
-    if: needs.build_needed.outputs.needed == 'true'
     uses: ./.github/workflows/ci.yml
     with:
       part: gate
 
   linux:
     name: Linux
-    needs: [labels, gate]
+    needs: gate
     uses: ./.github/workflows/ci.yml
     with:
       part: tests
 
   windows:
     name: Windows
-    needs: [labels, gate]
+    needs: gate
     uses: ./.github/workflows/ci-win.yml
 
   aarch64:
     name: AArch64
-    needs: [labels, gate]
+    needs: gate
     # A called workflow may not ask for more than its caller grants.
     permissions: read-all
     uses: ./.github/workflows/ci-aarch64.yml
