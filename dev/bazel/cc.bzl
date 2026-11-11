@@ -134,13 +134,8 @@ def _without_coverage_link_flags(linking_context, coverage_link_flags):
 def _check_msvc_runtime(ctx, feature_config, is_windows):
     """Fail unless the toolchain's CRT choice follows `--msvc_runtime`.
 
-    The Windows toolchain config enables `msvc_runtime_debug` from that build
-    setting, which also names the libraries (`onedal_cored.lib`) and picks the
-    dependencies through `select()`. The two still diverge on a toolchain
-    without the feature, rules_cc's MSVC `cl` auto-config, or when the feature
-    is set through `--features`; either way the objects would be compiled
-    against one CRT and linked with libraries of the other. Checked in every
-    rule, so that tests linking a prebuilt release tree are covered as well.
+    They diverge on rules_cc's MSVC `cl` config or with `--features=msvc_runtime_debug`.
+    Checked in every rule, so tests that link a prebuilt release tree are covered too.
     """
     if not is_windows:
         return
@@ -160,13 +155,7 @@ def _check_msvc_runtime(ctx, feature_config, is_windows):
         )
 
 def _msvc_runtime_suffix(ctx, is_windows):
-    """Return the `d` the debug MSVC CRT appends to library names.
-
-    Mirrors the Makefile's `$d` (makefile:124): on Windows a debug-runtime
-    build produces `onedal_cored.lib`, `onedal_cored.4.dll`, etc., so that MD
-    and MDd binaries can live side by side in one release tree. Always empty
-    on non-Windows platforms.
-    """
+    """Return the `d` the debug MSVC CRT appends to library names, as Make's `$d`."""
     if is_windows and ctx.attr._msvc_runtime[ConfigFlagInfo].flag == "debug":
         return "d"
     return ""
@@ -374,8 +363,7 @@ def _cc_dynamic_lib_impl(ctx):
         ctx.attr.deps, ctx.attr.lib_tags)
 
     vi = ctx.attr._version_info[VersionInfo]
-    # The CRT suffix goes before the ABI version, matching the Makefile:
-    # `onedal_cored.4.dll` / `onedal_cored_dll.lib` (makefile:337-347).
+    # The CRT suffix goes before the ABI version, as in Make: `onedal_cored.4.dll`.
     rt_name = ctx.attr.lib_name + _msvc_runtime_suffix(ctx, is_windows)
     link_name = "{}.{}".format(rt_name, vi.binary_major) if is_windows else rt_name
     linux_soname_flags = [] if is_windows else [
@@ -397,9 +385,7 @@ def _cc_dynamic_lib_impl(ctx):
         is_windows = is_windows,
         additional_inputs = ctx.files.linker_scripts,
     )
-    # On Windows the files are `<name>.<major>.dll` and its import library
-    # `<name>.<major>.if.lib`; the release rule stages the latter under the
-    # Make name `<name>_dll.lib`.
+    # On Windows `<name>.<major>.dll` and `<name>.<major>.if.lib`; the release rule renames the latter.
     default_info = DefaultInfo(
         files = depset(dynamic_outputs.files),
     )

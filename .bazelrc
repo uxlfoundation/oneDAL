@@ -25,22 +25,11 @@ test --test_env=OCL_ICD_FILENAMES \
 
 test --test_env=FI_PROVIDER_PATH
 
-# This flag is added for migration to Bazel 9.0.0:
-# In Bazel 9.0.0, the strict action environment for tests is enabled by default
-# (see https://github.com/bazelbuild/bazel/releases/tag/9.0.0)
-# Instead of using --incompatible_strict_action_env, we explicitly pass
-# the required environment variable to tests for compatibility:
+# Bazel 9 gives tests a strict environment by default.
 test --test_env=LD_LIBRARY_PATH
 
-# Forward the MSVC tooling env into Bazel-spawned build actions on Windows:
-# INCLUDE and LIB for the compile and link actions, PATH for the `cmd.exe`
-# copies of the release rule and the DPC++ link launcher.
-#
-# Windows only: every `--action_env` value is part of every action key. Linux
-# actions do not take PATH from the shell, so the action keys do not depend on
-# the shell's PATH (a conda env, `setvars.sh`, another terminal, another CI
-# image) and caches are shared between machines. `build:windows` is applied
-# automatically through --enable_platform_specific_config.
+# MSVC env for the Windows actions. Windows only, as every --action_env value is part of
+# every action key and Linux keys would then depend on the shell's PATH.
 common --enable_platform_specific_config
 build:windows --action_env=INCLUDE
 build:windows --action_env=LIB
@@ -128,24 +117,10 @@ build:dev \
     --platform_suffix=dev
 
 
-# Windows CRT selection (Make MSVC_RUNTIME_VERSION), independent of --config=dbg.
-
-# Configuration: 'mdd'
-# Link against the debug MSVC runtime (`-MDd`) and the `_debug` TBB variants.
-# All libraries get a `d` suffix — `onedal_cored.lib`, `onedal_cored.4.dll` —
-# so an MD and an MDd build can share one release tree. The toolchain, the
-# library names and the dependency `select()`s all read this one setting.
-#   bazel build //:release --config=mdd
-#   bazel build //:release --config=mdd --config=dbg   # MDd + debug info
-# Default (no --config=mdd) is the release runtime, `-MD`, unsuffixed names.
+# Debug CRT (-MDd, Make MSVC_RUNTIME_VERSION=debug), independent of --config=dbg. Libraries get
+# a `d` suffix so both flavours share one release tree; //:release_all builds both.
 build:mdd \
     --msvc_runtime=debug
-
-# To build BOTH runtimes into a single release tree in one command, use the
-# //:release_all target instead of a --config (it applies both configurations
-# internally via Bazel transitions):
-#   bazel build //:release_all
-# On non-Windows platforms //:release_all is equivalent to //:release.
 
 
 # Make: REQDBG=yes.

@@ -49,10 +49,8 @@ def _merge_static_libs(filename, actions, cc_toolchain,
         filename: basename of the library to produce.
         actions: the rule context's `actions`.
         cc_toolchain: the resolved `CcToolchainInfo`.
-        feature_configuration: the configured features, used to look up the
-                               archiver.
-        static_libs: static libraries to merge, plus loose object files on
-                     Windows.
+        feature_configuration: the configured features, used to look up the archiver.
+        static_libs: static libraries to merge, plus loose object files on Windows.
         is_windows: whether the target platform is Windows.
 
     Returns:
@@ -185,8 +183,7 @@ def _link(owner, name, actions, cc_toolchain,
     all_object_list = unpacked_linking_context.pic_objects + unpacked_linking_context.objects
     libraries_to_link = unpacked_linking_context.libraries_to_link
     object_archive_link_flags = []
-    # Files that dependencies name only through `user_link_flags` must be
-    # staged for this link as well.
+    # Files that dependencies name only through `user_link_flags` must be staged as well.
     additional_link_inputs = list(additional_inputs) + unpacked_linking_context.additional_inputs
     if is_windows and all_object_list and not is_executable:
         object_archive = _merge_static_libs(
@@ -266,8 +263,7 @@ def _dynamic(owner, name, actions, cc_toolchain,
     interface_lib = None
     if library_to_link:
         dynamic_lib = library_to_link.resolved_symlink_dynamic_library or library_to_link.dynamic_library
-        # On Windows this is the import library the link action declared as
-        # its output (see `targets_windows` in cc_toolchain_config_win.bzl).
+        # On Windows the import library the link action declares (`targets_windows`).
         interface_lib = library_to_link.resolved_symlink_interface_library or library_to_link.interface_library
     if not dynamic_lib:
         return utils.warn("'{}' dynamic library does not contain any " +

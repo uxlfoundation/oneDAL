@@ -84,13 +84,9 @@ def _copy(ctx, src_file, dst_path):
     return dst_file
 
 def _copy_crlf(ctx, src_file, dst_path):
-    """Copy `src_file` to `dst_path` converting line endings to CRLF.
+    """Copy `src_file` to `dst_path` with CRLF line endings, as Make's `.release.x` sed.
 
-    Make normalizes the files it stages through its `.release.x` recipe with
-    `sed -n -z -e 's/\\r*\\n/\\r\\n/g;p'` when `OS_is_win`, so text files such as
-    `config/config.txt` ship with CRLF even though they are stored with LF in
-    the repository. The substitutions apply in order, so a CRLF already in the
-    file is not doubled.
+    The substitutions apply in order, so a CRLF already in the file is not doubled.
     """
     dst_file = ctx.actions.declare_file(dst_path)
     ctx.actions.expand_template(
@@ -180,7 +176,14 @@ def _copy_include(ctx, prefix, version_info):
     return dst_files
 
 def _symlink(ctx, link_name, target_name, prefix):
-    """Create the symlink `prefix/link_name` pointing at `target_name` in the same directory."""
+    """Create a relative symlink in the release directory.
+
+    Args:
+        ctx: rule context.
+        link_name: basename of the symlink, e.g. `libonedal_core.so`.
+        target_name: basename of the target in the same directory.
+        prefix: directory of the symlink in the rule's output tree.
+    """
     link_file = ctx.actions.declare_symlink(paths.join(prefix, link_name))
     ctx.actions.symlink(
         output = link_file,
@@ -189,26 +192,14 @@ def _symlink(ctx, link_name, target_name, prefix):
     return link_file
 
 def _windows_dll_stem(name, version_info):
-    """`onedal_core` for `onedal_core.4`: the ABI version of a DLL and of its
-    import library is not part of the released import library name."""
+    """`onedal_core` for `onedal_core.4`: released import library names carry no ABI version."""
     suffix = "." + version_info.binary_major
     return name[:-len(suffix)] if name.endswith(suffix) else name
 
 def _copy_lib(ctx, prefix, version_info):
-    """Copy libraries to release directory with versioning and symlinks for .so files.
+    """Copy the libraries into the release tree, with SONAME symlinks for each Linux `.so`.
 
-    For each shared library (.so) on Linux, this creates:
-      libonedal_core.so.{binary_major}.{binary_minor}   (real file)
-      libonedal_core.so.{binary_major}  -> libonedal_core.so.{binary_major}.{binary_minor}  (symlink)
-      libonedal_core.so                 -> libonedal_core.so.{binary_major}                 (symlink)
-
-    Static libraries (.a) and Windows DLLs (.dll) are copied as-is without versioning.
-    A DLL's import library `<name>.<major>.if.lib` is staged as `<name>_dll.lib`,
-    the name Make gives it with `-IMPLIB:` (makefile:535), and for the stems in
-    `_VERSIONED_IMPLIB_STEMS` also as `<name>_dll.<major>.lib`.
-
-    macOS .dylib versioning is not yet implemented; .dylib files are currently
-    copied as-is like static libraries.
+    A DLL's `<name>.<major>.if.lib` is staged under Make's `-IMPLIB:` name, `<name>_dll.lib`.
     """
     is_windows = ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo])
     arch_dir = release_arch_dir(ctx)
@@ -218,9 +209,7 @@ def _copy_lib(ctx, prefix, version_info):
     dst_files = []
 
     for lib in libs:
-        # Determine if this is a shared library that needs versioning.
-        # Only Linux .so files are versioned; .dylib (macOS) is not yet supported
-        # and will be copied as-is like static libraries.
+        # macOS .dylib files are not versioned yet.
         is_shared_lib = lib.extension == "so"
 
         if is_shared_lib and not version_info:
@@ -446,18 +435,12 @@ headers_filter = rule(
 
 _MSVC_RUNTIME_SETTING = str(Label("@config//:msvc_runtime"))
 
-# Subdirectories of the release tree whose contents depend on the MSVC
-# runtime. Everything else (headers, datasets, examples, env scripts) is
-# runtime-independent and is taken from the release-runtime build only, so
-# the two trees can be merged without output collisions. Note this must stay
-# narrower than `lib/`: `lib/pkgconfig` and `lib/cmake` hold identically
-# named files in both flavours and are taken from the release build only.
+# The only CRT-dependent directories; the rest comes from the release-CRT build. Narrower than
+# `lib/`, whose pkgconfig and cmake files have the same names in both flavours.
 def _runtime_specific_dirs(arch_dir):
     return ["lib/{}/".format(arch_dir), "redist/{}/".format(arch_dir)]
 
-# Pin the MSVC runtime, ignoring any `--msvc_runtime` on the command line. The
-# toolchain, the library names and the dependency `select()`s all read this one
-# setting.
+# Pin the MSVC runtime, ignoring any `--msvc_runtime` on the command line.
 def _force_msvc_runtime_release_impl(settings, attr):
     return {_MSVC_RUNTIME_SETTING: "release"}
 
@@ -638,9 +621,21 @@ def release(name, include, lib, extra_files = [], data = [], dep_runtime = []):
     )
 
 def release_extra_file(label, dst_path, windows_dst_path = None):
-    """Declare a release() extra file; `windows_dst_path = ""` skips it on Windows."""
+    """Declare an extra file for release().
+
+    Args:
+        label: target producing the file.
+        dst_path: destination relative to the release root, e.g. `env/vars.sh`.
+        windows_dst_path: Windows destination; defaults to `dst_path`, "" skips the file.
+    """
     return (label, dst_path, dst_path if windows_dst_path == None else windows_dst_path)
 
 def release_dep_runtime(label, dst_dir, windows_dst_dir = None):
-    """Declare a release() runtime dependency; `windows_dst_dir = ""` skips it on Windows."""
+    """Declare a staged runtime dependency for release().
+
+    Args:
+        label: target producing the files.
+        dst_dir: destination relative to the directory holding `daal/latest`, e.g. `tbb/latest/lib`.
+        windows_dst_dir: Windows destination; defaults to `dst_dir`, "" skips the entry.
+    """
     return (label, dst_dir, dst_dir if windows_dst_dir == None else windows_dst_dir)

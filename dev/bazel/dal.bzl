@@ -44,7 +44,6 @@ def dal_module(name, hdrs=[], srcs=[], dal_deps=[], extra_deps=[],
                host_hdrs=[], host_srcs=[], host_deps=[], dpc_hdrs=[],
                dpc_srcs=[], dpc_deps=[], auto=False, auto_exclude=[],
                compile_as=[ "c++", "dpc++" ], **kwargs):
-    # TODO: Check `compile_as` parameter
     if auto:
         hpp_filt = ["**/*.hpp"] + auto_exclude
         cpp_filt = ["**/*.cpp"] + auto_exclude
@@ -177,7 +176,6 @@ def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
              framework="catch2", data=[], tags=[], private=False,
              mpi=False, ccl=False, mpi_ranks=0, args=[],
              use_onedal_release_libs=True, target_compatible_with=[], **kwargs):
-    # TODO: Check `compile_as` parameter
     if not framework in ["catch2", "none"]:
         fail("Unknown test framework '{}' in test rule '{}'".format(framework, name))
     is_catch2 = framework == "catch2"

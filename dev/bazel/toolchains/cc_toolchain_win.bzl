@@ -73,28 +73,16 @@ def _find_llvm_tool(repo_ctx, cc_path, name, fallback):
     return path
 
 def _find_tools_icx(repo_ctx):
-    # Use `icx.exe` (clang-cl driver) for C and C++/DPC++ compile.
-    # For host link, call `lld-link.exe` (or link.exe) DIRECTLY rather
-    # than going through the icx driver — mirrors makefile common.mk:125
-    # (`link.dynamic.win = link ...`). Linux has no equivalent: there the
-    # driver is the linker. Going through icx for huge link actions caused
-    # LNK1170:
-    # icx materialised every Bazel-line arg into a single >131071-char
-    # line in its own intermediate response file before invoking link.exe.
-    # icx is the DPC++ compiler as well.
+    # Host links run the linker directly, as Make's `link.dynamic.win`: icx writes all arguments
+    # of a large link into one response-file line and fails with LNK1170.
     cc_path, _ = _find_tool(repo_ctx, "icx", mandatory = True)
     dpcc_link_path = _create_dpc_link_wrapper(repo_ctx, cc_path)
-    # Host link tool: lld-link.exe, or MSVC's link.exe; both accept the same
-    # flag syntax and multi-line response files.
     cc_link_path = _find_llvm_tool(repo_ctx, cc_path, "lld-link", "link")
-    # Static archiver: llvm-lib, or MSVC's lib.
     ar_path = _find_llvm_tool(repo_ctx, cc_path, "llvm-lib", "lib")
     return struct(
         cc = cc_path,
         dpcc = cc_path,
-        # Host link: lld-link.exe directly. DPC++ link still goes through
-        # icx so it can pull in SYCL device-code libs (matches the
-        # makefile's dpc.link.dynamic.win path in common.mk:138).
+        # DPC++ links go through icx for the SYCL device libraries (Make: dpc.link.dynamic.win).
         cc_link = cc_link_path,
         dpcc_link = dpcc_link_path,
         ar = ar_path,
@@ -102,20 +90,9 @@ def _find_tools_icx(repo_ctx):
     )
 
 def _find_tools_clang(repo_ctx):
-    """Upstream LLVM `clang-cl` tools, matching Make's `PLAT=winarm` toolchain
-    (`COMPILER.win.clang` / `link.dynamic.win.clang` / `link.static.win.clang`
-    in dev/make/compiler_definitions/clang.ref.arm.mk).
-
-    There is no DPC++ half: `icpx` targets x86_64 only, so a clang-cl toolchain
-    (the only option on Windows ARM64) builds the host libraries alone and
-    registers no DPC++ driver.
-    """
+    """Upstream LLVM clang-cl tools, as Make's `PLAT=winarm`; host only, as icpx targets x86_64 only."""
     cc_path, _ = _find_tool(repo_ctx, "clang-cl", mandatory = True)
-    # `lld-link` and `llvm-lib` ship with LLVM next to clang-cl and are what
-    # Make names unconditionally, so they are required rather than falling back
-    # to MSVC's `link`/`lib`: a bare `repo_ctx.which("link")` can also pick up
-    # an unrelated `link.exe` (MSYS2 coreutils ships one), which would produce a
-    # nonsensical toolchain instead of a diagnostic.
+    # Required, as in Make: falling back to `link` could find MSYS2's unrelated link.exe.
     cc_link_path, _ = _find_tool(repo_ctx, "lld-link", mandatory = True)
     ar_path, _ = _find_tool(repo_ctx, "llvm-lib", mandatory = True)
     return struct(

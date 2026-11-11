@@ -131,31 +131,15 @@ def _impl(ctx):
     dbg_feature = feature(name = "dbg")
     opt_feature = feature(name = "opt")
 
-    # Debug MSVC runtime (`-MDd`), equivalent to the Makefile's
-    # `MSVC_RUNTIME_VERSION=debug`. Kept separate from the built-in `dbg`
-    # feature (Make `REQDBG`) on purpose: the CRT flavour is an ABI choice
-    # that also renames the produced libraries (`onedal_cored.lib`) and
-    # switches the linked `msvcrt`/`tbb` variants, whereas `dbg` only adds
-    # debug info and assertions. It follows the `@config//:msvc_runtime` build
-    # setting (`--msvc_runtime=debug`, or `--config=mdd`), the same setting
-    # the library names and the dependency `select()`s read, so the two
-    # cannot disagree.
+    # Debug CRT (Make MSVC_RUNTIME_VERSION=debug), separate from `dbg` as it renames the libraries.
+    # It follows @config//:msvc_runtime, as do the library names and the dependency selects.
     msvc_runtime_debug_feature = feature(
         name = "msvc_runtime_debug",
         enabled = ctx.attr._msvc_runtime[ConfigFlagInfo].flag == "debug",
     )
 
-    # NOTE on CRT libraries: the Makefile spells the CRT import libraries out
-    # explicitly (`msvcrtd.lib msvcprtd.lib /nodefaultlib:libucrtd.lib
-    # ucrtd.lib`, makefile:330-332) because it compiles with `-Zl`
-    # (dev/make/compiler_definitions/icx.mkl.32e.mk:66), which strips the
-    # `/defaultlib` directives clang-cl would otherwise embed in each object.
-    # This toolchain does not pass `-Zl`, so those directives survive and
-    # `-MD`/`-MDd` alone pulls in the matching CRT. The one thing not carried
-    # over is Make's `/nodefaultlib:libucrtd.lib` guard, which overrides a
-    # static-UCRT directive coming from a third-party input on the
-    # onedal_thread link (makefile:868); add it here if such an input ever
-    # reappears.
+    # Without Make's `-Zl` the objects keep their /defaultlib directives, so -MD/-MDd alone picks
+    # the CRT and the CRT import libraries need not be listed.
     runtime_library_feature = feature(
         name = "runtime_library",
         enabled = True,
@@ -219,11 +203,8 @@ def _impl(ctx):
     do_not_link_dynamic_dependencies_feature = common.do_not_link_dynamic_dependencies_feature()
     no_legacy_features_feature = feature(name = "no_legacy_features", enabled = True)
 
-    # The import library of a DLL is a declared output of its link action, as
-    # in rules_cc's MSVC toolchain: with these two features `cc_common.link`
-    # declares `<name>.if.lib` and sets `interface_library_output_path`.
-    # `has_configured_linker_path` keeps the linker of the action config;
-    # without it Bazel would run its `link_dynamic_library.sh` wrapper.
+    # With these two features cc_common.link declares the DLL's import library, as for rules_cc's MSVC.
+    # has_configured_linker_path keeps the action config's linker instead of Bazel's wrapper script.
     targets_windows_feature = feature(name = "targets_windows", enabled = True)
     supports_interface_shared_libraries_feature = feature(
         name = "supports_interface_shared_libraries",
@@ -245,10 +226,7 @@ def _impl(ctx):
         )],
     )
 
-    # Inject Windows shell env vars into every compile and link action so
-    # icx (via `INCLUDE`) and lld-link (via `LIB`) find MSVC, Windows SDK,
-    # and oneAPI headers/libs without relying on the user's inherited
-    # shell — the Makefile relies on these same vars set by setvars.bat.
+    # INCLUDE and LIB from the configure-time shell, so actions find the MSVC, SDK and oneAPI files.
     msvc_env_entries = []
     if ctx.attr.env_include:
         msvc_env_entries.append(env_entry(key = "INCLUDE", value = ctx.attr.env_include))

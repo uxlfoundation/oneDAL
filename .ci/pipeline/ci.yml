@@ -830,12 +830,8 @@ jobs:
         echo OK: tbb\latest\lib\vc_mt\%%f
       )
     displayName: 'Check staged runtime dependencies'
-  # Analysis-only check of both MSVC-runtime configurations. The pull-request
-  # run does not build the debug runtime (`-MDd`); Intel's internal nightly CI
-  # does through its Make build, and `WindowsBazelReleaseAll` below does on
-  # manual and scheduled runs. `--nobuild` checks in seconds that the debug
-  # runtime resolves on this toolchain (see `_check_msvc_runtime` in
-  # dev/bazel/cc.bzl) and that the //:release_all transitions are well-formed.
+  # PR runs do not build the debug CRT, so check in seconds that it and the //:release_all
+  # transitions analyze; WindowsBazelReleaseAll builds them on scheduled runs.
   - script: |
       call %TEMP%\oneapi\setvars.bat --force
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release --config=mdd --nobuild --verbose_failures || exit /b 1
