@@ -228,7 +228,8 @@ TEMPLATE_LIST_TEST_M(dbscan_batch_test,
                                    metric_case{ distance_metric::chebyshev, 2.0 },
                                    metric_case{ distance_metric::cosine, 2.0 });
     // 2 and 5 columns take the narrow and the wide GPU kernels; 20 also takes the early exit.
-    const std::int64_t column_count = GENERATE(2, 5, 20);
+    // 37 makes the CPU Minkowski batch split each row into 32-value chunks and a partial one.
+    const std::int64_t column_count = GENERATE(2, 5, 20, 37);
     const bool weighted = GENERATE(false, true);
     const bool mem_save_mode = GENERATE(false, true);
     CAPTURE(static_cast<int>(c.metric), c.degree, column_count, weighted, mem_save_mode);
