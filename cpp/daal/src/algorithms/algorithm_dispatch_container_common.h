@@ -45,6 +45,8 @@ template <ComputeMode mode, typename sse2Container DAAL_KERNEL_AVX2_ONLY(typenam
 template <ComputeMode mode, typename SVEContainer DAAL_KERNEL_SVE_ONLY(typename sveContainer)>
 #elif defined(TARGET_RISCV64)
 template <ComputeMode mode, typename RV64Container DAAL_KERNEL_RV64_ONLY(typename rv64Container)>
+#elif defined(TARGET_LOONGARCH64)
+template <ComputeMode mode, typename LA64Container DAAL_KERNEL_LA64_ONLY(typename la64Container)>
 #endif
 class DAAL_EXPORT AlgorithmDispatchContainer : public AlgorithmContainerImpl<mode>
 {
@@ -99,6 +101,10 @@ private:
 #elif defined(TARGET_RISCV64)
     #define __DAAL_ALGORITHM_CONTAINER(Mode, ContainerTemplate, ...)                                                                            \
         algorithms::internal::AlgorithmDispatchContainer<Mode, ContainerTemplate<__VA_ARGS__, daal::internal::rv64> DAAL_KERNEL_RV64_CONTAINER( \
+                                                                   ContainerTemplate, __VA_ARGS__)>
+#elif defined(TARGET_LOONGARCH64)
+    #define __DAAL_ALGORITHM_CONTAINER(Mode, ContainerTemplate, ...)                                                                            \
+        algorithms::internal::AlgorithmDispatchContainer<Mode, ContainerTemplate<__VA_ARGS__, daal::internal::la64> DAAL_KERNEL_LA64_CONTAINER( \
                                                                    ContainerTemplate, __VA_ARGS__)>
 #endif
 

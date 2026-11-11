@@ -27,7 +27,7 @@ else ifeq ($(PLAT),)
 endif
 
 # Check that we know how to build for the identified platform
-PLATs := lnx32e mac32e win32e lnxarm lnxriscv64 winarm
+PLATs := lnx32e mac32e win32e lnxarm lnxriscv64 winarm lnxloongarch64
 $(if $(filter $(PLAT),$(PLATs)),,$(error Unknown platform $(PLAT)))
 
 # Non-platform or architecture specific defines live in common.mk

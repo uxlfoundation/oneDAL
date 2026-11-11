@@ -67,6 +67,13 @@ create_package() {
         dynamic_lib_path=lib/arm
         static_lib_path=lib/arm
         lib_prefix=libonedal
+    elif [ ${platform} = "lnxloongarch64" ]; then
+        platform=linux
+        tbb_platform=linux
+        rls_prefix=${rls_dir}/daal/latest
+        dynamic_lib_path=lib/loongarch64
+        static_lib_path=lib/loongarch64
+        lib_prefix=libonedal
 
     elif [ ${platform} = "mac32e" ]; then
         platform=osx-x64
