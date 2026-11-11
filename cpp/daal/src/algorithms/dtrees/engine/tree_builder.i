@@ -140,6 +140,11 @@ inline double randomThreshold(double lo, double hi, bool anyFinite, double flo, 
 }
 } // namespace exact
 
+// A histogram pass's planes take at most passPlaneBytes, so they stay in L2 (0: all of a node's lanes in one pass).
+// A fixed size rather than the host's L2: with stream engines the pass size orders feature and threshold draws, so
+// it would make the trees depend on the host.
+constexpr size_t passPlaneBytes = size_t(1) << 20;
+
 /// The largest algorithmFPType value at or below threshold t. Float prediction compares x > float(t), so a t
 /// rounded up onto a training value would send that value right; no float lies between the result and t, so
 /// it routes every float as t does.
@@ -277,6 +282,7 @@ public:
           _params(params),
           _inputs(inputs),
           _k(params.featuresPerNode && params.featuresPerNode < data.nFeatures ? params.featuresPerNode : data.nFeatures),
+          _passLanes(passLanes(params, _k)),
           _words(bitWords<cpu>(data.nFeatures)),
           _scratch([]() -> Scratch * { return new Scratch(); }),
           _prefetch { defaultPrefetchLines<cpu>(), services::internal::getL2CacheSize() }
@@ -581,7 +587,7 @@ private:
         return services::Status();
     }
 
-    bool useHist(size_t n) const { return _data.bins && n >= _params.denseThreshold * _params.maxBins; }
+    bool useHist(size_t n) const { return _data.bins && double(n) >= _params.denseThreshold * double(_params.maxBins); }
     bool isCategorical(size_t f) const { return _data.categorical && _data.categorical[f]; }
 
     /// The size a node's minimum sizes apply to: its records, or with sizesInDraws its bootstrap draws, which on
@@ -626,6 +632,16 @@ private:
         if (byValue || (_data.bins && _data.bins->exactBins(f))) setBit<cpu>(c->bits.get() + _words, f);
     }
 
+    /// Lanes of one histogram pass: as many as keep its planes within passPlaneBytes, a multiple of laneAlign.
+    static size_t passLanes(const TreeParams & params, size_t k)
+    {
+        if (!passPlaneBytes) return k;
+        const size_t perLane = hist::planeBytes<cpu, Record>(params.maxBins + 1, hist::laneAlign, params.nClasses) / hist::laneAlign;
+        size_t lanes         = perLane ? passPlaneBytes / perLane / hist::laneAlign * hist::laneAlign : k;
+        if (lanes < hist::laneAlign) lanes = hist::laneAlign;
+        return lanes < k ? lanes : k;
+    }
+
     /// The next up to want draws of the permutation that are not in the constant list.
     template <typename Draws>
     static size_t drawLanes(FeaturePermutation<cpu> & permutation, Draws & draws, const uint64_t * constant, size_t want, uint32_t * lanes)
@@ -648,7 +664,7 @@ private:
         DAAL_CHECK_MALLOC(child.carry->lanes.reset(_k));
         CounterNodeDraws<cpu> draws(ctx.rng, child.key);
         FeaturePermutation<cpu> permutation(uint32_t(_data.nFeatures), _k, scratch->permutation.get());
-        child.carry->nLanes = drawLanes(permutation, draws, child.carry->bits.get(), _k, child.carry->lanes.get());
+        child.carry->nLanes = drawLanes(permutation, draws, child.carry->bits.get(), _passLanes, child.carry->lanes.get());
         return draws.status();
     }
 
@@ -806,7 +822,8 @@ private:
         allConstant    = true;
         while (visited < _k)
         {
-            const size_t nLanes = drawLanes(permutation, features, known, _k - visited, lanes);
+            const size_t want   = _k - visited < _passLanes ? _k - visited : _passLanes;
+            const size_t nLanes = drawLanes(permutation, features, known, want, lanes);
             if (!nLanes) break;
             const hist::Planes<Record, cpu> * planes = &own;
             if (carried)
@@ -852,7 +869,7 @@ private:
     {
         const BinMatrix<cpu> & bins = *_data.bins;
         const size_t nData          = bins.nBins(f);
-        auto records                = [&](size_t b) { return size_t(h.records[h.at(b, lane)]); };
+        auto records                = [&](size_t b) { return size_t(h.count(b, lane)); };
         size_t first = nData, last = 0, nonEmpty = 0;
         for (size_t b = 0; b < nData; ++b)
         {
@@ -884,7 +901,7 @@ private:
             }
             else
             {
-                cost.addLeftSums(double(h.stat[h.at(b, lane)]), h.sumY[h.at(b, lane)]);
+                cost.addLeftSums(double(h.weight(b, lane)), h.sum(b, lane));
             }
         };
         auto consider = [&](size_t nLeft, size_t b) {
@@ -1238,7 +1255,8 @@ private:
     const TreeParams _params;
     TreeInputs<Record, cpu> & _inputs;
     const size_t _k;
-    const size_t _words; // per constant list
+    const size_t _passLanes; // lanes of one histogram pass
+    const size_t _words;     // per constant list
     LargeArray<uint64_t, cpu> _rootBits;
     CounterStreams<cpu> _streams;
     mutable daal::tls<Scratch *> _scratch;

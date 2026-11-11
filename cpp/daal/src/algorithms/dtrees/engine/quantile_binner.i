@@ -453,18 +453,17 @@ services::Status gatherSample(const data_management::NumericTable & x, const Sam
     return safeStat.detach();
 }
 
-/// Gathered sample values, sort payload and merge buffer, grown on demand.
+/// Gathered sample values and merge buffer, grown on demand.
 template <typename algorithmFPType, CpuType cpu>
 struct SampleScratch
 {
     LargeArray<algorithmFPType, cpu> values;
     LargeArray<algorithmFPType, cpu> tmp;
-    LargeArray<int32_t, cpu> payload;
 
     bool ensure(size_t n)
     {
         if (n <= values.size()) return true;
-        return values.reset(n) && tmp.reset(n) && payload.reset(n);
+        return values.reset(n) && tmp.reset(n);
     }
 };
 
@@ -486,9 +485,11 @@ namespace binner
  *  sorted[j] points into values or tmp; nNotNaN[j] counts its non-NaN values.
  */
 template <typename algorithmFPType, CpuType cpu>
-services::Status sortGroup(size_t nf, size_t k, size_t nChunks, algorithmFPType * values, algorithmFPType * tmp, int32_t * scratch,
-                           const algorithmFPType ** sorted, size_t * nNotNaN)
+services::Status sortGroup(size_t nf, size_t k, size_t nChunks, algorithmFPType * values, algorithmFPType * tmp, const algorithmFPType ** sorted,
+                           size_t * nNotNaN)
 {
+    // The sort's unused payload (design 4.12) lives in tmp, which the merges only write after every chunk is sorted.
+    int32_t * scratch  = reinterpret_cast<int32_t *>(tmp);
     const size_t chunk = (k + nChunks - 1) / nChunks;
     TArray<size_t, cpu> runBegin(nf * nChunks);
     TArray<size_t, cpu> runLen(nf * nChunks);
@@ -576,7 +577,7 @@ services::Status QuantileBinner<algorithmFPType, cpu>::build(const data_manageme
         sample.select(nRows, params.sampleRows, sampleStream, passBlockRows<cpu>(nRows, nThreads, 1, p * valueBytes, valueBytes, false));
     DAAL_CHECK_STATUS_VAR(s);
 
-    // One scratch set for all feature groups; pages of the merge buffer are only touched when used.
+    // One scratch set for all feature groups.
     binner::SampleScratch<algorithmFPType, cpu> sampleScratch;
 
     // Sorts features [f0, f0 + nf) of a sample and sets their bins. Data bins are capped at maxBins,
@@ -598,8 +599,7 @@ services::Status QuantileBinner<algorithmFPType, cpu>::build(const data_manageme
             const size_t bySize    = k / minSortChunk ? k / minSortChunk : 1;
             nChunks                = byThreads < bySize ? byThreads : bySize;
         }
-        st = binner::sortGroup<algorithmFPType, cpu>(nf, k, nChunks, values, sampleScratch.tmp.get(), sampleScratch.payload.get(), sorted.get(),
-                                                     nNotNaN.get());
+        st = binner::sortGroup<algorithmFPType, cpu>(nf, k, nChunks, values, sampleScratch.tmp.get(), sorted.get(), nNotNaN.get());
         DAAL_CHECK_STATUS_VAR(st);
         SafeStatus safeStat;
         daal::threader_for(nf, 1, [&](size_t j) {
@@ -615,7 +615,7 @@ services::Status QuantileBinner<algorithmFPType, cpu>::build(const data_manageme
         return safeStat.detach();
     };
 
-    const size_t bytesPerValue = 2 * sizeof(algorithmFPType) + sizeof(int32_t);
+    const size_t bytesPerValue = 2 * sizeof(algorithmFPType);
 
     // Rebins feature f from its full column in passes of at most columnChunkRows rows, so scratch stays within
     // binSampleScratchBytes whatever nRows. Each pass is sorted and run-length encoded, and its runs merge into
@@ -646,8 +646,7 @@ services::Status QuantileBinner<algorithmFPType, cpu>::build(const data_manageme
             const size_t bySize            = k / minSortChunk ? k / minSortChunk : 1;
             const algorithmFPType * sorted = nullptr;
             size_t m                       = 0;
-            st = binner::sortGroup<algorithmFPType, cpu>(1, k, byThreads < bySize ? byThreads : bySize, values, sampleScratch.tmp.get(),
-                                                         sampleScratch.payload.get(), &sorted, &m);
+            st = binner::sortGroup<algorithmFPType, cpu>(1, k, byThreads < bySize ? byThreads : bySize, values, sampleScratch.tmp.get(), &sorted, &m);
             DAAL_CHECK_STATUS_VAR(st);
             nNotNaN += m;
             if (!m) continue;

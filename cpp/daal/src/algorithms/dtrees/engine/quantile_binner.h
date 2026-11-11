@@ -50,7 +50,7 @@ using daal::internal::CpuType;
 // 0.00095 for m = 2^22 and delta = 1e-3, a quarter bin at 256 bins. Tables up to this size bin exactly.
 constexpr size_t binSampleRows = size_t(1) << 22;
 
-// Scratch for the sorted sample of one feature group: values, sort payload and merge buffer.
+// Scratch for the sorted sample of one feature group: values and merge buffer, which also holds the sort payload.
 constexpr size_t binSampleScratchBytes = size_t(1) << 30;
 
 /// Features sorted together: at most one per thread, as each thread sorts a whole feature once a group has

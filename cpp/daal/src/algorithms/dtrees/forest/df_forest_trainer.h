@@ -48,10 +48,10 @@ using daal::internal::CpuType;
 // 2 x SPR 8480+ over letter to Higgs 10.5M (design 4.9). Provisional; 5e measures it.
 constexpr double fitSecondsPerWorkUnit = 5.5e-8;
 
-// Fits estimated below this use one NUMA node. The first topology query costs 65-100 ms per process on a 2-socket
-// host, which NUMA placement (10-25% of a fit) repays from about half a second of fit. Set for one fit per process;
-// repeated fits favour a lower gate (design 9). Provisional; 5e measures it.
-constexpr double numaMinFitSeconds = 0.5;
+// Fits estimated below this use one NUMA node; that is every fit. On 2 x SPR 8480+ NUMA arenas were neutral to 19%
+// slower at every size measured (scikit-learn_bench ensemble cases to Higgs 10.5M), and the first topology query
+// costs 65-100 ms per process. The gate stays for hosts with more sockets or SNC, behind a measurement (design 4.9).
+constexpr double numaMinFitSeconds = 1e300;
 
 /// What a fit's time scales with.
 struct FitWork

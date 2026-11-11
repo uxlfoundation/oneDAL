@@ -346,14 +346,52 @@ TEST("the binning sample and the bins do not depend on the thread count, for eve
     }
 }
 
+TEST("a sample sorted in merged chunks bins as one sorted on one thread", "[unit]")
+{
+    // Above 2 * minSortChunk rows a feature is sorted in chunks whose payload shares the merge buffer.
+    const size_t n = 300000;
+    std::vector<double> data(2 * n);
+    std::mt19937_64 gen(5);
+    std::uniform_real_distribution<double> u(-1.0, 1.0);
+    for (size_t r = 0; r < n; ++r)
+    {
+        data[2 * r]     = u(gen);
+        data[2 * r + 1] = r % 97 == 0 ? nan : std::floor(u(gen) * 1000.0);
+    }
+    NumericTablePtr x = makeTable(data, 2);
+    BinningParams params;
+    params.minBinSize  = 1;
+    const size_t saved = services::Environment::getInstance()->getNumberOfThreads();
+    services::Environment::getInstance()->setNumberOfThreads(1);
+    Built<baseCpu> one;
+    build(*x, params, 3, one);
+    services::Environment::getInstance()->setNumberOfThreads(saved);
+    REQUIRE(one.status.ok());
+    REQUIRE(one.binned);
+    requireConsistent(one.bins, data);
+
+    // Exact quantiles of the continuous feature: the sample is the whole column.
+    std::vector<double> col(n);
+    for (size_t r = 0; r < n; ++r) col[r] = data[2 * r];
+    std::sort(col.begin(), col.end());
+    for (size_t j = 1; j < params.maxBins; ++j) REQUIRE(one.bins.borders(0)[j - 1] == col[(j * n + params.maxBins - 1) / params.maxBins - 1]);
+
+    forEachCpu([&](auto cpu) {
+        Built<decltype(cpu)::value> many;
+        build(*x, params, 3, many);
+        REQUIRE(many.status.ok());
+        requireEqual(one.bins, many.bins);
+    });
+}
+
 TEST("binning groups hold at most one feature per thread and fit the scratch budget", "[unit]")
 {
-    // MNIST: 60k sample rows of doubles (20 bytes a value) on 224 threads; the budget alone would take 894.
-    REQUIRE(binGroupFeatures<baseCpu>(60000, 20, 224) == 224);
-    // 4M sample rows: the budget holds 13 features.
-    REQUIRE(binGroupFeatures<baseCpu>(size_t(1) << 22, 20, 224) == binSampleScratchBytes / ((size_t(1) << 22) * 20));
-    REQUIRE(binGroupFeatures<baseCpu>(1000, 20, 1) == 1);
-    REQUIRE(binGroupFeatures<baseCpu>(size_t(1) << 30, 20, 8) == 1); // a feature above the budget is its own group
+    // MNIST: 60k sample rows of doubles (16 bytes a value) on 224 threads; the budget alone would take 1118.
+    REQUIRE(binGroupFeatures<baseCpu>(60000, 16, 224) == 224);
+    // 4M sample rows: the budget holds 16 features.
+    REQUIRE(binGroupFeatures<baseCpu>(size_t(1) << 22, 16, 224) == binSampleScratchBytes / ((size_t(1) << 22) * 16));
+    REQUIRE(binGroupFeatures<baseCpu>(1000, 16, 1) == 1);
+    REQUIRE(binGroupFeatures<baseCpu>(size_t(1) << 30, 16, 8) == 1); // a feature above the budget is its own group
 }
 
 TEST("a wide table bins the same whatever the feature groups", "[unit]")

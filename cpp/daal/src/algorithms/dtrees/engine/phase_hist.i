@@ -79,11 +79,21 @@ struct Layout<RegWeightRecord<algorithmFPType> >
     static constexpr bool classification = false;
 };
 
+/// A regression histogram bin of one lane: records, their weight and weighted response sum. One entry per update
+/// keeps a row's updates to one cache line per lane; planes of all features overflow L1 (design 4.6).
+template <typename Stat>
+struct RegBin
+{
+    uint32_t records;
+    Stat weight;
+    double sumY;
+};
+
 /**
  *  \brief Histograms of a node's lanes (drawn features)
  *
- *  Each plane is [bin][lane]: records per bin; classification, one plane per class of class weights;
- *  regression, a plane of weights and a plane of weighted response sums.
+ *  [bin][lane]. Classification: a plane of records per bin and one plane per class of class weights.
+ *  Regression: one plane of RegBin entries.
  */
 template <typename Record, CpuType cpu>
 struct Planes
@@ -93,10 +103,10 @@ struct Planes
     size_t nBins    = 0;
     size_t stride   = 0; // lanes, padded
     size_t nClasses = 0;
-    double center   = 0; // regression: subtracted from each response before it is summed (MseCost)
-    LargeArray<uint32_t, cpu> records;
-    LargeArray<Stat, cpu> stat; // classification: [class][bin][lane]; regression: weight [bin][lane]
-    LargeArray<double, cpu> sumY;
+    double center   = 0;               // regression: subtracted from each response before it is summed (MseCost)
+    LargeArray<uint32_t, cpu> records; // classification
+    LargeArray<Stat, cpu> stat;        // classification: [class][bin][lane]
+    LargeArray<RegBin<Stat>, cpu> reg; // regression
 
     bool init(size_t bins, size_t lanes, size_t classes)
     {
@@ -104,46 +114,69 @@ struct Planes
         stride         = (lanes + laneAlign - 1) / laneAlign * laneAlign;
         nClasses       = classes;
         const size_t n = nBins * stride;
-        const size_t s = Layout<Record>::classification ? nClasses * n : n;
-        if (!records.reset(n) || !stat.reset(s)) return false;
-        if (!Layout<Record>::classification && !sumY.reset(n)) return false;
-        for (size_t i = 0; i < n; ++i) records[i] = 0;
-        for (size_t i = 0; i < s; ++i) stat[i] = 0;
-        if (!Layout<Record>::classification)
-            for (size_t i = 0; i < n; ++i) sumY[i] = 0;
+        if constexpr (Layout<Record>::classification)
+        {
+            const size_t s = nClasses * n;
+            if (!records.reset(n) || !stat.reset(s)) return false;
+            for (size_t i = 0; i < n; ++i) records[i] = 0;
+            for (size_t i = 0; i < s; ++i) stat[i] = 0;
+        }
+        else
+        {
+            if (!reg.reset(n)) return false;
+            for (size_t i = 0; i < n; ++i) reg[i] = RegBin<Stat> { 0, 0, 0 };
+        }
         return true;
     }
 
     void add(const Planes & o)
     {
         const size_t n = nBins * stride;
-        const size_t s = Layout<Record>::classification ? nClasses * n : n;
-        for (size_t i = 0; i < n; ++i) records[i] += o.records[i];
-        for (size_t i = 0; i < s; ++i) stat[i] += o.stat[i];
-        if (!Layout<Record>::classification)
-            for (size_t i = 0; i < n; ++i) sumY[i] += o.sumY[i];
+        if constexpr (Layout<Record>::classification)
+        {
+            for (size_t i = 0; i < n; ++i) records[i] += o.records[i];
+            for (size_t i = 0; i < nClasses * n; ++i) stat[i] += o.stat[i];
+        }
+        else
+        {
+            for (size_t i = 0; i < n; ++i)
+            {
+                reg[i].records += o.reg[i].records;
+                reg[i].weight += o.reg[i].weight;
+                reg[i].sumY += o.reg[i].sumY;
+            }
+        }
     }
 
     void release()
     {
         records.reset(0);
         stat.reset(0);
-        sumY.reset(0);
+        reg.reset(0);
     }
 
     size_t at(size_t bin, size_t lane) const { return bin * stride + lane; }
+    uint32_t count(size_t bin, size_t lane) const
+    {
+        if constexpr (Layout<Record>::classification)
+            return records[at(bin, lane)];
+        else
+            return reg[at(bin, lane)].records;
+    }
     Stat classStat(size_t c, size_t bin, size_t lane) const { return stat[c * nBins * stride + at(bin, lane)]; }
+    Stat weight(size_t bin, size_t lane) const { return reg[at(bin, lane)].weight; }
+    double sum(size_t bin, size_t lane) const { return reg[at(bin, lane)].sumY; }
 };
 
 /// Adds one record, whose bin row is b, to the planes of nLanes features.
 template <typename Record, typename BinT, CpuType cpu>
 inline void addRow(const Record & r, const BinT * b, const uint32_t * features, size_t nLanes, Planes<Record, cpu> & h)
 {
-    uint32_t * records  = h.records.get();
-    auto * stat         = h.stat.get();
     const size_t stride = h.stride;
     if constexpr (Layout<Record>::classification)
     {
+        uint32_t * records  = h.records.get();
+        auto * stat         = h.stat.get();
         const size_t offset = size_t(recordClass<cpu>(r)) * h.nBins * stride;
         const auto weight   = static_cast<typename Planes<Record, cpu>::Stat>(recordWeight<cpu>(r));
         for (size_t j = 0; j < nLanes; ++j)
@@ -155,16 +188,16 @@ inline void addRow(const Record & r, const BinT * b, const uint32_t * features, 
     }
     else
     {
-        double * sumY   = h.sumY.get();
+        auto * reg      = h.reg.get();
         const double w  = recordWeight<cpu>(r);
         const double wy = w * (recordResponse<cpu>(r) - h.center);
         const auto ws   = static_cast<typename Planes<Record, cpu>::Stat>(w);
         for (size_t j = 0; j < nLanes; ++j)
         {
-            const size_t idx = size_t(b[features[j]]) * stride + j;
-            ++records[idx];
-            stat[idx] += ws;
-            sumY[idx] += wy;
+            auto & e = reg[size_t(b[features[j]]) * stride + j];
+            ++e.records;
+            e.weight += ws;
+            e.sumY += wy;
         }
     }
 }
@@ -229,8 +262,8 @@ template <CpuType cpu, typename Record>
 inline size_t planeBytes(size_t nBins, size_t nLanes, size_t nClasses)
 {
     const size_t n = nBins * ((nLanes + laneAlign - 1) / laneAlign * laneAlign);
-    const size_t s = Layout<Record>::classification ? nClasses * n : n;
-    return n * sizeof(uint32_t) + s * sizeof(typename Layout<Record>::Stat) + (Layout<Record>::classification ? 0 : n * sizeof(double));
+    using Stat     = typename Layout<Record>::Stat;
+    return Layout<Record>::classification ? n * sizeof(uint32_t) + nClasses * n * sizeof(Stat) : n * sizeof(RegBin<Stat>);
 }
 
 /// nChunks, capped so that the partial planes of chunks 1.. take at most partialPlaneBytes. The cap depends on

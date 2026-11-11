@@ -788,22 +788,23 @@ double defaultFitSeconds(size_t nRows, size_t p, bool classification, size_t nTr
     return training::internal::estimatedFitSeconds<cpu>(work, nThreads);
 }
 
-TEST("the NUMA gate turns on at the row counts of design 4.9 and follows trees, threads and depth", "[unit]")
+TEST("the fit-time estimate follows rows, features, trees, threads and depth", "[unit]")
 {
-    using training::internal::numaMinFitSeconds;
-    // 224 threads, 100 trees: about 365k rows at 28 features, 74k at 784 and 33k at 5000 (classification).
-    REQUIRE(defaultFitSeconds(200000, 28, true, 100, 224) < numaMinFitSeconds);
-    REQUIRE(defaultFitSeconds(800000, 28, true, 100, 224) > numaMinFitSeconds);
-    REQUIRE(defaultFitSeconds(60000, 784, true, 100, 224) < numaMinFitSeconds);
-    REQUIRE(defaultFitSeconds(200000, 784, true, 100, 224) > numaMinFitSeconds);
-    REQUIRE(defaultFitSeconds(6000, 5000, true, 100, 224) < numaMinFitSeconds);
-    REQUIRE(defaultFitSeconds(100000, 5000, true, 100, 224) > numaMinFitSeconds);
-    // Regression draws p / 3 features, so it turns on sooner: about 80k rows at 90 features.
-    REQUIRE(defaultFitSeconds(40000, 90, false, 100, 224) < numaMinFitSeconds);
-    REQUIRE(defaultFitSeconds(200000, 90, false, 100, 224) > numaMinFitSeconds);
-    // Fewer threads lower the threshold, fewer trees raise it.
-    REQUIRE(defaultFitSeconds(200000, 28, true, 100, 32) > numaMinFitSeconds);
-    REQUIRE(defaultFitSeconds(800000, 28, true, 10, 224) < numaMinFitSeconds);
+    // Half a second, about where NUMA arenas would have to pay for the topology query (design 4.9): at 224 threads
+    // and 100 trees about 365k rows at 28 features, 74k at 784 and 33k at 5000 (classification).
+    constexpr double halfSecond = 0.5;
+    REQUIRE(defaultFitSeconds(200000, 28, true, 100, 224) < halfSecond);
+    REQUIRE(defaultFitSeconds(800000, 28, true, 100, 224) > halfSecond);
+    REQUIRE(defaultFitSeconds(60000, 784, true, 100, 224) < halfSecond);
+    REQUIRE(defaultFitSeconds(200000, 784, true, 100, 224) > halfSecond);
+    REQUIRE(defaultFitSeconds(6000, 5000, true, 100, 224) < halfSecond);
+    REQUIRE(defaultFitSeconds(100000, 5000, true, 100, 224) > halfSecond);
+    // Regression draws p / 3 features here, so it reaches the same time sooner: about 80k rows at 90 features.
+    REQUIRE(defaultFitSeconds(40000, 90, false, 100, 224) < halfSecond);
+    REQUIRE(defaultFitSeconds(200000, 90, false, 100, 224) > halfSecond);
+    // Fewer threads lengthen the fit, fewer trees shorten it.
+    REQUIRE(defaultFitSeconds(200000, 28, true, 100, 32) > halfSecond);
+    REQUIRE(defaultFitSeconds(800000, 28, true, 10, 224) < halfSecond);
     // Depth and leaf limits cap the levels.
     const auto deep    = training::internal::fitWork<cpu>(100, 1000000, 1000000, true, 5, 1, 0, 0);
     const auto shallow = training::internal::fitWork<cpu>(100, 1000000, 1000000, true, 5, 1, 4, 0);
@@ -814,14 +815,31 @@ TEST("the NUMA gate turns on at the row counts of design 4.9 and follows trees, 
     REQUIRE(training::internal::fitWork<cpu>(100, 1000, 1000, false, 5, 1, 0, 0).rows == 1000);
 }
 
-TEST("fits below the NUMA gate use one node and do not query the topology", "[unit]")
+TEST("fits use one NUMA node and do not query the topology", "[unit]")
 {
     // Querying the topology (threader_numa_count) loads hwloc, the cost the gate avoids, so the one-node placement
-    // must not come from it.
+    // must not come from it. A 17 s fit (Higgs 10.5M, 100 trees, 224 threads) is still below the gate.
     const auto small = training::internal::numaPlacement<cpu>(training::internal::fitWork<cpu>(10, 1000, 1000, true, 5, 1, 0, 0), 224);
     REQUIRE(small.nodes == 1);
-    const auto large = training::internal::numaPlacement<cpu>(training::internal::fitWork<cpu>(100, 10000000, 10000000, true, 5, 1, 0, 0), 224);
-    REQUIRE(large.nodes == size_t(threader_numa_count()));
+    const auto large = training::internal::numaPlacement<cpu>(training::internal::fitWork<cpu>(100, 10500000, 10500000, true, 5, 1, 0, 0), 224);
+    REQUIRE(large.nodes == 1);
+}
+
+TEST("a fractional denseThreshold is read, and a negative or NaN one is rejected", "[unit]")
+{
+    namespace hpc = cls::training::internal;
+    // A fresh set per value: a set id keeps its first value.
+    auto read = [](double value, decision_forest::internal::EngineHyperparameters & out) {
+        hpc::Hyperparameter hp;
+        REQUIRE(hp.set(hpc::denseThreshold, value).ok());
+        return decision_forest::internal::readEngineHyperparameters(&hp, hpc::denseThreshold, hpc::chunkRows, hpc::maxChunks, hpc::treesInFlight,
+                                                                    hpc::legacyTraining, out);
+    };
+    decision_forest::internal::EngineHyperparameters out;
+    REQUIRE(read(0.25, out).ok());
+    REQUIRE(out.denseThreshold == 0.25);
+    REQUIRE(!read(-0.5, out).ok());
+    REQUIRE(!read(std::nan(""), out).ok());
 }
 
 } // namespace daal::algorithms::decision_forest::test

@@ -687,7 +687,7 @@ services::Status trainForest(const data_management::NumericTable & x, const data
     tp.counterDraws        = counter;
     tp.treesInFlight       = size_t(hp.treesInFlight);
     tp.numaNodes           = placement.nodes;
-    tp.denseThreshold      = size_t(hp.denseThreshold);
+    tp.denseThreshold      = hp.denseThreshold;
     tp.maxBins             = par.maxBins;
     tp.chunkRows           = size_t(hp.chunkRows);
     tp.maxChunks           = size_t(hp.maxChunks);

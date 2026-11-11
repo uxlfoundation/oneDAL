@@ -69,7 +69,7 @@ struct TreeParams
     size_t treesInFlight       = 0;
     size_t numaNodes           = 0; // see ExecutorParams; the data's NumaPlacement::nodes
     // hist: nodes of fewer than denseThreshold * maxBins records take the exact phase (design 4.7).
-    size_t denseThreshold = 2;
+    double denseThreshold = 2;
     size_t maxBins        = 256;
     // Large histogram-phase nodes run in chunks of chunkRows records, at most maxChunks (design 4.6); the forest's
     // defaults and their measurements are in EngineHyperparameters (df_hyperparameter_impl.h).

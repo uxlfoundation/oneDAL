@@ -86,7 +86,7 @@ TEST("weighted histograms sum weights in double", "[unit]")
         REQUIRE((hist::build(cls.data(), nRows, bins, &lane, 1, 1, nChunks, PrefetchBudget<cpu> { 0, 0 }, 0, hc)).ok());
         for (size_t b = 0; b < 2; ++b)
         {
-            REQUIRE(std::abs(double(hr.stat[hr.at(b, 0)]) - e[b]) <= tol * e[b]);
+            REQUIRE(std::abs(double(hr.weight(b, 0)) - e[b]) <= tol * e[b]);
             REQUIRE(std::abs(double(hc.classStat(0, b, 0)) - e[b]) <= tol * e[b]);
         }
     }
