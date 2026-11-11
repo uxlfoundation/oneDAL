@@ -16,21 +16,7 @@
 
 """Parts shared by the Linux and Windows `cc_toolchain_config` implementations.
 
-`cc_toolchain_config_lnx.bzl` and `cc_toolchain_config_win.bzl` describe two
-different compiler drivers, so most of their features differ in the flags they
-emit (`-I` against `/I`, `-MD -MF` against `/clang:-MD /clang:-MF`, and so on)
-and have to stay apart. What does not differ is collected here:
-
-* the action groups the flag sets are attached to, which are simply lists of
-  `ACTION_NAMES` and were identical in both files;
-* the features whose flags come entirely from rule attributes or from Bazel
-  build variables, and therefore contain nothing platform specific;
-* the rule attributes both `cc_toolchain_config` rules declare.
-
-Anything added here must hold for both platforms. A feature that needs even one
-different flag belongs in the platform file instead -- a shared factory with a
-per-platform branch inside would be harder to follow than the duplicate it
-replaces.
+A feature that needs even one different flag belongs in the platform file.
 """
 
 load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
@@ -135,24 +121,14 @@ def _supports_dynamic_linker_feature():
     )
 
 def _do_not_link_dynamic_dependencies_feature():
-    """Declare the opt-in feature that drops dynamic libraries from a link.
-
-    Nothing enables it by default; see the comment in `_cc_dynamic_lib_impl`
-    (`dev/bazel/cc.bzl`) for why the released libraries must keep their
-    DT_NEEDED entries. It stays defined so that it remains reachable through
-    `--features`.
-    """
+    """Declare the opt-in feature that drops dynamic libraries from a link."""
     return feature(
         name = "do_not_link_dynamic_dependencies",
         enabled = False,
     )
 
 def _compiler_input_flags_feature():
-    """Pass the source file to the compiler.
-
-    `-c` is spelled the same way by gcc and by icx on Windows, which accepts
-    both the GNU and the MSVC spelling, so this needs no platform variant.
-    """
+    """Pass the source file to the compiler; `-c` works for gcc, icx and clang-cl alike."""
     return feature(
         name = "compiler_input_flags",
         flag_sets = [
@@ -323,8 +299,7 @@ def _cpu_opt_feature(cpu_id, cpu_flags_cc, cpu_flags_dpcc):
         ],
     )
 
-# Attributes declared by both `cc_toolchain_config` rules. Each platform adds
-# its own on top, see the `rule()` calls in the two files.
+# Attributes declared by both `cc_toolchain_config` rules.
 COMMON_ATTRS = {
     "cpu": attr.string(mandatory = True),
     "compiler": attr.string(mandatory = True),

@@ -14,11 +14,7 @@ cc_library(
     ],
 )
 
-# `.ci/env/openblas.bat` builds OpenBLAS with `-DBUILD_SHARED_LIBS=OFF`, so
-# `lib/openblas.lib` is a static archive and its symbols end up inside oneDAL's
-# own binaries. Make links exactly the same file on Windows
-# (`releaseopen_blas.LIBS_A := $(OPENBLASDIR)/lib/openblas.lib` through
-# `OPENBLASDIR.libia.win` in dev/make/deps.ref.mk).
+# `.ci/env/openblas.bat` builds a static openblas.lib, which Make links too (OPENBLASDIR.libia.win).
 cc_library(
     name = "openblas_core",
     srcs = [

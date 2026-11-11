@@ -199,13 +199,8 @@ release(
         release_extra_file(":release_nuspec_redist", "nuspec/inteldal.redist.linux.nuspec", windows_dst_path = "nuspec/inteldal.redist.win-x64.nuspec"),
         release_extra_file(":release_nuspec_static", "nuspec/inteldal.static.linux.nuspec", windows_dst_path = "nuspec/inteldal.static.win-x64.nuspec"),
     ],
-    # libonedal_thread.so records DT_NEEDED entries for TBB, so the TBB
-    # redistributables have to travel with the package, exactly as Make stages
-    # them (`makefile:274-279`, `makefile:1101`). Windows splits them the way
-    # Make does: the DLLs the released libraries load at runtime go under
-    # `bin/vc_mt`, the import libraries a consumer links against under
-    # `lib/vc_mt`. On Linux the `.so` files serve both roles and
-    # `tbb_import_libs` is empty.
+    # libonedal_thread needs TBB at runtime, so TBB ships with the package as in Make.
+    # On Windows the DLLs go under bin/vc_mt and the import libraries under lib/vc_mt.
     dep_runtime = [
         release_dep_runtime("@tbb//:tbb_runtime", "tbb/latest/lib",
                             windows_dst_dir = "tbb/latest/bin/vc_mt"),
@@ -214,15 +209,8 @@ release(
     ],
 )
 
-# Single release tree holding both Windows MSVC runtime flavours: the
-# release-CRT libraries (`onedal_core.lib`) next to the debug-CRT ones
-# (`onedal_cored.lib`). Equivalent to running the Make build twice, with
-# MSVC_RUNTIME_VERSION=release and =debug, into one RELEASEDIR.
-#
-#   bazel build //:release_all
-#
-# For a single flavour use //:release (default, `-MD`) or
-# //:release --config=mdd. On Linux/macOS this equals //:release.
+# Both Windows CRT flavours in one tree, as two Make runs (MSVC_RUNTIME_VERSION=release
+# and =debug) into one RELEASEDIR would give. Elsewhere it equals //:release.
 release_all(
     name = "release_all",
     release_target = ":release",

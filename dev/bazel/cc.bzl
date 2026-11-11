@@ -217,10 +217,8 @@ def _cc_module_impl(ctx):
             compilation_outputs = compilation_outputs,
             user_link_flags = coverage.link_flags,
         )
-        # create_linking_context_from_compilation_outputs uses the flags for the
-        # module dynamic-link action and also puts them in its linking context.
-        # Keep module-action coverage flags from leaking transitively;
-        # executable and test actions add their own coverage driver option.
+        # The module's coverage link flags would otherwise leak into every dependent link,
+        # while executables and tests add their own.
         linking_context = _without_coverage_link_flags(linking_context, coverage.link_flags)
         tagged_linking_contexts.append(onedal_cc_common.create_tagged_linking_context(
             tag = ctx.attr.lib_tag,
@@ -294,9 +292,7 @@ def cc_module(name, hdrs=[], deps=[], target_compatible_with=[], **kwargs):
             "@config//:release_dpc_disabled": ["@config//:dpc_needs_icpx_in_PATH"],
             "//conditions:default": [],
         })
-    # Workaround restriction on possible extensions for cc_common.compile:
-    # > The list of possible extensions for 'public_hdrs' is:
-    #   .h,.hh,.hpp,.ipp,.hxx,.h++,.inc,.inl,.tlh,.tli,.H,.tcc
+    # cc_common.compile restricts the extensions of `public_hdrs`; cc_library does not.
     if hdrs:
         cc_library(
             name = "__{}_headers__".format(name),
@@ -313,9 +309,6 @@ def cc_module(name, hdrs=[], deps=[], target_compatible_with=[], **kwargs):
 
 
 def _validate_build_parameters_lib(ctx, is_windows):
-    # The policy itself lives in config.bzl so this rule and
-    # @config//:validate_build_parameters_lib state it once. Only the two
-    # inputs are read from the rule context here.
     value = ctx.attr._build_parameters_lib[ConfigFlagInfo].flag
     validate_build_parameters_lib(value, is_windows)
 
@@ -372,27 +365,8 @@ cc_static_lib = rule(
 def _cc_dynamic_lib_impl(ctx):
     is_windows = _is_windows(ctx)
     _validate_build_parameters_lib(ctx, is_windows)
-    # Released shared libraries must record their dynamic dependencies, the
-    # same way the Makefile does (`dev/make/function_definitions/lnx32e.mk:27`
-    # feeds `-ltbb -ltbbmalloc` into libonedal_thread.so at `makefile:872`,
-    # and the toolchain supplies `-lstdc++ -lm`). Requesting
-    # `do_not_link_dynamic_dependencies` here used to drop every dynamic
-    # library from the link line -- see the `libraries_to_link` and
-    # `default_dynamic_libraries` flag sets guarded by that feature in
-    # `dev/bazel/toolchains/cc_toolchain_config_lnx.bzl` -- which left the
-    # released libs without DT_NEEDED for TBB, libstdc++, libm and even for
-    # sibling oneDAL libs. Those entries cannot be substituted by the
-    # consumer: an external consumer never links TBB itself, so loading
-    # libonedal_thread.so failed with an undefined `tbb::detail::r1::*`
-    # symbol. The feature is left defined in the toolchains so it stays
-    # available through `--features`, but nothing enables it by default.
-    #
-    # Windows never requested the feature. MSVC resolves every external at
-    # link time, so a DLL that consumes another DLL needs the dependency's
-    # import library on the command line -- exactly the `interface_library`
-    # link inputs this feature suppresses. With it enabled, onedal.dll has
-    # nothing to resolve the DAAL symbols it imports from onedal_core.dll
-    # against and lld-link fails with undefined externals.
+    # No do_not_link_dynamic_dependencies: released libraries need their DT_NEEDED entries
+    # (TBB, libstdc++), and a DLL needs the import libraries of the DLLs it uses.
     toolchain, feature_config = _init_cc_rule(ctx)
     coverage = _coverage_options(ctx, toolchain, feature_config)
     compilation_context = onedal_cc_common.collect_and_merge_compilation_contexts(ctx.attr.deps)
@@ -506,11 +480,7 @@ def _cc_exec_impl(ctx):
 _TEST_LINK_MODE_SETTING = str(Label("@config//:test_link_mode"))
 
 def _test_link_mode_transition_impl(settings, attr):
-    # A private test reaches internals the release package does not ship: its
-    # include tree leaves out `backend/` and DAAL source headers, and those
-    # symbols are not exported from the shared libraries. A release link mode
-    # replaces the test's `dal_deps` with the package, so such a test is always
-    # built from sources, as in the `dev` link mode.
+    # Private tests use headers and symbols the release package does not ship.
     if attr.build_from_sources:
         return {_TEST_LINK_MODE_SETTING: "dev"}
     return {_TEST_LINK_MODE_SETTING: settings[_TEST_LINK_MODE_SETTING]}
@@ -525,9 +495,7 @@ cc_test = rule(
     implementation = _cc_exec_impl,
     attrs = {
         "lib_tags": attr.string_list(),
-        # The transition is on the edges rather than on the test itself, so
-        # that the test binary and its logs stay in the top-level output
-        # directory (`bazel-out/<cpu>-opt/testlogs`).
+        # On the edges, so the test binary and its logs stay in the top-level output directory.
         "deps": attr.label_list(cfg=_test_link_mode_transition),
         "data": attr.label_list(allow_files=True, cfg=_test_link_mode_transition),
         "user_link_flags": attr.string_list(),

@@ -90,8 +90,7 @@ def _ccl_test_impl(ctx):
 ccl_test = rule(
     implementation = _ccl_test_impl,
     attrs = {
-        # The test binary itself: built for the target like any other test,
-        # so it shares the build with the rest of the test suite.
+        # Built for the target, so it shares the build with the rest of the test suite.
         "src": attr.label(mandatory=True,
                           executable=True,
                           cfg="target"),

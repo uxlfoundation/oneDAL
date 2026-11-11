@@ -119,12 +119,7 @@ def dal_public_includes(name, dal_deps=[], **kwargs):
             "_dal_cpu_dispatcher_gen.hpp",
             "backend/",
             "test/",
-            # Exclude all external-repository headers.  _match_file_name uses
-            # file.short_path, where every external dep starts with "../":
-            #   workspace style:  ../mkl_repo/include/mkl.h
-            #   Bzlmod style:     ../mkl_repo~2024.2/include/mkl.h
-            # The old "bazel-" pattern only caught workspace-style paths in
-            # file.path; it missed Bzlmod "+mkl_repo+mkl/" hashes entirely.
+            # External repositories.
             "../",
         ],
     )
@@ -163,9 +158,7 @@ def dal_dynamic_lib(name, lib_name, dal_deps=[], host_deps=[],
         features = features + [ "dpc++" ],
         lib_name = lib_name + "_dpc",
         lib_tags = dpc_lib_tags if dpc_lib_tags != None else lib_tags,
-        # dpc_host_deps is reserved for platform glue compiled as host code
-        # into a DPC library. Never forward ordinary host_deps here: doing so
-        # folds host parameter objects into the DPC library as duplicates.
+        # Only platform glue: ordinary host_deps would duplicate the host parameter objects.
         deps = _get_dpc_deps(dal_deps) + extra_deps + dpc_deps + dpc_host_deps,
         **kwargs
     )
@@ -185,7 +178,6 @@ def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
              mpi=False, ccl=False, mpi_ranks=0, args=[],
              use_onedal_release_libs=True, target_compatible_with=[], **kwargs):
     # TODO: Check `compile_as` parameter
-    # TODO: Refactor this rule once decision on the tests structure is made
     if not framework in ["catch2", "none"]:
         fail("Unknown test framework '{}' in test rule '{}'".format(framework, name))
     is_catch2 = framework == "catch2"
@@ -223,9 +215,7 @@ def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
         _test_device_args() +
         args
     )
-    # Tests need to be marked as manual to prevent inclusion of all tests to
-    # `empty_test` suites, more detail:
-    # https://docs.bazel.build/versions/4.1.0/be/general.html#test_suite_args
+    # Manual, or a test_suite with empty `tests` would take all of them.
     common_tags = [ "manual" ]
 
     tests_for_test_suite = []
@@ -280,9 +270,7 @@ def dal_test_suite(name, srcs=[], tests=[],
         if target.endswith("_dpc"):
             is_dpc_only = ("dpc++" in compile_as) and (not "c++" in compile_as)
             if is_dpc_only:
-                # We need to remove `_dpc` suffix here as `dal_test` rule
-                # adds `_dpc` suffix if `compile_as` attribute contains 'dpc++' target.
-                # Otherwise the generated test will have '_dpc_dpc' suffix.
+                # dal_test appends `_dpc` itself.
                 target = target.replace("_dpc", "")
             else:
                 utils.warn("Test name ends with '_dpc' suffix but compiled for both " +
@@ -395,9 +383,8 @@ def _test_deps_on_daal():
 
 def _test_runtime_data():
     return _select({
-        # The dev threading layer links TBB through import libraries on
-        # Windows; the loader finds tbb12.dll only next to the test exe,
-        # where _copy_windows_runtime_files puts the DLLs of `data`.
+        # On Windows the loader finds tbb12.dll only next to the test exe, where
+        # _copy_windows_runtime_files puts the DLLs of `data`.
         "@config//:test_link_mode_dev": [
             "@tbb//:tbb_runtime",
         ],
@@ -453,14 +440,8 @@ def _dal_generate_cpu_dispatcher_impl(ctx):
         ("#define ONEDAL_CPU_DISPATCH_SSE2\n"       if sets.contains(cpus, "sse2")       else "") +
         ("#define ONEDAL_CPU_DISPATCH_AVX2\n"       if sets.contains(cpus, "avx2")       else "") +
         ("#define ONEDAL_CPU_DISPATCH_AVX512\n"     if sets.contains(cpus, "avx512")     else "") +
-        # Non-x86 ISAs need their dispatch macro too, otherwise
-        # ONEDAL_IF_CPU_DISPATCH_A8SVE / _RV64 in
-        # cpp/oneapi/dal/backend/dispatcher_cpu.hpp expand to nothing and
-        # dispatch_by_cpu() falls through: on ARM straight into
-        # `throw unsupported_device{ sve_not_supported() }`, so every oneAPI
-        # algorithm fails at runtime. Mirrors
-        # dev/make/function_definitions/{arm,riscv64}.mk, which emit the same
-        # defines into _dal_cpu_dispatcher_gen.hpp.
+        # Without these dispatch_by_cpu() finds no kernel on ARM and RISC-V; Make emits them
+        # too (arm.mk, riscv64.mk).
         ("#define ONEDAL_CPU_DISPATCH_A8SVE\n"      if sets.contains(cpus, "sve")        else "") +
         ("#define ONEDAL_CPU_DISPATCH_RV64\n"       if sets.contains(cpus, "rv64")       else "")
     )
@@ -519,7 +500,6 @@ def _generate_global_header_test_cpp_impl(ctx):
     preview_algo_names = sets.make(ctx.attr.algo_preview)
     test_file = ctx.actions.declare_file("{}.cpp".format(ctx.label.name))
     content = "#include \"oneapi/dal.hpp\"\n"
-    # Add comments for people who may open this file to understand root cause of an error
     content += (
         "\n" +
         "// This is automatically generated file for testing `dal.hpp`.\n" +
@@ -533,9 +513,7 @@ def _generate_global_header_test_cpp_impl(ctx):
             content += "using namespace oneapi::dal::preview::{};\n".format(algo_name)
         else:
             content += "using namespace oneapi::dal::{};\n".format(algo_name)
-    # Linkers may complain about empty object files, so
-    # add dummy function. It's more safe to declare static function, but
-    # compiler warns about unused functions in this case
+    # Avoids an empty object file; a static function would warn as unused.
     content += "\nvoid __headers_test_dummy__() {}\n"
     ctx.actions.write(test_file, content)
     return [ DefaultInfo(files=depset([ test_file ])) ]
@@ -686,12 +664,7 @@ def daal_example_suite(name, srcs, use_onedal_release_libs=False, **kwargs):
     )
 
 def daal_algo_example_suite(algos, dal_deps=[], **kwargs):
-    """Build DAAL example suites using classic DAAL kernel deps.
-
-    Unlike dal_algo_example_suite(), this function does NOT add oneAPI
-    (@onedal//cpp/oneapi/dal/algo/...) targets — DAAL examples use daal.h
-    and depend on DAAL kernels (@onedal//cpp/daal/src/algorithms/<algo>:kernel).
-    """
+    """Build DAAL example suites against the DAAL kernels, without the oneAPI algorithm targets."""
     for algo in algos:
         daal_example_suite(
             name = algo,

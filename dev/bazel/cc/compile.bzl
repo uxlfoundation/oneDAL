@@ -165,11 +165,8 @@ def _patch_includes(ctx, compilation_context, includes=[],
         local_defines = compilation_context.local_defines,
     )
 
-# Generated headers whose contents follow the --cpu list. Only compile actions
-# that expand the ISA dispatch macros (dispatchers, ISA-conditional TUs) may
-# declare them as inputs; the per-cpu kernel TUs get the static header instead,
-# so that switching --cpu does not rebuild their objects.
-# Paths are as written in `#include`, relative to an include directory.
+# Generated from the --cpu list. Only TUs that expand the ISA dispatch macros take them as
+# inputs, so switching --cpu does not rebuild the per-cpu kernels.
 _CPU_LIST_HDRS = ["services/internal/daal_kernel_defines.h"]
 
 def _drop_dirs(dirs, dropped):
@@ -185,10 +182,8 @@ def _without_cpu_list_headers(compilation_context):
         else:
             generated_roots[h.path[:-len(rel[0]) - 1]] = True
 
-    # Dropping the input is not enough: the generated include directory comes
-    # before the source one, so an unsandboxed compile (Windows, or
-    # --spawn_strategy=local) would still find the generated header there and
-    # fail with "undeclared inclusion". Drop that directory as well.
+    # An unsandboxed compile would still find the header in the generated include directory,
+    # which precedes the source one, and fail with "undeclared inclusion".
     return cc_common.create_compilation_context(
         headers = depset(headers),
         system_includes = _drop_dirs(compilation_context.system_includes, generated_roots),
@@ -199,10 +194,8 @@ def _without_cpu_list_headers(compilation_context):
         local_defines = compilation_context.local_defines,
     )
 
-# Longest object path under `bazel-out/<config>/bin`, plus the `.params`
-# suffix, allowed on Windows. MSVC tools do not open paths over MAX_PATH (260)
-# whatever LongPathsEnabled says, and the output base and config dir take up
-# to ~165 of them in CI.
+# Under bazel-out/<config>/bin, `.params` included: MSVC tools ignore LongPathsEnabled past
+# MAX_PATH (260), and the output base takes up to ~165 characters in CI.
 _WIN_MAX_OBJ_PATH = 95
 
 def _longest_obj_path(ctx, name, sources, fpts, cpus):
@@ -398,10 +391,7 @@ def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
             cpu_to_file_dict = _normalize_cpu_files(sources_by_category.cpu_files,
                                                     sources_by_category.special_cpu_files)
         for cpu in cpus:
-            # `cpu_to_file_dict` only ever has entries for the x86 ISA IDs
-            # that `_CPU_SUFFIX_TO_ISA_MAP` knows about (_nrh/_hsw/_skx); on
-            # ARM/RISC-V (cpu == "sve"/"rv64") there is no such per-ISA
-            # source-file split, so fall back to the general `_cpu` files.
+            # Only x86 ISAs have per-ISA files; ARM and RISC-V use the `_cpu` files.
             srcs = cpu_to_file_dict.get(cpu, sources_by_category.cpu_files) if cpu_to_file_dict else sources_by_category.cpu_files
             call_srcs, call_kwargs = _staged_srcs(staged, srcs, short_paths, kwargs)
             compilation_context, compulation_output = _compile_wrapper(

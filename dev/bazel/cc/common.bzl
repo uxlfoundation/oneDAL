@@ -70,8 +70,7 @@ def _create_tagged_linking_context(tag, linking_context):
     )
 
 def _collect_tagged_linking_contexts(deps):
-    # TODO: Merge linking contexts with the same tag to minimize amount
-    #       of linking contexts need to be collected by the modules
+    # TODO: merge linking contexts with the same tag, so modules collect fewer of them.
     dep_tagged_linking_contexts = []
     for dep in deps:
         if _ModuleInfo in dep:
@@ -99,22 +98,8 @@ def _collect_and_filter_linking_contexts(deps, tags):
     linking_contexts = _filter_tagged_linking_contexts(tagged_linking_contexts, tags)
     return linking_contexts
 
-# Windows import libraries that Bazel cannot tell apart from static archives:
-# they arrive as plain `.lib` files in a dependency's `srcs`, so a
-# `LibraryToLink` describes them as a static library. Merging them into oneDAL's
-# own static libraries is wrong twice over -- every import library defines
-# `__NULL_IMPORT_DESCRIPTOR`, so `lib.exe` warns
-# `LNK4006: __NULL_IMPORT_DESCRIPTOR already defined in tbb12.lib`, and the
-# released `onedal_core.lib` ends up carrying TBB import descriptors that the
-# Make package does not ship (Make links these libraries, it never archives
-# them; the pkg-config and CMake configs already tell consumers to link
-# `tbb12.lib` / `tbbmalloc.lib` themselves).
-#
-# Declaring them through `cc_import(interface_library = ...)` would require a
-# separate `interface_library` branch in `_unpack_linking_contexts`: that
-# provider is not currently propagated by this custom linker wrapper. Keep
-# Bazel's existing classification and filter these known TBB import libraries
-# at the one place that matters, rather than broadening that behavior here.
+# Import libraries Bazel takes for static archives. Archived into onedal_core.lib they warn
+# LNK4006 and ship TBB descriptors Make does not; consumers link TBB themselves.
 _WINDOWS_IMPORT_LIBRARIES = [
     "tbb12.lib",
     "tbb12_debug.lib",
@@ -132,14 +117,10 @@ def _unpack_linking_contexts(linking_contexts):
     dynamic_libs_to_link = []
     static_libs_to_link = []
     additional_inputs = []
-    # IMPORTANT: We need to preserve order of objects when
-    #            iterate over linking contexts
+    # The object order must follow the linking contexts.
     for linking_context in linking_contexts:
         for linker_input in linking_context.linker_inputs.to_list():
-            # Files named by `user_link_flags` (e.g. `$(location)` archives in
-            # linkopts) are only reachable through `additional_inputs`; the
-            # rebuilt linker inputs must carry them or the link action cannot
-            # stage them.
+            # Files that `user_link_flags` name reach the link only through `additional_inputs`.
             additional_inputs.append(depset(linker_input.additional_inputs))
             for lib_to_link in linker_input.libraries:
                 if lib_to_link.objects:

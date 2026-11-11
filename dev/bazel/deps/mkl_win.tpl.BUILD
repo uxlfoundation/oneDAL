@@ -18,11 +18,7 @@ cc_library(
         "lib/mkl_intel_ilp64.lib",
         "lib/mkl_core.lib",
     ] + select({
-        # Only the threading layer has a debug-CRT variant, and Make appends
-        # plain `$d` to it — not `$dtbb` — so it is `mkl_tbb_threadd.lib`
-        # (dev/make/deps.mkl.mk:51). `mkl_core` and `mkl_intel_ilp64` carry no
-        # suffix in either flavour (deps.mkl.mk:52-53). Without this, an -MDd
-        # oneDAL DLL would embed the release-CRT MKL threading layer.
+        # Only the threading layer has a debug-CRT variant (Make: `$d`, see deps.mkl.mk).
         "@config//:msvc_runtime_debug": ["lib/mkl_tbb_threadd.lib"],
         "//conditions:default": ["lib/mkl_tbb_thread.lib"],
     }),

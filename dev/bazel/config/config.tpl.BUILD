@@ -45,13 +45,8 @@ config_setting(
     },
 )
 
-# Windows + ref backend. A Windows DLL has to resolve every symbol at link
-# time, so `onedal_core.<major>.dll` needs the math backend linked in directly
-# instead of relying on the loader to bind BLAS/LAPACK calls to
-# `onedal_thread.<major>.dll` the way ELF does. Matches the top-level makefile
-# rule for `$(WORKDIR.lib)/$(core_y)`, which lists
-# `daaldep.math_backend.shared_link_deps` (dev/make/deps.ref.mk) as a
-# dependency of the core shared library on every OS.
+# A DLL resolves every symbol at link time, so onedal_core links the ref math backend
+# directly (Make: daaldep.math_backend.shared_link_deps).
 config_setting(
     name = "backend_ref_windows",
     flag_values = {
@@ -122,11 +117,7 @@ build_parameters_lib_validation(
     flag = ":build_parameters_lib",
 )
 
-# Make RNG_BACKEND parity (dev/make/deps.ref.mk RNG_OPENRNG). Only meaningful
-# together with backend_config=ref; selecting "openrng" under backend_config=mkl
-# has no effect since the ref RNG shim it swaps out is unused in that case.
-# `config_flag` above auto-generates the matching `:rng_backend_openrng` /
-# `:rng_backend_ref` config_setting targets.
+# Make RNG_BACKEND parity; has an effect with backend_config=ref only.
 config_flag(
     name = "rng_backend",
     build_setting_default = "ref",
@@ -136,12 +127,8 @@ config_flag(
     ],
 )
 
-# Use this, not the bare `:rng_backend_openrng`, to gate the OpenRNG define and
-# dependency: RNG_OPENRNG lives in dev/make/deps.ref.mk, so Make can only reach
-# it on the ref backend, and .ci/scripts/build.sh guards `--use-openrng yes`
-# behind `backend_config == ref` too. Without the backend_config term,
-# `--rng_backend=openrng --backend_config=mkl` would require OPENRNGROOT and
-# link libopenrng into an MKL build whose ref RNG shim is never compiled.
+# Gate OpenRNG on this rather than `:rng_backend_openrng`: Make reaches it on the ref backend
+# only, and an MKL build would otherwise require OPENRNGROOT.
 config_setting(
     name = "rng_backend_openrng_ref",
     flag_values = {
@@ -150,12 +137,7 @@ config_setting(
     },
 )
 
-# Target platforms for cross-compiling to non-x86 Linux. Pass e.g.
-# `--platforms=@config//:linux_aarch64` together with
-# `CC=aarch64-linux-gnu-gcc` (or riscv64-linux-gnu-gcc) so the exec platform
-# (the build machine) stays x86_64 while the target platform switches arch;
-# this is what selects the cross cc_toolchain registered in
-# cc_toolchain_lnx.tpl.BUILD.
+# Cross-compile targets, e.g. `--platforms=@config//:linux_aarch64` with `CC=aarch64-linux-gnu-gcc`.
 platform(
     name = "linux_aarch64",
     constraint_values = [
@@ -172,13 +154,8 @@ platform(
     ],
 )
 
-# Windows on ARM64 target platform, matching Make's `PLAT=winarm`. The
-# toolchain generated for it from cc_toolchain_win_llvm.tpl.BUILD is clang-cl
-# based
-# (icx has no AArch64 target), so pass this together with clang-cl on PATH.
-# On an ARM64 Windows host it is also the auto-detected default; naming it
-# explicitly is what makes an x86_64-host cross-compile
-# (`CC=clang-cl --target=aarch64-pc-windows-msvc`) resolve.
+# Make's `PLAT=winarm`, clang-cl only. Name it to cross-compile from an x86_64 host
+# (`CC=clang-cl --target=aarch64-pc-windows-msvc`).
 platform(
     name = "windows_arm64",
     constraint_values = [
@@ -279,9 +256,8 @@ config_bool_flag(
     build_setting_default = %{dpc_compiler_found},
 )
 
-# No platform has this constraint. DPC++ targets require it under
-# --release_dpc=false, so they are skipped, and a direct request for one
-# names the missing compiler.
+# No platform has this constraint, so under --release_dpc=false the DPC++ targets that
+# require it are skipped, and a direct request names the missing compiler.
 constraint_setting(name = "dpc_compiler")
 
 constraint_value(
@@ -322,7 +298,6 @@ unsupported_config(
 )
 
 # Instrument oneDAL sources with the Intel coverage options used by Make.
-# The implementation intentionally rejects unsupported OS/compiler pairs.
 config_bool_flag(
     name = "code_coverage",
     build_setting_default = False,

@@ -16,8 +16,7 @@ cc_library(
     ],
     deps = [
         ":headers",
-        # TODO: Currently vml_ipp lib depends on TBB, but it shouldn't
-        #       Remove TBB from deps once problem with vml_ipp is resolved
+        # TODO: drop TBB once vml_ipp no longer depends on it.
         "@tbb//:tbb_binary",
         "@mkl//:mkl_static",
     ],
@@ -40,10 +39,7 @@ cc_library(
     srcs = [
         "lib/%{arch_dir}/libonedal.a",
     ] + glob([
-        # Present only when the package ships separate parameter libraries.
-        # `repos.bzl` symlinks these from `optional_libs` after reading the
-        # layout out of the package's own oneDALConfig.cmake, so an absent
-        # entry here means a folded package, not a broken one.
+        # Separate-layout packages only; when absent, the package is folded, not broken.
         "lib/%{arch_dir}/libonedal_parameters.a",
     ], allow_empty = True),
     deps = [
@@ -61,8 +57,7 @@ cc_library(
     ]),
     deps = [
         ":headers",
-        # TODO: Currently vml_ipp lib depends on TBB, but it shouldn't
-        #       Remove TBB from deps once problem with vml_ipp is resolved
+        # TODO: drop TBB once vml_ipp no longer depends on it.
         "@tbb//:tbb_binary",
     ],
 )

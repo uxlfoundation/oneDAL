@@ -81,11 +81,7 @@ def daal_module(name, features=[], lib_tag="daal",
             ],
             "//conditions:default": [],
         }) + select({
-            # Matches dev/make/deps.ref.mk RNG_OPENRNG: swaps the ref RNG's
-            # <random>-based shim for the OpenRNG (VSL-ABI-compatible)
-            # backend in src/externals/service_rng_ref.h. Gated on the ref
-            # backend as well, since that shim is the only consumer of this
-            # define and it is not compiled in an MKL build.
+            # Make: RNG_OPENRNG. Only the ref RNG shim reads it, so it is gated on the ref backend.
             "@config//:rng_backend_openrng_ref": [
                 "OPENRNG_BACKEND",
             ],
@@ -102,11 +98,7 @@ def daal_static_lib(name, lib_tags=["daal"], **kwargs):
     )
 
 _MKL_EXCLUDE_LIBS_FLAGS = select({
-    # Hide MKL static symbols from the dynamic lib's export table.
-    # --exclude-libs hides all symbols from the named archive, ensuring that
-    # MKL objects embedded via --whole-archive are not re-exported.
-    # This matches Make's behaviour (see dev/make/deps.mk MKL linkage).
-    # GNU ld only; not supported on Windows (MSVC) or macOS (Apple ld).
+    # Keeps the embedded MKL objects out of the export table, as Make does. GNU ld only.
     "@config//:backend_config_mkl_linux": [
         "-Wl,--exclude-libs=libmkl_tbb_thread.a",
         "-Wl,--exclude-libs=libmkl_core.a",
@@ -177,24 +169,8 @@ def _declare_patched_kernel_defines(ctx):
 def _daal_patch_kernel_defines_impl(ctx):
     """Comment out the `DAAL_KERNEL_<ISA>` defines of the disabled ISAs.
 
-    `cpp/daal/include/services/internal/daal_kernel_defines.h` enables every
-    CPU dispatch variant oneDAL can build; the ones `--cpu` leaves out have to
-    be removed from the header before it is compiled or released. The Makefile
-    does it with
-
-        sed -b -i -E -e 's/^#define DAAL_KERNEL_<ISA>\\b/$(sed.eol)/'
-
-    where `sed.eol` is empty on Linux and a lone CR on Windows, so that a
-    disabled define leaves behind an empty line with the platform's own line
-    ending while every other line is untouched. `expand_template` does exactly
-    that substitution, without a helper script: it rewrites the file at
-    execution time, so nothing has to read its contents during analysis.
-
-    The key spans the whole line, newlines included, so that it matches only a
-    bare `#define DAAL_KERNEL_<ISA>` like sed's `^...\\b` and never a longer
-    macro name or a comment. The header is `eol=lf` (see `.gitattributes`) and
-    no define sits on its first line. Each substitution keeps the trailing
-    newline, so adjacent disabled defines still match one after another.
+    As Make's `sed 's/^#define DAAL_KERNEL_<ISA>\\b/$(sed.eol)/'`: each becomes an empty line, CR-ended
+    on Windows. A key spans the whole line, so a longer macro name never matches.
     """
     disabled_cpus = sets.to_list(_get_disabled_cpus(ctx))
     kernel_defines = _declare_patched_kernel_defines(ctx)

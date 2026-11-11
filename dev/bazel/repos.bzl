@@ -35,8 +35,7 @@ def _extract_conda(repo_ctx, archive, output):
     repo_ctx.delete(staging)
 
 def _download_and_extract(repo_ctx, url, sha256, output, strip_prefix):
-    # Workaround Python wheel extraction. Bazel cannot determine file
-    # type automatically as does not support wheels out-of-the-box.
+    # Bazel does not recognize a wheel as an archive by itself.
     filename = url.split("/")[-1]
     downloaded_path = repo_ctx.path(filename)
     repo_ctx.download(
@@ -82,20 +81,10 @@ def _select_by_os(repo_ctx, name, os_id):
 def _archive(url, sha256, strip_prefix = ""):
     """Describe one downloadable archive of a prebuilt dependency.
 
-    The repository rule stores the coordinates as three parallel string lists,
-    because that is the only list type a rule attribute can hold. Authors pass
-    them as a list of these structs instead, so that a URL never drifts apart
-    from its own hash and prefix when a dependency is bumped.
-
     Args:
-        url: Location of the archive. `.conda`, `.whl` and `.zip` are unpacked
-             by `_download_and_extract`; anything else is left to Bazel.
-        sha256: Expected hash of the archive.
-        strip_prefix: Directory prefix to drop while unpacking. Empty for
-                      packages that already unpack into the required layout.
-
-    Returns:
-        A struct holding the three coordinates.
+        url: location of the archive; `.conda`, `.whl` and `.zip` are unpacked here, the rest by Bazel.
+        sha256: expected hash of the archive.
+        strip_prefix: directory prefix to drop while unpacking.
     """
     return struct(url = url, sha256 = sha256, strip_prefix = strip_prefix)
 
@@ -130,14 +119,7 @@ def _split_glob_entry(root, entry_fmt, mapping):
     return struct(pattern = pattern, dir_part = dir_part, root_with_dir = root_with_dir)
 
 def _glob_dir_entries(repo_ctx, glob):
-    """List the directory a globbed entry scans, or nothing if it is absent.
-
-    `readdir()` on a path that does not exist is an error, not an empty list, so
-    a pattern under a directory the package does not ship has to be answered
-    before the directory is enumerated. Callers that require a match still
-    report it themselves; the optional ones treat it as "not present", which is
-    their contract.
-    """
+    """List the directory a globbed entry scans, or nothing if it is absent (`readdir()` fails)."""
     dir_path = repo_ctx.path(glob.root_with_dir)
     if not dir_path.exists or not dir_path.is_dir:
         return []
@@ -174,18 +156,7 @@ def _create_symlinks(repo_ctx, root, entries, substitutions=None, mapping=None):
             repo_ctx.symlink(src_entry_path, dst_entry_path)
 
 def _create_optional_symlinks(repo_ctx, root, entries, substitutions=None, mapping=None):
-    """Symlink the entries the package actually ships, skipping the rest.
-
-    Used for libraries whose presence depends on how the package was built, such
-    as the separate parameter libraries. Presence is read off the file system
-    rather than out of package metadata, so the result cannot disagree with the
-    package, and OS-specific naming needs no separate attribute: entries that do
-    not exist for the host OS are simply not there.
-
-    Globbed entries are kept when the pattern matches at least one file, and
-    dropped otherwise. Testing `exists` on the raw entry would never be true for
-    a pattern, so a globbed entry would always be dropped silently.
-    """
+    """Symlink the entries the package actually ships; a globbed one when it matches a file."""
     substitutions = substitutions or {}
     mapping = mapping or {}
     present = []
@@ -201,16 +172,7 @@ def _create_optional_symlinks(repo_ctx, root, entries, substitutions=None, mappi
     _create_symlinks(repo_ctx, root, present, substitutions, mapping)
 
 def _create_required_any_symlinks(repo_ctx, root, entries, what, substitutions=None, mapping=None):
-    """Symlink whichever of `entries` the package ships, requiring at least one.
-
-    For a set of files that are individually optional but collectively required:
-    the MKL CPU dispatch kernels, where which ISA families a release ships
-    changes between versions but a layout with the classic libraries and no
-    kernel at all is broken -- `libmkl_core.so.3` is only the dispatcher, so the
-    first classic-MKL call dies with `Cannot load libmkl_avx512.so.3 or
-    libmkl_def.so.3`. Failing in the repository rule names the package; failing
-    at run time names a kernel the user never asked for.
-    """
+    """Symlink whichever of `entries` the package ships, requiring at least one."""
     if not entries:
         return
     substitutions = substitutions or {}
@@ -297,15 +259,8 @@ def _wheel_has_platform(repo_ctx, wheel_path, dist, version, platform_tag):
 def _fetch_pypi_wheel(repo_ctx, name, pin, platform_tag):
     """Downloads the wheel of `name` for `platform_tag`; returns its path and dist name.
 
-    The lock lists the hashes of every file of the release (Linux and Windows
-    wheels alike) without saying which is which, so the wheel is looked up in
-    the release's PyPI metadata. Its hash must be one of the locked ones, and the
-    wheel is then fetched by that hash, so the repository cache serves it and an
-    index that answers with another file is refused.
-
-    Without the metadata -- offline, from a copied `--repository_cache` -- each
-    locked hash is tried in turn, and the wheel that declares `platform_tag` is
-    the one kept.
+    The lock does not say which hash is which platform's wheel, so the PyPI metadata picks it.
+    Offline, each locked hash is tried and the wheel that declares `platform_tag` is kept.
     """
     metadata_path = repo_ctx.path("pypi/{}-{}.json".format(name, pin.version))
     metadata = repo_ctx.download(
@@ -351,13 +306,7 @@ def _fetch_pypi_wheel(repo_ctx, name, pin, platform_tag):
         name, pin.version, platform_tag))
 
 def _download_pypi(repo_ctx, os_id, package, lock, output):
-    """Downloads and unpacks the wheel of `package` pinned in the lock file.
-
-    `os_id` picks the wheel's platform: "win" only for `win_pypi_packages`. A
-    dependency without them gets its Linux wheels on Windows too, as one
-    without `win_archives` gets its `archives`, so its templates see the layout
-    they were written for.
-    """
+    """Downloads and unpacks the wheel of `package` pinned in the lock file."""
     name = _normalize_pypi_name(package)
     if name not in lock:
         fail("pypi package '{}' is not pinned in {}".format(package, repo_ctx.attr._pypi_lock))
@@ -392,18 +341,7 @@ def _download(repo_ctx, os_id):
     return str(output)
 
 def _check_download_arch(repo_ctx, os_id):
-    """Fails instead of downloading a package built for another architecture.
-
-    Every default URL in MODULE.bazel points at an x86_64 package, so on an
-    ARM64 host an unset root env var used to silently produce a repo full of
-    wrong-arch binaries that only failed much later, at link time.
-
-    The comparison is against the *target* arch, not the host: a cross-compile
-    from x86_64 to AArch64/RISC-V64 needs target-arch dependencies just as much
-    as a native ARM64 build does, and an ARM64 host targeting intel64 needs the
-    x86_64 package. The target is derived from `CC`/`CXX` exactly as the
-    toolchain derives it (see detect_target_arch).
-    """
+    """Fails instead of downloading a package built for an architecture other than the target's."""
     download_arch = _select_by_os(repo_ctx, "download_arch", os_id)
     target_arch = detect_target_arch(repo_ctx, detect_host_arch(repo_ctx, os_id))
     if download_arch and download_arch != target_arch:
@@ -415,11 +353,7 @@ def _check_download_arch(repo_ctx, os_id):
         ))
 
 def _release_arch_dir(repo_ctx, os_id):
-    """Returns the arch directory of the target's release tree: `intel64`, `arm`,
-    `riscv64`, or `ARM64` on Windows ARM64. Matches `release_arch_dir` in
-    dev/bazel/config/config.bzl, which names the same directory in the build
-    that produces the tree.
-    """
+    """Returns the target's release-tree arch directory, as `release_arch_dir` in config.bzl."""
     arch_id = detect_target_arch(repo_ctx, detect_host_arch(repo_ctx, os_id))
     if arch_id == "arm" and os_id == "win":
         return "ARM64"
@@ -449,17 +383,9 @@ def _prebuilt_libs_repo_impl(repo_ctx):
     substitutions["%{version_binary_minor}"] = VERSION.binary_minor
     _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "includes", os_id), substitutions, mapping)
     _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "libs", os_id), substitutions, mapping)
-    # `optional_libs` holds the libraries a package ships only in some layouts,
-    # today the separate parameter libraries. Each is symlinked when the package
-    # contains it. The BUILD template picks them up with
-    # `glob(..., allow_empty = True)`, so an absent entry is what makes a folded
-    # package resolve to a template without parameter libraries -- no template
-    # substitution and no package metadata are involved.
+    # The BUILD templates glob these with `allow_empty = True`, so an absent library drops out.
     _create_optional_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "optional_libs", os_id), substitutions, mapping)
-    # Read without `_select_by_os`, which falls back to the Linux value when the
-    # `win_` one is empty. That is right for a list of files to symlink and wrong
-    # for a requirement: Linux patterns can never match a Windows layout, so the
-    # fallback would turn an empty Windows group into a guaranteed failure.
+    # Not `_select_by_os`: its Linux fallback for an empty `win_` list could never match.
     _create_required_any_symlinks(
         repo_ctx, root,
         repo_ctx.attr.win_required_any_libs if os_id == "win" else repo_ctx.attr.required_any_libs,
@@ -483,56 +409,28 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_l
                              win_archives=[], win_pypi_packages=[], win_download_mapping={}):
     """Declare a repository rule for a dependency shipped as prebuilt binaries.
 
-    Everything that describes one dependency -- the environment variable that
-    points at a local installation, the archives to fall back on, the file
-    layout and the BUILD template -- is passed here as a default, so that the
-    dependency is fully described by its own `dev/bazel/deps/<dep>.bzl` file and
-    `MODULE.bazel` only has to name it.
-
     Args:
-        includes: Include directories to symlink into the repository, relative
-                  to the dependency root. Entries may contain `*` globs and
-                  `%{...}` substitutions.
-        libs: Libraries to symlink. Missing entries are an error.
+        includes: include directories to symlink, relative to the root; `*` and `%{...}` allowed.
+        libs: libraries to symlink; a missing one is an error.
         build_template: BUILD file template for the repository.
-        bins: Executables and runtime libraries to symlink.
-        optional_libs: Libraries to symlink only if the dependency ships them.
-        required_any_libs: Libraries of which at least one must be present; every
-                           present one is symlinked.
-        required_any_libs_description: Names the `required_any_libs` set in the
-                                       error raised when none is present.
+        bins: executables and runtime libraries to symlink.
+        optional_libs: libraries to symlink only if the dependency ships them.
+        required_any_libs: libraries of which at least one must be present.
+        required_any_libs_description: names that set in the error when none is present.
         win_required_any_libs: Windows override for `required_any_libs`.
-        root_env_var: Environment variable holding a local installation root.
-                      When set in the environment it wins over `archives`.
-        archives: `repos.archive()` entries to download when no local
-                  installation is pointed to. A dependency that declares none
-                  is therefore only resolvable through `root_env_var`.
-        pypi_packages: Names of PyPI packages to download as well, at the
-                       version and hashes pinned in
-                       `dev/bazel/deps/requirements_lock.txt`. Renovate keeps
-                       that file current, so a dependency listed here needs no
-                       URL or hash in its `.bzl` file.
-        download_arch: oneDAL arch ID the `archives` are built for. A download
-                       is refused when it does not match the target the
-                       toolchain derives, so a Windows ARM64 build cannot
-                       silently link an x86 package. Empty disables the check.
-        win_download_arch: Windows override for `download_arch`; defaults to
-                           `download_arch`.
-        download_mapping: Maps the layout the entries above are written in (LHS)
-                          onto the layout the downloaded archives actually have
-                          (RHS), e.g. `{"lib/intel64": "lib/"}`.
+        root_env_var: variable holding a local installation root; wins over the downloads.
+        archives: `repos.archive()` entries to download without a local installation.
+        pypi_packages: PyPI packages to download at the versions in requirements_lock.txt.
+        download_arch: oneDAL arch ID the downloads are built for; empty disables the check.
+        win_download_arch: Windows override for `download_arch`.
+        download_mapping: maps the entries' layout onto the archive's, e.g. `{"lib/intel64": "lib/"}`.
         win_includes: Windows override for `includes`.
         win_libs: Windows override for `libs`.
         win_bins: Windows override for `bins`.
         win_build_template: Windows override for `build_template`.
         win_archives: Windows override for `archives`.
-        win_pypi_packages: Windows override for `pypi_packages`, fetched as
-                           Windows wheels. Without it Windows gets the Linux
-                           wheels of `pypi_packages`, like `archives`.
+        win_pypi_packages: Windows wheels; without it Windows gets the Linux `pypi_packages`.
         win_download_mapping: Windows override for `download_mapping`.
-
-    Returns:
-        The repository rule.
     """
     download_info = _unzip_archives(archives)
     win_download_info = _unzip_archives(win_archives)
@@ -540,10 +438,7 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_l
         implementation = _prebuilt_libs_repo_impl,
         environ = [
             root_env_var,
-            # Host- and target-arch detection, used to reject a wrong-arch
-            # download (see _check_download_arch). `CC`/`CXX` name the target
-            # through a triple prefix or `--target=`, the PROCESSOR_* pair is
-            # the Windows host arch.
+            # Arch detection for _check_download_arch.
             "CC",
             "CXX",
             "PROCESSOR_ARCHITECTURE",
@@ -556,8 +451,6 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_l
             "urls": attr.string_list(default=download_info.urls),
             "sha256s": attr.string_list(default=download_info.sha256s),
             "strip_prefixes": attr.string_list(default=download_info.strip_prefixes),
-            # oneDAL arch ID the configured download archives are built for.
-            # Empty disables the check.
             "download_arch": attr.string(default=download_arch),
             "win_download_arch": attr.string(default=win_download_arch or download_arch),
             "includes": attr.string_list(default=includes),

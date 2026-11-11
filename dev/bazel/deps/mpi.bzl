@@ -47,9 +47,6 @@ mpi_repo = repos.prebuilt_libs_repo_rule(
     required_any_libs_description = "libfabric providers, which mpiexec loads through FI_PROVIDER_PATH",
     build_template = "@onedal//dev/bazel/deps:mpi.tpl.BUILD",
     download_mapping = {
-        # Required directory layout and layout in the downloaded
-        # archives may be different. Mapping helps to setup relations
-        # between the required layout (LHS) and downloaded (RHS).
         #          REQUIRED                              DOWNLOADED
         "libfabric/lib/libfabric.so":                   "lib/libfabric.so",
         "libfabric/lib/libfabric.so.1":                 "lib/libfabric.so.1",
@@ -115,8 +112,7 @@ def _mpi_test_impl(ctx):
 mpi_test = rule(
     implementation = _mpi_test_impl,
     attrs = {
-        # The test binary itself: built for the target like any other test,
-        # so it shares the build with the rest of the test suite.
+        # Built for the target, so it shares the build with the rest of the test suite.
         "src": attr.label(mandatory=True,
                           executable=True,
                           cfg="target"),

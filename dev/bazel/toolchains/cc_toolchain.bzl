@@ -89,10 +89,7 @@ onedal_cc_toolchain = repository_rule(
         "ONEDAL_DOWNLOAD_CC",
         "INCLUDE",
         "LIB",
-        # Opt-in switch for the LLVM-driver Windows toolchains:
-        # ONEDAL_WIN_COMPILER=icx selects icx/icpx, =clang selects clang-cl,
-        # anything else falls back to the rules_cc MSVC cl auto-config.
-        # Targeting Windows ARM64 always uses clang-cl.
+        # icx or clang; anything else selects the rules_cc MSVC config. Windows ARM64 is clang-cl only.
         "ONEDAL_WIN_COMPILER",
         # The Visual Studio rules_cc configures for cl: the one vcvarsall.bat
         # set up (VCINSTALLDIR), unless BAZEL_VC or BAZEL_VS names another.

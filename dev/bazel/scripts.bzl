@@ -18,9 +18,7 @@
 
 load("@onedal//dev/bazel/config:config.bzl", "ConfigFlagInfo", "RELEASE_ARCH_ATTRS", "VersionInfo", "release_arch_dir")
 
-# ---------------------------------------------------------------------------
-# Versioned template files
-# ---------------------------------------------------------------------------
+# --- Versioned template files ---
 
 def _generate_versioned_template_impl(ctx):
     """Expand a release template substituting binary version placeholders."""
@@ -77,9 +75,7 @@ def generate_modulefile(name, out = "modulefiles/dal", **kwargs):
         **kwargs
     )
 
-# ---------------------------------------------------------------------------
-# CMake package config
-# ---------------------------------------------------------------------------
+# --- CMake package config ---
 
 def _generate_cmake_config_impl(ctx):
     vi = ctx.attr._version_info[VersionInfo]
@@ -128,14 +124,9 @@ def generate_cmake_config(name, template, out, **kwargs):
         **kwargs
     )
 
-# ---------------------------------------------------------------------------
-# pkg-config
-# ---------------------------------------------------------------------------
+# --- pkg-config ---
 
-# Make builds the .pc files by running the C preprocessor over
-# `deploy/pkg-config/pkg-config.cpp`, prepending that file's first 16 lines and
-# rewriting `//` into `#` (see the `_release_c` recipe in `makefile`). The result
-# is this 15-line header on every platform, so both branches below emit it.
+# The header Make's `_release_c` recipe copies from pkg-config.cpp into every .pc file.
 _PKGCONFIG_LICENSE_HEADER = """#===============================================================================
 # Copyright contributors to the oneDAL Project
 #
@@ -161,23 +152,11 @@ def _generate_pkgconfig_impl(ctx):
     arch_dir = release_arch_dir(ctx)
 
     if is_windows:
-        # A debug MSVC runtime renames every oneDAL library (`onedal_cored.lib`)
-        # and switches both the CRT flag and the TBB variant, so the .pc file has
-        # to follow. See `_msvc_runtime_suffix` in dev/bazel/cc.bzl.
+        # The debug CRT renames the oneDAL libraries and switches the CRT flag and TBB variant.
         is_rt_debug = ctx.attr._msvc_runtime[ConfigFlagInfo].flag == "debug"
         d = "d" if is_rt_debug else ""
-        # What has to stay in sync with the `_WIN32` branch of
-        # `deploy/pkg-config/pkg-config.cpp` is *which* libraries appear: the
-        # dynamic package exposes only onedal and onedal_core, and Windows has no
-        # parameters library at all (`makefile` errors out on
-        # `BUILD_PARAMETERS_LIB=yes` there). The names themselves are not a 1:1
-        # match and are not meant to be -- the deploy-side generator knows nothing
-        # about the MSVC runtime, while this one carries the `d` suffix, `/MDd`
-        # and the debug TBB variant. Only the set of entries is common.
-        #
-        # The braces around `libdir` are doubled because this string is formatted
-        # here, for `{d}`; it then goes into the template below as an argument,
-        # where `format` substitutes it without looking at it again.
+        # The same libraries as the `_WIN32` branch of pkg-config.cpp. Doubled braces survive
+        # this format(); the template's format() inserts the result verbatim.
         onedal_libs = (
             "${{libdir}}/onedal{d}.lib ${{libdir}}/onedal_core{d}.lib ${{libdir}}/onedal_thread{d}.lib"
             if ctx.attr.static else
@@ -203,29 +182,16 @@ Cflags: /std:c++17 {crt} /wd4996 /EHsc -I${{includedir}}
                 onedal_libs = onedal_libs,
                 crt = "/MDd" if is_rt_debug else "/MD",
                 tbb_d = "_debug" if is_rt_debug else "",
-                # Only MKL's threading layer has a debug-CRT variant, and it
-                # uses a plain `d` (dev/make/deps.mkl.mk:51); mkl_core and
-                # mkl_intel_lp64 are unsuffixed in both flavours.
+                # Only MKL's threading layer has a debug-CRT variant.
                 mkl_d = "d" if is_rt_debug else "",
             ),
         )
     else:
         suffix = "a" if ctx.attr.static else "so"
 
-        # Keep this in sync with the `__linux__` branch of
-        # `deploy/pkg-config/pkg-config.cpp`: the static libraries are built
-        # against the ILP64 oneMKL interface, the dynamic ones against LP64, and
-        # `libonedal_parameters` exists only in the separate layout. oneDAL
-        # links the oneMKL TBB threading layer, so no OpenMP runtime belongs on
-        # a host consumer's link line.
-        #
-        # The static package names the oneMKL *archives* with `-l:` inside a
-        # link group: `-lmkl_core` finds `libmkl_core.so`, whose internals live
-        # in the kernel libraries oneMKL dlopen's at runtime, so a static
-        # consumer linking the shared libraries gets ~9600 undefined
-        # references. The archives alone are not enough either -- they are
-        # mutually recursive -- and the oneDAL archives sit inside the same
-        # group so the link does not depend on their order.
+        # Keep in sync with the `__linux__` branch of pkg-config.cpp. Static links name the
+        # mutually recursive oneMKL archives in one group, as `-lmkl_core` would pick the .so.
+
         # Single braces: these are `format()` arguments, inserted verbatim.
         parameters_lib = " ${libdir}/libonedal_parameters." + suffix if ctx.attr.parameters_lib else ""
         onedal_libs = "${{libdir}}/libonedal.{0} ${{libdir}}/libonedal_core.{0} ${{libdir}}/libonedal_thread.{0}{1}".format(

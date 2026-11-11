@@ -969,8 +969,6 @@ def _impl(ctx):
 
 cc_toolchain_config = rule(
     implementation = _impl,
-    # Platform-specific attributes; the rest are declared by
-    # COMMON_ATTRS.
     attrs = dict(
         COMMON_ATTRS,
         strip_path = attr.string(mandatory = True),

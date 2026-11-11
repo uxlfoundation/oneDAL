@@ -14,9 +14,8 @@
 # limitations under the License.
 #===============================================================================
 
-# The conda-forge GNU toolchain used on an x86-64 Linux host that has no C++
-# compiler. It brings its own binutils and a glibc 2.28 sysroot, so neither the
-# host compiler nor the host libc headers are used.
+# The conda-forge GNU toolchain for an x86-64 Linux host without a C++ compiler. It brings its
+# own binutils and a glibc 2.28 sysroot, so nothing of the host toolchain is used.
 
 load("@onedal//dev/bazel:repos.bzl", "repos")
 

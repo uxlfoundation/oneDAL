@@ -40,13 +40,8 @@ tbb_repo = repos.prebuilt_libs_repo_rule(
     win_includes = [
         "include",
     ],
-    # Globs rather than exact names so the `_debug` variants required by an
-    # `-MDd` build (`tbb12_debug.lib`, see makefile:330) are picked up when the
-    # TBB layout ships them, without making the default release build fail on
-    # installations that do not. `tbb_win.tpl.BUILD` names the debug files
-    # explicitly in its `select()`, so a debug-runtime build that is missing
-    # them fails with a plain missing-input error instead of silently
-    # dropping the dependency.
+    # Globbed to pick up the `_debug` variants of an -MDd build where shipped; tbb_win.tpl.BUILD
+    # names them, so a debug-CRT build without them still fails.
     win_libs = [
         "lib/tbb12*.lib",
         "lib/tbbmalloc*.lib",

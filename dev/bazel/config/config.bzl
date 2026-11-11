@@ -124,17 +124,7 @@ _ARCH_TO_ISA_EXTENSIONS = {
 }
 
 def _get_allowed_isa_extensions(ctx):
-    # x86 has multiple ISA variants with runtime dispatch; ARM/RISC-V
-    # currently ship exactly one fixed variant (see cpp/daal/src/services/cpu_type.h),
-    # so their `allowed` list is a single value.
-    #
-    # `cpu_info` is a `build_setting` rule; Bazel trims `PlatformOptions`
-    # from build-setting configurations for cross-config cache sharing, so
-    # `ctx.target_platform_has_constraint` is not reliable here. The arch is
-    # instead resolved once at repository-rule time (see
-    # `_declare_onedal_config_impl`) from the same `CC`/`CXX` cross-compiler
-    # triple prefix that `dev/bazel/toolchains/cc_toolchain.bzl` uses, and
-    # threaded in through the `arch` attribute.
+    # Build settings do not see the target platform, so the arch comes from the repository rule.
     return _ARCH_TO_ISA_EXTENSIONS.get(ctx.attr.arch, _ISA_EXTENSIONS_X86)
 
 def _check_cpu_extensions(extensions, allowed):
@@ -148,21 +138,16 @@ def _check_cpu_extensions(extensions, allowed):
 def _cpu_info_impl(ctx):
     allowed = _get_allowed_isa_extensions(ctx)
     is_x86 = allowed == _ISA_EXTENSIONS_X86
-    # `all` and `modern` select the same set: they diverged only while `sse42`
-    # was built (`all` included it, `modern` did not), and that variant was
-    # removed in #3487, leaving x86 with sse2/avx2/avx512 either way.
     if ctx.build_setting_value in ["all", "modern"]:
         isa_extensions = allowed
     elif ctx.build_setting_value == "auto":
-        # `auto_cpu` reflects the exec host's CPU probe, which is only
-        # meaningful for a native x86 build. ARM/RISC-V always builds their
-        # single supported variant regardless of the exec host.
+        # The exec host probe means something for a native x86 build only.
         isa_extensions = [ ctx.attr.auto_cpu ] if is_x86 else allowed
     else:
         isa_extensions = ctx.build_setting_value.split(" ")
         isa_extensions = [x.strip() for x in isa_extensions]
     if is_x86:
-        # sse2 is the runtime-dispatch fallback variant on x86 and is always built.
+        # The runtime-dispatch fallback.
         isa_extensions = utils.unique(["sse2"] + isa_extensions)
     else:
         isa_extensions = utils.unique(isa_extensions)
@@ -177,10 +162,7 @@ cpu_info = rule(
     build_setting = config.string(flag = True),
     attrs = {
         "auto_cpu": attr.string(mandatory=True),
-        # oneDAL arch ID (arm/riscv64/intel64), matching
-        # dev/bazel/toolchains/common.bzl's detect_target_arch. Baked in at
-        # repository-rule time since this rule's own configuration cannot
-        # see `--platforms` (see _get_allowed_isa_extensions).
+        # From detect_target_arch, as this rule's configuration cannot see `--platforms`.
         "arch": attr.string(mandatory=True),
         "verbose": attr.label(),
     },
@@ -194,13 +176,7 @@ RELEASE_ARCH_ATTRS = {
 }
 
 def release_arch_dir(ctx):
-    """Return the release-tree architecture directory, Make's `ARCH_DIR_ONEDAL`.
-
-    `lib/<dir>` holds the libraries and, on Windows, `redist/<dir>` the DLLs.
-    Values match `dev/make/function_definitions/<PLAT>.mk`: `intel64`, `arm`
-    for `lnxarm`, `riscv64` for `lnxriscv64` and `ARM64` for `winarm`. The
-    rule needs `RELEASE_ARCH_ATTRS`.
-    """
+    """Return the release-tree architecture directory, Make's `ARCH_DIR_ONEDAL`."""
     is_windows = ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo])
     if ctx.target_platform_has_constraint(ctx.attr._aarch64_constraint[platform_common.ConstraintValueInfo]):
         return "ARM64" if is_windows else "arm"
@@ -216,9 +192,7 @@ VersionInfo = provider(
         "build",
         "buildrev",
         "status",
-        # Binary ABI version (distinct from product version).
-        # Used for SONAME and shared library symlinks.
-        # oneDAL binary ABI version.
+        # Binary ABI version, used for the SONAME.
         "binary_major",
         "binary_minor",
     ],
@@ -247,7 +221,6 @@ version_info = rule(
         "build": attr.string(mandatory=True),
         "buildrev": attr.string(mandatory=True),
         "status": attr.string(mandatory=True),
-        # ABI binary version used for SONAME and symlinks.
         "binary_major": attr.string(mandatory=True),
         "binary_minor": attr.string(mandatory=True),
     },
@@ -338,10 +311,7 @@ def _detect_cpu_extension(repo_ctx):
 def _declare_onedal_config_impl(repo_ctx):
     os_id = detect_os(repo_ctx)
     target_arch = detect_target_arch(repo_ctx, detect_host_arch(repo_ctx, os_id))
-    # `cpudetect.cpp` probes the x86 ISA extensions of the exec host. On
-    # ARM/RISC-V there is a single fixed variant and `_cpu_info_impl` ignores
-    # `auto_cpu`, so running the probe there only risks a spurious warning
-    # (e.g. MSVC ARM64 `cl` cannot compile the `__cpuid` path).
+    # The probe is x86-only; elsewhere `auto_cpu` is ignored.
     auto_cpu = (_detect_cpu_extension(repo_ctx) if target_arch == "intel64"
                 else _ISA_EXTENSION_AUTO_DEFAULT)
 

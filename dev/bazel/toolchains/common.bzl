@@ -57,7 +57,7 @@ def detect_compiler(repo_ctx, os_id):
     if not "CC" in repo_ctx.os.environ:
         return detect_default_compiler(repo_ctx, os_id)
     compiler_path = repo_ctx.os.environ["CC"]
-    # TODO: Use more relieble way to detect compiler
+    # TODO: detect the compiler by running it rather than by its name.
     if "gcc" in compiler_path:
         return "gcc"
     elif "clang" in compiler_path:
@@ -75,53 +75,36 @@ def detect_compiler(repo_ctx, os_id):
     return None
 
 def is_dpc_compiler_found(repo_ctx, os_id):
-    """Returns whether the DPC++ targets can be built.
-
-    On Linux they need icpx in PATH, the DPC++ compiler the toolchain looks up.
-    The Windows toolchain picks its DPC++ compiler on its own, so DPC++ targets
-    stay enabled there.
-    """
+    """Returns whether the DPC++ targets can be built: icpx in PATH on Linux, always elsewhere."""
     if os_id != "lnx":
         return True
     return repo_ctx.which("icpx") != None
 
-# oneDAL's arch IDs, matching ARCH_DIR_ONEDAL in dev/make/function_definitions/*.mk.
-# Keyed by the machine name a cross-compiler triple starts with
-# (e.g. `aarch64-linux-gnu-gcc`).
+# oneDAL arch IDs (Make: ARCH_DIR_ONEDAL) by the machine field of a cross-compiler triple.
 _ARCH_ID_BY_TRIPLE_PREFIX = {
     "aarch64": "arm",
-    # Not a GNU triple machine name, but clang accepts `arm64-pc-windows-msvc`
-    # and that is the spelling a Windows user is most likely to write.
+    # Not GNU, but clang accepts `arm64-pc-windows-msvc`.
     "arm64": "arm",
     "riscv64": "riscv64",
     "x86_64": "intel64",
     "amd64": "intel64",
 }
 
-# Same arch IDs keyed by `uname -m` output. This is a superset of the triple
-# prefixes: `arm64` is not a GNU triple machine name, but some environments
-# report it from `uname -m`, and without it detect_host_arch() would silently
-# fall back to intel64 on an ARM host.
+# By `uname -m`, which some ARM hosts report as `arm64`.
 _ARCH_ID_BY_UNAME = dict(_ARCH_ID_BY_TRIPLE_PREFIX)
 _ARCH_ID_BY_UNAME["arm64"] = "arm"
 
 def _arch_id_from_uname(value):
     return _ARCH_ID_BY_UNAME.get(value)
 
-# Same arch IDs keyed by Windows' `PROCESSOR_ARCHITECTURE` /
-# `PROCESSOR_ARCHITEW6432` values, which is how Make detects the Windows host
-# arch too (see .ci/scripts/build.bat and .ci/env/openblas.bat).
+# By `PROCESSOR_ARCHITECTURE`, as the Windows CI scripts detect the host.
 _ARCH_ID_BY_PROCESSOR_ARCHITECTURE = {
     "AMD64": "intel64",
     "ARM64": "arm",
 }
 
 def _triple_prefix_to_triple(basename):
-    """Recovers the triple prefix from a cross-compiler binary name by dropping
-    its tool-name segment, tolerating a trailing `-<version>` suffix on that
-    segment (e.g. Debian's `aarch64-linux-gnu-gcc-13` package binary):
-    `aarch64-linux-gnu-gcc-13` -> `aarch64-linux-gnu-`.
-    """
+    """`aarch64-linux-gnu-gcc-13` -> `aarch64-linux-gnu-`; the version suffix is optional."""
     parts = basename.split("-")
     if parts[-1].isdigit() and len(parts) > 2:
         parts = parts[:-2]
@@ -130,12 +113,7 @@ def _triple_prefix_to_triple(basename):
     return "-".join(parts) + "-"
 
 def _detect_cross_compiler(repo_ctx):
-    """Inspects `CC`/`CXX` for a cross-compiler triple and returns
-    `(triple_prefix, arch_id)`, e.g. `("aarch64-linux-gnu-", "arm")`.
-
-    Returns `(None, None)` when neither variable names a known triple, which
-    means a native (non-cross) build.
-    """
+    """Returns `(triple_prefix, arch_id)` from a cross-compiler `CC`/`CXX`, or `(None, None)`."""
     for env_var in ["CC", "CXX"]:
         basename = repo_ctx.os.environ.get(env_var, "").split("/")[-1]
         for prefix, arch_id in _ARCH_ID_BY_TRIPLE_PREFIX.items():
@@ -144,15 +122,9 @@ def _detect_cross_compiler(repo_ctx):
     return None, None
 
 def _detect_target_flag_arch(repo_ctx):
-    """Returns the arch ID named by an explicit `--target=<triple>` in `CC`/`CXX`,
-    or `None`.
+    """Returns the arch ID of a `--target=<triple>` in `CC`/`CXX`, or `None`.
 
-    clang/clang-cl select the target through this flag instead of a triple-
-    prefixed binary name, which is how Make cross-compiles on Windows
-    (`COMPILER.win.clang.target = --target=aarch64-pc-windows-msvc` in
-    dev/make/compiler_definitions/clang.ref.arm.mk). Unlike a triple prefix it
-    says nothing about the *tool* names, so it is deliberately kept out of
-    `_detect_cross_compiler` / `get_cross_tool_prefix`.
+    Unlike a triple prefix it says nothing about the tool names, so get_cross_tool_prefix ignores it.
     """
     for env_var in ["CC", "CXX"]:
         for arg in repo_ctx.os.environ.get(env_var, "").split(" "):
@@ -164,16 +136,10 @@ def _detect_target_flag_arch(repo_ctx):
     return None
 
 def get_cross_tool_prefix(repo_ctx):
-    """Returns the cross-toolchain triple prefix (e.g. `aarch64-linux-gnu-`)
-    if `CC`/`CXX` point at a cross-compiler, otherwise `""`.
-
-    Used to resolve the matching `ar`/`strip`/etc for the target arch instead
-    of picking up the exec host's native binutils.
-    """
+    """Returns the triple prefix (`aarch64-linux-gnu-`) of a cross-compiler `CC`/`CXX`, or `""`."""
     triple_prefix, _ = _detect_cross_compiler(repo_ctx)
     return triple_prefix or ""
 
-# Maps oneDAL arch IDs to @platforms//cpu constraint_value names.
 ARCH_ID_TO_PLATFORM_CPU = {
     "intel64": "x86_64",
     "arm": "aarch64",
@@ -181,19 +147,10 @@ ARCH_ID_TO_PLATFORM_CPU = {
 }
 
 def detect_host_arch(repo_ctx, os_id):
-    """Detects the oneDAL arch ID (intel64/arm/riscv64) of the exec host,
-    matching dev/make/identify_os.sh's `uname -m` based detection on Linux and
-    `.ci/scripts/build.bat`'s `PROCESSOR_ARCHITECTURE` check on Windows.
-    """
+    """Detects the oneDAL arch ID (intel64/arm/riscv64) of the exec host."""
     if os_id == "win":
-        # `PROCESSOR_ARCHITECTURE` reports the architecture of the *current
-        # process*. `PROCESSOR_ARCHITEW6432` carries the machine arch, but only
-        # for a 32-bit process on a 64-bit Windows, so it is read first and is
-        # not a general answer: a 64-bit x86_64 process emulated on an ARM64
-        # host reports AMD64 with nothing to correct it, and this detection then
-        # yields `intel64`. State the target explicitly in that case with a
-        # `--target=` triple in `CC`/`CXX`, which `detect_target_arch` honours
-        # over this. `--platforms` does not help: repository rules never see it.
+        # These describe the current process: an emulated x86_64 process on ARM64 reports AMD64.
+        # Use a `--target=` triple in CC/CXX there; repository rules never see `--platforms`.
         for env_var in ["PROCESSOR_ARCHITEW6432", "PROCESSOR_ARCHITECTURE"]:
             value = repo_ctx.os.environ.get(env_var, "").strip().upper()
             arch_id = _ARCH_ID_BY_PROCESSOR_ARCHITECTURE.get(value)
@@ -201,20 +158,14 @@ def detect_host_arch(repo_ctx, os_id):
                 return arch_id
         return "intel64"
     if os_id != "lnx":
-        # macOS ships x86-only oneDAL support (see identify_os.sh).
+        # oneDAL supports macOS on x86 only.
         return "intel64"
     result = repo_ctx.execute(["uname", "-m"])
     arch_id = _arch_id_from_uname(result.stdout.strip()) if result.return_code == 0 else None
     return arch_id or "intel64"
 
 def detect_target_arch(repo_ctx, host_arch_id):
-    """Detects the oneDAL target arch ID (intel64/arm/riscv64) for the configured compiler.
-
-    A `CC`/`CXX` pointing at a cross-compiler triple (e.g. `aarch64-linux-gnu-gcc`)
-    or carrying an explicit `--target=<triple>` (clang/clang-cl) determines the
-    target arch; otherwise the target is assumed to match the exec host (a
-    native, non-cross build).
-    """
+    """Detects the target arch ID from a cross-compiler or `--target=` in CC/CXX, else the host's."""
     _, arch_id = _detect_cross_compiler(repo_ctx)
     return arch_id or _detect_target_flag_arch(repo_ctx) or host_arch_id
 
@@ -284,13 +235,8 @@ def add_linker_option_if_supported(repo_ctx, cc, option, pattern):
 
 
 def get_no_canonical_prefixes_opt(repo_ctx, cc):
-    # If the compiler sometimes rewrites paths in the .d files without symlinks
-    # (ie when they're shorter), it confuses Bazel's logic for verifying all
-    # #included header files are listed as inputs to the action.
-
-    # The '-fno-canonical-system-headers' should be enough, but clang does not
-    # support it, so we also try '-no-canonical-prefixes' if first option does
-    # not work.
+    # Paths a compiler rewrites in the .d files break Bazel's check that every header is an input.
+    # clang lacks -fno-canonical-system-headers, so fall back to -no-canonical-prefixes.
     opt = add_compiler_option_if_supported(
         repo_ctx,
         cc,
@@ -322,18 +268,11 @@ def _get_unfiltered_default_compiler_options(reqs, is_dpcc, category):
     compiler_id = reqs.dpc_compiler_id if is_dpcc else reqs.compiler_id
     return get_default_flags(reqs.target_arch_id, reqs.os_id, compiler_id, category)
 
-# Options that must never be dropped by the support probe. It compiles a test
-# file with one option at a time, so `-march=armv8-a+sve` is probed against the
-# compiler's *default* target -- x86_64 when cross-compiling from an x86_64 host
-# -- where it warns and would be filtered out. Silently dropping either of these
-# yields a wrong-arch or SVE-less build instead of an error; Make passes both
-# unconditionally (COMPILER.win.clang / COMPILER.all.gnu).
+# The probe tests options against the default target, where a cross target's `-march` fails;
+# Make passes these unconditionally.
 _UNFILTERED_OPTION_PREFIXES = [
     "--target=",
     "-march=",
-    # Not emitted today, but it is the other way to name an aarch64 target
-    # (`-mcpu=` sets the architecture there, not only the tuning), so the probe
-    # must not be the thing that decides whether it survives.
     "-mcpu=",
 ]
 
@@ -354,14 +293,7 @@ def _filter_out_unsupported_compiler_options(repo_ctx, cc, options):
 
 
 def _prepare_include_path(repo_ctx, path):
-    """Resolve and sanitize include path before outputting it into the crosstool.
-    Args:
-      repo_ctx: repository_ctx object.
-      path: an include path to be sanitized.
-    Returns:
-      Absolute include path. The compiler is always run by its absolute path, so
-      it reports absolute paths even for a compiler downloaded into this repository.
-    """
+    """Returns the absolute include path, without the macOS framework suffix."""
     path = path.strip()
     if path.endswith(_MAC_FRAMEWORK_SUFFIX):
         path = path[:-_MAC_FRAMEWORK_SUFFIX_LEN].strip()

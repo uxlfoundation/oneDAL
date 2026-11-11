@@ -1,10 +1,7 @@
-# Global options
-
 build -c opt \
       --incompatible_enable_cc_toolchain_resolution \
       --incompatible_require_linker_input_cc_api
 
-# Aliases for user-defined flags
 build --flag_alias=backend_config=@config//:backend_config
 build --flag_alias=test_link_mode=@config//:test_link_mode
 build --flag_alias=test_thread_mode=@config//:test_thread_mode
@@ -22,12 +19,10 @@ build --flag_alias=build_parameters_lib=@config//:build_parameters_lib
 build --flag_alias=code_coverage=@config//:code_coverage
 build --flag_alias=msvc_runtime=@config//:msvc_runtime
 
-# Always pass this env variable to test rules, because SYCL
-# OpenCL backend uses it to determine available devices
+# The SYCL OpenCL backend reads these to find the available devices.
 test --test_env=OCL_ICD_FILENAMES \
      --test_env=SYCL_DEVICE_FILTER
 
-# This variable is needed for MPI
 test --test_env=FI_PROVIDER_PATH
 
 # This flag is added for migration to Bazel 9.0.0:
@@ -51,26 +46,17 @@ build:windows --action_env=INCLUDE
 build:windows --action_env=LIB
 build:windows --action_env=PATH
 
-# On Windows, tests need PATH to find runtime DLLs from external deps.
-# Bazel matches env-var names case-sensitively while Windows itself stores
-# the variable as `Path` (cmd) or `PATH` (MSYS bash) depending on the
-# launching shell — forward both spellings so the test wrapper sees a
-# populated value regardless of how the shell exports it.
+# Windows stores the variable as `Path` (cmd) or `PATH` (MSYS bash); forward both.
 test --test_env=PATH
 test --test_env=Path
 
-# Forward DALROOT into tests so they can locate the staged release tree
-# (redist/intel64, lib/intel64) for runtime DLL lookups on Windows.
+# Tests find the staged release DLLs on Windows through DALROOT.
 test --test_env=DALROOT
 
-# This variable is used to determine location of datasets for testing
 test --test_env=DAAL_DATASETS
 
-# Flag for setting the test timeout to 15 minutes
 test --test_timeout=900
 
-# Configuration: 'public'
-# Build & run all tests for public interface
 build:public \
     --build_tag_filters="-private"
 
@@ -78,8 +64,6 @@ test:public \
     --test_tag_filters="-private"
 
 
-# Configuration: 'private'
-# Build & run all tests for internal functionality
 build:private \
     --build_tag_filters="-public"
 
@@ -87,8 +71,6 @@ test:private \
     --test_tag_filters="-public"
 
 
-# Configuration: 'host'
-# Build & run all host tests
 build:host \
     --build_tag_filters="host"
 
@@ -96,9 +78,7 @@ test:host \
     --test_tag_filters="host"
 
 
-# Configuration: 'dpc'
-# Build & run all DPC++ tests. --release_dpc=true makes a missing icpx a build
-# error instead of skipping every test.
+# --release_dpc=true makes a missing icpx a build error instead of skipping every test.
 build:dpc \
     --build_tag_filters="dpc" \
     --release_dpc=true
@@ -107,8 +87,6 @@ test:dpc \
     --test_tag_filters="dpc"
 
 
-# Configuration: 'host-public'
-# Build & run all host tests for public interface
 build:host-public \
     --build_tag_filters="host,-private"
 
@@ -116,8 +94,6 @@ test:host-public \
     --test_tag_filters="host,-private"
 
 
-# Configuration: 'host-private'
-# Build & run all host tests for internal functionality
 build:host-private \
     --build_tag_filters="host,-public"
 
@@ -125,8 +101,6 @@ test:host-private \
     --test_tag_filters="host,-public"
 
 
-# Configuration: 'dpc-public'
-# Build & run all DPC++ tests for public interface
 build:dpc-public \
     --build_tag_filters="dpc,-private" \
     --release_dpc=true
@@ -135,8 +109,6 @@ test:dpc-public \
     --test_tag_filters="dpc,-private"
 
 
-# Configuration: 'dpc-private'
-# Build & run all DPC++ tests for internal functionality
 build:dpc-private \
     --build_tag_filters="dpc,-public" \
     --release_dpc=true
@@ -145,40 +117,18 @@ test:dpc-private \
     --test_tag_filters="dpc,-public"
 
 
-# Configuration: 'release'
-# The //:release target automatically builds all ISA variants when
-# --cpu is unset (auto), and includes DPC++ libs when icpx is in PATH.
-# Use --cpu=<isa> to restrict ISAs for CI speed, or --release_dpc=false
-# to disable DPC++ libs.
-#   bazel build //:release                       # CPU (+ DPC++ with icpx), all ISAs
-#   bazel build //:release --release_dpc=false   # CPU only, all ISAs
-#   bazel build //:release --cpu=avx2            # CI: avx2 only
+# //:release builds every ISA unless --cpu is set and adds the DPC++ libraries when icpx is found.
 build:release-dpc \
     --release_dpc=true
 
-# Configuration: 'dev'
-# Fast local development build — compiles only for the host machine's
-# highest ISA (auto-detected). Use this to speed up iterative builds.
-# NOT suitable for release/packaging.
-#   bazel build //cpp/oneapi/dal:tests --config=dev
-#
-# `--cpu` selects the contents of a generated header that every kernel
-# includes, at one output path for every value, so switching between
-# `--config=dev` and the default rebuilt ~1160 actions each way. The platform
-# suffix gives the dev ISA set its own output tree; switching back and forth
-# then rebuilds nothing. Pass a suffix the same way when building another
-# `--cpu` value side by side (e.g. `--cpu=all --platform_suffix=isa-all`).
+# Host ISA only, for local iteration. The platform suffix gives it its own
+# output tree, so switching to and from the default build rebuilds nothing.
 build:dev \
     --cpu=auto \
     --platform_suffix=dev
 
 
-# =============================================================================
-# Windows MSVC runtime (CRT) selection
-# Equivalent to Make MSVC_RUNTIME_VERSION. Independent of --config=dbg
-# (Make REQDBG): this picks the CRT flavour and renames the produced
-# libraries, it does not add debug info or assertions.
-# =============================================================================
+# Windows CRT selection (Make MSVC_RUNTIME_VERSION), independent of --config=dbg.
 
 # Configuration: 'mdd'
 # Link against the debug MSVC runtime (`-MDd`) and the `_debug` TBB variants.
@@ -198,44 +148,24 @@ build:mdd \
 # On non-Windows platforms //:release_all is equivalent to //:release.
 
 
-# =============================================================================
-# Debug and Sanitizer Configurations
-# Equivalent to Make REQDBG / REQSAN options
-# =============================================================================
-
-# Configuration: 'dbg'
-# Debug build with assertions enabled.
-# Equivalent to Make: REQDBG=yes
-# Adds: -g debug symbols, -DDEBUG_ASSERT, -DONEDAL_ENABLE_ASSERT
-#   bazel build //:release --config=dbg
-#   bazel test //cpp/oneapi/dal:tests --config=dbg
+# Make: REQDBG=yes.
 build:dbg \
     --compilation_mode=dbg \
     --enable_assert=True
 
-# Configuration: 'dbg-symbols'
-# Debug symbols only — no assertion checking, no -O0.
-# Equivalent to Make: REQDBG=symbols
-# Adds -g to the default opt build; preserves -O2/-O3 optimization.
-#   bazel build //:release --config=dbg-symbols
+# Make: REQDBG=symbols. Keeps the opt build's optimization level.
 build:dbg-symbols \
     --copt=-g
 
 
-# Configuration: 'asan'
-# AddressSanitizer build.
-# Equivalent to Make: REQSAN=address
-# Note: combine with --config=dbg for best results (Make recommendation).
-#   bazel test //cpp/oneapi/dal:tests --config=asan --config=dbg
+# Make: REQSAN=address. Combine with --config=dbg.
 build:asan \
     --copt=-fsanitize=address \
     --copt=-fno-omit-frame-pointer \
     --linkopt=-fsanitize=address \
     --config=dbg-symbols
 
-# Configuration: 'asan-static'
-# AddressSanitizer with static libasan linkage.
-# Equivalent to Make: REQSAN=static
+# Make: REQSAN=static.
 build:asan-static \
     --copt=-fsanitize=address \
     --copt=-fno-omit-frame-pointer \
@@ -244,10 +174,7 @@ build:asan-static \
     --config=dbg-symbols
 
 
-# Configuration: 'lsan'
-# LeakSanitizer build for supported Linux non-DPC++ targets.
-# Equivalent to Make: REQSAN=leak
-#   bazel test //cpp/oneapi/dal:tests --config=lsan
+# Make: REQSAN=leak. Linux non-DPC++ targets only.
 build:lsan \
     --copt=-fsanitize=leak \
     --copt=-fno-omit-frame-pointer \
@@ -255,10 +182,7 @@ build:lsan \
     --config=dbg-symbols
 
 
-# Configuration: 'tsan'
-# ThreadSanitizer build.
-# Equivalent to Make: REQSAN=thread
-#   bazel test //cpp/oneapi/dal:tests --config=tsan
+# Make: REQSAN=thread.
 build:tsan \
     --copt=-fsanitize=thread \
     --copt=-fno-omit-frame-pointer \
@@ -266,10 +190,7 @@ build:tsan \
     --config=dbg-symbols
 
 
-# Configuration: 'ubsan'
-# UndefinedBehaviorSanitizer build.
-# Equivalent to Make: REQSAN=undefined
-#   bazel test //cpp/oneapi/dal:tests --config=ubsan
+# Make: REQSAN=undefined.
 build:ubsan \
     --copt=-fsanitize=undefined \
     --copt=-fno-omit-frame-pointer \
@@ -277,25 +198,7 @@ build:ubsan \
     --config=dbg-symbols
 
 
-# =============================================================================
-# Custom flags
-# For injecting arbitrary compiler/linker flags (equivalent to Make COPT/CXXFLAGS):
-#   bazel build //:release --copt=-march=native
-#   bazel build //:release --copt=-O2
-#   bazel build //:release --linkopt=-Wl,--as-needed
-# Or persist them per-checkout in user.bazelrc, which is imported below and is
-# git-ignored, or globally in ~/.bazelrc:
-#   build --copt=-your-flag
-# Bazel combines repeated --copt/--cxxopt/--linkopt values from configs and
-# user flags; avoid passing conflicting flags such as multiple optimization
-# levels unless you intentionally want compiler-specific "last option wins"
-# behavior.
-# =============================================================================
-
-# Configuration: 'msan'
-# MemorySanitizer build.
-# Note: Requires a Clang/LLVM toolchain and lld; GCC does not support MSan.
-#   bazel test //cpp/oneapi/dal:tests --config=msan
+# Needs clang and lld; GCC has no MemorySanitizer.
 build:msan \
     --copt=-fsanitize=memory \
     --copt=-fsanitize-memory-track-origins \
@@ -304,9 +207,7 @@ build:msan \
     --linkopt=-fuse-ld=lld \
     --config=dbg-symbols
 
-# Configuration: 'type'
-# Type sanitizer build.
-# Note: Requires Clang; GCC and ICPX do not support TypeSanitizer.
+# Needs clang; GCC and icpx have no TypeSanitizer.
 build:type \
     --copt=-fsanitize=type \
     --copt=-fsanitize-recover=all \
@@ -315,15 +216,7 @@ build:type \
     --linkopt=-fuse-ld=lld \
     --config=dbg-symbols
 
-# On Windows, dev/bazel/toolchains/cc_toolchain_win.bzl selects the custom
-# Intel oneAPI icx/icpx cc_toolchain by default (icx must be on PATH,
-# typically via %ONEAPI_ROOT%\setvars.bat). To fall back to the stock
-# rules_cc MSVC cl auto-config, set ONEDAL_WIN_COMPILER=cl in the
-# environment (or pass --repo_env=ONEDAL_WIN_COMPILER=cl to bazel).
+# On Windows, ONEDAL_WIN_COMPILER=cl (env or --repo_env) selects the rules_cc MSVC toolchain instead of icx.
 
-# =============================================================================
-# Per-checkout overrides. Keeps machine-specific settings -- typically
-# --jobs / --local_ram_resources on a shared or memory-constrained box -- out of
-# this file. Optional: bazel ignores the import when the file is absent.
-# =============================================================================
+# Machine-specific settings such as --jobs, and extra --copt/--linkopt (Make COPT); git-ignored.
 try-import %workspace%/user.bazelrc
