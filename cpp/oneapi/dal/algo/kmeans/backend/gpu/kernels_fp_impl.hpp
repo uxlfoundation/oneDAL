@@ -425,8 +425,7 @@ sycl::event kernels_fp<Float>::compute_exact_distances(sycl::queue& queue,
     Float* distances_ptr = distances.get_mutable_data();
     const std::int64_t sg_size = bk::device_max_sg_size(queue);
 
-    // The expanded form |x|^2 - 2 x.c + |c|^2 used for the assignment cancels for points close
-    // to their centroid, so the objective is summed from the coordinate differences instead.
+    // The expanded form |x|^2 - 2 x.c + |c|^2 cancels near the centroid, so sum the differences.
     // One work-group of sub-group width per row; its work-items stride over the columns.
     return queue.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);

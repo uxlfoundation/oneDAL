@@ -267,10 +267,8 @@ public:
     }
 
     void check_exact_objective_on_close_points() {
-        // Two pairs of points 2e-4 apart around -1 and +1. In float the expanded
-        // distance |x|^2 - 2 x.c + |c|^2 rounds the squared distances to zero, while
-        // the differences themselves are exact. The objective function has to be
-        // the sum of the squared differences for the final centroids and responses.
+        // Two pairs of points 2e-4 apart around -1 and +1: in float the expanded
+        // distance |x|^2 - 2 x.c + |c|^2 rounds their squared distances to zero.
         const std::int64_t row_count = 4;
         const std::int64_t cluster_count = 2;
         float_t data[] = { -1.0001, -0.9999, 0.9999, 1.0001 };
