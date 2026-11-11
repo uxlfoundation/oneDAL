@@ -23,8 +23,7 @@ lnx_cc_common_flags = [
     "-Wformat",
     "-Wformat-security",
     "-Wreturn-type",
-    # TODO: This option was added to suppress deprecation warnings.
-    #       To be removed in oneDAL 2026.0.
+    # TODO: remove in oneDAL 2026.0.
     "-Wno-deprecated-declarations",
 ]
 
@@ -42,47 +41,24 @@ lnx_cc_flags = {
     "pedantic": lnx_cc_pedantic_flags,
 }
 
-# icx/icpx on Windows run in their native clang-cl driver mode, so flags
-# use MSVC-style spellings. Mirrors dev/make/compiler_definitions/{icx,dpcpp}.mkl.32e.mk
-# (COMPILER.win.icx / COMPILER.win.dpcpp).
-# NOTE: `-Qopenmp-simd` is deliberately absent here. icx rejects it together
-# with the debug CRT (`-Wdebug-option-simd`, fatal under `-WX`), so the flag
-# depends on the MSVC runtime and cannot be a repository-time constant. The
-# `runtime_library` feature in cc_toolchain_config_win.bzl adds it for
-# release-CRT builds only, matching `COMPILER.win.icx` in
-# dev/make/compiler_definitions/icx.mkl.32e.mk:77, which passes
-# `-MD -Qopenmp-simd` for the release runtime and a bare `-MDd` otherwise.
+# icx/icpx on Windows use clang-cl spellings; mirrors COMPILER.win.icx in icx.mkl.32e.mk.
+# -Qopenmp-simd comes from the runtime_library feature: icx rejects it with the debug CRT.
 win_icx_common_flags = [
     "-nologo",
     "-WX",
-    # C++ exception handling. The Makefile passes `-EHsc` for every oneAPI
-    # object on Windows (makefile:152, used at makefile:692/704/717); without
-    # it clang-cl defaults to exceptions disabled and any `throw` in
-    # cpp/oneapi/dal/detail/common.hpp is a hard error. This used to be
-    # supplied implicitly as a side effect of `-Qopenmp-simd` (which turns on
-    # -fexceptions in clang), so it only surfaced once that flag became
-    # release-runtime-only. Pass it explicitly instead of relying on that.
+    # clang-cl disables C++ exceptions by default.
     "-EHsc",
-    # `-Zl.icx` / `-Zl.dpcpp` disable every Intel-specific runtime library on
-    # Windows too, so the released `.lib` files never reference `__svml_*`.
-    # (`-Zl` itself, the other half of the makefile's variable, is deliberately
-    # not mirrored: it strips the CRT default-library directives that this
-    # toolchain's DLL links still rely on.)
+    # Keeps __svml_* references out of the released .lib files (`-Zl.icx` in Make).
     "-Qno-intel-lib",
     "-Wno-deprecated-declarations",
     "-Wno-ignored-attributes",
     "-Wno-empty-body",
-    # Silence icx's "loop not vectorized" pass-failed diagnostic so it does
-    # not combine with `-WX`. Matches `-Wno-pass-failed` from `-DEBC.icx`.
     "-Wno-pass-failed",
-    # icx 2026 is stricter about [[nodiscard]] than older toolchains;
-    # suppress to avoid failing third-party headers (fmt, Catch2) that
-    # ignore nodiscard-returning functions called for side effects.
+    # fmt and Catch2 headers discard [[nodiscard]] results.
     "-Wno-unused-result",
     "-Wno-unused-variable",
 ]
 
-# Matches `pedantic.opts.win.icx` / `pedantic.opts.win.dpcpp` in the Makefile.
 win_icx_pedantic_flags = [
     "-Wall",
     "-Wextra",
@@ -95,37 +71,20 @@ win_icx_flags = {
     "pedantic": win_icx_pedantic_flags,
 }
 
-# Upstream LLVM `clang-cl` on Windows. This is the compiler Make uses for
-# `PLAT=winarm` (icx has no AArch64 target); mirrors COMPILER.win.clang in
-# dev/make/compiler_definitions/clang.ref.arm.mk.
+# Upstream clang-cl, used for winarm; mirrors COMPILER.win.clang in clang.ref.arm.mk.
+# The CRT flag (-MD/-MDd) comes from the toolchain's msvc_runtime_debug feature.
 win_clang_common_flags = [
     "-Werror",
     "-Wno-empty-body",
     "-Wreturn-type",
     "-Wno-deprecated-declarations",
-    # C++ exception handling. The makefile adds `-EHsc` by `OS_is_win` alone,
-    # not by the compiler, so the clang-cl toolchain needs it as much as the icx
-    # one: without it clang-cl rejects every `throw` in
-    # cpp/oneapi/dal/detail/common.hpp.
+    # clang-cl disables C++ exceptions by default.
     "-EHsc",
-    # Make's `-fms-runtime-lib=dll[_dbg]` (COMPILER.win.clang, selected by
-    # MSVC_RT_is_release) has no counterpart here on purpose: the toolchain
-    # config already emits `-MD`/`-MDd` from the `msvc_runtime_debug` feature
-    # (`--config=mdd`), and stating the CRT twice would let the two disagree.
-    #
-    # clang-cl reports every vectorization pragma it cannot honor from `-O1` up,
-    # which `-Werror` above would turn into a build failure. Matches
-    # `warn.opts.clang` in dev/make/compiler_definitions/clang.mk.
+    # clang-cl reports every vectorization pragma it cannot honor.
     "-Wno-pass-failed",
 ]
 
-# Make defines no `pedantic.opts.win.clang` (`pedantic.opts =
-# $(pedantic.opts.$(_OS).$(COMPILER))` in common.mk), so winarm passes no
-# pedantic flags, and neither does this toolchain. Taking `pedantic.opts.clang`
-# from dev/make/compiler_definitions/clang.mk is not an option: under the `cl`
-# driver `-Wall` means `-Weverything` (`clang --driver-mode=cl -Wall -###`
-# expands to `-Weverything`; `-W4` is the `-Wall` equivalent), which `-Werror`
-# above turns into a build failure.
+# Make has none for winarm, and under clang-cl `-Wall` means `-Weverything`.
 win_clang_pedantic_flags = []
 
 win_clang_flags = {
@@ -133,20 +92,13 @@ win_clang_flags = {
     "pedantic": win_clang_pedantic_flags,
 }
 
-# Target triples passed to clang-cl with `--target=`. Matches
-# COMPILER.win.clang.target in dev/make/compiler_definitions/clang.ref.arm.mk.
+# clang-cl targets the arch of its own binary unless told otherwise.
 _WIN_CLANG_TARGET_TRIPLE = {
     "arm": "aarch64-pc-windows-msvc",
     "intel64": "x86_64-pc-windows-msvc",
 }
 
 def get_win_clang_target_flags(arch_id):
-    """Returns the explicit `--target=` flag for a Windows clang-cl build.
-
-    clang-cl defaults to the arch of the clang binary itself, so the triple is
-    stated explicitly -- that is also what makes an x86_64-host cross-compile to
-    `@config//:windows_arm64` work.
-    """
     return ["--target={}".format(_WIN_CLANG_TARGET_TRIPLE[arch_id])]
 
 def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
@@ -156,26 +108,12 @@ def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
         if compiler_id == "icx" and category == "common":
             flags = flags + [
                 "-qopenmp-simd",
-                # Disable *all* Intel-specific runtime libraries, not just
-                # libirc. This mirrors `-Zl.icx` in
-                # dev/make/compiler_definitions/icx.mkl.32e.mk, which the
-                # makefile applies to every object (makefile:528,537,692,877).
-                #
-                # It has to be the bare form: with SVML left enabled icx
-                # vectorises integer division/remainder (for example
-                # `wsIndex % nVectors` in
-                # cpp/daal/src/algorithms/svm/svm_train_thunder_impl.i) into
-                # `__svml_u64rem4_*` calls. The shared libraries hide that
-                # because the toolchain links them with `-static-intel`, but
-                # the released static archives keep the references and any
-                # consumer that links `libonedal_core.a` with gcc/g++ fails
-                # with `undefined reference to __svml_u64rem4_l9`.
+                # Keeps __svml_* references, which gcc cannot resolve, out of static archives.
                 "-no-intel-lib",
                 "-no-canonical-prefixes",
             ]
         if compiler_id == "icpx":
             flags = flags + [
-                # `-Zl.dpcpp` in dev/make/compiler_definitions/dpcpp.mk:70.
                 "-no-intel-lib",
                 "-fsycl",
                 "-fno-canonical-system-headers",
@@ -183,7 +121,6 @@ def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
                 "-Wno-gnu-zero-variadic-macro-arguments",
             ]
         if compiler_id == "icpx" and category == "pedantic":
-            # TODO: Consider removing
             flags = flags + ["-Wno-unused-command-line-argument"]
         if compiler_id == "gcc":
             flags = flags + [
@@ -192,30 +129,14 @@ def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
             ]
         if compiler_id == "clang":
             flags = flags + [
-                # Upstream clang reports every vectorization pragma it cannot
-                # honor (for example `omp simd reduction(max : ...)`) starting
-                # from `-O1`, and `-Werror` above turns such a report into a
-                # build failure. Matches `warn.opts.clang` in
-                # dev/make/compiler_definitions/clang.mk. Intentionally not
-                # applied to icx/icpx: those honor the pragmas, so a
-                # `pass-failed` report there is a real problem worth failing on.
+                # Unhonored vectorization pragmas; icx/icpx honor them, so they keep the warning.
                 "-Wno-pass-failed",
             ]
         if compiler_id == "gcc":
-            # Matches COMPILER.all.gnu in dev/make/compiler_definitions/gnu.32e.mk,
-            # which pairs it with `-fwrapv`. Clang treats it as implied by
-            # `-fwrapv` above and reports it unused, which `-Werror` makes fatal.
+            # clang implies it from -fwrapv and reports it as unused.
             flags = flags + ["-fno-strict-overflow"]
         if arch_id in ["arm", "riscv64"]:
-            # ARM/RISC-V ship a single fixed ISA variant (see cpu_type.h),
-            # unlike x86's runtime-dispatched sse2/avx2/avx512 objects, so
-            # `-march` applies to every compile action, not only the
-            # `_cpu`-suffixed ones that go through get_cpu_flags(). Mirrors
-            # COMPILER.all.gnu in dev/make/compiler_definitions/gnu.ref.arm.mk
-            # and COMPILER.lnx.clang in clang.ref.arm.mk. Make has no
-            # gnu.ref.riscv64.mk (RISC-V is clang-only there) and
-            # clang.ref.riscv64.mk carries `-march` only in rv64_OPT.clang, so
-            # for that combination this is Bazel-only coverage, not Make parity.
+            # A single ISA variant, so -march goes on every compile action.
             flags = flags + _get_single_variant_march_flags(arch_id)
             if arch_id == "arm" and compiler_id == "gcc" and category == "common":
                 flags = flags + ["-ftree-vectorize"]
@@ -231,22 +152,14 @@ def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
             if category == "common":
                 flags = flags + get_win_clang_target_flags(arch_id)
                 if arch_id in _SINGLE_VARIANT_MARCH_FLAGS:
-                    # Same reasoning as the Linux ARM/RISC-V branch above: a
-                    # single fixed ISA variant means `-march` belongs on every
-                    # compile action, not only the `_cpu`-suffixed ones.
                     flags = flags + _get_single_variant_march_flags(arch_id)
             return flags
-        # cl / other fall through to empty; cl path uses the rules_cc
-        # MSVC auto-config and does not consume these flags.
+        # cl uses the rules_cc MSVC auto-config and none of these flags.
         return []
     fail("Unsupported OS")
 
 _SINGLE_VARIANT_MARCH_FLAGS = {
-    # Matches a8sve_OPT.gnu in dev/make/compiler_definitions/gnu.ref.arm.mk and
-    # a8sve_OPT.clang in clang.ref.arm.mk.
     "arm": ["-march=armv8-a+sve"],
-    # Matches rv64_OPT.clang in dev/make/compiler_definitions/clang.ref.riscv64.mk
-    # (Make has no gnu.ref.riscv64.mk; RISC-V is clang-only there).
     "riscv64": ["-march=rv64gc_v1p0_zvl128b"],
 }
 
@@ -260,11 +173,7 @@ def _get_single_variant_march_flags(arch_id):
 
 def get_cpu_flags(arch_id, os_id, compiler_id):
     if arch_id in ["arm", "riscv64"]:
-        # ARM/RISC-V ship a single fixed ISA variant, no runtime dispatch.
-        # `-march` is already applied to every compile action via
-        # get_default_flags(); re-stating it here (idempotent) is only to
-        # give this feature's flag_group a non-empty flag list, which
-        # cc_toolchain_config_lnx.bzl's flag_group() requires.
+        # Repeats the common -march only because flag_group() needs a non-empty list.
         return {
             _SINGLE_VARIANT_ISA_ID[arch_id]: _get_single_variant_march_flags(arch_id),
         }
@@ -280,7 +189,6 @@ def get_cpu_flags(arch_id, os_id, compiler_id):
         avx2 = ["-march=haswell"]
         avx512 = ["-march=skylake-avx512"]
     elif compiler_id in ["icx", "icpx"]:
-        # icx on Windows accepts -march like its Linux counterpart.
         sse2 = ["-march=nocona"]
         avx2 = ["-march=haswell"]
         avx512 = ["-march=skx"]
