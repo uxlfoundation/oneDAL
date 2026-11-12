@@ -308,7 +308,7 @@ def _find_cxx_compiler(repo_ctx):
 
 def _detect_cpu_extension(repo_ctx):
     cpudetect_src = repo_ctx.path(repo_ctx.attr._cpudetect_src)
-    is_windows = "windows" in repo_ctx.os.name
+    is_windows = detect_os(repo_ctx) == "win"
     cpudetect_exe = repo_ctx.path("cpudetect.exe" if is_windows else "cpudetect")
     repo_ctx.report_progress("Compile cpu-detector")
     if is_windows:

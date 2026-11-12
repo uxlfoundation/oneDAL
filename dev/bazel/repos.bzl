@@ -18,6 +18,7 @@ load("@onedal//dev/bazel:utils.bzl", "utils", "paths")
 load("@onedal//dev/bazel:version.bzl", "VERSION")
 load("@onedal//dev/bazel/toolchains:common.bzl",
     "detect_host_arch",
+    "detect_os",
     "detect_target_arch",
 )
 
@@ -49,7 +50,7 @@ def _download_and_extract(repo_ctx, url, sha256, output, strip_prefix):
 
 def _detect_os(repo_ctx):
     # Every non-Windows host, macOS included, takes the Linux layout and templates.
-    return "win" if repo_ctx.os.name.lower().find("windows") != -1 else "lnx"
+    return "win" if detect_os(repo_ctx) == "win" else "lnx"
 
 def _select_by_os(repo_ctx, name, os_id):
     if os_id == "win":

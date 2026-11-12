@@ -32,6 +32,12 @@
   detects the highest instruction set available on the host and adds the `sse2`
   baseline.
 
+- [x] **Analysis tests and no build scripts.** `bazel test //dev/bazel/tests:all`
+  checks the configured graph with Starlark analysis tests; the build date is
+  `--build_date`, so stamping needs no `workspace_status` script; the release
+  tree is staged with `expand_template`; `TargetInfo` (`@config//:target`)
+  replaces the per-rule constraint attributes.
+
 - [x] **Import libraries, CRLF staging and missing tools without scripts.** The
   Windows toolchain config enables `targets_windows` and
   `supports_interface_shared_libraries`, so `cc_common.link()` declares the
@@ -58,15 +64,12 @@
   DPC++ libraries, but the examples and tests that create a SYCL queue are not
   run there yet; that needs device and runtime validation on the CI images.
 
-- [ ] **Toolchain flag tables as data.** The Linux and Windows
-  `cc_toolchain_config` rules now share their action groups, their
-  attribute-driven features and their rule attributes through
-  `toolchains/cc_toolchain_config_common.bzl`. What is left in the two files is
-  not duplication: no same-named feature emits the same flags on both
-  platforms, so folding them together would put a per-platform branch inside
-  every factory. The duplication that is real sits in `toolchains/common.bzl`,
-  where the per-compiler, per-OS, per-ISA flag lists are spelled out in
-  Starlark control flow and would read better as a table.
+- [ ] **Toolchain flag tables as data.** The compile action configs, the default
+  compile flags and the marker features are shared by
+  `toolchains/cc_toolchain_config_common.bzl`; the link configs and every
+  flag-emitting feature still differ between Linux and Windows (`-D` vs `/D`,
+  `rcsD` vs `/OUT:`). `flags.bzl` spells the per-compiler and per-OS flag lists
+  out in control flow; a table per compiler would read better.
 
 - [ ] **Hermetic toolchain.** The compiler, archiver, linker and strip tool are
   absolute paths found with `repo_ctx.which()` at configure time. A build
@@ -75,12 +78,14 @@
   would fix both.
 
 - [ ] **Remove the last helper script.** `toolchains/tools/dpc_link_win.ps1`
-  and its `.tpl.bat` launcher keep the Intel driver in DPC++ link actions while
-  moving the object list into a response file of their own: the driver flattens
-  every argument into one line of the response file it hands to MSVC `link`,
-  which rejects lines over 131071 characters (LNK1170). DLL links no longer
-  need it, since `dev/bazel/cc/link.bzl` archives their objects into
-  `<name>_objects.lib` first; DPC++ executables still pass their objects
-  directly. Two script-free options, both needing a Windows DPC++ run to
-  validate: archive the objects of executables the same way, or link through
+  and its `.tpl.bat` launcher do two things to the DPC++ link line on Windows:
+  they move the objects into a response file of their own, because the Intel
+  driver flattens every argument into one line of the response file it hands to
+  MSVC `link`, which rejects lines over 131071 characters (LNK1170); and they
+  move the `.res` file ahead of `/link`, where the driver takes it as an input.
+  DLL links no longer need the first part, since `dev/bazel/cc/link.bzl`
+  archives their objects into `<name>_objects.lib`; DPC++ executables still
+  pass their objects directly. Script-free options, all needing a Windows DPC++
+  run to validate: archive the objects of executables the same way, convert the
+  `.res` with `cvtres` into an object that joins that archive, or link through
   `lld-link` (`-fuse-ld=lld`), which has no line limit.

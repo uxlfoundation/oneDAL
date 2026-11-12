@@ -299,7 +299,7 @@ def _configure_cpu_features(ctx, toolchain, cpus):
 def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
              cpus=[], fpts=[], cpu_defines={}, fpt_defines={},
              srcs=[], local_defines=[], includes=[], system_includes=[],
-             quote_includes=[], short_paths=False, **kwargs):
+             quote_includes=[], short_paths=False, drop_mkl_ilp64=False, **kwargs):
 
     kwargs = _get_msvc_compile_kwargs(toolchain, kwargs)
     sources_by_category = _categorize_sources(srcs)
@@ -322,9 +322,9 @@ def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
         includes = includes,
         system_includes = system_includes,
         quote_includes = quote_includes,
-        # DPC library objects are LP64 (Make's ONEAPI.objs_y.dpc), via the drop_mkl_ilp64 attribute.
-        # A DPC test that links the ILP64 archives keeps MKL_ILP64; see cpp/oneapi/dal/test/engine/mkl.
-        drop_defines = ["MKL_ILP64"] if getattr(ctx.attr, "drop_mkl_ilp64", False) else [],
+        # DPC library objects are LP64 (Make's ONEAPI.objs_y.dpc); a DPC test that links the ILP64
+        # archives keeps MKL_ILP64, see cpp/oneapi/dal/test/engine/mkl.
+        drop_defines = ["MKL_ILP64"] if drop_mkl_ilp64 else [],
     )
     dep_compilation_contexts = [ dep_compilation_context ]
 
