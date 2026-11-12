@@ -76,6 +76,7 @@ def expand_build_date(ctx, template, out, build_date):
     ctx.actions.run_shell(
         inputs = [template, build_date.file],
         outputs = [out],
-        command = 'd=$(cat "$2") && sed "s/@ONEDAL_BUILD_DATE@/$d/g" "$1" > "$3"',
+        # -b keeps CRs, which the MSYS sed on Windows drops in text mode; elsewhere it is a no-op.
+        command = 'd=$(cat "$2") && sed -b "s/@ONEDAL_BUILD_DATE@/$d/g" "$1" > "$3"',
         arguments = [template.path, build_date.file.path, out.path],
     )
