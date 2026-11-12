@@ -9,6 +9,7 @@ load("@onedal//dev/bazel/config:config.bzl",
     "unsupported_config",
     "target_info",
 )
+load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 
 cpu_info(
     name = "cpu",
@@ -17,12 +18,18 @@ cpu_info(
     build_setting_default = "auto",
 )
 
+# Release builds pass --build_date=YYYYMMDD; otherwise the version carries a placeholder date.
+string_flag(
+    name = "build_date",
+    build_setting_default = "",
+)
+
 version_info(
     name = "version",
     major = "%{version_major}",
     minor = "%{version_minor}",
     update = "%{version_update}",
-    build = "%{version_build}",
+    build_date = ":build_date",
     buildrev = "%{version_buildrev}",
     status = "%{version_status}",
     # Binary ABI version for SONAME and shared library symlinks.

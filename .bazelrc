@@ -17,6 +17,7 @@ build --flag_alias=rng_backend=@config//:rng_backend
 build --flag_alias=build_parameters_lib=@config//:build_parameters_lib
 build --flag_alias=code_coverage=@config//:code_coverage
 build --flag_alias=msvc_runtime=@config//:msvc_runtime
+build --flag_alias=build_date=@config//:build_date
 
 # The SYCL OpenCL backend reads these to find the available devices.
 test --test_env=OCL_ICD_FILENAMES \
@@ -106,11 +107,8 @@ test:dpc-private \
 
 
 # //:release builds every ISA unless --cpu is set and adds the DPC++ libraries when icpx is found.
-# release-dpc also stamps the build date (dev/bazel/stamp.bzl); other configs keep the placeholder.
 build:release-dpc \
-    --release_dpc=true \
-    --stamp \
-    --workspace_status_command="sh dev/bazel/workspace_status.sh"
+    --release_dpc=true
 
 # Host ISA only, for local iteration. The platform suffix gives it its own
 # output tree, so switching to and from the default build rebuilds nothing.

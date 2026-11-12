@@ -15,8 +15,8 @@
 #===============================================================================
 
 load("@onedal//dev/bazel:utils.bzl", "utils", "sets")
-load("@onedal//dev/bazel:version.bzl", "VERSION")
-load("@onedal//dev/bazel:stamp.bzl", "DEV_BUILD_DATE")
+load("@onedal//dev/bazel:version.bzl", "DEV_BUILD_DATE", "VERSION")
+load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@onedal//dev/bazel/toolchains:common.bzl", "detect_os", "detect_compiler", "detect_host_arch", "detect_target_arch", "is_dpc_compiler_found")
 load("@onedal//dev/bazel/toolchains:cc_toolchain_win.bzl", "win_compiler_id")
 
@@ -224,12 +224,15 @@ VersionInfo = provider(
 )
 
 def _version_info_impl(ctx):
+    build = ctx.attr.build_date[BuildSettingInfo].value or DEV_BUILD_DATE
+    if len(build) != 8 or not build.isdigit():
+        fail("--build_date must be YYYYMMDD, got '{}'".format(build))
     return [
         VersionInfo(
             major        = ctx.attr.major,
             minor        = ctx.attr.minor,
             update       = ctx.attr.update,
-            build        = ctx.attr.build,
+            build        = build,
             buildrev     = ctx.attr.buildrev,
             status       = ctx.attr.status,
             binary_major = ctx.attr.binary_major,
@@ -243,7 +246,7 @@ version_info = rule(
         "major": attr.string(mandatory=True),
         "minor": attr.string(mandatory=True),
         "update": attr.string(mandatory=True),
-        "build": attr.string(mandatory=True),
+        "build_date": attr.label(mandatory=True, providers=[BuildSettingInfo]),
         "buildrev": attr.string(mandatory=True),
         "status": attr.string(mandatory=True),
         "binary_major": attr.string(mandatory=True),
@@ -352,7 +355,6 @@ def _declare_onedal_config_impl(repo_ctx):
             "%{version_major}":         VERSION.major,
             "%{version_minor}":         VERSION.minor,
             "%{version_update}":        VERSION.update,
-            "%{version_build}":         DEV_BUILD_DATE,
             "%{version_buildrev}":      "work",
             "%{version_status}":        VERSION.status,
             "%{version_binary_major}":  VERSION.binary_major,

@@ -19,7 +19,6 @@ load("@onedal//dev/bazel:cc.bzl",
     "cc_static_lib",
     "cc_dynamic_lib",
 )
-load("@onedal//dev/bazel:stamp.bzl", "BuildDateInfo", "expand_build_date")
 load("@onedal//dev/bazel:utils.bzl",
     "sets",
     "paths",
@@ -131,8 +130,8 @@ def daal_algorithms(name, algorithms=[]):
 
 def _daal_generate_version_impl(ctx):
     vi = ctx.attr._version_info[VersionInfo]
-    template = ctx.actions.declare_file(ctx.attr.out + ".tmpl")
-    content = (
+    version = ctx.actions.declare_file(ctx.attr.out)
+    ctx.actions.write(version, (
         "// DO NOT EDIT: file is auto-generated on build time\n" +
         "// DO NOT PUT THIS FILE TO SVC: file is auto-generated on build time\n" +
         "// Product version is specified in dev/bazel/version.bzl file\n" +
@@ -140,14 +139,10 @@ def _daal_generate_version_impl(ctx):
         "#define MAJORVERSION {}\n".format(vi.major) +
         "#define MINORVERSION {}\n".format(vi.minor) +
         "#define UPDATEVERSION {}\n".format(vi.update) +
-        # The date is filled in from the build_date target (dev/bazel/stamp.bzl).
-        "#define BUILD \"@ONEDAL_BUILD_DATE@\"\n" +
+        "#define BUILD \"{}\"\n".format(vi.build) +
         "#define BUILD_REV \"{}\"\n".format(vi.buildrev) +
         "#define PRODUCT_STATUS '{}'\n".format(vi.status)
-    )
-    ctx.actions.write(template, content)
-    version = ctx.actions.declare_file(ctx.attr.out)
-    expand_build_date(ctx, template, version, ctx.attr._build_date[BuildDateInfo])
+    ))
     return [ DefaultInfo(files=depset([ version ])) ]
 
 daal_generate_version = rule(
@@ -157,10 +152,7 @@ daal_generate_version = rule(
         "out": attr.string(mandatory=True),
         "_version_info": attr.label(
             default = "@config//:version",
-        ),
-        "_build_date": attr.label(
-            default = "@onedal//dev/bazel:build_date",
-            providers = [BuildDateInfo],
+            providers = [VersionInfo],
         ),
     },
 )
