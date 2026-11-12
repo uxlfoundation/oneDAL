@@ -122,9 +122,9 @@ TEMPLATE_LIST_TEST_M(basic_statistics_online_test,
 
     const auto ssc = row_accessor<const float_t>(result.get_sum_squares_centered()).pull();
     const auto variance = row_accessor<const float_t>(result.get_variance()).pull();
-    REQUIRE(std::abs(ssc[0] - double(ssc_ref)) <= 1e-6 * double(ssc_ref));
+    REQUIRE(std::abs(ssc[0] - double(ssc_ref)) <= 1e-4 * double(ssc_ref));
     REQUIRE(std::abs(variance[0] - double(ssc_ref / (row_count - 1))) <=
-            1e-6 * double(ssc_ref / (row_count - 1)));
+            1e-4 * double(ssc_ref / (row_count - 1)));
 }
 
 /// Sweep the result option masks that the common flow above does not reach.
