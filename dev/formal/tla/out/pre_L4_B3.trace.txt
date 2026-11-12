@@ -1,0 +1,213 @@
+Error: Invariant ResultCoversAllBlocks is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ host = "k1"
+/\ todo = (0 :> {0} @@ 1 :> {1} @@ 2 :> {2} @@ 3 :> {})
+/\ err = {}
+/\ alive = TRUE
+/\ k1 = "none"
+/\ k2 = "none"
+/\ acc = (0 :> {} @@ 1 :> {} @@ 2 :> {} @@ 3 :> {})
+/\ round = (0 :> 0 @@ 1 :> 0 @@ 2 :> 0 @@ 3 :> 0)
+/\ pc = (0 :> "load" @@ 1 :> "load" @@ 2 :> "load" @@ 3 :> "load")
+/\ dup = (0 :> FALSE @@ 1 :> FALSE @@ 2 :> FALSE @@ 3 :> FALSE)
+/\ written = {}
+/\ loc = (0 :> {} @@ 1 :> {} @@ 2 :> {} @@ 3 :> {})
+
+State 2: <SubmitK1 line 49, col 13 to line 50, col 84 of module MergeBlocks>
+/\ host = "k2"
+/\ todo = (0 :> {0} @@ 1 :> {1} @@ 2 :> {2} @@ 3 :> {})
+/\ err = {}
+/\ alive = TRUE
+/\ k1 = "running"
+/\ k2 = "none"
+/\ acc = (0 :> {} @@ 1 :> {} @@ 2 :> {} @@ 3 :> {})
+/\ round = (0 :> 0 @@ 1 :> 0 @@ 2 :> 0 @@ 3 :> 0)
+/\ pc = (0 :> "load" @@ 1 :> "load" @@ 2 :> "load" @@ 3 :> "load")
+/\ dup = (0 :> FALSE @@ 1 :> FALSE @@ 2 :> FALSE @@ 3 :> FALSE)
+/\ written = {}
+/\ loc = (0 :> {} @@ 1 :> {} @@ 2 :> {} @@ 3 :> {})
+
+State 3: <SubmitK2 line 51, col 13 to line 52, col 84 of module MergeBlocks>
+/\ host = "wait"
+/\ todo = (0 :> {0} @@ 1 :> {1} @@ 2 :> {2} @@ 3 :> {})
+/\ err = {}
+/\ alive = TRUE
+/\ k1 = "running"
+/\ k2 = "submitted"
+/\ acc = (0 :> {} @@ 1 :> {} @@ 2 :> {} @@ 3 :> {})
+/\ round = (0 :> 0 @@ 1 :> 0 @@ 2 :> 0 @@ 3 :> 0)
+/\ pc = (0 :> "load" @@ 1 :> "load" @@ 2 :> "load" @@ 3 :> "load")
+/\ dup = (0 :> FALSE @@ 1 :> FALSE @@ 2 :> FALSE @@ 3 :> FALSE)
+/\ written = {}
+/\ loc = (0 :> {} @@ 1 :> {} @@ 2 :> {} @@ 3 :> {})
+
+State 4: <K1Write(0) line 61, col 15 to line 63, col 83 of module MergeBlocks>
+/\ host = "wait"
+/\ todo = (0 :> {0} @@ 1 :> {1} @@ 2 :> {2} @@ 3 :> {})
+/\ err = {}
+/\ alive = TRUE
+/\ k1 = "running"
+/\ k2 = "submitted"
+/\ acc = (0 :> {} @@ 1 :> {} @@ 2 :> {} @@ 3 :> {})
+/\ round = (0 :> 0 @@ 1 :> 0 @@ 2 :> 0 @@ 3 :> 0)
+/\ pc = (0 :> "load" @@ 1 :> "load" @@ 2 :> "load" @@ 3 :> "load")
+/\ dup = (0 :> FALSE @@ 1 :> FALSE @@ 2 :> FALSE @@ 3 :> FALSE)
+/\ written = {0}
+/\ loc = (0 :> {} @@ 1 :> {} @@ 2 :> {} @@ 3 :> {})
+
+State 5: <K1Write(1) line 61, col 15 to line 63, col 83 of module MergeBlocks>
+/\ host = "wait"
+/\ todo = (0 :> {0} @@ 1 :> {1} @@ 2 :> {2} @@ 3 :> {})
+/\ err = {}
+/\ alive = TRUE
+/\ k1 = "running"
+/\ k2 = "submitted"
+/\ acc = (0 :> {} @@ 1 :> {} @@ 2 :> {} @@ 3 :> {})
+/\ round = (0 :> 0 @@ 1 :> 0 @@ 2 :> 0 @@ 3 :> 0)
+/\ pc = (0 :> "load" @@ 1 :> "load" @@ 2 :> "load" @@ 3 :> "load")
+/\ dup = (0 :> FALSE @@ 1 :> FALSE @@ 2 :> FALSE @@ 3 :> FALSE)
+/\ written = {0, 1}
+/\ loc = (0 :> {} @@ 1 :> {} @@ 2 :> {} @@ 3 :> {})
+
+State 6: <K1Write(2) line 61, col 15 to line 63, col 83 of module MergeBlocks>
+/\ host = "wait"
+/\ todo = (0 :> {0} @@ 1 :> {1} @@ 2 :> {2} @@ 3 :> {})
+/\ err = {}
+/\ alive = TRUE
+/\ k1 = "done"
+/\ k2 = "submitted"
+/\ acc = (0 :> {} @@ 1 :> {} @@ 2 :> {} @@ 3 :> {})
+/\ round = (0 :> 0 @@ 1 :> 0 @@ 2 :> 0 @@ 3 :> 0)
+/\ pc = (0 :> "load" @@ 1 :> "load" @@ 2 :> "load" @@ 3 :> "load")
+/\ dup = (0 :> FALSE @@ 1 :> FALSE @@ 2 :> FALSE @@ 3 :> FALSE)
+/\ written = {0, 1, 2}
+/\ loc = (0 :> {} @@ 1 :> {} @@ 2 :> {} @@ 3 :> {})
+
+State 7: <Load(0) line 72, col 12 to line 84, col 63 of module MergeBlocks>
+/\ host = "wait"
+/\ todo = (0 :> {} @@ 1 :> {1} @@ 2 :> {2} @@ 3 :> {})
+/\ err = {}
+/\ alive = TRUE
+/\ k1 = "done"
+/\ k2 = "submitted"
+/\ acc = (0 :> {0} @@ 1 :> {} @@ 2 :> {} @@ 3 :> {})
+/\ round = (0 :> 0 @@ 1 :> 0 @@ 2 :> 0 @@ 3 :> 0)
+/\ pc = (0 :> "load" @@ 1 :> "load" @@ 2 :> "load" @@ 3 :> "load")
+/\ dup = (0 :> FALSE @@ 1 :> FALSE @@ 2 :> FALSE @@ 3 :> FALSE)
+/\ written = {0, 1, 2}
+/\ loc = (0 :> {0} @@ 1 :> {} @@ 2 :> {} @@ 3 :> {})
+
+State 8: <Load(1) line 72, col 12 to line 84, col 63 of module MergeBlocks>
+/\ host = "wait"
+/\ todo = (0 :> {} @@ 1 :> {} @@ 2 :> {2} @@ 3 :> {})
+/\ err = {}
+/\ alive = TRUE
+/\ k1 = "done"
+/\ k2 = "submitted"
+/\ acc = (0 :> {0} @@ 1 :> {1} @@ 2 :> {} @@ 3 :> {})
+/\ round = (0 :> 0 @@ 1 :> 0 @@ 2 :> 0 @@ 3 :> 0)
+/\ pc = (0 :> "load" @@ 1 :> "load" @@ 2 :> "load" @@ 3 :> "load")
+/\ dup = (0 :> FALSE @@ 1 :> FALSE @@ 2 :> FALSE @@ 3 :> FALSE)
+/\ written = {0, 1, 2}
+/\ loc = (0 :> {0} @@ 1 :> {1} @@ 2 :> {} @@ 3 :> {})
+
+State 9: <Load(0) line 72, col 12 to line 84, col 63 of module MergeBlocks>
+/\ host = "wait"
+/\ todo = (0 :> {} @@ 1 :> {} @@ 2 :> {2} @@ 3 :> {})
+/\ err = {}
+/\ alive = TRUE
+/\ k1 = "done"
+/\ k2 = "submitted"
+/\ acc = (0 :> {0} @@ 1 :> {1} @@ 2 :> {} @@ 3 :> {})
+/\ round = (0 :> 0 @@ 1 :> 0 @@ 2 :> 0 @@ 3 :> 0)
+/\ pc = (0 :> "bar" @@ 1 :> "load" @@ 2 :> "load" @@ 3 :> "load")
+/\ dup = (0 :> FALSE @@ 1 :> FALSE @@ 2 :> FALSE @@ 3 :> FALSE)
+/\ written = {0, 1, 2}
+/\ loc = (0 :> {0} @@ 1 :> {1} @@ 2 :> {} @@ 3 :> {})
+
+State 10: <Load(1) line 72, col 12 to line 84, col 63 of module MergeBlocks>
+/\ host = "wait"
+/\ todo = (0 :> {} @@ 1 :> {} @@ 2 :> {2} @@ 3 :> {})
+/\ err = {}
+/\ alive = TRUE
+/\ k1 = "done"
+/\ k2 = "submitted"
+/\ acc = (0 :> {0} @@ 1 :> {1} @@ 2 :> {} @@ 3 :> {})
+/\ round = (0 :> 0 @@ 1 :> 0 @@ 2 :> 0 @@ 3 :> 0)
+/\ pc = (0 :> "bar" @@ 1 :> "bar" @@ 2 :> "load" @@ 3 :> "load")
+/\ dup = (0 :> FALSE @@ 1 :> FALSE @@ 2 :> FALSE @@ 3 :> FALSE)
+/\ written = {0, 1, 2}
+/\ loc = (0 :> {0} @@ 1 :> {1} @@ 2 :> {} @@ 3 :> {})
+
+State 11: <Load(2) line 72, col 12 to line 84, col 63 of module MergeBlocks>
+/\ host = "wait"
+/\ todo = (0 :> {} @@ 1 :> {} @@ 2 :> {} @@ 3 :> {})
+/\ err = {}
+/\ alive = TRUE
+/\ k1 = "done"
+/\ k2 = "submitted"
+/\ acc = (0 :> {0} @@ 1 :> {1} @@ 2 :> {2} @@ 3 :> {})
+/\ round = (0 :> 0 @@ 1 :> 0 @@ 2 :> 0 @@ 3 :> 0)
+/\ pc = (0 :> "bar" @@ 1 :> "bar" @@ 2 :> "load" @@ 3 :> "load")
+/\ dup = (0 :> FALSE @@ 1 :> FALSE @@ 2 :> FALSE @@ 3 :> FALSE)
+/\ written = {0, 1, 2}
+/\ loc = (0 :> {0} @@ 1 :> {1} @@ 2 :> {2} @@ 3 :> {})
+
+State 12: <Load(2) line 72, col 12 to line 84, col 63 of module MergeBlocks>
+/\ host = "wait"
+/\ todo = (0 :> {} @@ 1 :> {} @@ 2 :> {} @@ 3 :> {})
+/\ err = {}
+/\ alive = TRUE
+/\ k1 = "done"
+/\ k2 = "submitted"
+/\ acc = (0 :> {0} @@ 1 :> {1} @@ 2 :> {2} @@ 3 :> {})
+/\ round = (0 :> 0 @@ 1 :> 0 @@ 2 :> 0 @@ 3 :> 0)
+/\ pc = (0 :> "bar" @@ 1 :> "bar" @@ 2 :> "bar" @@ 3 :> "load")
+/\ dup = (0 :> FALSE @@ 1 :> FALSE @@ 2 :> FALSE @@ 3 :> FALSE)
+/\ written = {0, 1, 2}
+/\ loc = (0 :> {0} @@ 1 :> {1} @@ 2 :> {2} @@ 3 :> {})
+
+State 13: <Load(3) line 72, col 12 to line 84, col 63 of module MergeBlocks>
+/\ host = "wait"
+/\ todo = (0 :> {} @@ 1 :> {} @@ 2 :> {} @@ 3 :> {})
+/\ err = {}
+/\ alive = TRUE
+/\ k1 = "done"
+/\ k2 = "submitted"
+/\ acc = (0 :> {0} @@ 1 :> {1} @@ 2 :> {2} @@ 3 :> {})
+/\ round = (0 :> 0 @@ 1 :> 0 @@ 2 :> 0 @@ 3 :> 0)
+/\ pc = (0 :> "bar" @@ 1 :> "bar" @@ 2 :> "bar" @@ 3 :> "bar")
+/\ dup = (0 :> FALSE @@ 1 :> FALSE @@ 2 :> FALSE @@ 3 :> FALSE)
+/\ written = {0, 1, 2}
+/\ loc = (0 :> {0} @@ 1 :> {1} @@ 2 :> {2} @@ 3 :> {})
+
+State 14: <Barrier(0) line 88, col 15 to line 93, col 85 of module MergeBlocks>
+/\ host = "wait"
+/\ todo = (0 :> {} @@ 1 :> {} @@ 2 :> {} @@ 3 :> {})
+/\ err = {}
+/\ alive = TRUE
+/\ k1 = "done"
+/\ k2 = "submitted"
+/\ acc = (0 :> {0} @@ 1 :> {1} @@ 2 :> {2} @@ 3 :> {})
+/\ round = (0 :> 1 @@ 1 :> 0 @@ 2 :> 0 @@ 3 :> 0)
+/\ pc = (0 :> "red" @@ 1 :> "bar" @@ 2 :> "bar" @@ 3 :> "bar")
+/\ dup = (0 :> FALSE @@ 1 :> FALSE @@ 2 :> FALSE @@ 3 :> FALSE)
+/\ written = {0, 1, 2}
+/\ loc = (0 :> {0} @@ 1 :> {1} @@ 2 :> {2} @@ 3 :> {})
+
+State 15: <Reduce(0) line 96, col 14 to line 107, col 71 of module MergeBlocks>
+/\ host = "wait"
+/\ todo = (0 :> {} @@ 1 :> {} @@ 2 :> {} @@ 3 :> {})
+/\ err = {}
+/\ alive = TRUE
+/\ k1 = "done"
+/\ k2 = "submitted"
+/\ acc = (0 :> {0, 1} @@ 1 :> {1} @@ 2 :> {2} @@ 3 :> {})
+/\ round = (0 :> 1 @@ 1 :> 0 @@ 2 :> 0 @@ 3 :> 0)
+/\ pc = (0 :> "fin" @@ 1 :> "bar" @@ 2 :> "bar" @@ 3 :> "bar")
+/\ dup = (0 :> FALSE @@ 1 :> FALSE @@ 2 :> FALSE @@ 3 :> FALSE)
+/\ written = {0, 1, 2}
+/\ loc = (0 :> {0} @@ 1 :> {1} @@ 2 :> {2} @@ 3 :> {})
+
+215 states generated, 107 distinct states found, 16 states left on queue.

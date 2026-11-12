@@ -1,0 +1,7 @@
+lean/.lake/
+numeric/replica
+numeric/replica_fma
+tla/out/*.states/
+tla/states/
+tla/MergeBlocks_TTrace_*
+tla/out/*.log
