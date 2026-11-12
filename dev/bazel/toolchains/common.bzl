@@ -75,7 +75,7 @@ def detect_compiler(repo_ctx, os_id):
     return None
 
 def is_dpc_compiler_found(repo_ctx, os_id):
-    """Returns whether the DPC++ targets can be built: icpx in PATH on Linux, always elsewhere."""
+    """Returns whether the DPC++ targets can be built: icpx in PATH on Linux, always on macOS."""
     if os_id != "lnx":
         return True
     return repo_ctx.which("icpx") != None

@@ -363,8 +363,9 @@ def _is_clang_requested(repo_ctx):
     """Return True if the Windows toolchain should use upstream LLVM clang-cl."""
     return _requested_compiler(repo_ctx) in ["clang", "clang-cl"]
 
-def configure_cc_toolchain_win(repo_ctx, reqs):
-    if reqs.target_arch_id == "arm":
+def win_compiler_id(repo_ctx, target_arch_id):
+    """The compiler the Windows toolchain is configured with: "clang", "icx" or "cl"."""
+    if target_arch_id == "arm":
         # Windows ARM64 (Make's `PLAT=winarm`) is clang-cl only: neither icx nor
         # MSVC `cl` compiles the SVE code paths oneDAL selects for this arch.
         requested = _requested_compiler(repo_ctx)
@@ -372,10 +373,16 @@ def configure_cc_toolchain_win(repo_ctx, reqs):
             fail(("Compiler {} (from ONEDAL_WIN_COMPILER or CC/CXX) is not " +
                   "supported when targeting Windows ARM64; only clang-cl is " +
                   "(see dev/make/compiler_definitions/clang.ref.arm.mk)").format(requested))
-        _configure_cc_toolchain_win_llvm(repo_ctx, reqs, "clang")
-    elif _is_clang_requested(repo_ctx):
-        _configure_cc_toolchain_win_llvm(repo_ctx, reqs, "clang")
-    elif _is_icx_requested(repo_ctx):
-        _configure_cc_toolchain_win_llvm(repo_ctx, reqs, "icx")
-    else:
+        return "clang"
+    if _is_clang_requested(repo_ctx):
+        return "clang"
+    if _is_icx_requested(repo_ctx):
+        return "icx"
+    return "cl"
+
+def configure_cc_toolchain_win(repo_ctx, reqs):
+    compiler_id = win_compiler_id(repo_ctx, reqs.target_arch_id)
+    if compiler_id == "cl":
         _configure_cc_toolchain_win_cl(repo_ctx)
+    else:
+        _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id)

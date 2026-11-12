@@ -18,6 +18,7 @@ load("@onedal//dev/bazel:utils.bzl", "utils", "sets")
 load("@onedal//dev/bazel:version.bzl", "VERSION")
 load("@onedal//dev/bazel:stamp.bzl", "DEV_BUILD_DATE")
 load("@onedal//dev/bazel/toolchains:common.bzl", "detect_os", "detect_compiler", "detect_host_arch", "detect_target_arch", "is_dpc_compiler_found")
+load("@onedal//dev/bazel/toolchains:cc_toolchain_win.bzl", "win_compiler_id")
 
 ConfigFlagInfo = provider(
     fields = [
@@ -322,7 +323,9 @@ def _declare_onedal_config_impl(repo_ctx):
         substitutions = {
             "%{auto_cpu}":              auto_cpu,
             "%{arch}":                  target_arch,
-            "%{dpc_compiler_found}":    str(is_dpc_compiler_found(repo_ctx, os_id)),
+            # On Windows only the icx toolchain has a DPC++ driver.
+            "%{dpc_compiler_found}":    str(win_compiler_id(repo_ctx, target_arch) == "icx"
+                                            if os_id == "win" else is_dpc_compiler_found(repo_ctx, os_id)),
             "%{version_major}":         VERSION.major,
             "%{version_minor}":         VERSION.minor,
             "%{version_update}":        VERSION.update,
@@ -341,6 +344,8 @@ declare_onedal_config = repository_rule(
         "CXX",
         # PATH, so that sourcing setvars.sh re-detects the DPC++ compiler.
         "PATH",
+        # The Windows compiler, which decides the --release_dpc default there.
+        "ONEDAL_WIN_COMPILER",
         # Windows host-arch detection (see toolchains/common.bzl).
         "PROCESSOR_ARCHITECTURE",
         "PROCESSOR_ARCHITEW6432",

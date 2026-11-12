@@ -162,7 +162,8 @@ To build with clang and LLVM libc++, pass
 `--cxxopt=-stdlib=libc++ --linkopt=-stdlib=libc++`. The prebuilt TBB is still
 linked against libstdc++, so it must be installed too.
 
-On Linux, `--release_dpc` defaults to whether `icpx` is in `PATH`. When it is
+On Linux, `--release_dpc` defaults to whether `icpx` is in `PATH`; on Windows,
+to whether the toolchain uses icx (clang-cl and `cl` have no DPC++ driver). When it is
 false, the DPC++ targets are skipped: `//:release` has no DPC++ libraries,
 `bazel test` reports the DPC++ tests as `SKIPPED`, and requesting a DPC++
 target by name fails with an `incompatible` error that names
