@@ -75,6 +75,9 @@ mkl_repo = repos.prebuilt_libs_repo_rule(
         "lib/mkl_core_dll.lib",
         "lib/mkl_intel_lp64_dll.lib",
         "lib/mkl_intel_thread_dll.lib",
+    ],
+    # The downloaded Windows wheels carry no SYCL domains; a oneAPI MKLROOT does.
+    win_optional_libs = [
         "lib/mkl_sycl_blas_dll.lib",
         "lib/mkl_sycl_lapack_dll.lib",
         "lib/mkl_sycl_rng_dll.lib",

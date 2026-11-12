@@ -402,7 +402,8 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_l
                              root_env_var="", archives=[], pypi_packages=[],
                              download_arch="intel64", win_download_arch="",
                              download_mapping={}, fallback_mapping={},
-                             win_includes=[], win_libs=[], win_bins=[], win_build_template=None,
+                             win_includes=[], win_libs=[], win_bins=[], win_optional_libs=[],
+                             win_build_template=None,
                              win_archives=[], win_pypi_packages=[], win_download_mapping={}):
     """Declare a repository rule for a dependency shipped as prebuilt binaries.
 
@@ -425,6 +426,7 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_l
         win_includes: Windows override for `includes`.
         win_libs: Windows override for `libs`.
         win_bins: Windows override for `bins`.
+        win_optional_libs: Windows override for `optional_libs`.
         win_build_template: Windows override for `build_template`.
         win_archives: Windows override for `archives`.
         win_pypi_packages: Windows wheels; without it Windows gets the Linux `pypi_packages`.
@@ -463,6 +465,7 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_l
             "win_includes": attr.string_list(default=win_includes),
             "win_libs": attr.string_list(default=win_libs),
             "win_bins": attr.string_list(default=win_bins),
+            "win_optional_libs": attr.string_list(default=win_optional_libs),
             "win_build_template": attr.label(allow_files=True,
                                              default=Label(win_build_template or build_template)),
             "win_urls": attr.string_list(default=win_download_info.urls),
