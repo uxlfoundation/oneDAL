@@ -57,29 +57,27 @@ def detect_compiler(repo_ctx, os_id):
     if not "CC" in repo_ctx.os.environ:
         return detect_default_compiler(repo_ctx, os_id)
     compiler_path = repo_ctx.os.environ["CC"]
-    # TODO: Use more relieble way to detect compiler
-    if "gcc" in compiler_path:
-        return "gcc"
-    elif "clang" in compiler_path:
-        return "clang"
-    elif "cl" in compiler_path:
-        return "cl"
-    elif "icx" in compiler_path:
-        return "icx"
-    elif "icpx" in compiler_path:
-        return "icpx"
+    name = compiler_path.replace("\\", "/").split("/")[-1].lower()
     if os_id == "lnx":
+        # Ask the compiler first: a directory such as /home/claire would otherwise read as `cl`.
         compiler_id = _detect_compiler_by_macros(repo_ctx, compiler_path)
+        if compiler_id == "icx" and "icpx" in name:
+            return "icpx"
         if compiler_id:
             return compiler_id
+    for compiler_id in ["gcc", "clang", "icpx", "icx"]:
+        if compiler_id in name:
+            return compiler_id
+    if name in ["cl", "cl.exe"]:
+        return "cl"
+    if os_id == "lnx":
         fail("CC={} is not a supported compiler; set CC to gcc, clang or icx ".format(compiler_path) +
              "(a versioned name such as gcc-14 or clang-19, or a full path, also works), " +
              "or unset it to pick the first of icx, gcc and clang found in PATH.")
     return None
 
 def _detect_compiler_by_macros(repo_ctx, compiler_path):
-    """Identifies a compiler whose name does not say which one it is, such as
-    conda-forge's `x86_64-conda-linux-gnu-cc`, from the macros it predefines.
+    """Identifies the compiler from the macros it predefines, whatever its name or directory.
 
     Returns `None` when the compiler cannot be run or is none of gcc, clang and icx.
     """
