@@ -68,7 +68,7 @@ SubmitK2 == host = "k2" /\ host' = "wait" /\ k2' = "submitted"
 \* last_event.wait_and_throw(): blocks until K2 is complete
 Wait == host = "wait" /\ ("nowait" \in Mut \/ k2 = "done") /\ host' = "free"
         /\ UNCHANGED <<k1, written, alive, k2, pc, todo, acc, dup, loc, round, err>>
-\* merge_blocks returns: ndbuf (rvalue parameter) is destroyed -> sycl::free
+\* compute_by_blocks returns: its local ndbuf is destroyed -> sycl::free
 Free == host = "free" /\ host' = "done" /\ alive' = FALSE
         /\ UNCHANGED <<k1, written, k2, pc, todo, acc, dup, loc, round, err>>
 
