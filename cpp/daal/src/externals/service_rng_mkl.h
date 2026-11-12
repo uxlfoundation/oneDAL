@@ -72,7 +72,7 @@ int uniformRNG(const size_t cn, size_t * r, void * stream, const size_t a, const
         size_t len = b - a;
         int na     = -(len / 2 + len % 2);
         int nb     = len / 2;
-        int nn     = (int)n;
+        int32_t nn = (int32_t)n;
         int * rr   = (int *)r;
         __DAAL_VSLFN_CALL_NR_WHILE(iRngUniform, ((const MKL_INT)method, stream, (const MKL_INT)nn, rr, na, nb), errcode);
 
@@ -90,7 +90,7 @@ int uniformRNG(const size_t cn, size_t * r, void * stream, const size_t a, const
             size_t len = b - a;
             int na     = -(len / 2 + len % 2);
             int nb     = len / 2;
-            int nn     = (int)n;
+            int32_t nn = (int32_t)n;
             int * rr   = (int *)r + n;
             __DAAL_VSLFN_CALL_NR_WHILE(iRngUniform, ((const MKL_INT)method, stream, (const MKL_INT)nn, rr, na, nb), errcode);
 
@@ -115,7 +115,7 @@ int uniformRNG(const size_t cn, size_t * r, void * stream, const size_t a, const
             {
                 dv = len;
                 for (int i = 0; i < 64; i++) dv /= 2.0;
-                int nn                = (int)n;
+                int32_t nn            = (int32_t)n;
                 unsigned __int64 * rr = cr;
                 __DAAL_VSLFN_CALL_NR_WHILE(iRngUniformBits64, ((const MKL_INT)method, stream, (const MKL_INT)nn, (unsigned MKL_INT64 *)rr), errcode);
             }
@@ -126,7 +126,7 @@ int uniformRNG(const size_t cn, size_t * r, void * stream, const size_t a, const
                 while (pos < cn)
                 {
                     n                     = cn - pos;
-                    int nn                = (int)n;
+                    int32_t nn            = (int32_t)n;
                     unsigned __int64 * rr = cr + pos;
                     __DAAL_VSLFN_CALL_NR_WHILE(iRngUniformBits64, ((const MKL_INT)method, stream, (const MKL_INT)nn, (unsigned MKL_INT64 *)rr),
                                                errcode);
@@ -155,7 +155,7 @@ template <CpuType cpu>
 int uniformRNG(const size_t n, int * r, void * stream, const int a, const int b, const int method)
 {
     int errcode = 0;
-    int nn      = (int)n;
+    int32_t nn  = (int32_t)n;
     int * rr    = r;
     __DAAL_VSLFN_CALL_NR_WHILE(iRngUniform, ((const MKL_INT)method, stream, (const MKL_INT)nn, rr, a, b), errcode);
     return errcode;
@@ -165,7 +165,7 @@ template <CpuType cpu>
 int uniformRNG(const size_t n, float * r, void * stream, const float a, const float b, const int method)
 {
     int errcode = 0;
-    int nn      = (int)n;
+    int32_t nn  = (int32_t)n;
     float * rr  = r;
     __DAAL_VSLFN_CALL_NR_WHILE(sRngUniform, ((const MKL_INT)method, stream, (const MKL_INT)nn, rr, a, b), errcode);
     return errcode;
@@ -175,7 +175,7 @@ template <CpuType cpu>
 int uniformRNG(const size_t n, double * r, void * stream, const double a, const double b, const int method)
 {
     int errcode = 0;
-    int nn      = (int)n;
+    int32_t nn  = (int32_t)n;
     double * rr = r;
     __DAAL_VSLFN_CALL_NR_WHILE(dRngUniform, ((const MKL_INT)method, stream, (const MKL_INT)nn, rr, a, b), errcode);
     return errcode;
@@ -185,7 +185,7 @@ template <CpuType cpu>
 int uniformBits32RNG(const size_t n, unsigned int * r, void * stream, const int method)
 {
     int errcode       = 0;
-    int nn            = (int)n;
+    int32_t nn        = (int32_t)n;
     unsigned int * rr = r;
     __DAAL_VSLFN_CALL_NR_WHILE(iRngUniformBits32, ((const MKL_INT)method, stream, (const MKL_INT)nn, rr), errcode);
     return errcode;
@@ -199,7 +199,7 @@ template <CpuType cpu>
 int gaussianRNG(const size_t n, float * r, void * stream, const float a, const float sigma, const int method)
 {
     int errcode = 0;
-    int nn      = (int)n;
+    int32_t nn  = (int32_t)n;
     float * rr  = r;
     __DAAL_VSLFN_CALL_NR_WHILE(sRngGaussian, ((const MKL_INT)method, stream, (const MKL_INT)nn, rr, a, sigma), errcode);
     return errcode;
@@ -209,7 +209,7 @@ template <CpuType cpu>
 int gaussianRNG(const size_t n, double * r, void * stream, const double a, const double sigma, const int method)
 {
     int errcode = 0;
-    int nn      = (int)n;
+    int32_t nn  = (int32_t)n;
     double * rr = r;
     __DAAL_VSLFN_CALL_NR_WHILE(dRngGaussian, ((const MKL_INT)method, stream, (const MKL_INT)nn, rr, a, sigma), errcode);
     return errcode;
@@ -223,7 +223,7 @@ template <CpuType cpu>
 int bernoulliRNG(const size_t n, int * r, void * stream, const double p, const int method)
 {
     int errcode = 0;
-    int nn      = (int)n;
+    int32_t nn  = (int32_t)n;
     int * rr    = r;
     __DAAL_VSLFN_CALL_NR_WHILE(iRngBernoulli, ((const MKL_INT)method, stream, (const MKL_INT)nn, rr, p), errcode);
     return errcode;

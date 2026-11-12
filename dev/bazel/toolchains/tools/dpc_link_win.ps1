@@ -66,6 +66,19 @@ $objectArgs = New-Object System.Collections.Generic.List[string]
 $finalArgs = New-Object System.Collections.Generic.List[string]
 $insertedObjectRsp = $false
 
+# A `.res` that Bazel puts after `/link` goes before it instead, as a driver
+# input: that is where Make's dll.res sits (in @link.txt ahead of `-link`,
+# dev/make/common.mk dpc.link.dynamic.win). After `/link`, icx -fsycl fails
+# the DLL link with LNK2001 `_DllMainCRTStartup`.
+$linkIndex = $expandedArgs.FindIndex({ param($a) $a -match '^[/-](?i)link$' })
+if ($linkIndex -ge 0) {
+    $resArgs = @($expandedArgs | Select-Object -Skip ($linkIndex + 1) | Where-Object { $_ -match '(?i)\.res$' })
+    if ($resArgs.Count -gt 0) {
+        foreach ($res in $resArgs) { [void]$expandedArgs.Remove($res) }
+        $expandedArgs.InsertRange($linkIndex, [string[]]$resArgs)
+    }
+}
+
 foreach ($arg in $expandedArgs) {
     if ($arg -match '(?i)\.(obj|res)$') {
         $objectArgs.Add($arg)

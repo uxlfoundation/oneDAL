@@ -156,8 +156,13 @@ test:dpc-private \
 #   bazel build //:release                       # CPU (+ DPC++ with icpx), all ISAs
 #   bazel build //:release --release_dpc=false   # CPU only, all ISAs
 #   bazel build //:release --cpu=avx2            # CI: avx2 only
+
+# Release builds stamp the build date (dev/bazel/stamp.bzl).
+# Other configs keep the placeholder, so their outputs stay the same daily.
 build:release-dpc \
-    --release_dpc=true
+    --release_dpc=true \
+    --stamp \
+    --workspace_status_command="sh dev/bazel/workspace_status.sh"
 
 # Configuration: 'dev'
 # Fast local development build — compiles only for the host machine's
