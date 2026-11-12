@@ -610,6 +610,8 @@ def _dal_cc_test(name, mpi=False, ccl=False, mpi_ranks=0, **kwargs):
         mpiexec = "@mpi//:mpiexec",
         fi = "@mpi//:fi",
         libfabric = "@mpi//:libfabric_runtime",
+        tags = kwargs.get("tags", []),
+        target_compatible_with = kwargs.get("target_compatible_with", []),
     )
 
 def _select(x):

@@ -346,7 +346,7 @@ def _check_download_arch(repo_ctx, os_id):
         ))
 
 def _release_arch_dir(repo_ctx, os_id):
-    """Returns the target's release-tree arch directory, as `release_arch_dir` in config.bzl."""
+    """Returns the target's release-tree arch directory, as TargetInfo.arch_dir in config.bzl."""
     arch_id = detect_target_arch(repo_ctx, detect_host_arch(repo_ctx, os_id))
     if arch_id == "arm" and os_id == "win":
         return "ARM64"
