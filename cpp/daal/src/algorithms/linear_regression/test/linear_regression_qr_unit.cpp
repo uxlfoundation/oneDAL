@@ -182,4 +182,30 @@ TEST("QR linear regression: online blocks with fewer rows than columns agree wit
     checkOnlineBlocksOfAnySize<float>(1e-4);
 }
 
+/// Wide data (4 x 5) of rank 3 with a repeated row, taken from the dual-form ridge tests. The expected
+/// coefficients are the minimum-norm solution (numpy pinv). With an intercept the minimum norm is taken
+/// over the intercept and the coefficients together, so the values differ from the centered, dual form.
+template <typename FPType>
+void checkWideRankDeficientRepeatedRow(double tolerance)
+{
+    const std::vector<FPType> x = { -0.98912135, -0.36778665, 1.28792526,  0.19397442, 0.9202309,   0.57710379, -0.63646365,
+                                    0.54195222,  -0.31659545, -0.32238912, 0.09716732, -1.52593041, 1.1921661,  -0.67108968,
+                                    1.00026942,  0.09716732,  -1.52593041, 1.1921661,  -0.67108968, 1.00026942 };
+    const std::vector<FPType> y = { 0.13632112, 1.53203308, -0.65996941, 0.13632112 };
+
+    const std::vector<double> expected = { 0.42603345, 0.11456461, 1.70124253, 0.48410585, -1.83119492 };
+    requireClose(trainBatch<FPType>(x, y, 4, 5), expected, tolerance);
+    requireClose(trainOnline<FPType>(x, y, 5, { 2, 2 }), expected, tolerance);
+    requireClose(trainOnline<FPType>(x, y, 5, { 1, 1, 1, 1 }), expected, tolerance);
+
+    const std::vector<double> expectedWithIntercept = { 1.1233352056, 0.33189732, 0.34638406, 0.3225527, 0.27698867, -1.08721019 };
+    requireClose(trainBatch<FPType>(x, y, 4, 5, true), expectedWithIntercept, tolerance);
+}
+
+TEST("QR linear regression: wide rank-deficient data with a repeated row", "[unit][linear_regression]")
+{
+    checkWideRankDeficientRepeatedRow<double>(1e-6);
+    checkWideRankDeficientRepeatedRow<float>(1e-3);
+}
+
 } // namespace daal::test
