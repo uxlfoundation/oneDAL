@@ -37,9 +37,6 @@ tbb_repo = repos.prebuilt_libs_repo_rule(
         "lib/libtbbmalloc.so.2",
     ],
     build_template = "@onedal//dev/bazel/deps:tbb.tpl.BUILD",
-    win_includes = [
-        "include",
-    ],
     # Globbed to pick up the `_debug` variants of an -MDd build where shipped; tbb_win.tpl.BUILD
     # names them, so a debug-CRT build without them still fails.
     win_libs = [

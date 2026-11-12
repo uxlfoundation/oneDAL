@@ -50,6 +50,7 @@ LIBRARIES = {
     ),
     "oneTBB": (["tbb", "tbb-devel"], "intel-oneapi-tbb-devel"),
     "Intel MPI": (["impi-rt", "impi-devel"], None),
+    "oneCCL": (["oneccl", "oneccl-devel"], None),
 }
 
 

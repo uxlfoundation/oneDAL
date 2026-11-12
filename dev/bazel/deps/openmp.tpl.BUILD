@@ -1,15 +1,10 @@
 package(default_visibility = ["//visibility:public"])
 load("@rules_cc//cc:defs.bzl", "cc_library")
+
+# The link resolves `-lgomp` here instead of in the compiler's own libraries.
 cc_library(
     name = "openmp_binary",
-    srcs = glob(
-        [
-            "*.so",
-            "*.so.*",
-        ],
-        allow_empty = True,
-        exclude = ["*.py", "*.cmake", "*.a"],
-    ),
-    linkopts = ["-lgomp"],
-    visibility = ["//visibility:public"],
+    srcs = [
+        "lib/libgomp.so",
+    ],
 )

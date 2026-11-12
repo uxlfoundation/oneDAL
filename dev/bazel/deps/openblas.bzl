@@ -27,9 +27,6 @@ openblas_repo = repos.prebuilt_libs_repo_rule(
     ],
     build_template = "@onedal//dev/bazel/deps:openblas.tpl.BUILD",
     # `.ci/env/openblas.bat` builds a static OpenBLAS, so no `win_bins` (Make: OPENBLASDIR.libia.win).
-    win_includes = [
-        "include",
-    ],
     win_libs = [
         "lib/openblas.lib",
     ],

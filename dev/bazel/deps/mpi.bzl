@@ -60,7 +60,7 @@ mpi_repo = repos.prebuilt_libs_repo_rule(
 
 def _get_fi_providers_dir(fi_files):
     if len(fi_files) == 0:
-        fail("No fabrin interface files provided for MPI")
+        fail("No fabric interface files provided for MPI")
     # Runfiles paths: external repositories are siblings of the main one there.
     fi_dir = fi_files[0].short_path.rpartition("/")[0]
     for fi in fi_files:
@@ -72,12 +72,10 @@ def _generate_mpiexec_wrapper(ctx, mpiexec, executable, fi_dir, libfabric):
     exec_wrapper = ctx.actions.declare_file(ctx.label.name)
     content = (
         "#!/bin/bash\n" +
-        "# We need to check if we are in the runfiles directory.\n" +
-        "# If no change current directory to runfiles.\n" +
+        # `bazel test` and `bazel run` start in the runfiles; a direct run from bazel-bin does not.
         "runfiles_suffix=\".runfiles/{}\"\n".format(ctx.workspace_name) +
         "if [[ ! \"$(pwd)\" =~ \"$runfiles_suffix\" ]]; then\n" +
-        "   script_path=\"${BASH_SOURCE[0]}\"\n" +
-        "   cd ${script_path}${runfiles_suffix}\n" +
+        "   cd \"${BASH_SOURCE[0]}${runfiles_suffix}\"\n" +
         "fi\n" +
         "export FI_PROVIDER_PATH=\"$(pwd)/{}\"\n".format(fi_dir) +
         # The ranks run on one node. Without this, Intel MPI may pick a NIC
@@ -96,6 +94,8 @@ def _generate_mpiexec_wrapper(ctx, mpiexec, executable, fi_dir, libfabric):
 
 def _mpi_test_impl(ctx):
     exec = ctx.executable.src
+    # The sh_binary's file is `bin/mpiexec` itself; hydra looks for hydra_bstrap_proxy beside argv[0],
+    # so the launcher symlink in bazel-bin must not be what runs.
     mpiexec = ctx.files.mpiexec[0]
     fi_files = ctx.files.fi
     fi_dir = _get_fi_providers_dir(fi_files)
@@ -109,6 +109,7 @@ def _mpi_test_impl(ctx):
         executable = exec_wrapper,
     )
 
+# Runs `src` under `mpiexec` with `mpi_ranks` ranks; the CCL tests use it too (ccl.bzl).
 mpi_test = rule(
     implementation = _mpi_test_impl,
     attrs = {
@@ -117,9 +118,10 @@ mpi_test = rule(
                           executable=True,
                           cfg="target"),
         "mpi_ranks": attr.int(mandatory=True),
+        # Runs at test time on the target machine, not during the build.
         "mpiexec": attr.label(mandatory=True,
                               executable=True,
-                              cfg="exec"),
+                              cfg="target"),
         "fi": attr.label(mandatory=True),
         "libfabric": attr.label(mandatory=True, allow_single_file=True),
     },

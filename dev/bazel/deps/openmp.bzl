@@ -25,9 +25,8 @@ openmp_repo = repos.prebuilt_libs_repo_rule(
         # The .conda package already unpacks into the required layout.
         repos.archive(url = LIBGOMP.url, sha256 = LIBGOMP.sha256),
     ],
-    includes = [
-        "include",
-    ],
+    # The runtime package has no headers; nothing includes omp.h from it.
+    includes = [],
     libs = [
         "lib/libgomp.so*",
     ],

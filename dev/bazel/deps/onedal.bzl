@@ -37,11 +37,12 @@ onedal_repo = repos.prebuilt_libs_repo_rule(
         "lib/%{arch_dir}/libonedal.so",
         "lib/%{arch_dir}/libonedal.so.%{version_binary_major}",
         "lib/%{arch_dir}/libonedal.so.%{version_binary_major}.%{version_binary_minor}",
+    ],
+    # DPC libraries are absent from a `--release_dpc=false` tree, which CI tests against.
+    optional_libs = [
         "lib/%{arch_dir}/libonedal_dpc.so",
         "lib/%{arch_dir}/libonedal_dpc.so.%{version_binary_major}",
         "lib/%{arch_dir}/libonedal_dpc.so.%{version_binary_major}.%{version_binary_minor}",
-    ],
-    optional_libs = [
         "lib/%{arch_dir}/libonedal_parameters.a",
         "lib/%{arch_dir}/libonedal_parameters.so",
         "lib/%{arch_dir}/libonedal_parameters.so.%{version_binary_major}",

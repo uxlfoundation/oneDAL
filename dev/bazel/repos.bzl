@@ -22,10 +22,12 @@ load("@onedal//dev/bazel/toolchains:common.bzl",
 )
 
 def _extract_conda(repo_ctx, archive, output):
-    """Unpacks a `.conda` package: a zip holding `pkg-*.tar.zst` and `info-*.tar.zst`.
+    """Unpacks a `.conda` package, a zip of `pkg-*.tar.zst` (the files) and `info-*.tar.zst`.
 
-    Only the `pkg-` tarball carries the package files. Bazel extracts both
-    formats itself, so no host `unzip` or `zstd` is needed.
+    Args:
+        repo_ctx: repository context.
+        archive: path of the downloaded `.conda` file.
+        output: directory to unpack the package files into.
     """
     staging = repo_ctx.path(str(archive) + ".d")
     repo_ctx.extract(archive = archive, output = staging, type = "zip")
@@ -35,38 +37,18 @@ def _extract_conda(repo_ctx, archive, output):
     repo_ctx.delete(staging)
 
 def _download_and_extract(repo_ctx, url, sha256, output, strip_prefix):
-    # Bazel does not recognize a wheel as an archive by itself.
-    filename = url.split("/")[-1]
-    downloaded_path = repo_ctx.path(filename)
-    repo_ctx.download(
-        url = url,
-        output = downloaded_path,
-        sha256 = sha256,
-    )
-
-    if filename.endswith(".conda"):
-        _extract_conda(repo_ctx, downloaded_path, output)
-
-    elif filename.endswith(".whl") or filename.endswith(".zip"):
-        repo_ctx.download_and_extract(
-            url = url,
-            sha256 = sha256,
-            output = output,
-            strip_prefix = strip_prefix,
-            type = "zip",
-        )
-
+    archive = repo_ctx.path(url.split("/")[-1])
+    repo_ctx.download(url = url, output = archive, sha256 = sha256)
+    if archive.basename.endswith(".conda"):
+        _extract_conda(repo_ctx, archive, output)
     else:
-        repo_ctx.download_and_extract(
-            url = url,
-            sha256 = sha256,
-            output = output,
-            strip_prefix = strip_prefix,
-        )
-
-
+        # Bazel does not recognize a wheel as an archive by itself.
+        archive_type = "zip" if archive.basename.endswith(".whl") else ""
+        repo_ctx.extract(archive = archive, output = output, strip_prefix = strip_prefix, type = archive_type)
+    repo_ctx.delete(archive)
 
 def _detect_os(repo_ctx):
+    # Every non-Windows host, macOS included, takes the Linux layout and templates.
     return "win" if repo_ctx.os.name.lower().find("windows") != -1 else "lnx"
 
 def _select_by_os(repo_ctx, name, os_id):
@@ -108,14 +90,15 @@ def _normalize_download_info(repo_ctx, os_id):
         for url, sha256, strip_prefix in zip(urls, sha256s, strip_prefixes)
     ]
 
+def _source_path(root, entry_fmt, mapping):
+    """Path of `entry_fmt` under `root`, with the `mapping` onto the package layout applied."""
+    return paths.join(root, utils.substitute(entry_fmt, mapping))
+
 def _split_glob_entry(root, entry_fmt, mapping):
     """Split a globbed entry into the directory to scan and the basename pattern."""
     pattern = entry_fmt.split("/")[-1]
     dir_part = entry_fmt[:entry_fmt.rfind("/")] if "/" in entry_fmt else ""
-    root_with_dir = utils.substitute(
-        paths.join(root, dir_part) if dir_part else root,
-        mapping
-    )
+    root_with_dir = _source_path(root, dir_part, mapping) if dir_part else root
     return struct(pattern = pattern, dir_part = dir_part, root_with_dir = root_with_dir)
 
 def _glob_dir_entries(repo_ctx, glob):
@@ -132,9 +115,20 @@ def _glob_entry_matches(repo_ctx, root, entry_fmt, mapping):
             return True
     return False
 
-def _create_symlinks(repo_ctx, root, entries, substitutions=None, mapping=None):
+def _create_symlinks(repo_ctx, root, entries, substitutions=None, mapping=None, source=None):
+    """Symlink every entry from `root` into the repository; a missing one fails the fetch.
+
+    Args:
+        repo_ctx: repository context.
+        root: directory the entries are taken from.
+        entries: paths relative to `root`; `*` globs a directory, `%{...}` takes `substitutions`.
+        substitutions: `%{...}` placeholders and their values.
+        mapping: entry paths and the paths they have in this package's layout.
+        source: where `root` comes from, named in the error of a missing entry.
+    """
     substitutions = substitutions or {}
     mapping = mapping or {}
+    source = source or "'{}'".format(root)
 
     for entry in entries:
         entry_fmt = utils.substitute(entry, substitutions)
@@ -148,49 +142,48 @@ def _create_symlinks(repo_ctx, root, entries, substitutions=None, mapping=None):
                            if glob.dir_part else fs_entry.basename)
                     repo_ctx.symlink(str(fs_entry), dst)
             if not matched:
-                fail("No files matched pattern '%s' in directory '%s' while creating symlinks for entry '%s'" %
-                     (glob.pattern, glob.root_with_dir, entry_fmt))
+                fail("{}: nothing matches '{}' in '{}' ({})".format(
+                    repo_ctx.name, glob.pattern, glob.root_with_dir, source))
         else:
-            src_entry_path = utils.substitute(paths.join(root, entry_fmt), mapping)
-            dst_entry_path = entry_fmt
-            repo_ctx.symlink(src_entry_path, dst_entry_path)
+            src_entry_path = _source_path(root, entry_fmt, mapping)
+            if not repo_ctx.path(src_entry_path).exists:
+                fail("{}: '{}' is missing, '{}' does not exist ({})".format(
+                    repo_ctx.name, entry_fmt, src_entry_path, source))
+            repo_ctx.symlink(src_entry_path, entry_fmt)
 
-def _create_optional_symlinks(repo_ctx, root, entries, substitutions=None, mapping=None):
-    """Symlink the entries the package actually ships; a globbed one when it matches a file."""
-    substitutions = substitutions or {}
-    mapping = mapping or {}
+def _present_entries(repo_ctx, root, entries, substitutions, mapping):
+    """The entries the package ships; a globbed one when it matches a file."""
     present = []
     for entry in entries:
         entry_fmt = utils.substitute(entry, substitutions)
         if "*" in entry_fmt:
             if _glob_entry_matches(repo_ctx, root, entry_fmt, mapping):
                 present.append(entry)
-            continue
-        src_entry_path = utils.substitute(paths.join(root, entry_fmt), mapping)
-        if repo_ctx.path(src_entry_path).exists:
+        elif repo_ctx.path(_source_path(root, entry_fmt, mapping)).exists:
             present.append(entry)
-    _create_symlinks(repo_ctx, root, present, substitutions, mapping)
+    return present
 
-def _create_required_any_symlinks(repo_ctx, root, entries, what, substitutions=None, mapping=None):
+def _create_optional_symlinks(repo_ctx, root, entries, substitutions, mapping, source):
+    """Symlink the entries the package ships and skip the rest."""
+    present = _present_entries(repo_ctx, root, entries, substitutions, mapping)
+    _create_symlinks(repo_ctx, root, present, substitutions, mapping, source)
+
+def _create_required_any_symlinks(repo_ctx, root, entries, what, substitutions, mapping, source):
     """Symlink whichever of `entries` the package ships, requiring at least one."""
     if not entries:
         return
-    substitutions = substitutions or {}
-    mapping = mapping or {}
-    present = []
-    for entry in entries:
-        entry_fmt = utils.substitute(entry, substitutions)
-        if "*" in entry_fmt:
-            if _glob_entry_matches(repo_ctx, root, entry_fmt, mapping):
-                present.append(entry)
-            continue
-        if repo_ctx.path(utils.substitute(paths.join(root, entry_fmt), mapping)).exists:
-            present.append(entry)
+    present = _present_entries(repo_ctx, root, entries, substitutions, mapping)
     if not present:
-        fail(("None of {} matched in '{}', and at least one is required: {}. " +
-              "Point {} at a package that ships them.").format(
-            entries, root, what, repo_ctx.name))
-    _create_symlinks(repo_ctx, root, present, substitutions, mapping)
+        fail("{}: none of {} is in '{}', and at least one is required: {} ({})".format(
+            repo_ctx.name, entries, root, what, source))
+    _create_symlinks(repo_ctx, root, present, substitutions, mapping, source)
+
+def _pick_mapping(repo_ctx, root, entries, substitutions, mappings):
+    """The first of `mappings` under which every entry is present, else the first mapping."""
+    for mapping in mappings:
+        if len(_present_entries(repo_ctx, root, entries, substitutions, mapping)) == len(entries):
+            return mapping
+    return mappings[0]
 
 def _matches_glob(name, pattern):
     if "*" not in pattern:
@@ -361,12 +354,22 @@ def _release_arch_dir(repo_ctx, os_id):
 
 def _prebuilt_libs_repo_impl(repo_ctx):
     os_id = _detect_os(repo_ctx)
+    substitutions = {
+        "%{os}": os_id,
+        "%{repo_root}": str(repo_ctx.path("")),
+        "%{arch_dir}": _release_arch_dir(repo_ctx, os_id),
+        "%{version_binary_major}": VERSION.binary_major,
+        "%{version_binary_minor}": VERSION.binary_minor,
+    }
+    libs = _select_by_os(repo_ctx, "libs", os_id)
     root = repo_ctx.os.environ.get(repo_ctx.attr.root_env_var)
     if root:
-        # A local installation is used as it is, so there is no archive layout to map from.
-        mapping = {}
+        source = "${}".format(repo_ctx.attr.root_env_var)
+        fallback = repo_ctx.attr._fallback_mapping
+        mapping = _pick_mapping(repo_ctx, root, libs, substitutions, [{}, fallback] if fallback else [{}])
     elif _select_by_os(repo_ctx, "urls", os_id) or _select_by_os(repo_ctx, "pypi_packages", os_id):
         _check_download_arch(repo_ctx, os_id)
+        source = "the downloaded package"
         root = _download(repo_ctx, os_id)
         mapping = _select_by_os(repo_ctx, "_download_mapping", os_id)
     else:
@@ -374,25 +377,18 @@ def _prebuilt_libs_repo_impl(repo_ctx):
             repo_ctx.name,
             repo_ctx.attr.root_env_var,
         ))
-    substitutions = {
-        "%{os}": os_id,
-        "%{repo_root}": str(repo_ctx.path("")),
-        "%{arch_dir}": _release_arch_dir(repo_ctx, os_id),
-    }
-    substitutions["%{version_binary_major}"] = VERSION.binary_major
-    substitutions["%{version_binary_minor}"] = VERSION.binary_minor
-    _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "includes", os_id), substitutions, mapping)
-    _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "libs", os_id), substitutions, mapping)
+    _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "includes", os_id), substitutions, mapping, source)
+    _create_symlinks(repo_ctx, root, libs, substitutions, mapping, source)
     # The BUILD templates glob these with `allow_empty = True`, so an absent library drops out.
-    _create_optional_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "optional_libs", os_id), substitutions, mapping)
+    _create_optional_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "optional_libs", os_id), substitutions, mapping, source)
     # Not `_select_by_os`: its Linux fallback for an empty `win_` list could never match.
     _create_required_any_symlinks(
         repo_ctx, root,
         repo_ctx.attr.win_required_any_libs if os_id == "win" else repo_ctx.attr.required_any_libs,
         repo_ctx.attr.required_any_libs_description,
-        substitutions, mapping,
+        substitutions, mapping, source,
     )
-    _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "bins", os_id), substitutions, mapping)
+    _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "bins", os_id), substitutions, mapping, source)
     repo_ctx.template(
         "BUILD",
         _select_by_os(repo_ctx, "build_template", os_id),
@@ -404,14 +400,14 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_l
                              win_required_any_libs=[],
                              root_env_var="", archives=[], pypi_packages=[],
                              download_arch="intel64", win_download_arch="",
-                             download_mapping={},
+                             download_mapping={}, fallback_mapping={},
                              win_includes=[], win_libs=[], win_bins=[], win_build_template=None,
                              win_archives=[], win_pypi_packages=[], win_download_mapping={}):
     """Declare a repository rule for a dependency shipped as prebuilt binaries.
 
     Args:
         includes: include directories to symlink, relative to the root; `*` and `%{...}` allowed.
-        libs: libraries to symlink; a missing one is an error.
+        libs: libraries to symlink; a missing one fails the fetch.
         build_template: BUILD file template for the repository.
         bins: executables and runtime libraries to symlink.
         optional_libs: libraries to symlink only if the dependency ships them.
@@ -424,6 +420,7 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_l
         download_arch: oneDAL arch ID the downloads are built for; empty disables the check.
         win_download_arch: Windows override for `download_arch`.
         download_mapping: maps the entries' layout onto the archive's, e.g. `{"lib/intel64": "lib/"}`.
+        fallback_mapping: second layout of a local installation, used when `libs` are not at the first.
         win_includes: Windows override for `includes`.
         win_libs: Windows override for `libs`.
         win_bins: Windows override for `bins`.
@@ -438,7 +435,7 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_l
         implementation = _prebuilt_libs_repo_impl,
         environ = [
             root_env_var,
-            # Arch detection for _check_download_arch.
+            # Arch detection for _check_download_arch and `%{arch_dir}`.
             "CC",
             "CXX",
             "PROCESSOR_ARCHITECTURE",
@@ -475,6 +472,7 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_l
             "_pypi_lock": attr.label(default=Label("@onedal//dev/bazel/deps:requirements_lock.txt")),
             "_download_mapping": attr.string_dict(default=download_mapping),
             "_win_download_mapping": attr.string_dict(default=win_download_mapping),
+            "_fallback_mapping": attr.string_dict(default=fallback_mapping),
         }
     )
 
@@ -482,6 +480,5 @@ repos = struct(
     archive = _archive,
     extract_conda = _extract_conda,
     prebuilt_libs_repo_rule = _prebuilt_libs_repo_rule,
-    prebuilt_libs_repo_impl = _prebuilt_libs_repo_impl,
     create_symlinks = _create_symlinks,
 )

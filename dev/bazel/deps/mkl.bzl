@@ -67,9 +67,6 @@ mkl_repo = repos.prebuilt_libs_repo_rule(
     ],
     required_any_libs_description = "a classic MKL CPU dispatch kernel",
     build_template = "@onedal//dev/bazel/deps:mkl.tpl.BUILD",
-    win_includes = [
-        "include",
-    ],
     win_libs = [
         "lib/mkl_core.lib",
         "lib/mkl_intel_ilp64.lib",

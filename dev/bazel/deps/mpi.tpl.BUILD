@@ -8,6 +8,8 @@ filegroup(
     ]),
 )
 
+# Not skylib's native_binary: that copies the file away from the hydra_bstrap_proxy
+# that mpiexec execs from its own directory.
 sh_binary(
     name = "mpiexec",
     srcs = [
