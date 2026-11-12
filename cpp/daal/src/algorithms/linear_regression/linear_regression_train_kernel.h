@@ -59,8 +59,9 @@ template <typename algorithmFPType, CpuType cpu>
 class KernelHelper : public KernelHelperIface<algorithmFPType, cpu>
 {
 public:
-    Status computeBetasImpl(DAAL_INT p, const algorithmFPType * a, algorithmFPType * aCopy, DAAL_INT ny, algorithmFPType * b,
-                            bool inteceptFlag) const;
+    Status computeBetasImpl(DAAL_INT p, const algorithmFPType * a, algorithmFPType * aCopy, DAAL_INT ny, algorithmFPType * b, bool inteceptFlag,
+                            bool isDualSystem) const;
+    ErrorID getInternalErrorCode() const;
 };
 
 template <typename algorithmFPType, CpuType cpu>
@@ -68,6 +69,7 @@ class BatchKernel<algorithmFPType, training::normEqDense, cpu> : public daal::al
 {
     typedef linear_model::normal_equations::training::internal::UpdateKernel<algorithmFPType, cpu> UpdateKernelType;
     typedef linear_model::normal_equations::training::internal::FinalizeKernel<algorithmFPType, cpu> FinalizeKernelType;
+    typedef linear_model::normal_equations::training::internal::DualKernel<algorithmFPType, cpu> DualKernelType;
 
 public:
     typedef linear_regression::internal::Hyperparameter HyperparameterType;

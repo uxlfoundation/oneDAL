@@ -186,8 +186,9 @@ def _get_gcc_toolchain_path(repo_ctx, cc):
     return str(gcc.dirname.dirname.realpath) if gcc else None
 
 def _add_gcc_toolchain_if_needed(repo_ctx, cc, compiler_id):
-    # By the detected id, not the name: CC=cc can be clang.
-    gcc_toolchain = _get_gcc_toolchain_path(repo_ctx, cc) if compiler_id in ["clang", "icpx"] else None
+    # By the detected id, not the name (CC=cc can be clang). icx is pinned to the same gcc as
+    # icpx, as in Make; otherwise its default gcc lookup can find a different install.
+    gcc_toolchain = _get_gcc_toolchain_path(repo_ctx, cc) if compiler_id in ["clang", "icx", "icpx"] else None
     if gcc_toolchain:
         return ["--gcc-toolchain=" + gcc_toolchain]
     else:
@@ -201,9 +202,21 @@ def _add_sycl_linkage(repo_ctx, cc):
         return []
 
 def _add_new_offload_driver_link(repo_ctx, dpcc):
-    flags = add_compiler_option_if_supported(repo_ctx, dpcc, "--offload-new-driver")
-    if not flags:
+    # Probe --offload-compress with a shared link, as Make's dpcpp.mk:84-92 does.
+    # A compile-only probe misses an icpx 2025.3 link failure; the probe runs in a fresh temp dir.
+    tmp = repo_ctx.execute(["mktemp", "-d"])
+    if tmp.return_code != 0:
         return []
+    tmp_dir = tmp.stdout.strip()
+    result = repo_ctx.execute([
+        dpcc, "-fsycl", "--offload-new-driver", "--offload-compress",
+        "-shared", "-fPIC", str(repo_ctx.path(TEST_CPP_FILE)),
+        "-o", tmp_dir + "/probe.so",
+    ], environment = {"TMPDIR": tmp_dir})
+    repo_ctx.execute(["rm", "-rf", "--", tmp_dir])
+    if result.return_code != 0:
+        return []
+    flags = ["--offload-new-driver"]
 
     # The legacy driver embeds -ftarget-register-alloc-mode=pvc:<opt> in the
     # device image, so the PVC-only JIT option is applied to PVC devices alone.
@@ -226,7 +239,16 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
     # and BAZEL_LINKOPTS to every link, for a compiler or C++ library outside the default paths.
     cxx_opts = _get_env_opts(repo_ctx, "BAZEL_CXXOPTS")
     link_opts = _get_env_opts(repo_ctx, "BAZEL_LINKOPTS")
-    dynamic_link_libs = ["-lstdc++", "-lm", "-ldl"]
+    # -lpthread -ldl stay outside --as-needed, as in Make (lnx32e.mk, deps.mkl.mk).
+    # They add NEEDED entries on glibc < 2.34 and resolve to empty stubs after it.
+    dynamic_link_libs = [
+        "-lstdc++",
+        "-lm",
+        "-Wl,--no-as-needed",
+        "-lpthread",
+        "-ldl",
+        "-Wl,--as-needed",
+    ]
 
     # Paths to tools/compiler includes
     tools = _find_tools(repo_ctx, reqs)

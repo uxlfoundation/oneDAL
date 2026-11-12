@@ -16,6 +16,7 @@
 
 load("@onedal//dev/bazel:utils.bzl", "utils", "sets")
 load("@onedal//dev/bazel:version.bzl", "VERSION")
+load("@onedal//dev/bazel:stamp.bzl", "DEV_BUILD_DATE")
 load("@onedal//dev/bazel/toolchains:common.bzl", "detect_os", "detect_compiler", "detect_host_arch", "detect_target_arch", "is_dpc_compiler_found")
 
 ConfigFlagInfo = provider(
@@ -355,7 +356,7 @@ def _declare_onedal_config_impl(repo_ctx):
             "%{version_major}":         VERSION.major,
             "%{version_minor}":         VERSION.minor,
             "%{version_update}":        VERSION.update,
-            "%{version_build}":         utils.datestamp(repo_ctx),
+            "%{version_build}":         DEV_BUILD_DATE,
             "%{version_buildrev}":      "work",
             "%{version_status}":        VERSION.status,
             "%{version_binary_major}":  VERSION.binary_major,
