@@ -5,3 +5,8 @@ tla/out/*.states/
 tla/states/
 tla/MergeBlocks_TTrace_*
 tla/out/*.log
+tla/out/
+numeric/results.json
+numeric/summary.md
+numeric/cancellation.md
+lean/axioms.txt

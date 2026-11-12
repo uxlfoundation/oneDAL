@@ -14,10 +14,8 @@
 * limitations under the License.
 *********************************************************************************/
 
-// Host replica of the arithmetic of basic_statistics GPU compute_by_blocks:
-// block_processor_kernel (Welford per block), merge_blocks_kernel (first loop with
-// stride L, then barrier tree), and the distributed branch of finalize.
-// It is not the SYCL kernel: compiler, FMA contraction and device math may differ.
+// Host copy of the basic_statistics GPU compute_by_blocks arithmetic; not the SYCL
+// kernel, so device FMA and math may differ. Mapping: dev/formal/README.md.
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
