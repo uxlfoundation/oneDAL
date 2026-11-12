@@ -87,6 +87,46 @@ TEMPLATE_LIST_TEST_M(basic_statistics_online_test,
     REQUIRE(variance[1] == 8);
 }
 
+// Means near 1e8 make m1*m1 + m2*m2 - 2*m1*m2 cancel; (m2 - m1)^2 keeps the variance.
+TEMPLATE_LIST_TEST_M(basic_statistics_online_test,
+                     "basic_statistics online merge with a large offset",
+                     "[basic_statistics][integration][online]",
+                     basic_statistics_types) {
+    using float_t = std::tuple_element_t<0, TestType>;
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF((!std::is_same_v<float_t, double>));
+    constexpr std::int64_t row_count = 3000;
+    constexpr double offset = 1e8, dev = 1e-3;
+    std::vector<float_t> data(row_count);
+    for (std::int64_t i = 0; i < row_count; ++i) {
+        data[i] = offset + dev * double((i * 7919) % 1000) / 500.0;
+    }
+    long double mean = 0;
+    for (auto x : data)
+        mean += x;
+    mean /= row_count;
+    long double ssc_ref = 0;
+    for (auto x : data)
+        ssc_ref += (x - mean) * (x - mean);
+
+    const auto desc =
+        this->get_descriptor(result_options::sum_squares_centered | result_options::variance);
+    bs::partial_compute_result<> partial;
+    constexpr std::int64_t block = row_count / 3;
+    for (std::int64_t b = 0; b < 3; ++b) {
+        partial = this->partial_compute(desc,
+                                        partial,
+                                        homogen_table::wrap(data.data() + b * block, block, 1));
+    }
+    const auto result = this->finalize_compute(desc, partial);
+
+    const auto ssc = row_accessor<const float_t>(result.get_sum_squares_centered()).pull();
+    const auto variance = row_accessor<const float_t>(result.get_variance()).pull();
+    REQUIRE(std::abs(ssc[0] - double(ssc_ref)) <= 1e-6 * double(ssc_ref));
+    REQUIRE(std::abs(variance[0] - double(ssc_ref / (row_count - 1))) <=
+            1e-6 * double(ssc_ref / (row_count - 1)));
+}
+
 /// Sweep the result option masks that the common flow above does not reach.
 ///
 /// The partial descriptor derived by `get_desc_to_compute` must request a superset

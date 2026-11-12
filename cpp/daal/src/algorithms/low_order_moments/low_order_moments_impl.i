@@ -612,7 +612,7 @@ void computeSumOfSquaredDiffsFromMean(size_t nFeatures, size_t nVectors, size_t 
                     algorithmFPType mean1 = prevSums[i] * invPrevNVectors;
                     algorithmFPType mean2 = sums[i] - prevSums[i];
 
-                    sumSqCen[i] += coeff * (mean1 * mean1 + mean2 * mean2 - 2.0 * mean1 * mean2);
+                    sumSqCen[i] += coeff * ((mean2 - mean1) * (mean2 - mean1));
                 }
             }
             else
@@ -624,7 +624,7 @@ void computeSumOfSquaredDiffsFromMean(size_t nFeatures, size_t nVectors, size_t 
 
                     algorithmFPType ssqdm2 = variance[i] * nVectorsM1;
 
-                    sumSqCen[i] += (ssqdm2 + coeff * (mean1 * mean1 + mean2 * mean2 - 2.0 * mean1 * mean2));
+                    sumSqCen[i] += (ssqdm2 + coeff * ((mean2 - mean1) * (mean2 - mean1)));
                 }
             }
         }
@@ -852,7 +852,7 @@ Status mergeSums(data_management::DataCollection * partialResultsCollection, Par
             algorithmFPType mean1 = sums[i] * invN1;
             algorithmFPType mean2 = inputSums[i] * invN2;
 
-            sumSqCen[i] += (inputSumSqCen[i] + coeff * (mean1 * mean1 + mean2 * mean2 - 2 * mean1 * mean2));
+            sumSqCen[i] += (inputSumSqCen[i] + coeff * ((mean2 - mean1) * (mean2 - mean1)));
 
             sums[i] += inputSums[i];
             sumSq[i] += inputSumSq[i];
