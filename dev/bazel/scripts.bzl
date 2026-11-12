@@ -16,7 +16,7 @@
 
 """Rules for generating release scripts and configuration files."""
 
-load("@onedal//dev/bazel/config:config.bzl", "ConfigFlagInfo", "RELEASE_ARCH_ATTRS", "VersionInfo", "release_arch_dir")
+load("@onedal//dev/bazel/config:config.bzl", "TARGET_ATTRS", "VersionInfo", "target")
 
 # --- Versioned template files ---
 
@@ -87,7 +87,7 @@ def _generate_cmake_config_impl(ctx):
             "@VERSIONS_SET@": "FALSE",
             "@DAL_VER_MAJOR_BIN@": "",
             "@DAL_VER_MINOR_BIN@": "",
-            "@ARCH_DIR_ONEDAL@": release_arch_dir(ctx),
+            "@ARCH_DIR_ONEDAL@": target(ctx).arch_dir,
             "@DLL_REL_PATH@": "redist",
             "@INC_REL_PATH@": "include",
             "@oneDAL_VERSION@": "",
@@ -105,7 +105,7 @@ _generate_cmake_config = rule(
         ),
         "out": attr.string(mandatory = True),
         "parameters_lib": attr.bool(default = True),
-    } | RELEASE_ARCH_ATTRS,
+    } | TARGET_ATTRS,
 )
 
 def generate_cmake_config(name, template, out, **kwargs):
@@ -128,22 +128,15 @@ _NUSPEC_CONTENT = {
 def _generate_nuspec_impl(ctx):
     """Expand deploy/nuget/inteldal.nuspec.tpl as prepare_dal_nuget.sh does."""
     vi = ctx.attr._version_info[VersionInfo]
-    def _has(attr):
-        return ctx.target_platform_has_constraint(attr[platform_common.ConstraintValueInfo])
-    # Same ids as prepare_dal_nuget.sh: x64 keeps linux, win-x64, osx-x64.
+    t = target(ctx)
+    # Same ids as prepare_dal_nuget.sh: x64 keeps linux, win-x64, osx-x64 (Make has no macOS ARM64).
     # ARM64 and RISC-V get their own ids, so they never publish under an x64 name.
-    if _has(ctx.attr._windows_constraint):
-        platform = "win-arm64" if _has(ctx.attr._aarch64_constraint) else "win-x64"
-        tbb_platform = "win"
-    elif _has(ctx.attr._osx_constraint):
-        # Make has no macOS ARM64 platform.
+    if t.is_windows:
+        platform, tbb_platform = "win-arm64" if t.arch == "arm" else "win-x64", "win"
+    elif t.os == "mac":
         platform, tbb_platform = "osx-x64", "osx"
-    elif _has(ctx.attr._aarch64_constraint):
-        platform, tbb_platform = "linux-arm64", "linux"
-    elif _has(ctx.attr._riscv64_constraint):
-        platform, tbb_platform = "linux-riscv64", "linux"
     else:
-        platform, tbb_platform = "linux", "linux"
+        platform, tbb_platform = {"arm": "linux-arm64", "riscv64": "linux-riscv64"}.get(t.arch, "linux"), "linux"
     out = ctx.actions.declare_file("inteldal.{}.nuspec".format(ctx.attr.distr_type))
     ctx.actions.expand_template(
         template = ctx.file.template,
@@ -173,19 +166,7 @@ _generate_nuspec = rule(
             default = "@config//:version",
             providers = [VersionInfo],
         ),
-        "_windows_constraint": attr.label(
-            default = "@platforms//os:windows",
-        ),
-        "_osx_constraint": attr.label(
-            default = "@platforms//os:osx",
-        ),
-        "_aarch64_constraint": attr.label(
-            default = "@platforms//cpu:aarch64",
-        ),
-        "_riscv64_constraint": attr.label(
-            default = "@platforms//cpu:riscv64",
-        ),
-    },
+    } | TARGET_ATTRS,
 )
 
 def generate_nuspec(name, template, distr_type, **kwargs):
@@ -220,12 +201,12 @@ def _generate_pkgconfig_impl(ctx):
     """Write a pkg-config file with the content of deploy/pkg-config/pkg-config.cpp."""
     vi = ctx.attr._version_info[VersionInfo]
     out = ctx.actions.declare_file(ctx.attr.out)
-    is_windows = ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo])
-    arch_dir = release_arch_dir(ctx)
+    t = target(ctx)
+    arch_dir = t.arch_dir
 
-    if is_windows:
+    if t.is_windows:
         # The debug CRT renames the oneDAL libraries and switches the CRT flag and TBB variant.
-        is_rt_debug = ctx.attr._msvc_runtime[ConfigFlagInfo].flag == "debug"
+        is_rt_debug = t.msvc_runtime_debug
         d = "d" if is_rt_debug else ""
         # The same libraries as the `_WIN32` branch of pkg-config.cpp. Doubled braces survive
         # this format(); the template's format() inserts the result verbatim.
@@ -314,11 +295,7 @@ _generate_pkgconfig = rule(
             default = "@config//:version",
             providers = [VersionInfo],
         ),
-        "_msvc_runtime": attr.label(
-            default = "@config//:msvc_runtime",
-            providers = [ConfigFlagInfo],
-        ),
-    } | RELEASE_ARCH_ATTRS,
+    } | TARGET_ATTRS,
 )
 
 def generate_pkgconfig(name, out = "lib/pkgconfig/onedal.pc", static = False, **kwargs):

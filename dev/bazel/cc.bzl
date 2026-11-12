@@ -23,7 +23,9 @@ load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@onedal//dev/bazel/config:config.bzl",
     "ConfigFlagInfo",
     "CpuInfo",
+    "TARGET_ATTRS",
     "VersionInfo",
+    "target",
     "validate_build_parameters_lib",
 )
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
@@ -48,12 +50,12 @@ def _collect_runfiles(deps):
             runfiles.append(dep[DefaultInfo].data_runfiles)
     return runfiles
 
-def _copy_windows_runtime_files(ctx, files, is_windows):
+def _copy_windows_runtime_files(ctx, files):
     """Put the DLLs a test loads next to its executable, where the loader looks.
 
     `symlink` copies the file unless `--windows_enable_symlinks` is set.
     """
-    if not is_windows or not ctx.attr._is_test:
+    if not target(ctx).is_windows or not ctx.attr._is_test:
         return []
     outputs = []
     for src in files:
@@ -73,7 +75,7 @@ def _init_cc_rule(ctx, features=[], disable_features=[]):
         requested_features = ctx.features + features,
         unsupported_features = ctx.disabled_features + disable_features,
     )
-    _check_msvc_runtime(ctx, feature_config, _is_windows(ctx))
+    _check_msvc_runtime(target(ctx), feature_config)
     return cc_toolchain, feature_config
 
 def _missing_dpc_compiler_inputs(ctx, feature_config):
@@ -106,21 +108,13 @@ def _missing_dpc_compiler_inputs(ctx, feature_config):
     )
     return [out]
 
-def _is_windows(ctx):
-    return ctx.target_platform_has_constraint(
-        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
-    )
-
 def _coverage_options(ctx, cc_toolchain, feature_config):
     """Return Make-compatible coverage driver options for oneDAL actions."""
     if not ctx.attr._code_coverage[ConfigFlagInfo].flag:
         return struct(compile_flags = [], link_flags = [])
 
-    is_linux = ctx.target_platform_has_constraint(
-        ctx.attr._linux_constraint[platform_common.ConstraintValueInfo],
-    )
     compiler_id = cc_toolchain.compiler.split("-")[0]
-    if not is_linux:
+    if not target(ctx).is_linux:
         fail("--code_coverage=true requires Linux (detected target OS is not Linux)")
     # `CC=icpx` is detected as `icpx`; it is the same Intel driver as `icx`.
     if compiler_id not in ("icx", "icpx"):
@@ -157,19 +151,19 @@ def _without_coverage_link_flags(linking_context, coverage_link_flags):
         linker_inputs = depset(linker_inputs),
     )
 
-def _check_msvc_runtime(ctx, feature_config, is_windows):
+def _check_msvc_runtime(target_info, feature_config):
     """Fail unless the toolchain's CRT choice follows `--msvc_runtime`.
 
     They diverge on rules_cc's MSVC `cl` config or with `--features=msvc_runtime_debug`.
     Checked in every rule, so tests that link a prebuilt release tree are covered too.
     """
-    if not is_windows:
+    if not target_info.is_windows:
         return
     feature_enabled = cc_common.is_enabled(
         feature_configuration = feature_config,
         feature_name = "msvc_runtime_debug",
     )
-    flag_debug = ctx.attr._msvc_runtime[ConfigFlagInfo].flag == "debug"
+    flag_debug = target_info.msvc_runtime_debug
     if feature_enabled != flag_debug:
         fail(
             ("--msvc_runtime={} but the C++ toolchain {} the msvc_runtime_debug " +
@@ -180,11 +174,9 @@ def _check_msvc_runtime(ctx, feature_config, is_windows):
                     "enables" if feature_enabled else "does not enable"),
         )
 
-def _msvc_runtime_suffix(ctx, is_windows):
-    """Return the `d` the debug MSVC CRT appends to library names, as Make's `$d`."""
-    if is_windows and ctx.attr._msvc_runtime[ConfigFlagInfo].flag == "debug":
-        return "d"
-    return ""
+def _msvc_runtime_suffix(ctx):
+    """The `d` the debug MSVC CRT appends to library names, as Make's `$d`."""
+    return "d" if target(ctx).msvc_runtime_debug else ""
 
 def _cc_module_impl(ctx):
     toolchain, feature_config = _init_cc_rule(ctx)
@@ -193,7 +185,7 @@ def _cc_module_impl(ctx):
         ctx.attr.define_gcov_build and ctx.attr._code_coverage[ConfigFlagInfo].flag
     ) else []
     dep_compilation_contexts = onedal_cc_common.collect_compilation_contexts(ctx.attr.deps)
-    is_windows = _is_windows(ctx)
+    is_windows = target(ctx).is_windows
     compilation_context, compilation_outputs = onedal_cc_compile.compile(
         name = ctx.label.name,
         ctx = ctx,
@@ -283,22 +275,12 @@ _cc_module = rule(
         "_cpus": attr.label(
             default = "@config//:cpu",
         ),
-        "_msvc_runtime": attr.label(
-            default = "@config//:msvc_runtime",
-            providers = [ConfigFlagInfo],
-        ),
         "_fpts": attr.string_list(default = ["f32", "f64"]),
-        "_windows_constraint": attr.label(
-            default = "@platforms//os:windows",
-        ),
-        "_linux_constraint": attr.label(
-            default = "@platforms//os:linux",
-        ),
         "_code_coverage": attr.label(
             default = "@config//:code_coverage",
             providers = [ConfigFlagInfo],
         ),
-    },
+    } | TARGET_ATTRS,
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
     fragments = ["cpp"],
 )
@@ -327,19 +309,17 @@ def cc_module(name, hdrs=[], deps=[], target_compatible_with=[], **kwargs):
     )
 
 
-def _validate_build_parameters_lib(ctx, is_windows):
-    value = ctx.attr._build_parameters_lib[ConfigFlagInfo].flag
-    validate_build_parameters_lib(value, is_windows)
-
+def _validate_build_parameters_lib(ctx):
+    validate_build_parameters_lib(ctx.attr._build_parameters_lib[ConfigFlagInfo].flag, target(ctx).is_windows)
 
 def _cc_static_lib_impl(ctx):
-    is_windows = _is_windows(ctx)
-    _validate_build_parameters_lib(ctx, is_windows)
+    is_windows = target(ctx).is_windows
+    _validate_build_parameters_lib(ctx)
     toolchain, feature_config = _init_cc_rule(ctx)
     compilation_context = onedal_cc_common.collect_and_merge_compilation_contexts(ctx.attr.deps)
     linking_contexts = onedal_cc_common.collect_and_filter_linking_contexts(
         ctx.attr.deps, ctx.attr.lib_tags)
-    rt_suffix = _msvc_runtime_suffix(ctx, is_windows)
+    rt_suffix = _msvc_runtime_suffix(ctx)
     linking_context, static_lib = onedal_cc_link.static(
         owner = ctx.label,
         name = ctx.attr.lib_name + rt_suffix,
@@ -382,18 +362,11 @@ _cc_static_lib = rule(
         # when `static_export_free` is set.
         "deps": attr.label_list(mandatory=True, cfg=_static_export_free_transition),
         "static_export_free": attr.bool(default=False),
-        "_windows_constraint": attr.label(
-            default = "@platforms//os:windows",
-        ),
-        "_msvc_runtime": attr.label(
-            default = "@config//:msvc_runtime",
-            providers = [ConfigFlagInfo],
-        ),
         "_build_parameters_lib": attr.label(
             default = "@config//:build_parameters_lib",
             providers = [ConfigFlagInfo],
         ),
-    },
+    } | TARGET_ATTRS,
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
     fragments = ["cpp"],
 )
@@ -436,8 +409,8 @@ def _compile_windows_resource(ctx, cc_toolchain, rc_file, rc_headers, defines, o
     return out
 
 def _cc_dynamic_lib_impl(ctx):
-    is_windows = _is_windows(ctx)
-    _validate_build_parameters_lib(ctx, is_windows)
+    is_windows = target(ctx).is_windows
+    _validate_build_parameters_lib(ctx)
     # No do_not_link_dynamic_dependencies: released libraries need their DT_NEEDED entries
     # (TBB, libstdc++), and a DLL needs the import libraries of the DLLs it uses.
     toolchain, feature_config = _init_cc_rule(ctx)
@@ -448,7 +421,7 @@ def _cc_dynamic_lib_impl(ctx):
 
     vi = ctx.attr._version_info[VersionInfo]
     # The CRT suffix goes before the ABI version, as in Make: `onedal_cored.4.dll`.
-    rt_name = ctx.attr.lib_name + _msvc_runtime_suffix(ctx, is_windows)
+    rt_name = ctx.attr.lib_name + _msvc_runtime_suffix(ctx)
     link_name = "{}.{}".format(rt_name, vi.binary_major) if is_windows else rt_name
     linux_soname_flags = [] if is_windows else [
         "-Wl,-soname,lib{}.so.{}".format(ctx.attr.lib_name, vi.binary_major),
@@ -512,15 +485,9 @@ cc_dynamic_lib = rule(
             doc = "Headers that `rc_file` includes; their directories are include paths.",
         ),
         "rc_defines": attr.string_list(),
-        "_windows_constraint": attr.label(
-            default = "@platforms//os:windows",
-        ),
         "_version_info": attr.label(
             default = "@config//:version",
             providers = [VersionInfo],
-        ),
-        "_linux_constraint": attr.label(
-            default = "@platforms//os:linux",
         ),
         "_code_coverage": attr.label(
             default = "@config//:code_coverage",
@@ -530,11 +497,7 @@ cc_dynamic_lib = rule(
             default = "@config//:build_parameters_lib",
             providers = [ConfigFlagInfo],
         ),
-        "_msvc_runtime": attr.label(
-            default = "@config//:msvc_runtime",
-            providers = [ConfigFlagInfo],
-        ),
-    },
+    } | TARGET_ATTRS,
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
     fragments = ["cpp"],
 )
@@ -545,7 +508,6 @@ def _cc_exec_impl(ctx):
         return
     toolchain, feature_config = _init_cc_rule(ctx)
     coverage = _coverage_options(ctx, toolchain, feature_config)
-    is_windows = _is_windows(ctx)
     tagged_linking_contexts = onedal_cc_common.collect_tagged_linking_contexts(ctx.attr.deps)
     linking_contexts = onedal_cc_common.filter_tagged_linking_contexts(
         tagged_linking_contexts, ctx.attr.lib_tags)
@@ -558,7 +520,7 @@ def _cc_exec_impl(ctx):
         linking_contexts = linking_contexts,
         user_link_flags = ctx.attr.user_link_flags + coverage.link_flags,
     )
-    runtime_files = _copy_windows_runtime_files(ctx, ctx.files.data, is_windows)
+    runtime_files = _copy_windows_runtime_files(ctx, ctx.files.data)
     default_info = DefaultInfo(
         files = depset([executable] + runtime_files),
         runfiles = ctx.runfiles(files = ctx.files.data + runtime_files).merge_all(
@@ -592,21 +554,11 @@ cc_test = rule(
         "user_link_flags": attr.string_list(),
         "build_from_sources": attr.bool(default=False),
         "_is_test": attr.bool(default=True),
-        "_linux_constraint": attr.label(
-            default = "@platforms//os:linux",
-        ),
         "_code_coverage": attr.label(
             default = "@config//:code_coverage",
             providers = [ConfigFlagInfo],
         ),
-        "_windows_constraint": attr.label(
-            default = "@platforms//os:windows",
-        ),
-        "_msvc_runtime": attr.label(
-            default = "@config//:msvc_runtime",
-            providers = [ConfigFlagInfo],
-        ),
-    },
+    } | TARGET_ATTRS,
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
     fragments = ["cpp"],
     test = True,
@@ -620,21 +572,11 @@ cc_executable = rule(
         "data": attr.label_list(allow_files=True),
         "user_link_flags": attr.string_list(),
         "_is_test": attr.bool(default=False),
-        "_linux_constraint": attr.label(
-            default = "@platforms//os:linux",
-        ),
         "_code_coverage": attr.label(
             default = "@config//:code_coverage",
             providers = [ConfigFlagInfo],
         ),
-        "_windows_constraint": attr.label(
-            default = "@platforms//os:windows",
-        ),
-        "_msvc_runtime": attr.label(
-            default = "@config//:msvc_runtime",
-            providers = [ConfigFlagInfo],
-        ),
-    },
+    } | TARGET_ATTRS,
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
     fragments = ["cpp"],
     executable = True,

@@ -26,7 +26,9 @@ load("@onedal//dev/bazel:utils.bzl",
 )
 load("@onedal//dev/bazel/config:config.bzl",
     "CpuInfo",
+    "TARGET_ATTRS",
     "VersionInfo",
+    "target",
 )
 
 def daal_module(name, features=[], lib_tag="daal",
@@ -193,9 +195,7 @@ def _daal_patch_kernel_defines_impl(ctx):
     """
     disabled_cpus = sets.to_list(_get_disabled_cpus(ctx))
     kernel_defines = _declare_patched_kernel_defines(ctx)
-    is_windows = ctx.target_platform_has_constraint(
-        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
-    )
+    is_windows = target(ctx).is_windows
     ctx.actions.expand_template(
         template = ctx.file.src,
         output = kernel_defines,
@@ -214,8 +214,5 @@ daal_patch_kernel_defines = rule(
         "_cpus": attr.label(
             default = "@config//:cpu",
         ),
-        "_windows_constraint": attr.label(
-            default = "@platforms//os:windows",
-        ),
-    },
+    } | TARGET_ATTRS,
 )

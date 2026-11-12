@@ -82,29 +82,66 @@ unsupported_config = rule(
 )
 
 
+TargetInfo = provider(
+    doc = "The target platform, read once from its constraints by @config//:target.",
+    fields = {
+        "os": "`lnx`, `win` or `mac`.",
+        "arch": "`intel64`, `arm` or `riscv64`.",
+        "is_windows": "Whether the target OS is Windows.",
+        "is_linux": "Whether the target OS is Linux.",
+        "arch_dir": "The `lib/<arch>` directory of the release tree, Make's ARCH_DIR_ONEDAL.",
+        "msvc_runtime_debug": "Whether Windows targets use the debug CRT (`--msvc_runtime=debug`).",
+    },
+)
+
+def _target_info_impl(ctx):
+    def has(constraint):
+        return ctx.target_platform_has_constraint(constraint[platform_common.ConstraintValueInfo])
+
+    is_windows = has(ctx.attr._windows)
+    arch = "arm" if has(ctx.attr._aarch64) else "riscv64" if has(ctx.attr._riscv64) else "intel64"
+    return [TargetInfo(
+        os = "win" if is_windows else "mac" if has(ctx.attr._osx) else "lnx",
+        arch = arch,
+        is_windows = is_windows,
+        is_linux = has(ctx.attr._linux),
+        arch_dir = "ARM64" if arch == "arm" and is_windows else arch,
+        msvc_runtime_debug = is_windows and ctx.attr.msvc_runtime[ConfigFlagInfo].flag == "debug",
+    )]
+
+target_info = rule(
+    implementation = _target_info_impl,
+    attrs = {
+        "msvc_runtime": attr.label(mandatory = True, providers = [ConfigFlagInfo]),
+        "_windows": attr.label(default = "@platforms//os:windows"),
+        "_linux": attr.label(default = "@platforms//os:linux"),
+        "_osx": attr.label(default = "@platforms//os:osx"),
+        "_aarch64": attr.label(default = "@platforms//cpu:aarch64"),
+        "_riscv64": attr.label(default = "@platforms//cpu:riscv64"),
+    },
+)
+
+# Merge into a rule's attrs with `|`; `target(ctx)` then gives the TargetInfo.
+TARGET_ATTRS = {
+    "_target": attr.label(default = "@config//:target", providers = [TargetInfo]),
+}
+
+def target(ctx):
+    return ctx.attr._target[TargetInfo]
+
 def validate_build_parameters_lib(value, is_windows):
     if is_windows and value == "yes":
         fail("--build_parameters_lib=yes is not supported on Windows; use auto or no")
 
-
 def _build_parameters_lib_validation_impl(ctx):
-    value = ctx.attr.flag[ConfigFlagInfo].flag
-    is_windows = ctx.target_platform_has_constraint(
-        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
-    )
-    validate_build_parameters_lib(value, is_windows)
+    validate_build_parameters_lib(ctx.attr.flag[ConfigFlagInfo].flag, ctx.attr.target[TargetInfo].is_windows)
     return []
 
 build_parameters_lib_validation = rule(
     implementation = _build_parameters_lib_validation_impl,
     attrs = {
-        "flag": attr.label(
-            mandatory = True,
-            providers = [ConfigFlagInfo],
-        ),
-        "_windows_constraint": attr.label(
-            default = "@platforms//os:windows",
-        ),
+        "flag": attr.label(mandatory = True, providers = [ConfigFlagInfo]),
+        "target": attr.label(mandatory = True, providers = [TargetInfo]),
     },
 )
 
@@ -168,22 +205,6 @@ cpu_info = rule(
         "arch": attr.string(mandatory=True),
     },
 )
-
-# Attributes `release_arch_dir` reads. Merge into a rule's attrs with `|`.
-RELEASE_ARCH_ATTRS = {
-    "_aarch64_constraint": attr.label(default = "@platforms//cpu:aarch64"),
-    "_riscv64_constraint": attr.label(default = "@platforms//cpu:riscv64"),
-    "_windows_constraint": attr.label(default = "@platforms//os:windows"),
-}
-
-def release_arch_dir(ctx):
-    """Return the release-tree architecture directory, Make's `ARCH_DIR_ONEDAL`."""
-    is_windows = ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo])
-    if ctx.target_platform_has_constraint(ctx.attr._aarch64_constraint[platform_common.ConstraintValueInfo]):
-        return "ARM64" if is_windows else "arm"
-    if ctx.target_platform_has_constraint(ctx.attr._riscv64_constraint[platform_common.ConstraintValueInfo]):
-        return "riscv64"
-    return "intel64"
 
 VersionInfo = provider(
     fields = [

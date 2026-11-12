@@ -17,7 +17,7 @@
 load("@onedal//dev/bazel:stamp.bzl", "BuildDateInfo", "expand_build_date")
 load("@onedal//dev/bazel:utils.bzl", "utils", "paths")
 load("@onedal//dev/bazel:cc.bzl", "ModuleInfo")
-load("@onedal//dev/bazel/config:config.bzl", "RELEASE_ARCH_ATTRS", "VersionInfo", "release_arch_dir")
+load("@onedal//dev/bazel/config:config.bzl", "TARGET_ATTRS", "VersionInfo", "target")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 
 # Transitions get no repo mapping, so they need the canonical label.
@@ -63,7 +63,7 @@ def _collect_default_files(deps):
 
 def _copy(ctx, src_file, dst_path):
     dst_file = ctx.actions.declare_file(dst_path)
-    if ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo]):
+    if target(ctx).is_windows:
         executable = "cmd.exe"
         # `copy` reports "1 file(s) copied." on stdout, which Bazel would echo for every file.
         arguments = ["/d", "/c", 'copy /Y "{}" "{}" >NUL'.format(
@@ -137,9 +137,7 @@ def _strip_os_suffix(dst_path, os_suffix):
 def _copy_include(ctx, prefix, version_info):
     include_prefix = paths.join(prefix, "include")
     build_date = ctx.attr._build_date[BuildDateInfo]
-    is_windows = ctx.target_platform_has_constraint(
-        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
-    )
+    is_windows = target(ctx).is_windows
     os_suffix = "_win" if is_windows else "_lnx"
 
     # One header per destination; an OS-specific header wins over the generic one, as in Make.
@@ -206,8 +204,8 @@ def _copy_lib(ctx, prefix, version_info):
 
     A DLL's `<name>.<major>.if.lib` is staged under Make's `-IMPLIB:` name, `<name>_dll.lib`.
     """
-    is_windows = ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo])
-    arch_dir = release_arch_dir(ctx)
+    is_windows = target(ctx).is_windows
+    arch_dir = target(ctx).arch_dir
     lib_prefix = paths.join(prefix, "lib", arch_dir)
     redist_prefix = paths.join(prefix, "redist", arch_dir)
     libs = _collect_default_files(ctx.attr.lib)
@@ -290,7 +288,7 @@ def _copy_extra_files(ctx, prefix):
         fail("extra_files and extra_files_dst must have the same length: got {} vs {}".format(
             len(ctx.attr.extra_files), len(ctx.attr.extra_files_dst)))
 
-    is_windows = ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo])
+    is_windows = target(ctx).is_windows
 
     dst_files = []
     for i, dep in enumerate(ctx.attr.extra_files):
@@ -315,7 +313,7 @@ def _copy_dep_runtime(ctx, release_root):
         fail("dep_runtime and dep_runtime_dst must have the same length: got {} vs {}".format(
             len(ctx.attr.dep_runtime), len(ctx.attr.dep_runtime_dst)))
 
-    is_windows = ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo])
+    is_windows = target(ctx).is_windows
 
     dst_files = []
     for i, dep in enumerate(ctx.attr.dep_runtime):
@@ -338,7 +336,7 @@ def _copy_dep_runtime(ctx, release_root):
 
 def _copy_data(ctx, prefix):
     """Copy data files (datasets, examples, config) preserving directory structure."""
-    is_windows = ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo])
+    is_windows = target(ctx).is_windows
 
     dst_files = []
     for dep in ctx.attr.data:
@@ -416,7 +414,7 @@ _release = rule(
             default = "@onedal//dev/bazel:build_date",
             providers = [BuildDateInfo],
         ),
-    } | RELEASE_ARCH_ATTRS,
+    } | TARGET_ATTRS,
 )
 
 def _headers_filter_impl(ctx):
@@ -529,10 +527,7 @@ def _get_single_dep(deps, attr_name):
 
 def _release_all_impl(ctx):
     release_md = _get_single_dep(ctx.attr.release_md, "release_md")
-    is_windows = ctx.target_platform_has_constraint(
-        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
-    )
-    if not is_windows:
+    if not target(ctx).is_windows:
         # Forwarded rather than copied: copying would turn the `.so` symlinks into real files.
         return [DefaultInfo(files = release_md[DefaultInfo].files)]
     prefix = ctx.attr.name + "/daal/latest"
@@ -542,7 +537,7 @@ def _release_all_impl(ctx):
     # oneDALConfig.cmake appends DAL_DEBUG_SUFFIX itself.
     files += _copy_from_release_tree(
         ctx, _get_single_dep(ctx.attr.release_mdd, "release_mdd"), prefix,
-        only_dirs = _runtime_specific_dirs(release_arch_dir(ctx)),
+        only_dirs = _runtime_specific_dirs(target(ctx).arch_dir),
         staged = staged_components,
     )
     return [DefaultInfo(files = depset(files))]
@@ -562,7 +557,7 @@ _release_all = rule(
                   "Only its lib/<arch> and redist/<arch> contents are " +
                   "used; ignored entirely on non-Windows platforms.",
         ),
-    } | RELEASE_ARCH_ATTRS,
+    } | TARGET_ATTRS,
 )
 
 def release_all(name, release_target):

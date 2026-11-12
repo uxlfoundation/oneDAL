@@ -7,6 +7,7 @@ load("@onedal//dev/bazel/config:config.bzl",
     "build_parameters_lib_validation",
     "dump_config_info",
     "unsupported_config",
+    "target_info",
 )
 
 cpu_info(
@@ -110,6 +111,12 @@ config_setting(
 build_parameters_lib_validation(
     name = "validate_build_parameters_lib",
     flag = ":build_parameters_lib",
+    target = ":target",
+)
+
+target_info(
+    name = "target",
+    msvc_runtime = ":msvc_runtime",
 )
 
 # Make RNG_BACKEND parity; has an effect with backend_config=ref only.
