@@ -63,8 +63,8 @@ namespace oneapi::dal::detail {
 /// @return Number of rows in the data block used in variance-covariance matrix computations on CPU.
 template <typename Float>
 std::int64_t covariance_block_size(const dal::backend::context_cpu& ctx,
-                                   const system_parameters& sys_params,
-                                   const std::int64_t row_count,
-                                   const std::int64_t column_count);
+                                                 const system_parameters& sys_params,
+                                                 const std::int64_t row_count,
+                                                 const std::int64_t column_count);
 
 } // namespace oneapi::dal::detail

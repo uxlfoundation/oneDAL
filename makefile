@@ -747,14 +747,19 @@ endif
 
 $(eval $(call update_copt_from_dispatcher_tag,$(ONEAPI.objs_y.dpc),.dpcpp))
 
-# Filtering parameter files
-PARAMETERS.objs_a.filtered := $(filter %parameters.$(o) %parameters_impl.$(o),$(ONEAPI.objs_a))
-ONEAPI.objs_a.filtered := $(filter-out %parameters.$(o) %parameters_impl.$(o),$(ONEAPI.objs_a))
-PARAMETERS.objs_y.filtered := $(filter %parameters.$(o) %parameters_impl.$(o),$(ONEAPI.objs_y))
-ONEAPI.objs_y.filtered := $(filter-out %parameters.$(o) %parameters_impl.$(o),$(ONEAPI.objs_y))
+# Objects from */parameters/* source directories form libonedal_parameters.
+in_parameters_dir = $(foreach v,$1,$(if $(findstring -parameters-,$(notdir $v)),$v))
 
-PARAMETERS.objs_y.dpc.filtered := $(filter %parameters.$(o) %parameters_impl.$(o) %parameters_dpc.$(o),$(ONEAPI.objs_y.dpc))
-ONEAPI.objs_y.dpc.filtered := $(filter-out %parameters.$(o) %parameters_impl.$(o) %parameters_dpc.$(o),$(ONEAPI.objs_y.dpc))
+# Filter out the accidentally included objects from the directories which might contain "-parameters-" in their names.
+not_in_parameters_dir = $(foreach v,$1,$(if $(findstring -parameters-,$(notdir $v)),,$v))
+
+PARAMETERS.objs_a.filtered := $(call in_parameters_dir,$(ONEAPI.objs_a))
+ONEAPI.objs_a.filtered := $(call not_in_parameters_dir,$(ONEAPI.objs_a))
+PARAMETERS.objs_y.filtered := $(call in_parameters_dir,$(ONEAPI.objs_y))
+ONEAPI.objs_y.filtered := $(call not_in_parameters_dir,$(ONEAPI.objs_y))
+
+PARAMETERS.objs_y.dpc.filtered := $(call in_parameters_dir,$(ONEAPI.objs_y.dpc))
+ONEAPI.objs_y.dpc.filtered := $(call not_in_parameters_dir,$(ONEAPI.objs_y.dpc))
 
 # Actual compilation
 $(foreach x,$(ONEAPI.objs_a.filtered),$(eval $(call .ONEAPI.compile,$x,$(ONEAPI.tmpdir_a),C)))
