@@ -1,6 +1,7 @@
 'OnedalStats.merge_ofList' depends on axioms: [propext, Classical.choice, Quot.sound]
 'OnedalStats.merge_empty_left' depends on axioms: [propext, Classical.choice, Quot.sound]
 'OnedalStats.merge_empty_right' depends on axioms: [propext, Classical.choice, Quot.sound]
+'OnedalStats.merge_comm' depends on axioms: [propext, Classical.choice, Quot.sound]
 'OnedalStats.merge_valid' depends on axioms: [propext, Classical.choice, Quot.sound]
 'OnedalStats.merge_assoc' depends on axioms: [propext, Classical.choice, Quot.sound]
 'OnedalStats.kwayM2_correct' depends on axioms: [propext, Classical.choice, Quot.sound]

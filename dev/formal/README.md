@@ -25,7 +25,7 @@ The numeric part also runs the CPU (DAAL) `low_order_moments` merge.
 | `Reduce` | `if (stride > id)` merge `l*_ptr[id + stride]`; `if (0 < id)` store own slot |
 | `Finish` | `if (0 == id)` write `r*_ptr[group_id]` |
 | `Wait` | `last_event.wait_and_throw()` at the end of `merge_blocks` |
-| `Free` | `ndbuf` (rvalue parameter) destroyed on return: `usm_deleter` calls `sycl::free(ptr, queue)` (`cpp/oneapi/dal/backend/memory.hpp`), which does not wait for kernels |
+| `Free` | `ndbuf`, a local of `compute_by_blocks` passed to `merge_blocks` by `&&`, destroyed when `compute_by_blocks` returns: `usm_deleter` calls `sycl::free(ptr, queue)` (`cpp/oneapi/dal/backend/memory.hpp`), which does not wait for kernels |
 
 One work-group of K2 is modelled (one column; groups share no memory). `L` is
 `device_max_sg_size`, `B` is `block_count`.
@@ -34,8 +34,9 @@ One work-group of K2 is modelled (one column; groups share no memory). `L` is
 
 - `handler::depends_on(e)`: the command group does not start before `e` completes.
 - `event::wait_and_throw()`: returns after the command completes.
-- `sycl::free(ptr, q)` on USM: the user must ensure no command still uses `ptr`;
-  it does not wait.
+- `sycl::free(ptr, q)` on USM: the spec does not say it waits, and freeing memory a
+  running command still uses is undefined. The model takes the conservative reading:
+  free does not wait.
 - `group_barrier(g)`: every work-item of `g` reaches it before any continues, and
   it orders work-group local memory accesses.
 - Not modelled, because neither the runtime contract nor the code has them:
@@ -66,13 +67,14 @@ deadlock check: barriers never block forever).
 | pre_L4_B3 | 4 | 3 | none (B < L, not 2^k) | `ResultCoversAllBlocks` violated: block 2 never merged | | <1 s |
 
 Traces are in `tla/out/mut_nowait.trace.txt` and `tla/out/pre_L4_B3.trace.txt`.
-In `mut_nowait` the host frees `ndbuf` (state 9) while K2 is still
+In `mut_nowait` the host frees `ndbuf` (state 5) while K2 is still
 `submitted`, and work-item 0 then loads block 0 (state 10).
 
 `pre_L4_B3` is a latent precondition, not a reachable bug: the tree starts at
 `stride = min(L, B) / 2`, so when `B < L` and `B` is not a power of two the last
 `B - 2^floor(log2 B)` slots are never read. Today `get_row_block_count` returns
-only 1, 8, 16, 32, 64 or 128, and sub-group sizes are powers of two, so the
+only 1, 8, 16, 32, 64 or 128, and sub-group sizes on current Intel GPUs are 8, 16
+or 32 (assumed here, not checked by the code), so the
 precondition `B >= L or B = 2^k` holds. An assertion in `merge_blocks` would
 make it explicit. A Python check over every `row_count` in `[1, 2e6)` also
 found no input where `block_processor_kernel` creates fewer non-empty blocks
@@ -94,7 +96,8 @@ is not modelled; its collective sequence depends only on the compile-time
 | `merge_ofList` | `merge (ofList xs) (ofList ys) = ofList (xs ++ ys)`: the merge gives the count, mean and M2 of the concatenated sample | same |
 | `merge_empty_left/right` | `empty = (0, 0, 0)` is neutral for every `Valid` partial result | contract only, see below |
 | `merge_valid` | merge keeps `Valid` (n >= 0; n = 0 forces mean = M2 = 0) | |
-| `merge_assoc` | merge is associative on `Valid` partial results | any merge order or tree shape gives the same exact result |
+| `merge_assoc` | merge is associative on `Valid` partial results | with `merge_comm`: any merge order or tree shape gives the same exact result |
+| `merge_comm` | `merge a b = merge b a`, no hypotheses | |
 | `kwayM2_correct` | `sum_r (M2_r + n_r * (mean - mean_r)^2) = M2` of all data | distributed branch of `finalize` |
 | `daal_term_eq` | `c*(m1*m1 + m2*m2 - 2*m1*m2) = c*((m2 - m1)*(m2 - m1))` | DAAL CPU merge term, see C |
 | `mergeBad_wrong` | dropping `/N` from `delta_scale` is wrong: blocks `[0]` and `[2, 4]` give M2 = 20, not 8 | negative variant |
@@ -109,8 +112,8 @@ proof of the C++ or SYCL code, and floating-point merge is not associative.
 In Lean `x / 0 = 0`, so `merge empty s = s` holds in the model; in IEEE
 arithmetic the kernel computes `mean = sum / rcnt = 0/0 = NaN` for an empty
 block, so empty blocks are outside the kernel's contract (the replica runs
-with forced empty blocks return NaN). Lean source uses Unicode notation
-(Mathlib style), unlike the ASCII-only rule for C++ sources.
+with forced empty blocks return NaN). The Lean source is ASCII only (`Real`,
+`Ne`, `next =>`), per the repo rule.
 
 ## C. Numeric experiment
 
@@ -123,6 +126,9 @@ with forced empty blocks return NaN). Lean source uses Unicode notation
   `get_row_block_count`), 8, 128; `L` 16, 32; merge order kernel tree, reversed,
   shuffled; 1 or 4 ranks. This is not the SYCL kernel: icpx defaults, device
   `sqrt` and FMA use can differ.
+- Build: `g++ -O2 -ffp-contract=off -o replica replica.cpp` and
+  `g++ -O2 -ffp-contract=fast -march=native -o replica_fma replica.cpp`; run
+  `python experiment.py <dir with the binaries>` with `daal==2025.10.0` and `mpmath==1.3.0` installed.
 - `daal4py`: real oneDAL CPU `low_order_moments` (pip `daal==2025.10.0`), batch
   and streaming with 1, 3, 64, 1000 chunks.
 - Reference: exact rationals (`fractions`) over the exact binary inputs of each run.
@@ -133,7 +139,7 @@ Worst relative error of the variance over all supported configurations (double):
 | --- | --- | --- | --- |
 | N(0,1), n=20000 | 5e-16 | 2e-15 | 5e-16 |
 | 1e4 + N(0,1e-2), n=20000 | 3e-11 | 2e-11 | 1.8e-6 |
-| 1e8 + N(0,1e-3), n=20000 | 2.7e-6 | 1.9e-6 | 1.9e5 (variance even negative: -0.085 vs 9.7e-7) |
+| 1e8 + N(0,1e-3), n=20000 | 2.7e-6 | 1.9e-6 | 1.9e5 (some runs give a negative variance, e.g. -0.085 vs 9.7e-7) |
 | 1e8 + N(0,1e-3), n=150000 | 2.8e-6 | 4e-7 | 1.1e5 |
 
 Single precision cannot hold `1e8 + 1e-3` (ulp is 8), so float rows for that
@@ -151,7 +157,8 @@ the difference cancels to rounding noise of size `coeff * ulp(1e16)`.
 `numeric/cancellation.py` emulates both spellings: at offset 1e8 the expanded
 form has relative error up to 3.7e5, the factored form up to 3e-7.
 
-The fix (separate PR) replaces the term with
+The fix is not in this branch: branch `fix/lom-merge-cancellation` (separate PR)
+replaces the term with
 `(mean2 - mean1) * (mean2 - mean1)` at the five sites and adds
 `basic_statistics online merge with a large offset` to
 `cpp/oneapi/dal/algo/basic_statistics/test/online.cpp`. With
@@ -164,13 +171,13 @@ numbers above are from the released 2025.10.0 wheel, not from the patched build.
 
 | Claim | Status |
 | --- | --- |
-| Pairwise and k-way merge formulas give the statistics of the union, merge is associative, `(0,0,0)` is neutral | proved in Lean over the reals |
+| Pairwise and k-way merge formulas give the statistics of the union, merge is associative and commutative, `(0,0,0)` is neutral | proved in Lean over the reals |
 | Dependency, lifetime and barrier protocol of `merge_blocks` | checked by TLC for L <= 8, B <= 16; not checked on a GPU |
 | Removing `depends_on`, `wait_and_throw` or `group_barrier` breaks it | TLC counterexamples, model mutations only |
 | Tree reduction drops blocks when `B < L` and `B` is not a power of two | TLC counterexample; unreachable with today's `get_row_block_count` |
-| GPU kernel arithmetic stays within ~3e-6 relative variance error at offset 1e8 in double | host replica only, not the device |
-| DAAL CPU online merge loses the variance at large offsets | reproduced with daal4py 2025.10.0; fixed and tested in the CPU build |
-| Distributed DAAL step 2 merge (same formula) is fixed | same edit; no SPMD run checked it |
+| A host replica of the GPU kernel arithmetic stays within ~3e-6 relative variance error at offset 1e8 in double | host replica only, not the device |
+| DAAL CPU online merge loses the variance at large offsets | reproduced with daal4py 2025.10.0; fix and red/green test in the separate PR |
+| Distributed DAAL step 2 merge (same formula) | same edit in the separate PR; no SPMD run checked it |
 
 ## Effort and next candidates
 

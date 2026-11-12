@@ -18,6 +18,7 @@ open OnedalStats
 #print axioms merge_ofList
 #print axioms merge_empty_left
 #print axioms merge_empty_right
+#print axioms merge_comm
 #print axioms merge_valid
 #print axioms merge_assoc
 #print axioms kwayM2_correct

@@ -15,6 +15,7 @@
 
 # Usage: run.sh NAME L B 'MUTSET'   (needs java and tla2tools.jar; TLA2TOOLS env var)
 set -euo pipefail
+cd "$(dirname "$0")"
 name=$1; l=$2; b=$3; mut=$4
 mkdir -p out
 cat > "out/$name.cfg" <<CFG
@@ -26,5 +27,9 @@ INVARIANTS NoUseAfterFree NoReadBeforeWrite NoStaleLocalRead ResultCoversAllBloc
 PROPERTY Termination
 CFG
 java -XX:+UseParallelGC -cp "${TLA2TOOLS:?}" tlc2.TLC -workers 8 -config "out/$name.cfg" \
-  -metadir "out/$name.states" MergeBlocks.tla > "out/$name.log" 2>&1 || true
+  -metadir "out/$name.states" MergeBlocks.tla > "out/$name.log" 2>&1 && rc=0 || rc=$?
+# A mutation run is expected to stop with a violation (non-zero exit); print the
+# verdict either way and return TLC's exit status.
 grep -E "Model checking completed|violated|Error:|distinct states found|Deadlock" "out/$name.log" | head -4
+echo "tlc exit status: $rc"
+exit "$rc"
