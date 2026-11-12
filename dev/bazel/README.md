@@ -171,7 +171,7 @@ target by name fails with an `incompatible` error that names
 analyse without the compiler (so `--nobuild` checks work), and the build fails at
 their first compile with `needs the DPC++ compiler ... but the C++ toolchain was
 configured without it`.
-`--config=dpc` (and `dpc-public`, `dpc-private`) sets `--release_dpc=true`, so
+`--config=dpc` sets `--release_dpc=true`, so
 without icpx it fails that way instead of skipping every test.
 
 Since the default follows `PATH`, a release or packaging job that must ship the
@@ -286,19 +286,14 @@ The most used Bazel commands are `build`, `test` and `run`.
    It is highly encouraged to run newly added tests on the local machine with
    `-c dbg` option to test assertions.
 
-- `--config` Takes effect only for `run` or `test` commands. Specifies
-  interface that is used to build and run tests. \
+- `--config` Selects the tests to build and run by their tags. \
   Possible values:
   - `<not specified>` _(default)_ Build and run all tests.
-  - `host` Build and run tests for HOST part without dependencies on DPC++
-    runtime. Uses regular C++ compiler.
-  - `dpc` Build and run tests for DPC++ part. Uses Intel(R) DPC++ Compiler.
-  - `public` Build and run tests for public C++ and DPC++ parts.
-  - `host-public` Build and run tests only for public part of C++ interfaces.
-  - `dpc-public` Build and run tests only for public part of DPC++ interfaces.
-  - `private` Build and run tests for private C++ and DPC++ parts.
-  - `host-private` Build and run tests only for private C++ part.
-  - `dpc-private` Build and run tests only for private DPC++ part.
+  - `host` Tests of the C++ interface, built with the regular C++ compiler.
+  - `dpc` Tests of the DPC++ interface, built with the Intel(R) DPC++ compiler.
+
+  Every test also carries a `public` or `private` tag, so `--test_tag_filters`
+  narrows a run further.
 
    Example:
    ```sh
@@ -306,7 +301,7 @@ The most used Bazel commands are `build`, `test` and `run`.
    bazel test --config=host //cpp/oneapi/dal:tests
 
    # To run tests for internal DPC++ functionality
-   bazel test --config=dpc-private //cpp/oneapi/dal:tests
+   bazel test --release_dpc=true --test_tag_filters=dpc,-public //cpp/oneapi/dal:tests
    ```
 
 - `--device` Takes effect only for `run` or `test` commands and option
@@ -352,20 +347,13 @@ The most used Bazel commands are `build`, `test` and `run`.
    bazel test --test_external_datasets //cpp/oneapi/dal:tests
    ```
 
-- `--test_nightly` A switch that enables [nightly tests](#nightly-tests).
-  Disabled by default.
+- `--test_tier` Runs the longer test cases too: `nightly` adds the
+  [nightly tests](#nightly-tests), `weekly` adds the [weekly tests](#weekly-tests)
+  on top. Default: `default`, neither.
 
    Example:
    ```sh
-   bazel test --test_nightly //cpp/oneapi/dal:tests
-   ```
-
-- `--test_weekly` A switch that enables [weekly tests](#weekly-tests). Nightly
-  tests are included to weekly. Disabled by default.
-
-   Example:
-   ```sh
-   bazel test --test_weekly //cpp/oneapi/dal:tests
+   bazel test --test_tier=nightly //cpp/oneapi/dal:tests
    ```
 
 - `--test_link_mode` Specifies linking mode for tests. \
@@ -615,10 +603,10 @@ TEST("my test that uses external dataset", "[external-dataset]") {
 ```
 
 ### Nightly tests
-Nightly tests are disabled by default. The `--test_nightly` option enables tests
+Nightly tests are disabled by default. `--test_tier=nightly` enables tests
 marked with `[nightly]` tags.
 ```sh
-bazel test --test_nightly //cpp/oneapi/dal:tests
+bazel test --test_tier=nightly //cpp/oneapi/dal:tests
 ```
 
 Mark nightly test cases with `[nightly]` tag:
@@ -627,10 +615,10 @@ TEST("my test that takes long time", "[nightly]") { /* ... */ }
 ```
 
 ### Weekly tests
-Weekly tests are disabled by default. The `--test_weekly` option enables tests
+Weekly tests are disabled by default. `--test_tier=weekly` enables tests
 marked with `[weekly]` or `[nightly]` tags. **Weekly tests include nightly.**
 ```sh
-bazel test --test_weekly //cpp/oneapi/dal:tests
+bazel test --test_tier=weekly //cpp/oneapi/dal:tests
 ```
 
 Mark weekly test cases with `[weekly]` tag:
@@ -640,10 +628,10 @@ TEST("my test that takes very long time", "[weekly]") { /* ... */ }
 
 ### Tests for public interface
 Sometimes it is necessary to build and run only part of tests responsible for
-public interface testing, for example, to test backward compatibility. There is
-the `host-public` config designed for that use case.
+public interface testing, for example, to test backward compatibility. Filter
+the tests by their `public` tag:
 ```sh
-bazel test --config=host-public //cpp/oneapi/dal:tests
+bazel test --test_tag_filters=host,-private //cpp/oneapi/dal:tests
 ```
 
 Test is categorized to public or private using the `private` flag of the
@@ -1008,20 +996,18 @@ nightly for this one check.
 
 ## Cross-compiling to ARM/RISC-V
 
-AArch64 and RISC-V64 are only supported with the `ref` backend (`--backend_config=ref`),
-matching the Makefile's `PLAT=lnxarm`/`PLAT=lnxriscv64`. Both ship a single fixed
-ISA variant (SVE / RVGC) — there is no runtime CPU dispatch like on x86.
+AArch64 and RISC-V64 are only supported with the `ref` backend, which is the
+default `--backend_config` for them, matching the Makefile's `PLAT=lnxarm`/`PLAT=lnxriscv64`.
+Both ship a single fixed ISA variant (SVE / RVGC) — there is no runtime CPU dispatch like on x86.
 
 ```sh
 # AArch64
 CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ \
-  bazel build --platforms=@config//:linux_aarch64 --backend_config=ref \
-  //cpp/daal:core_dynamic
+  bazel build --platforms=@config//:linux_aarch64 //cpp/daal:core_dynamic
 
 # RISC-V64
 CC=riscv64-linux-gnu-gcc CXX=riscv64-linux-gnu-g++ \
-  bazel build --platforms=@config//:linux_riscv64 --backend_config=ref \
-  //cpp/daal:core_dynamic
+  bazel build --platforms=@config//:linux_riscv64 //cpp/daal:core_dynamic
 ```
 
 `OPENBLASROOT` must point at an OpenBLAS install built for the target arch (see
@@ -1061,7 +1047,7 @@ covers it. CI covers the native ARM64 path only.
 ```bat
 rem From a Developer Command Prompt for arm64 (clang-cl uses the MSVC headers,
 rem libraries and CRT that vcvarsall exports), with %ProgramFiles%\LLVM\bin on PATH
-bazel build --platforms=@config//:windows_arm64 --backend_config=ref ^
+bazel build --platforms=@config//:windows_arm64 ^
   //cpp/daal:core_dynamic //cpp/oneapi/dal:dynamic
 ```
 

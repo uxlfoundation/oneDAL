@@ -352,7 +352,7 @@ jobs:
 
       - name: bazel build core_dynamic
         run: |
-          bazel build --platforms=@config//:linux_aarch64 --backend_config=ref \
+          bazel build --platforms=@config//:linux_aarch64 \
             --rng_backend=${{ matrix.rng }} \
             //cpp/daal:core_dynamic //cpp/oneapi/dal:dynamic
 
@@ -404,7 +404,7 @@ jobs:
               -//examples/daal/cpp:df_reg_traverse_model_host
             )
           fi
-          bazel test --platforms=@config//:linux_aarch64 --backend_config=ref \
+          bazel test --platforms=@config//:linux_aarch64 \
             --rng_backend=${{ matrix.rng }} \
             --test_output=errors \
             -- //examples/daal/cpp:all "${excludes[@]}"
@@ -427,7 +427,7 @@ jobs:
               -//examples/oneapi/cpp:connected_components_batch_host
             )
           fi
-          bazel test --platforms=@config//:linux_aarch64 --backend_config=ref \
+          bazel test --platforms=@config//:linux_aarch64 \
             --rng_backend=${{ matrix.rng }} \
             --test_output=errors \
             -- //examples/oneapi/cpp:all ${excludes[@]+"${excludes[@]}"}
@@ -440,7 +440,7 @@ jobs:
       - name: bazel build release metadata
         run: |
           set -euo pipefail
-          bazel build --platforms=@config//:linux_aarch64 --backend_config=ref \
+          bazel build --platforms=@config//:linux_aarch64 \
             --rng_backend=${{ matrix.rng }} \
             //:release_pkgconfig_dynamic_threading_host //:release_cmake_config
           grep -qx 'libdir=${exec_prefix}/lib/arm' \

@@ -444,11 +444,9 @@ def _test_external_datasets_args(framework):
 def _test_filter_args(framework):
     if framework == "catch2":
         return _select({
-            "@config//:test_nightly_enabled": ["~[weekly]"],
-            "@config//:test_weekly_enabled": [],
-            "//conditions:default": [
-                "~[nightly]", "~[weekly]",
-            ],
+            "@config//:test_tier_nightly": ["~[weekly]"],
+            "@config//:test_tier_weekly": [],
+            "//conditions:default": ["~[nightly]", "~[weekly]"],
         })
     return []
 

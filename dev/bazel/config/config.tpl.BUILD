@@ -37,9 +37,10 @@ version_info(
     binary_minor = "%{version_binary_minor}",
 )
 
+# mkl on x86-64; the other arches build with the ref backend, as Make's BACKEND_CONFIG does.
 config_flag(
     name = "backend_config",
-    build_setting_default = "mkl",
+    build_setting_default = "%{backend_config_default}",
     allowed_build_setting_values = [
         "ref",
         "mkl",
@@ -231,28 +232,15 @@ config_setting(
     },
 )
 
-config_bool_flag(
-    name = "test_nightly",
-    build_setting_default = False,
-)
-
-config_setting(
-    name = "test_nightly_enabled",
-    flag_values  = {
-        ":test_nightly": "True",
-    },
-)
-
-config_bool_flag(
-    name = "test_weekly",
-    build_setting_default = False,
-)
-
-config_setting(
-    name = "test_weekly_enabled",
-    flag_values  = {
-        ":test_weekly": "True",
-    },
+# Catch2 cases tagged [nightly] run from the nightly tier on, [weekly] ones in the weekly tier.
+config_flag(
+    name = "test_tier",
+    build_setting_default = "default",
+    allowed_build_setting_values = [
+        "default",
+        "nightly",
+        "weekly",
+    ],
 )
 
 config_bool_flag(

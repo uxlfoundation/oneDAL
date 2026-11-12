@@ -347,7 +347,7 @@ jobs:
           rem `mathbackend_thread`, so it is listed explicitly: without it the
           rem lane would not exercise the new Windows OpenBLAS static archive
           rem at all.
-          bazel build --platforms=@config//:windows_arm64 --backend_config=ref ^
+          bazel build --platforms=@config//:windows_arm64 ^
             //cpp/daal:core_dynamic //cpp/daal:thread_dynamic //cpp/oneapi/dal:dynamic
 
       # A successful link is not proof of the target arch: confirm the PE
@@ -395,8 +395,8 @@ jobs:
         run: |
           CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" arm64
           set PATH=%PATH%;C:\msys64\usr\bin
-          bazel test --platforms=@config//:windows_arm64 --backend_config=ref ^
-            --test_link_mode=dev --enable_runfiles --test_output=errors ^
+          bazel test --platforms=@config//:windows_arm64 ^
+            --enable_runfiles --test_output=errors ^
             //examples/oneapi/cpp:kmeans_lloyd_dense_batch_host
 
       - name: Trim the Bazel disk cache
@@ -484,7 +484,7 @@ jobs:
           if errorlevel 1 exit /b 1
           rem A short output root keeps object paths under MAX_PATH, as in the
           rem Azure Bazel lane (.ci/pipeline/ci.yml, BAZEL_OUTPUT_USER_ROOT).
-          bazel --output_user_root=C:\b test --cpu=avx2 --test_link_mode=dev --enable_runfiles --test_output=errors ^
+          bazel --output_user_root=C:\b test --cpu=avx2 --enable_runfiles --test_output=errors ^
             //examples/oneapi/cpp:kmeans_lloyd_dense_batch_host
 
   # GitHub Actions twin of Azure's `WindowsMakeVC`. `VS_VER` stays unset, so build.bat and

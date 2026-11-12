@@ -1,12 +1,9 @@
-build -c opt \
-      --incompatible_enable_cc_toolchain_resolution \
-      --incompatible_require_linker_input_cc_api
+build -c opt
 
 build --flag_alias=backend_config=@config//:backend_config
 build --flag_alias=test_link_mode=@config//:test_link_mode
 build --flag_alias=test_external_datasets=@config//:test_external_datasets
-build --flag_alias=test_nightly=@config//:test_nightly
-build --flag_alias=test_weekly=@config//:test_weekly
+build --flag_alias=test_tier=@config//:test_tier
 build --flag_alias=test_disable_fp64=@config//:test_disable_fp64
 build --flag_alias=release_dpc=@config//:release_dpc
 build --flag_alias=device=@config//:device
@@ -46,26 +43,13 @@ test --test_env=DAAL_DATASETS
 
 test --test_timeout=900
 
-build:public \
-    --build_tag_filters="-private"
-
-test:public \
-    --test_tag_filters="-private"
-
-
-build:private \
-    --build_tag_filters="-public"
-
-test:private \
-    --test_tag_filters="-public"
-
-
+# Test selection by tag: `host` or `dpc` targets; add `-private` or `-public` to the filter to
+# narrow further, e.g. `bazel test --test_tag_filters=host,-private //cpp/oneapi/dal:tests`.
 build:host \
     --build_tag_filters="host"
 
 test:host \
     --test_tag_filters="host"
-
 
 # --release_dpc=true makes a missing icpx a build error instead of skipping every test.
 build:dpc \
@@ -74,37 +58,6 @@ build:dpc \
 
 test:dpc \
     --test_tag_filters="dpc"
-
-
-build:host-public \
-    --build_tag_filters="host,-private"
-
-test:host-public \
-    --test_tag_filters="host,-private"
-
-
-build:host-private \
-    --build_tag_filters="host,-public"
-
-test:host-private \
-    --test_tag_filters="host,-public"
-
-
-build:dpc-public \
-    --build_tag_filters="dpc,-private" \
-    --release_dpc=true
-
-test:dpc-public \
-    --test_tag_filters="dpc,-private"
-
-
-build:dpc-private \
-    --build_tag_filters="dpc,-public" \
-    --release_dpc=true
-
-test:dpc-private \
-    --test_tag_filters="dpc,-public"
-
 
 # //:release builds every ISA unless --cpu is set and adds the DPC++ libraries when icpx is found.
 build:release-dpc \
@@ -134,64 +87,40 @@ build:dbg-symbols \
 
 
 # Make: REQSAN=address. Combine with --config=dbg.
+# Every sanitizer keeps frame pointers and debug symbols.
+build:sanitize \
+    --copt=-fno-omit-frame-pointer \
+    --config=dbg-symbols
 build:asan \
+    --config=sanitize \
     --copt=-fsanitize=address \
-    --copt=-fno-omit-frame-pointer \
-    --linkopt=-fsanitize=address \
-    --config=dbg-symbols
-
-# Make: REQSAN=static.
+    --linkopt=-fsanitize=address
 build:asan-static \
-    --copt=-fsanitize=address \
-    --copt=-fno-omit-frame-pointer \
-    --linkopt=-fsanitize=address \
-    --linkopt=-static-libasan \
-    --config=dbg-symbols
-
-
-# Make: REQSAN=leak. Linux non-DPC++ targets only.
+    --config=asan \
+    --linkopt=-static-libasan
 build:lsan \
+    --config=sanitize \
     --copt=-fsanitize=leak \
-    --copt=-fno-omit-frame-pointer \
-    --linkopt=-fsanitize=leak \
-    --config=dbg-symbols
-
-
-# Make: REQSAN=thread.
+    --linkopt=-fsanitize=leak
 build:tsan \
+    --config=sanitize \
     --copt=-fsanitize=thread \
-    --copt=-fno-omit-frame-pointer \
-    --linkopt=-fsanitize=thread \
-    --config=dbg-symbols
-
-
-# Make: REQSAN=undefined.
+    --linkopt=-fsanitize=thread
 build:ubsan \
+    --config=sanitize \
     --copt=-fsanitize=undefined \
-    --copt=-fno-omit-frame-pointer \
-    --linkopt=-fsanitize=undefined \
-    --config=dbg-symbols
-
-
-# Needs clang and lld; GCC has no MemorySanitizer.
+    --linkopt=-fsanitize=undefined
 build:msan \
+    --config=sanitize \
     --copt=-fsanitize=memory \
     --copt=-fsanitize-memory-track-origins \
-    --copt=-fno-omit-frame-pointer \
     --linkopt=-fsanitize=memory \
-    --linkopt=-fuse-ld=lld \
-    --config=dbg-symbols
-
-# Needs clang; GCC and icpx have no TypeSanitizer.
+    --linkopt=-fuse-ld=lld
 build:type \
+    --config=sanitize \
     --copt=-fsanitize=type \
     --copt=-fsanitize-recover=all \
-    --copt=-fno-omit-frame-pointer \
     --linkopt=-fsanitize=type \
-    --linkopt=-fuse-ld=lld \
-    --config=dbg-symbols
+    --linkopt=-fuse-ld=lld
 
-# On Windows, ONEDAL_WIN_COMPILER=cl (env or --repo_env) selects the rules_cc MSVC toolchain instead of icx.
-
-# Machine-specific settings such as --jobs, and extra --copt/--linkopt (Make COPT); git-ignored.
 try-import %workspace%/user.bazelrc

@@ -349,6 +349,7 @@ def _declare_onedal_config_impl(repo_ctx):
         substitutions = {
             "%{auto_cpu}":              auto_cpu,
             "%{arch}":                  target_arch,
+            "%{backend_config_default}": "mkl" if target_arch == "intel64" else "ref",
             # On Windows only the icx toolchain has a DPC++ driver.
             "%{dpc_compiler_found}":    str(win_compiler_id(repo_ctx, target_arch) == "icx"
                                             if os_id == "win" else is_dpc_compiler_found(repo_ctx, os_id)),
