@@ -78,7 +78,6 @@ def generate_modulefile(name, out = "modulefiles/dal", **kwargs):
 # --- CMake package config ---
 
 def _generate_cmake_config_impl(ctx):
-    vi = ctx.attr._version_info[VersionInfo]
     out = ctx.actions.declare_file(ctx.attr.out)
     ctx.actions.expand_template(
         template = ctx.file.template,
@@ -106,13 +105,6 @@ _generate_cmake_config = rule(
         ),
         "out": attr.string(mandatory = True),
         "parameters_lib": attr.bool(default = True),
-        "_version_info": attr.label(
-            default = "@config//:version",
-            providers = [VersionInfo],
-        ),
-        "_windows_constraint": attr.label(
-            default = "@platforms//os:windows",
-        ),
     } | RELEASE_ARCH_ATTRS,
 )
 
@@ -225,7 +217,7 @@ _PKGCONFIG_LICENSE_HEADER = """#================================================
 """
 
 def _generate_pkgconfig_impl(ctx):
-    """Generate pkg-config files matching deploy/pkg-config/pkg-config.cpp."""
+    """Write a pkg-config file with the content of deploy/pkg-config/pkg-config.cpp."""
     vi = ctx.attr._version_info[VersionInfo]
     out = ctx.actions.declare_file(ctx.attr.out)
     is_windows = ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo])
@@ -309,11 +301,6 @@ Cflags: -std=c++17 -Wno-deprecated-declarations -I${{includedir}}
 _generate_pkgconfig = rule(
     implementation = _generate_pkgconfig_impl,
     attrs = {
-        "template": attr.label(
-            allow_single_file = True,
-            mandatory = True,
-            doc = "pkg-config.cpp template file.",
-        ),
         "out": attr.string(
             mandatory = True,
             doc = "Output path relative to the package.",
@@ -327,9 +314,6 @@ _generate_pkgconfig = rule(
             default = "@config//:version",
             providers = [VersionInfo],
         ),
-        "_windows_constraint": attr.label(
-            default = "@platforms//os:windows",
-        ),
         "_msvc_runtime": attr.label(
             default = "@config//:msvc_runtime",
             providers = [ConfigFlagInfo],
@@ -338,10 +322,8 @@ _generate_pkgconfig = rule(
 )
 
 def generate_pkgconfig(name, out = "lib/pkgconfig/onedal.pc", static = False, **kwargs):
-    """Generate pkg-config .pc file from deploy/pkg-config/pkg-config.cpp."""
     _generate_pkgconfig(
         name = name,
-        template = "@onedal//deploy/pkg-config:pkg-config.cpp",
         out = out,
         static = static,
         **kwargs

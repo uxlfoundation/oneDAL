@@ -19,7 +19,6 @@ load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@onedal//dev/bazel:utils.bzl",
     "utils",
     "paths",
-    "sets",
 )
 load("@onedal//dev/bazel/cc:common.bzl",
     onedal_cc_common = "common",
@@ -132,14 +131,6 @@ def _normalize_includes(ctx, includes, extra=[]):
     normalized_includes = utils.unique(normalized_includes + extra)
     return normalized_includes
 
-def _filter_out_includes(includes, filter):
-    filter_set = sets.make(filter)
-    filtered = []
-    for include in includes:
-        if not sets.contains(filter_set, include):
-            filtered.append(include)
-    return filtered
-
 def _patch_includes(ctx, compilation_context, includes=[],
                     system_includes=[], quote_includes=[], drop_defines=[]):
     system_includes = _normalize_includes(
@@ -147,14 +138,10 @@ def _patch_includes(ctx, compilation_context, includes=[],
         system_includes,
         compilation_context.system_includes.to_list(),
     )
-    includes = _filter_out_includes(
-        _normalize_includes(ctx, includes, compilation_context.includes.to_list()),
-        system_includes,
-    )
-    quote_includes = _filter_out_includes(
-        _normalize_includes(ctx, quote_includes, compilation_context.quote_includes.to_list()),
-        system_includes,
-    )
+    includes = [x for x in _normalize_includes(ctx, includes, compilation_context.includes.to_list())
+                if x not in system_includes]
+    quote_includes = [x for x in _normalize_includes(ctx, quote_includes, compilation_context.quote_includes.to_list())
+                      if x not in system_includes]
     return cc_common.create_compilation_context(
         headers = compilation_context.headers,
         system_includes = depset(system_includes),

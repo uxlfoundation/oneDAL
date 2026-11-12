@@ -4,7 +4,6 @@ build -c opt \
 
 build --flag_alias=backend_config=@config//:backend_config
 build --flag_alias=test_link_mode=@config//:test_link_mode
-build --flag_alias=test_thread_mode=@config//:test_thread_mode
 build --flag_alias=test_external_datasets=@config//:test_external_datasets
 build --flag_alias=test_nightly=@config//:test_nightly
 build --flag_alias=test_weekly=@config//:test_weekly

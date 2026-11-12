@@ -179,14 +179,6 @@ config_flag(
 )
 
 config_flag(
-    name = "test_thread_mode",
-    build_setting_default = "par",
-    allowed_build_setting_values = [
-        "par",
-    ],
-)
-
-config_flag(
     name = "device",
     build_setting_default = "auto",
     allowed_build_setting_values = [
@@ -336,7 +328,6 @@ dump_config_info(
     flags = [
         ":build_parameters_lib",
         ":test_link_mode",
-        ":test_thread_mode",
         ":code_coverage",
         ":msvc_runtime",
     ],

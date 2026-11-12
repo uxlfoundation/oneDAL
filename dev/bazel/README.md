@@ -384,11 +384,6 @@ The most used Bazel commands are `build`, `test` and `run`.
    bazel test --test_link_mode=release_dynamic //cpp/oneapi/dal:tests
    ```
 
-   Example:
-   ```sh
-   bazel test --test_thread_mode=par //cpp/oneapi/dal:tests
-   ```
-
 - `--test_disable_fp64` A switch that disables tests for double precision (`fp64`).
 
   Example:

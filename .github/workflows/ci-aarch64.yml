@@ -406,8 +406,6 @@ jobs:
           fi
           bazel test --platforms=@config//:linux_aarch64 --backend_config=ref \
             --rng_backend=${{ matrix.rng }} \
-            --test_link_mode=dev \
-            --test_thread_mode=par \
             --test_output=errors \
             -- //examples/daal/cpp:all "${excludes[@]}"
 
@@ -431,8 +429,6 @@ jobs:
           fi
           bazel test --platforms=@config//:linux_aarch64 --backend_config=ref \
             --rng_backend=${{ matrix.rng }} \
-            --test_link_mode=dev \
-            --test_thread_mode=par \
             --test_output=errors \
             -- //examples/oneapi/cpp:all ${excludes[@]+"${excludes[@]}"}
 

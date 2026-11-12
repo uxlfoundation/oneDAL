@@ -360,38 +360,17 @@ daal_dynamic_lib(
 
 daal_module(
     name = "threading_static",
-    deps = select({
-        "@config//:test_thread_mode_par": [
-            "@onedal//cpp/daal:thread_static",
-        ]
-    }),
-)
-
-daal_module(
-    name = "threading_dynamic",
-    deps = select({
-        "@config//:test_thread_mode_par": [
-            "@onedal//cpp/daal:thread_dynamic",
-        ]
-    }),
+    deps = ["@onedal//cpp/daal:thread_static"],
 )
 
 daal_module(
     name = "threading_release_static",
-    deps = select({
-        "@config//:test_thread_mode_par": [
-            "@onedal_release//:thread_static",
-        ]
-    }),
+    deps = ["@onedal_release//:thread_static"],
 )
 
 daal_module(
     name = "threading_release_dynamic",
-    deps = select({
-        "@config//:test_thread_mode_par": [
-            "@onedal_release//:thread_dynamic",
-        ]
-    }),
+    deps = ["@onedal_release//:thread_dynamic"],
 )
 
 filegroup(

@@ -166,7 +166,6 @@ cpu_info = rule(
         "auto_cpu": attr.string(mandatory=True),
         # From detect_target_arch, as this rule's configuration cannot see `--platforms`.
         "arch": attr.string(mandatory=True),
-        "verbose": attr.label(),
     },
 )
 

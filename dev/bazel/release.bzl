@@ -228,11 +228,7 @@ def _copy_lib(ctx, prefix, version_info):
         # macOS .dylib files are not versioned yet.
         is_shared_lib = lib.extension == "so"
 
-        if is_shared_lib and not version_info:
-            fail(("Shared library '{}' requires VersionInfo for SONAME versioning, " +
-                 "but no version_info was provided to _copy_lib.").format(lib.basename))
-
-        if is_shared_lib and version_info:
+        if is_shared_lib:
             binary_major = version_info.binary_major
             binary_minor = version_info.binary_minor
 
@@ -359,7 +355,7 @@ def _copy_data(ctx, prefix):
 
 def _copy_to_release_impl(ctx):
     prefix = ctx.attr.name + "/daal/latest"
-    version_info = ctx.attr._version_info[VersionInfo] if ctx.attr._version_info else None
+    version_info = ctx.attr._version_info[VersionInfo]
     files = []
     files += _copy_include(ctx, prefix, version_info)
     files += _copy_lib(ctx, prefix, version_info)
@@ -419,12 +415,6 @@ _release = rule(
         "_build_date": attr.label(
             default = "@onedal//dev/bazel:build_date",
             providers = [BuildDateInfo],
-        ),
-        "_windows_constraint": attr.label(
-            default = "@platforms//os:windows",
-        ),
-        "_allowlist_function_transition": attr.label(
-            default = "@bazel_tools//tools/allowlists/function_transition_allowlist",
         ),
     } | RELEASE_ARCH_ATTRS,
 )
@@ -571,12 +561,6 @@ _release_all = rule(
             doc = "Release tree built against the debug MSVC runtime. " +
                   "Only its lib/<arch> and redist/<arch> contents are " +
                   "used; ignored entirely on non-Windows platforms.",
-        ),
-        "_windows_constraint": attr.label(
-            default = "@platforms//os:windows",
-        ),
-        "_allowlist_function_transition": attr.label(
-            default = "@bazel_tools//tools/allowlists/function_transition_allowlist",
         ),
     } | RELEASE_ARCH_ATTRS,
 )
