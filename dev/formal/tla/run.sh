@@ -15,6 +15,7 @@
 
 # Usage: run.sh NAME L B 'MUTSET'   (needs java and tla2tools.jar; TLA2TOOLS env var)
 set -euo pipefail
+jar=$(realpath "${TLA2TOOLS:?set TLA2TOOLS to tla2tools.jar}")
 cd "$(dirname "$0")"
 name=$1; l=$2; b=$3; mut=$4
 mkdir -p out
@@ -26,10 +27,12 @@ SPECIFICATION Spec
 INVARIANTS NoUseAfterFree NoReadBeforeWrite NoStaleLocalRead ResultCoversAllBlocks ResultReadAfterK2
 PROPERTY Termination
 CFG
-java -XX:+UseParallelGC -cp "${TLA2TOOLS:?}" tlc2.TLC -workers 8 -config "out/$name.cfg" \
+java -XX:+UseParallelGC -cp "$jar" tlc2.TLC -workers 8 -config "out/$name.cfg" \
   -metadir "out/$name.states" MergeBlocks.tla > "out/$name.log" 2>&1 && rc=0 || rc=$?
 # A mutation run is expected to stop with a violation (non-zero exit); print the
 # verdict either way and return TLC's exit status.
-grep -E "Model checking completed|violated|Error:|distinct states found|Deadlock" "out/$name.log" | head -4
+if ! grep -E "Model checking completed|violated|Error:|distinct states found|Deadlock" "out/$name.log" | head -4; then
+  echo "no TLC verdict line in out/$name.log"
+fi
 echo "tlc exit status: $rc"
 exit "$rc"

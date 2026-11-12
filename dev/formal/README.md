@@ -50,7 +50,7 @@ finished the previous round), `ResultCoversAllBlocks` (item 0 merged every
 block exactly once), `ResultReadAfterK2`, `Termination` (liveness, and TLC
 deadlock check: barriers never block forever).
 
-### Results (`tla/run.sh NAME L B MUT`)
+### Results (`TLA2TOOLS=path/to/tla2tools.jar tla/run.sh NAME L B MUT`)
 
 | Run | L | B | Mutation | Result | Distinct states | Time |
 | --- | --- | --- | --- | --- | --- | --- |
