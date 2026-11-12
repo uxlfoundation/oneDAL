@@ -16,6 +16,8 @@ load("@onedal//dev/bazel:scripts.bzl",
     "generate_vars_sh",
 )
 
+package(default_visibility = ["//visibility:public"])
+
 config_setting(
     name = "windows",
     constraint_values = ["@platforms//os:windows"],

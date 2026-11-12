@@ -888,13 +888,12 @@ pkg-config files name `onedal_parameters` only in the separate layout, and the
 prebuilt-release repository rule decides which parameter libraries to expose by
 looking for them in the package rather than by reading its metadata.
 
-CI uses `dev/bazel/tests/parameters_layout_test.sh` for analysis-only checks of
-configured release outputs, host/DPC dependency separation, folded-target
-rejection, and Windows value validation. It does not build DPC binaries.
-`dev/release_tests/parameters_layout_consumer_test.sh` separately builds and
-runs host static and dynamic consumers through packaged CMake, pkg-config, and
-Bazel metadata for the folded layout. Both take `bazel` from `PATH`; set `BAZEL`
-to run them against a specific binary, such as a downloaded `bazelisk`.
+`bazel test //dev/bazel/tests:all` runs the analysis-time checks of
+`dev/bazel/tests/analysis.bzl`: which libraries each layout stages, that the host
+and DPC++ libraries embed only their own parameter modules, and that Windows
+rejects `yes`. `dev/release_tests/parameters_layout_consumer_test.sh` separately
+builds and runs host static and dynamic consumers through packaged CMake,
+pkg-config, and Bazel metadata for the folded layout.
 
 ## Make → Bazel Flag Reference
 
@@ -977,22 +976,17 @@ once a `.gcda` sits beside its `.gcno`. This is independent of Bazel's built-in
 `--collect_code_coverage`, which uses its own toolchain feature and is unchanged
 by this flag.
 
-`dev/bazel/tests/code_coverage_test.sh` is the smoke for both halves, selected
-by `--dpc`.
-
-The `LinuxBazelCoverage` CI job runs the default host mode on every pull request: it
-builds `//cpp/daal:core_static` and `//cpp/daal:thread_static` with
-`--code_coverage=true`, inspects `bazel aquery` output to confirm DAAL core
+`//dev/bazel/tests:coverage_tests` checks, at analysis time, that the DAAL core
 compile actions carry `-coverage`/`-DGCOV_BUILD` while the separately built
-threading module does not, and asserts the `.gcno` notes files survive into the
-output tree.
+threading module gets `-coverage` only; `:coverage_dpc_link_test` checks the
+`-Xscoverage` option on the released `//cpp/oneapi/dal:dynamic_dpc` link. Both
+need the icx toolchain, so they are tagged `manual`.
 
-`--dpc` verifies the DPC++ link-specific `-Xscoverage` option instead: it builds
-`//cpp/oneapi/dal/table:table_dpc` and, through analysis only, checks the
-released `//cpp/oneapi/dal:dynamic_dpc` link as well. The same job runs it
-only on a manually queued pipeline. There is deliberately no cron for it: an
-Azure schedule queues the whole pipeline, which would re-run every other job
-nightly for this one check.
+The `LinuxBazelCoverage` CI job runs the host checks on every pull request and
+then builds `//cpp/daal:core_static` with `--code_coverage=true` to see the
+`.gcno` notes files in the output tree. The DPC++ check runs only on a manually
+queued pipeline. There is deliberately no cron for it: an Azure schedule queues
+the whole pipeline, which would re-run every other job nightly for this one check.
 
 ## Cross-compiling to ARM/RISC-V
 
