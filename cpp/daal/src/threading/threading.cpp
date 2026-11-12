@@ -23,7 +23,6 @@
 
 #include "src/threading/threading.h"
 #include "services/daal_memory.h"
-#include "src/algorithms/service_qsort.h"
 
 #define TBB_PREVIEW_GLOBAL_CONTROL 1
 #define TBB_PREVIEW_TASK_ARENA     1
@@ -332,7 +331,7 @@ DAAL_EXPORT void _daal_parallel_sort_template(F * begin_p, F * end_p)
     }
     else
     {
-        daal::algorithms::internal::qSort<F>(end_p - begin_p, begin_p);
+        std::sort(begin_p, end_p);
     }
 }
 
