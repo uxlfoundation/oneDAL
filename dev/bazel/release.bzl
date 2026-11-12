@@ -60,6 +60,9 @@ def _collect_default_files(deps):
             files += dep[DefaultInfo].files.to_list()
     return utils.unique_files(files)
 
+# Libraries are copied by a process; the heap would hold a 200 MB archive otherwise.
+_BINARY_EXTENSIONS = ["a", "so", "lib", "dll", "exe", "pdb"]
+
 def _copy(ctx, src_file, dst_path):
     dst_file = ctx.actions.declare_file(dst_path)
     if target(ctx).is_windows:
@@ -83,16 +86,19 @@ def _copy(ctx, src_file, dst_path):
     )
     return dst_file
 
-def _copy_crlf(ctx, src_file, dst_path):
-    """Copy `src_file` to `dst_path` with CRLF line endings, as Make's `.release.x` sed.
+def _stage(ctx, src_file, dst_path, crlf = False):
+    """Copy a text file into the release tree without spawning a process.
 
-    The substitutions apply in order, so a CRLF already in the file is not doubled.
+    `crlf` converts to CRLF line endings, as Make's `.release.x` sed; the substitutions apply in
+    order, so a CRLF already in the file is not doubled. Libraries go through `_copy`.
     """
+    if src_file.extension in _BINARY_EXTENSIONS:
+        return _copy(ctx, src_file, dst_path)
     dst_file = ctx.actions.declare_file(dst_path)
     ctx.actions.expand_template(
         template = src_file,
         output = dst_file,
-        substitutions = {"\r\n": "\n", "\n": "\r\n"},
+        substitutions = {"\r\n": "\n", "\n": "\r\n"} if crlf else {},
     )
     return dst_file
 
@@ -167,7 +173,7 @@ def _copy_include(ctx, prefix, version_info):
         if header.short_path == "cpp/daal/include/services/library_version_info.h":
             dst_file = _copy_version_header(ctx, header, dst_path, version_info, is_windows)
         else:
-            dst_file = _copy(ctx, header, dst_path)
+            dst_file = _stage(ctx, header, dst_path)
         dst_files.append(dst_file)
     return dst_files
 
@@ -276,43 +282,22 @@ def _is_crlf_staged(dst_subpath):
     return False
 
 def _copy_extra_files(ctx, prefix):
-    """Copy each `extra_files` entry to its `extra_files_dst` path under the release root."""
-    if len(ctx.attr.extra_files) != len(ctx.attr.extra_files_dst):
-        fail("extra_files and extra_files_dst must have the same length: got {} vs {}".format(
-            len(ctx.attr.extra_files), len(ctx.attr.extra_files_dst)))
-
+    """Stage each `extra_files` target under its destination path in the release root."""
     is_windows = target(ctx).is_windows
-
     dst_files = []
-    for i, dep in enumerate(ctx.attr.extra_files):
-        dst_subpath = ctx.attr.extra_files_win_dst[i] if is_windows and ctx.attr.extra_files_win_dst[i] != None else ctx.attr.extra_files_dst[i]
-        if not dst_subpath:
-            continue
+    for dst_subpath, dep in ctx.attr.extra_files.items():
         srcs = dep[DefaultInfo].files.to_list()
         if len(srcs) != 1:
             fail("extra_files entry '{}' must produce exactly one file, got {}".format(
                 dep.label, len(srcs)))
-        src = srcs[0]
-        dst_path = paths.join(prefix, dst_subpath)
-        if is_windows and _is_crlf_staged(dst_subpath):
-            dst_files.append(_copy_crlf(ctx, src, dst_path))
-        else:
-            dst_files.append(_copy(ctx, src, dst_path))
+        dst_files.append(_stage(ctx, srcs[0], paths.join(prefix, dst_subpath),
+                                crlf = is_windows and _is_crlf_staged(dst_subpath)))
     return dst_files
 
 def _copy_dep_runtime(ctx, release_root):
     """Stage third-party runtimes (TBB) next to `daal/latest`; paths are relative to its parent."""
-    if len(ctx.attr.dep_runtime) != len(ctx.attr.dep_runtime_dst):
-        fail("dep_runtime and dep_runtime_dst must have the same length: got {} vs {}".format(
-            len(ctx.attr.dep_runtime), len(ctx.attr.dep_runtime_dst)))
-
-    is_windows = target(ctx).is_windows
-
     dst_files = []
-    for i, dep in enumerate(ctx.attr.dep_runtime):
-        dst_dir = ctx.attr.dep_runtime_win_dst[i] if is_windows else ctx.attr.dep_runtime_dst[i]
-        if not dst_dir:
-            continue
+    for dst_dir, dep in ctx.attr.dep_runtime.items():
         if dst_dir == "daal" or dst_dir.startswith("daal/"):
             fail(("dep_runtime destination '{}' of {} would write into the " +
                   "daal/latest tree, which the release rule stages itself").format(
@@ -337,11 +322,8 @@ def _copy_data(ctx, prefix):
         for src in srcs:
             if src.short_path.startswith("../"):
                 continue
-            dst_path = paths.join(prefix, src.short_path)
-            if is_windows and _is_crlf_staged(src.short_path):
-                dst_files.append(_copy_crlf(ctx, src, dst_path))
-            else:
-                dst_files.append(_copy(ctx, src, dst_path))
+            dst_files.append(_stage(ctx, src, paths.join(prefix, src.short_path),
+                                    crlf = is_windows and _is_crlf_staged(src.short_path)))
     return dst_files
 
 def _copy_to_release_impl(ctx):
@@ -376,28 +358,11 @@ _release = rule(
         "include_skip_prefix": attr.string_list(),
         "lib": attr.label_list(allow_files=True, cfg=_release_cpu_all_transition),
         "data": attr.label_list(allow_files=True, cfg=_release_cpu_all_transition),
-        "extra_files": attr.label_list(
-            allow_files = False,
-            doc = "Additional generated files to include in release. Must be rule targets (not bare file labels). Must be paired 1:1 with extra_files_dst.",
+        "extra_files": attr.string_keyed_label_dict(
+            doc = "Destination path under the release root -> the rule target producing that one file.",
         ),
-        "extra_files_dst": attr.string_list(
-            doc = "Destination paths for extra_files, relative to the release root.",
-        ),
-        "extra_files_win_dst": attr.string_list(
-            doc = "Windows-specific destination paths for extra_files; empty skips the file on Windows.",
-        ),
-        "dep_runtime": attr.label_list(
-            allow_files = False,
-            doc = "Third-party runtime libraries staged next to `daal/latest`. " +
-                  "Must be rule targets (not bare file labels), like extra_files. " +
-                  "Must be paired 1:1 with dep_runtime_dst.",
-        ),
-        "dep_runtime_dst": attr.string_list(
-            doc = "Destination directory of each dep_runtime entry, relative to the release root.",
-        ),
-        "dep_runtime_win_dst": attr.string_list(
-            doc = "Windows-specific destination directory of each dep_runtime " +
-                  "entry; empty skips the entry on Windows.",
+        "dep_runtime": attr.string_keyed_label_dict(
+            doc = "Destination directory next to `daal/latest` -> the target whose files are staged there.",
         ),
         "_version_info": attr.label(
             default = "@config//:version",
@@ -504,7 +469,7 @@ def _copy_from_release_tree(ctx, dep, prefix, only_dirs = None, staged = None):
                             dst, dep.label, previous, src.short_path))
                     continue
                 staged[dst] = src.short_path
-        dst_files.append(_copy(ctx, src, dst))
+        dst_files.append(_stage(ctx, src, dst))
     return dst_files
 
 def _get_single_dep(deps, attr_name):
@@ -560,16 +525,16 @@ def release_all(name, release_target):
 def release_include(hdrs, skip_prefix="", add_prefix=""):
     return (hdrs, add_prefix, skip_prefix)
 
-def release(name, include, lib, extra_files = [], data = [], dep_runtime = []):
+def release(name, include, lib, extra_files = {}, data = [], dep_runtime = {}):
     """Assemble the oneDAL release directory tree.
 
     Args:
         name: target name and output directory prefix.
         include: release_include() entries.
         lib: library targets.
-        extra_files: release_extra_file() entries.
+        extra_files: destination path under the release root -> target producing that one file.
         data: filegroups copied with their directory structure.
-        dep_runtime: release_dep_runtime() entries, staged next to `daal/latest`.
+        dep_runtime: directory next to `daal/latest` -> target whose files are staged there.
     """
     rule_include = []
     rule_include_prefix = []
@@ -579,20 +544,6 @@ def release(name, include, lib, extra_files = [], data = [], dep_runtime = []):
             rule_include.append(dep)
             rule_include_prefix.append(prefix)
             rule_include_skip_prefix.append(skip_prefix)
-
-    rule_extra_files = []
-    rule_extra_files_dst = []
-    rule_extra_files_win_dst = []
-    for extra_file in extra_files:
-        if len(extra_file) == 2:
-            label, dst = extra_file
-            win_dst = dst
-        else:
-            label, dst, win_dst = extra_file
-        rule_extra_files.append(label)
-        rule_extra_files_dst.append(dst)
-        rule_extra_files_win_dst.append(win_dst)
-
     _release(
         name = name,
         include = rule_include,
@@ -600,30 +551,6 @@ def release(name, include, lib, extra_files = [], data = [], dep_runtime = []):
         include_skip_prefix = rule_include_skip_prefix,
         lib = lib,
         data = data,
-        extra_files = rule_extra_files,
-        extra_files_dst = rule_extra_files_dst,
-        extra_files_win_dst = rule_extra_files_win_dst,
-        dep_runtime = [entry[0] for entry in dep_runtime],
-        dep_runtime_dst = [entry[1] for entry in dep_runtime],
-        dep_runtime_win_dst = [entry[2] if len(entry) == 3 else entry[1] for entry in dep_runtime],
+        extra_files = extra_files,
+        dep_runtime = dep_runtime,
     )
-
-def release_extra_file(label, dst_path, windows_dst_path = None):
-    """Declare an extra file for release().
-
-    Args:
-        label: target producing the file.
-        dst_path: destination relative to the release root, e.g. `env/vars.sh`.
-        windows_dst_path: Windows destination; defaults to `dst_path`, "" skips the file.
-    """
-    return (label, dst_path, dst_path if windows_dst_path == None else windows_dst_path)
-
-def release_dep_runtime(label, dst_dir, windows_dst_dir = None):
-    """Declare a staged runtime dependency for release().
-
-    Args:
-        label: target producing the files.
-        dst_dir: destination relative to the directory holding `daal/latest`, e.g. `tbb/latest/lib`.
-        windows_dst_dir: Windows destination; defaults to `dst_dir`, "" skips the entry.
-    """
-    return (label, dst_dir, dst_dir if windows_dst_dir == None else windows_dst_dir)

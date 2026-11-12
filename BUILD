@@ -2,8 +2,6 @@ load("@onedal//dev/bazel:release.bzl",
     "release",
     "release_all",
     "release_include",
-    "release_extra_file",
-    "release_dep_runtime",
 )
 load("@onedal//dev/bazel/config:selects.bzl",
     "parameters_lib_enabled",
@@ -131,6 +129,15 @@ filegroup(
     ]),
 )
 
+# Staged on every OS; the per-OS files are added in the select below.
+_RELEASE_EXTRA_FILES = {
+    "lib/pkgconfig/dal-dynamic-threading-host.pc": ":release_pkgconfig_dynamic_threading_host",
+    "lib/pkgconfig/dal-static-threading-host.pc": ":release_pkgconfig_static_threading_host",
+    "config/config.txt": "//deploy/local:config_file",
+    "lib/cmake/oneDAL/oneDALConfig.cmake": ":release_cmake_config",
+    "lib/cmake/oneDAL/oneDALConfigVersion.cmake": ":release_cmake_config_version",
+}
+
 release(
     name = "release",
     include = [
@@ -184,28 +191,34 @@ release(
         ],
         "//conditions:default": [],
     }),
-    extra_files = [
-        release_extra_file(":release_vars_sh", "env/vars.sh", windows_dst_path = "env/vars.bat"),
-        release_extra_file(":release_pkgconfig_dynamic_threading_host", "lib/pkgconfig/dal-dynamic-threading-host.pc"),
-        release_extra_file(":release_pkgconfig_static_threading_host", "lib/pkgconfig/dal-static-threading-host.pc"),
-        release_extra_file("//deploy/local:config_file", "config/config.txt"),
-        release_extra_file(":release_modulefile_dal", "modulefiles/dal", windows_dst_path = ""),
-        release_extra_file(":release_mpi_daal_lst_linux", "samples/daal/cpp/mpi/daal.lst", windows_dst_path = ""),
-        release_extra_file(":release_mpi_makefile_linux", "samples/daal/cpp/mpi/makefile", windows_dst_path = ""),
-        release_extra_file(":release_cmake_config", "lib/cmake/oneDAL/oneDALConfig.cmake"),
-        release_extra_file(":release_cmake_config_version", "lib/cmake/oneDAL/oneDALConfigVersion.cmake"),
-        release_extra_file(":release_nuspec_devel", "nuspec/inteldal.devel.linux.nuspec", windows_dst_path = "nuspec/inteldal.devel.win-x64.nuspec"),
-        release_extra_file(":release_nuspec_redist", "nuspec/inteldal.redist.linux.nuspec", windows_dst_path = "nuspec/inteldal.redist.win-x64.nuspec"),
-        release_extra_file(":release_nuspec_static", "nuspec/inteldal.static.linux.nuspec", windows_dst_path = "nuspec/inteldal.static.win-x64.nuspec"),
-    ],
+    extra_files = select({
+        ":windows": _RELEASE_EXTRA_FILES | {
+            "env/vars.bat": ":release_vars_sh",
+            "nuspec/inteldal.devel.win-x64.nuspec": ":release_nuspec_devel",
+            "nuspec/inteldal.redist.win-x64.nuspec": ":release_nuspec_redist",
+            "nuspec/inteldal.static.win-x64.nuspec": ":release_nuspec_static",
+        },
+        "//conditions:default": _RELEASE_EXTRA_FILES | {
+            "env/vars.sh": ":release_vars_sh",
+            "modulefiles/dal": ":release_modulefile_dal",
+            "samples/daal/cpp/mpi/daal.lst": ":release_mpi_daal_lst_linux",
+            "samples/daal/cpp/mpi/makefile": ":release_mpi_makefile_linux",
+            "nuspec/inteldal.devel.linux.nuspec": ":release_nuspec_devel",
+            "nuspec/inteldal.redist.linux.nuspec": ":release_nuspec_redist",
+            "nuspec/inteldal.static.linux.nuspec": ":release_nuspec_static",
+        },
+    }),
     # libonedal_thread needs TBB at runtime, so TBB ships with the package as in Make.
     # On Windows the DLLs go under bin/vc_mt and the import libraries under lib/vc_mt.
-    dep_runtime = [
-        release_dep_runtime("@tbb//:tbb_runtime", "tbb/latest/lib",
-                            windows_dst_dir = "tbb/latest/bin/vc_mt"),
-        release_dep_runtime("@tbb//:tbb_import_libs", "",
-                            windows_dst_dir = "tbb/latest/lib/vc_mt"),
-    ],
+    dep_runtime = select({
+        ":windows": {
+            "tbb/latest/bin/vc_mt": "@tbb//:tbb_runtime",
+            "tbb/latest/lib/vc_mt": "@tbb//:tbb_import_libs",
+        },
+        "//conditions:default": {
+            "tbb/latest/lib": "@tbb//:tbb_runtime",
+        },
+    }),
 )
 
 # Both Windows CRT flavours in one tree, as two Make runs (MSVC_RUNTIME_VERSION=release
