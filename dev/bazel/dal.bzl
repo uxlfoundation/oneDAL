@@ -384,10 +384,12 @@ def _test_link_mode_deps(dal_deps, use_onedal_release_libs=True):
     })
 
 def _test_deps_on_daal():
-    # Modules name the DAAL kernels they use, so a test from sources links only those.
+    # Modules name the DAAL kernels they use, so a test from sources links only those; MSVC objects
+    # also reference LibraryVersionInfo through its exported virtual destructor.
     return _select({
         "@config//:test_link_mode_dev": [
             "@onedal//cpp/daal:threading_static",
+            "@onedal//cpp/daal:version_info",
         ],
         "@config//:test_link_mode_release_static": [
             "@onedal_release//:core_static",
