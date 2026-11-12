@@ -256,7 +256,7 @@ config_setting(
 )
 
 # Builds the DPC++ targets and puts the DPC++ libraries into //:release.
-# Defaults to whether icpx is in PATH.
+# Defaults to whether the toolchain has a DPC++ compiler: icpx in PATH on Linux, icx on Windows.
 config_bool_flag(
     name = "release_dpc",
     build_setting_default = %{dpc_compiler_found},

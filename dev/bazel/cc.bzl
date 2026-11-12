@@ -87,8 +87,9 @@ def _missing_dpc_compiler_inputs(ctx, feature_config):
             not cc_common.is_enabled(feature_configuration = feature_config, feature_name = "has_dpc_compiler")):
         return []
     message = ("{} needs the DPC++ compiler (icpx on Linux, icx on Windows; clang-cl has none), " +
-               "but the C++ toolchain was configured without it. Put it in PATH, or pass " +
-               "--release_dpc=false to skip the DPC++ targets.").format(ctx.label)
+               "but the C++ toolchain was configured without it. Put it in PATH and do not select " +
+               "another compiler through CC/CXX or ONEDAL_WIN_COMPILER, or pass --release_dpc=false " +
+               "to skip the DPC++ targets.").format(ctx.label)
     src = ctx.actions.declare_file(ctx.label.name + "_needs_dpc_compiler.c")
     ctx.actions.write(src, "#error \"{}\"\n".format(message.replace("\"", "'")))
     out = ctx.actions.declare_file(ctx.label.name + "_needs_dpc_compiler.i")
@@ -288,7 +289,7 @@ _cc_module = rule(
 )
 
 def cc_module(name, hdrs=[], deps=[], target_compatible_with=[], **kwargs):
-    # With --release_dpc=false, the default when icpx is not in PATH, skip
+    # With --release_dpc=false, the default when the toolchain has no DPC++ compiler, skip
     # DPC++ modules and everything that depends on them.
     if "dpc++" in kwargs.get("features", []):
         target_compatible_with = target_compatible_with + select({
