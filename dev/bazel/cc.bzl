@@ -217,6 +217,7 @@ def _cc_module_impl(ctx):
         tagged_linking_contexts = onedal_cc_common. \
             override_tags(tagged_linking_contexts, ctx.attr.lib_tag)
     if compilation_outputs.objects or compilation_outputs.pic_objects:
+        # Dependents link the objects, so the per-module shared library is never needed.
         linking_context, linking_out = cc_common.create_linking_context_from_compilation_outputs(
             name = ctx.label.name,
             actions = ctx.actions,
@@ -224,6 +225,7 @@ def _cc_module_impl(ctx):
             feature_configuration = feature_config,
             compilation_outputs = compilation_outputs,
             user_link_flags = coverage.link_flags,
+            disallow_dynamic_library = True,
         )
         # The module's coverage link flags would otherwise leak into every dependent link,
         # while executables and tests add their own.
@@ -505,7 +507,7 @@ cc_dynamic_lib = rule(
 
 def _cc_exec_impl(ctx):
     if not ctx.attr.deps:
-        return
+        fail("'{}' has no deps, so there is nothing to link".format(ctx.label))
     toolchain, feature_config = _init_cc_rule(ctx)
     coverage = _coverage_options(ctx, toolchain, feature_config)
     tagged_linking_contexts = onedal_cc_common.collect_tagged_linking_contexts(ctx.attr.deps)

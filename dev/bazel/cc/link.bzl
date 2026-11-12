@@ -266,12 +266,7 @@ def _dynamic(owner, name, actions, cc_toolchain,
         # On Windows the import library the link action declares (`targets_windows`).
         interface_lib = library_to_link.resolved_symlink_interface_library or library_to_link.interface_library
     if not dynamic_lib:
-        return utils.warn("'{}' dynamic library does not contain any " +
-                          "object file".format(name)), struct(
-            files = [],
-            dynamic_library = None,
-            interface_library = None,
-        )
+        fail("'{}' dynamic library does not contain any object file".format(name))
     dynamic_files = [dynamic_lib]
     if interface_lib:
         dynamic_files.append(interface_lib)
@@ -309,8 +304,7 @@ def _executable(owner, name, actions, cc_toolchain,
         is_windows = False,
     )
     if not linking_outputs.executable:
-        return utils.warn("'{}' executable does not contain any " +
-                          "object file".format(name))
+        fail("'{}' executable does not contain any object file".format(name))
     return linking_outputs.executable
 
 link = struct(

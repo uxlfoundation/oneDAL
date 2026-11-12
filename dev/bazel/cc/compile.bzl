@@ -23,18 +23,10 @@ load("@onedal//dev/bazel:utils.bzl",
 load("@onedal//dev/bazel/cc:common.bzl",
     onedal_cc_common = "common",
 )
+load("@onedal//dev/bazel/config:config.bzl", "ISA_TABLE")
 
-# TODO: Replace file sufix to ISA
-_CPU_SUFFIX_TO_ISA_MAP = {
-    "_nrh": "sse2",
-    "_hsw": "avx2",
-    "_skx": "avx512",
-}
-_CPU_SUFFIX_TO_ISA_BACK_MAP = {
-    "sse2":       "_nrh",
-    "avx2":       "_hsw",
-    "avx512":     "_skx",
-}
+_CPU_SUFFIX_TO_ISA_MAP = {info.suffix: isa for isa, info in ISA_TABLE.items() if info.suffix}
+_CPU_SUFFIX_TO_ISA_BACK_MAP = {isa: suffix for suffix, isa in _CPU_SUFFIX_TO_ISA_MAP.items()}
 _CPU_SUFFIXES = _CPU_SUFFIX_TO_ISA_MAP.keys()
 _CPU_ISA_IDS = _CPU_SUFFIX_TO_ISA_MAP.values()
 

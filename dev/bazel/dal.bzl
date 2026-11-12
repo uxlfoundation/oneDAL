@@ -38,31 +38,35 @@ load("@onedal//dev/bazel:utils.bzl",
 )
 load("@onedal//dev/bazel/config:config.bzl",
     "CpuInfo",
+    "ISA_TABLE",
 )
+
+_COMPILE_AS = ["c++", "dpc++"]
+
+def _check_compile_as(name, compile_as):
+    for value in compile_as:
+        if value not in _COMPILE_AS:
+            fail("'{}': compile_as holds '{}', expected values from {}".format(name, value, _COMPILE_AS))
 
 def dal_module(name, hdrs=[], srcs=[], dal_deps=[], extra_deps=[],
                host_hdrs=[], host_srcs=[], host_deps=[], dpc_hdrs=[],
                dpc_srcs=[], dpc_deps=[], auto=False, auto_exclude=[],
-               compile_as=[ "c++", "dpc++" ], **kwargs):
+               compile_as=_COMPILE_AS, **kwargs):
+    """A oneAPI module: `name` for C++ and `name_dpc` for DPC++, with `_dpc` deps on the DPC++ side.
+
+    `auto` globs the package's `.hpp` and `.cpp` files, test files excluded; `*_dpc.cpp` is DPC++ only.
+    """
+    _check_compile_as(name, compile_as)
+    auto_hdrs, host_auto_srcs, dpc_auto_srcs = [], [], []
     if auto:
-        hpp_filt = ["**/*.hpp"] + auto_exclude
-        cpp_filt = ["**/*.cpp"] + auto_exclude
-        dpc_filt = ["**/*_dpc.cpp"] + auto_exclude
-        test_filt = ["**/*_test*", "**/test/**"] + auto_exclude
-        hdrs_all = native.glob(hpp_filt, exclude=test_filt)
-        dpc_auto_hdrs = hdrs_all
-        dpc_auto_srcs = native.glob(cpp_filt, exclude=test_filt, allow_empty=True,)
-        host_auto_hdrs = hdrs_all
-        host_auto_srcs = native.glob(cpp_filt, exclude=test_filt + dpc_filt, allow_empty=True,)
-    else:
-        host_auto_hdrs = []
-        host_auto_srcs = []
-        dpc_auto_hdrs = []
-        dpc_auto_srcs = []
+        exclude = ["**/*_test*", "**/test/**"] + auto_exclude
+        auto_hdrs = native.glob(["**/*.hpp"], exclude = exclude)
+        dpc_auto_srcs = native.glob(["**/*.cpp"], exclude = exclude, allow_empty = True)
+        host_auto_srcs = native.glob(["**/*.cpp"], exclude = exclude + ["**/*_dpc.cpp"], allow_empty = True)
     if "c++" in compile_as:
         _dal_module(
             name = name,
-            hdrs = hdrs + host_auto_hdrs + host_hdrs,
+            hdrs = hdrs + auto_hdrs + host_hdrs,
             srcs = srcs + host_auto_srcs + host_srcs,
             deps = dal_deps + host_deps + extra_deps,
             **kwargs,
@@ -70,7 +74,7 @@ def dal_module(name, hdrs=[], srcs=[], dal_deps=[], extra_deps=[],
     if "dpc++" in compile_as:
         _dal_module(
             name = name + "_dpc",
-            hdrs = hdrs + dpc_auto_hdrs + dpc_hdrs,
+            hdrs = hdrs + auto_hdrs + dpc_hdrs,
             srcs = srcs + dpc_auto_srcs + dpc_srcs,
             deps = _get_dpc_deps(dal_deps) + dpc_deps + extra_deps,
             is_dpc = True,
@@ -188,12 +192,13 @@ def _not_on_windows():
 
 def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
              extra_deps=[], host_hdrs=[], host_srcs=[], host_deps=[],
-             dpc_hdrs=[], dpc_srcs=[], dpc_deps=[], compile_as=[ "c++", "dpc++" ],
+             dpc_hdrs=[], dpc_srcs=[], dpc_deps=[], compile_as=_COMPILE_AS,
              framework="catch2", data=[], tags=[], private=False,
              mpi=False, ccl=False, mpi_ranks=0, args=[],
              use_onedal_release_libs=True, target_compatible_with=[], **kwargs):
     if not framework in ["catch2", "none"]:
         fail("Unknown test framework '{}' in test rule '{}'".format(framework, name))
+    _check_compile_as(name, compile_as)
     is_catch2 = framework == "catch2"
     module_name = "_" + name
     dal_module(
@@ -270,7 +275,7 @@ def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
     )
 
 def dal_test_suite(name, srcs=[], tests=[],
-                   compile_as=[ "c++", "dpc++" ], not_on_windows=[], **kwargs):
+                   compile_as=_COMPILE_AS, not_on_windows=[], **kwargs):
     """
     @param not_on_windows  Entries of `srcs` whose tests are skipped on Windows.
     """
@@ -327,7 +332,10 @@ def dal_collect_parameters(name, root, modules=[], target="parameters", dal_deps
     )
 
 def dal_example(name, dal_deps=[], use_onedal_release_libs=True, is_daal=False, **kwargs):
-    base_deps = [] if is_daal else [
+    base_deps = [
+        "@onedal//cpp/daal:core",
+        "@onedal//cpp/daal:version_info",
+    ] if is_daal else [
         "@onedal//cpp/oneapi/dal:core",
         "@onedal//cpp/oneapi/dal/io",
     ]
@@ -380,9 +388,9 @@ def _test_link_mode_deps(dal_deps, use_onedal_release_libs=True):
     })
 
 def _test_deps_on_daal():
+    # Modules name the DAAL kernels they use, so a test from sources links only those.
     return _select({
         "@config//:test_link_mode_dev": [
-            "@onedal//cpp/daal:core_static",
             "@onedal//cpp/daal:threading_static",
         ],
         "@config//:test_link_mode_release_static": [
@@ -445,19 +453,14 @@ def _test_filter_args(framework):
     return []
 
 def _dal_generate_cpu_dispatcher_impl(ctx):
-    cpus = sets.make(ctx.attr._cpus[CpuInfo].enabled)
+    enabled = ctx.attr._cpus[CpuInfo].enabled
     content = (
         "// DO NOT EDIT: file is auto-generated on build time\n" +
         "// DO NOT PUT THIS FILE TO SVC: file is auto-generated on build time\n" +
         "// CPU detection logic specified in dev/bazel/config.bzl file\n" +
         "\n" +
-        ("#define ONEDAL_CPU_DISPATCH_SSE2\n"       if sets.contains(cpus, "sse2")       else "") +
-        ("#define ONEDAL_CPU_DISPATCH_AVX2\n"       if sets.contains(cpus, "avx2")       else "") +
-        ("#define ONEDAL_CPU_DISPATCH_AVX512\n"     if sets.contains(cpus, "avx512")     else "") +
-        # Without these dispatch_by_cpu() finds no kernel on ARM and RISC-V; Make emits them
-        # too (arm.mk, riscv64.mk).
-        ("#define ONEDAL_CPU_DISPATCH_A8SVE\n"      if sets.contains(cpus, "sve")        else "") +
-        ("#define ONEDAL_CPU_DISPATCH_RV64\n"       if sets.contains(cpus, "rv64")       else "")
+        "".join(["#define ONEDAL_CPU_DISPATCH_{}\n".format(info.dispatch)
+                 for isa, info in ISA_TABLE.items() if isa in enabled])
     )
     kernel_defines = ctx.actions.declare_file(ctx.attr.out)
     ctx.actions.write(kernel_defines, content)
@@ -551,15 +554,9 @@ def _dal_module(name, lib_tag="dal", is_dpc=False, features=[],
         features = [ "pedantic", "c++17" ] + features + (
             ["dpc++"] if is_dpc else []
         ),
-        cpu_defines = {
-            "sse2":   [ "__CPU_TAG__=__CPU_TAG_SSE2__"   ],
-            "avx2":   [ "__CPU_TAG__=__CPU_TAG_AVX2__"   ],
-            "avx512": [ "__CPU_TAG__=__CPU_TAG_AVX512__" ],
-            # Matches cpp/oneapi/dal/backend/dispatcher.hpp's TARGET_ARM /
-            # TARGET_RISCV64 branches.
-            "sve":    [ "__CPU_TAG__=__CPU_TAG_ARMV8SVE__"   ],
-            "rv64":   [ "__CPU_TAG__=__CPU_TAG_RISCV64GC__" ],
-        },
+        # The tags of cpp/oneapi/dal/backend/dispatcher.hpp.
+        cpu_defines = {isa: ["__CPU_TAG__=__CPU_TAG_{}__".format(info.dal_tag)]
+                       for isa, info in ISA_TABLE.items()},
         copts = copts + select({
             # -EHsc on the oneAPI objects only, as Make's icx build; the vc build adds it via compile.bzl.
             # Tests and examples keep exception handling; Catch2 needs it for tests.
@@ -597,44 +594,23 @@ def _dal_module(name, lib_tag="dal", is_dpc=False, features=[],
         **kwargs,
     )
 
-def _dal_cc_test(name, mpi=False, ccl = False, mpi_ranks=0, **kwargs):
-    if mpi:
-        if mpi_ranks <= 0:
-            fail("Test is marked as MPI, you must provide `mpi_ranks` " +
-                 "attribute with the valid number of MPI ranks ")
-        cc_test(
-            name = "_mpi_" + name,
-            **kwargs,
-        )
-        mpi_test(
-            name = name,
-            src = "_mpi_" + name,
-            mpi_ranks = mpi_ranks,
-            mpiexec = "@mpi//:mpiexec",
-            fi = "@mpi//:fi",
-            libfabric = "@mpi//:libfabric_runtime",
-        )
-    elif ccl:
-        if mpi_ranks <= 0:
-            fail("Test is marked as CCL, you must provide `mpi_ranks` " +
-                 "attribute with the valid number of MPI ranks ")
-        cc_test(
-            name = "_ccl_" + name,
-            **kwargs,
-        )
-        ccl_test(
-            name = name,
-            src = "_ccl_" + name,
-            mpi_ranks = mpi_ranks,
-            mpiexec = "@mpi//:mpiexec",
-            fi = "@mpi//:fi",
-            libfabric = "@mpi//:libfabric_runtime",
-        )
-    else:
-        cc_test(
-            name = name,
-            **kwargs,
-        )
+def _dal_cc_test(name, mpi=False, ccl=False, mpi_ranks=0, **kwargs):
+    if not (mpi or ccl):
+        cc_test(name = name, **kwargs)
+        return
+    if mpi_ranks <= 0:
+        fail("'{}' is an MPI or CCL test, so it needs `mpi_ranks` > 0".format(name))
+    # The binary keeps its own target; mpiexec launches it with the requested ranks.
+    binary = ("_ccl_" if ccl else "_mpi_") + name
+    cc_test(name = binary, **kwargs)
+    (ccl_test if ccl else mpi_test)(
+        name = name,
+        src = binary,
+        mpi_ranks = mpi_ranks,
+        mpiexec = "@mpi//:mpiexec",
+        fi = "@mpi//:fi",
+        libfabric = "@mpi//:libfabric_runtime",
+    )
 
 def _select(x):
     return [x]

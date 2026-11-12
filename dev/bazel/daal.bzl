@@ -26,6 +26,7 @@ load("@onedal//dev/bazel:utils.bzl",
 )
 load("@onedal//dev/bazel/config:config.bzl",
     "CpuInfo",
+    "ISA_TABLE",
     "TARGET_ATTRS",
     "VersionInfo",
     "target",
@@ -35,42 +36,34 @@ def daal_module(name, features=[], lib_tag="daal",
                 hdrs=[], srcs=[], auto=False,
                 local_defines=[], copts=[], visibility_hidden=True,
                 stdalloc=True, define_gcov_build=True, **kwargs):
+    """A DAAL module; `auto` globs the package's `.h`, `.i` and `.cpp` files."""
+    auto_hdrs, auto_srcs = [], []
     if auto:
-        auto_hdrs = native.glob(["**/*.h", "**/*.i"], allow_empty=True,)
-        auto_srcs = native.glob(["**/*.cpp"], allow_empty=True,)
-    else:
-        auto_hdrs = []
-        auto_srcs = []
+        auto_hdrs = native.glob(["**/*.h", "**/*.i"], allow_empty = True)
+        auto_srcs = native.glob(["**/*.cpp"], allow_empty = True)
+    # The default arm fails analysis: --stdalloc=true is implemented for Linux only.
     deps = kwargs.pop("deps", []) + select({
         "@config//:stdalloc_enabled": [],
         "@config//:stdalloc_disabled": [],
         "//conditions:default": ["@config//:stdalloc_non_linux_error"],
     })
+    hidden = ["-fvisibility=hidden", "-fvisibility-inlines-hidden"] if visibility_hidden else []
     cc_module(
         name = name,
         lib_tag = lib_tag,
-        features = [ "c++17" ] + features,
-        cpu_defines = {
-            "sse2":       [ "DAAL_CPU=sse2"      ],
-            "avx2":       [ "DAAL_CPU=avx2"       ],
-            "avx512":     [ "DAAL_CPU=avx512"     ],
-            "sve":        [ "DAAL_CPU=sve"        ],
-            "rv64":       [ "DAAL_CPU=rv64"        ],
-        },
+        features = ["c++17"] + features,
+        cpu_defines = {isa: ["DAAL_CPU=" + isa] for isa in ISA_TABLE},
         fpt_defines = {
-            "f32": [ "DAAL_FPTYPE=float"  ],
-            "f64": [ "DAAL_FPTYPE=double" ],
+            "f32": ["DAAL_FPTYPE=float"],
+            "f64": ["DAAL_FPTYPE=double"],
         },
         hdrs = auto_hdrs + hdrs,
         srcs = auto_srcs + srcs,
         deps = deps,
-        copts = copts + (select({
+        copts = copts + select({
             "@platforms//os:windows": ["/utf-8"],
-            "//conditions:default": ["-fvisibility=hidden", "-fvisibility-inlines-hidden"],
-        }) if visibility_hidden else select({
-            "@platforms//os:windows": ["/utf-8"],
-            "//conditions:default": [],
-        })),
+            "//conditions:default": hidden,
+        }),
         define_gcov_build = define_gcov_build,
         # __DAAL_IMPLEMENTATION makes DAAL_EXPORT dllexport on Windows.
         # Export-free static archives omit it, as Make's static objects do.
@@ -84,15 +77,11 @@ def daal_module(name, features=[], lib_tag="daal",
             "@config//:stdalloc_enabled": ["USE_STD_ALLOC"],
             "//conditions:default": [],
         }) if stdalloc else []) + select({
-            "@config//:backend_ref": [
-                "DAAL_REF",
-            ],
+            "@config//:backend_ref": ["DAAL_REF"],
             "//conditions:default": [],
         }) + select({
             # Make: RNG_OPENRNG. Only the ref RNG shim reads it, so it is gated on the ref backend.
-            "@config//:rng_backend_openrng_ref": [
-                "OPENRNG_BACKEND",
-            ],
+            "@config//:rng_backend_openrng_ref": ["OPENRNG_BACKEND"],
             "//conditions:default": [],
         }),
         **kwargs,

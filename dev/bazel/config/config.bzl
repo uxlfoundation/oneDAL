@@ -152,19 +152,22 @@ CpuInfo = provider(
     ],
 )
 
-_ISA_EXTENSIONS_X86 = ["sse2", "avx2", "avx512"]
-_ISA_EXTENSIONS_ARM = ["sve"]
-_ISA_EXTENSIONS_RISCV64 = ["rv64"]
-_ISA_EXTENSION_AUTO_DEFAULT = "avx2"
-
-_ARCH_TO_ISA_EXTENSIONS = {
-    "arm": _ISA_EXTENSIONS_ARM,
-    "riscv64": _ISA_EXTENSIONS_RISCV64,
+# One row per ISA: its arch, the DAAL dispatch macro, the oneAPI CPU tag and the suffix of the
+# per-ISA source files (`_nrh`, `_hsw`, `_skx`); x86 is the only arch with several ISAs.
+ISA_TABLE = {
+    "sse2": struct(arch = "intel64", dispatch = "SSE2", dal_tag = "SSE2", suffix = "_nrh"),
+    "avx2": struct(arch = "intel64", dispatch = "AVX2", dal_tag = "AVX2", suffix = "_hsw"),
+    "avx512": struct(arch = "intel64", dispatch = "AVX512", dal_tag = "AVX512", suffix = "_skx"),
+    "sve": struct(arch = "arm", dispatch = "A8SVE", dal_tag = "ARMV8SVE", suffix = None),
+    "rv64": struct(arch = "riscv64", dispatch = "RV64", dal_tag = "RISCV64GC", suffix = None),
 }
+
+_ISA_EXTENSIONS_X86 = [isa for isa, info in ISA_TABLE.items() if info.arch == "intel64"]
+_ISA_EXTENSION_AUTO_DEFAULT = "avx2"
 
 def _get_allowed_isa_extensions(ctx):
     # Build settings do not see the target platform, so the arch comes from the repository rule.
-    return _ARCH_TO_ISA_EXTENSIONS.get(ctx.attr.arch, _ISA_EXTENSIONS_X86)
+    return [isa for isa, info in ISA_TABLE.items() if info.arch == ctx.attr.arch]
 
 def _check_cpu_extensions(extensions, allowed):
     allowed_set = sets.make(allowed)
