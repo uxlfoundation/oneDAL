@@ -176,9 +176,8 @@ def _get_gcc_toolchain_path(repo_ctx, cc):
         if triple and sibling_gcc.exists:
             gcc = sibling_gcc
         elif gcc:
-            # Without such a gcc, keep the GCC installation the compiler selects when it is built
-            # for exactly the compiler's triple and lies outside the PATH gcc's prefix: conda-forge
-            # clang finds the conda GCC runtime by itself. Any other PATH gcc is still used.
+            # Keep the compiler's own GCC when it is built for exactly its triple and lies outside
+            # the PATH gcc's prefix, as conda-forge clang's does; otherwise use the PATH gcc.
             selected = _get_selected_gcc_installation(repo_ctx, cc)
             if (selected and selected.split("/")[-2] == triple and
                 not selected.startswith(str(gcc.dirname.dirname.realpath) + "/")):

@@ -68,9 +68,8 @@ mkl_repo = repos.prebuilt_libs_repo_rule(
     # requiring a file no measurement implicates would be a guess.
     optional_libs = [
         "lib/libmkl_vml_*.so*",
-        # The SYCL domains, linked only by the DPC++ targets. An MKLROOT without
-        # them (conda-forge `mkl-devel` without `mkl-devel-dpcpp`) still builds
-        # the host targets.
+        # Only the DPC++ targets link the SYCL domains, so an MKLROOT without them
+        # (conda-forge `mkl-devel` without `mkl-devel-dpcpp`) still builds the host targets.
         "lib/libmkl_sycl_blas.so*",
         "lib/libmkl_sycl_lapack.so*",
         "lib/libmkl_sycl_sparse.so*",

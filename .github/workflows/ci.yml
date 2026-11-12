@@ -585,10 +585,8 @@ jobs:
               | while read -r id; do gh cache delete "$id"; done
           done
 
-  # Builds oneDAL with Bazel and the compilers, MKL, TBB and oneDPL from
-  # conda-forge, whose headers and runtimes live under $CONDA_PREFIX instead of
-  # the system paths. The icx leg runs the examples; the gcc and clang legs build
-  # the release and run the tests and the example of one algorithm.
+  # Compilers, MKL, TBB and oneDPL from conda-forge, under $CONDA_PREFIX instead of the system paths.
+  # icx runs the examples; gcc and clang build the release and test one algorithm.
   LinuxBazelConda:
     if: github.repository == 'uxlfoundation/oneDAL' && !github.event.pull_request.draft
     strategy:
