@@ -98,21 +98,27 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & rTable
             }
         }
 
-        /* R'*beta = Y*Q'. R is triangular, so a negligible diagonal element means it is singular. In that case the
-         * minimum-norm solution from the SVD of R is used, dropping singular values <= eps * max(S) as gelsd does. */
-        const algorithmFPType eps = daal::services::internal::EpsilonVal<algorithmFPType>::get();
-        algorithmFPType maxDiag(0);
-        algorithmFPType minDiag(0);
-        for (DAAL_INT i = 0; i < nBetasIntercept; ++i)
+        /* R'*beta = Y*Q'. The sign of R_jj is arbitrary and |R_jj| is the part of column j of X that is not explained by the
+         * other columns, so R is treated as singular when |R_jj| is negligible next to the norm of that column, which
+         * equals the norm of row j of R from the diagonal on. A singular R gets the minimum-norm solution from its SVD,
+         * dropping singular values <= eps * max(S) as gelsd does. */
+        const algorithmFPType eps             = daal::services::internal::EpsilonVal<algorithmFPType>::get();
+        const algorithmFPType negligibleRatio = algorithmFPType(100) * eps;
+        bool isSingular                       = false;
+        for (DAAL_INT j = 0; j < nBetasIntercept && !isSingular; ++j)
         {
-            const algorithmFPType diag    = r[i * nBetasIntercept + i];
-            const algorithmFPType absDiag = diag < 0 ? -diag : diag;
-            if (absDiag > maxDiag) maxDiag = absDiag;
-            if (i == 0 || absDiag < minDiag) minDiag = absDiag;
+            algorithmFPType rowNormSquared(0);
+            for (DAAL_INT k = j; k < nBetasIntercept; ++k)
+            {
+                const algorithmFPType value = r[k * nBetasIntercept + j];
+                rowNormSquared += value * value;
+            }
+            const algorithmFPType diag = r[j * nBetasIntercept + j];
+            isSingular                 = !(diag * diag > negligibleRatio * negligibleRatio * rowNormSquared);
         }
 
         DAAL_INT info(0);
-        if (minDiag > eps * algorithmFPType(nBetasIntercept) * maxDiag)
+        if (!isSingular)
         {
             char up     = 'U';
             char trans  = 'T';
@@ -129,63 +135,74 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & rTable
             const size_t rSize        = size_t(nBetasIntercept) * size_t(nBetasIntercept);
             const size_t rSizeInBytes = rSize * sizeof(algorithmFPType);
 
-            TArrayScalable<algorithmFPType, cpu> aArray(rSize);
-            TArrayScalable<algorithmFPType, cpu> uArray(rSize);
-            TArrayScalable<algorithmFPType, cpu> vtArray(rSize);
-            TArrayScalable<algorithmFPType, cpu> sArray(nBetasIntercept);
-            TArrayScalable<algorithmFPType, cpu> tmpArray(nResponses * nBetasIntercept);
-            algorithmFPType * a   = aArray.get();
-            algorithmFPType * u   = uArray.get();
-            algorithmFPType * vt  = vtArray.get();
-            algorithmFPType * s   = sArray.get();
-            algorithmFPType * tmp = tmpArray.get();
-            DAAL_CHECK_MALLOC(a);
-            DAAL_CHECK_MALLOC(u);
-            DAAL_CHECK_MALLOC(vt);
-            DAAL_CHECK_MALLOC(s);
-            DAAL_CHECK_MALLOC(tmp);
+            /* R = U * diag(S) * V' */
+            TArrayScalable<algorithmFPType, cpu> rCopyArray(rSize);
+            TArrayScalable<algorithmFPType, cpu> leftVectorsArray(rSize);
+            TArrayScalable<algorithmFPType, cpu> rightVectorsTArray(rSize);
+            TArrayScalable<algorithmFPType, cpu> singularValuesArray(nBetasIntercept);
+            TArrayScalable<algorithmFPType, cpu> projectionArray(nResponses * nBetasIntercept);
+            algorithmFPType * rCopy          = rCopyArray.get();
+            algorithmFPType * leftVectors    = leftVectorsArray.get();
+            algorithmFPType * rightVectorsT  = rightVectorsTArray.get();
+            algorithmFPType * singularValues = singularValuesArray.get();
+            algorithmFPType * projection     = projectionArray.get();
+            DAAL_CHECK_MALLOC(rCopy);
+            DAAL_CHECK_MALLOC(leftVectors);
+            DAAL_CHECK_MALLOC(rightVectorsT);
+            DAAL_CHECK_MALLOC(singularValues);
+            DAAL_CHECK_MALLOC(projection);
 
             /* gesvd destroys its input */
-            const int copyResult = daal::services::internal::daal_memcpy_s(a, rSizeInBytes, r, rSizeInBytes);
+            const int copyResult = daal::services::internal::daal_memcpy_s(rCopy, rSizeInBytes, r, rSizeInBytes);
             DAAL_CHECK(!copyResult, services::ErrorMemoryCopyFailedInternal);
 
             DAAL_INT lwork(-1);
             algorithmFPType workQuery(0);
-            LapackInst<algorithmFPType, cpu>::xgesvd('A', 'A', nBetasIntercept, nBetasIntercept, a, nBetasIntercept, s, u, nBetasIntercept, vt,
-                                                     nBetasIntercept, &workQuery, lwork, &info);
+            LapackInst<algorithmFPType, cpu>::xgesvd('A', 'A', nBetasIntercept, nBetasIntercept, rCopy, nBetasIntercept, singularValues, leftVectors,
+                                                     nBetasIntercept, rightVectorsT, nBetasIntercept, &workQuery, lwork, &info);
             DAAL_CHECK(info == 0, services::ErrorLinearRegressionInternal);
             lwork = static_cast<DAAL_INT>(workQuery);
 
             TArrayScalable<algorithmFPType, cpu> workArray(lwork);
             algorithmFPType * work = workArray.get();
             DAAL_CHECK_MALLOC(work);
-            LapackInst<algorithmFPType, cpu>::xgesvd('A', 'A', nBetasIntercept, nBetasIntercept, a, nBetasIntercept, s, u, nBetasIntercept, vt,
-                                                     nBetasIntercept, work, lwork, &info);
+            LapackInst<algorithmFPType, cpu>::xgesvd('A', 'A', nBetasIntercept, nBetasIntercept, rCopy, nBetasIntercept, singularValues, leftVectors,
+                                                     nBetasIntercept, rightVectorsT, nBetasIntercept, work, lwork, &info);
             DAAL_CHECK(info == 0, services::ErrorLinearRegressionInternal);
 
-            /* Singular values are sorted in decreasing order. Store 1/s[j] for the retained ones and 0 for the discarded ones */
-            const algorithmFPType tol = eps * s[0];
-            for (DAAL_INT j = 0; j < nBetasIntercept; ++j)
+            /* Singular values are sorted in decreasing order, so the retained ones come first */
+            const algorithmFPType cutoff = eps * singularValues[0];
+            DAAL_INT nRetained(0);
+            while (nRetained < nBetasIntercept && singularValues[nRetained] > cutoff)
             {
-                s[j] = (s[j] > tol) ? (algorithmFPType(1.0) / s[j]) : algorithmFPType(0.0);
+                ++nRetained;
             }
 
-            const algorithmFPType one(1.0);
-            const algorithmFPType zero(0.0);
-            /* tmp = V' * (Y*Q') */
-            BlasInst<algorithmFPType, cpu>::xgemm("N", "N", &nBetasIntercept, &nResponses, &nBetasIntercept, &one, vt, &nBetasIntercept, betaBuffer,
-                                                  &nBetasIntercept, &zero, tmp, &nBetasIntercept);
-            /* tmp = pinv(S) * tmp */
-            for (DAAL_INT i = 0; i < nResponses; ++i)
+            if (nRetained == 0)
             {
-                for (DAAL_INT j = 0; j < nBetasIntercept; ++j)
+                for (size_t i = 0; i < size_t(nResponses) * size_t(nBetasIntercept); ++i)
                 {
-                    tmp[i * nBetasIntercept + j] *= s[j];
+                    betaBuffer[i] = algorithmFPType(0.0);
                 }
             }
-            /* beta = U * tmp */
-            BlasInst<algorithmFPType, cpu>::xgemm("N", "N", &nBetasIntercept, &nResponses, &nBetasIntercept, &one, u, &nBetasIntercept, tmp,
-                                                  &nBetasIntercept, &zero, betaBuffer, &nBetasIntercept);
+            else
+            {
+                const algorithmFPType one(1.0);
+                const algorithmFPType zero(0.0);
+                /* projection = V(:, retained)' * (Y*Q'), a nRetained x nResponses matrix */
+                BlasInst<algorithmFPType, cpu>::xgemm("N", "N", &nRetained, &nResponses, &nBetasIntercept, &one, rightVectorsT, &nBetasIntercept,
+                                                      betaBuffer, &nBetasIntercept, &zero, projection, &nRetained);
+                for (DAAL_INT i = 0; i < nResponses; ++i)
+                {
+                    for (DAAL_INT j = 0; j < nRetained; ++j)
+                    {
+                        projection[i * nRetained + j] /= singularValues[j];
+                    }
+                }
+                /* beta = U(:, retained) * projection */
+                BlasInst<algorithmFPType, cpu>::xgemm("N", "N", &nBetasIntercept, &nResponses, &nRetained, &one, leftVectors, &nBetasIntercept,
+                                                      projection, &nRetained, &zero, betaBuffer, &nBetasIntercept);
+            }
         }
     }
 
