@@ -1406,20 +1406,21 @@ public:
         const size_t nSamples = resp->getNumberOfRows();
         ReadRows<algorithmFPType, cpu> y(const_cast<NumericTable *>(resp), 0, nSamples);
         DAAL_CHECK_BLOCK_STATUS(y);
-        const algorithmFPType * py          = y.get();
-        size_t nPredicted                   = 0;
-        intermSummFPType _res               = 0;
-        intermSummFPType yMean              = 0;
-        intermSummFPType sumMeanDiff        = 0;
-        intermSummFPType sumSquaredError    = 0;
-        RegErr<intermSummFPType, cpu> * ptr = (RegErr<intermSummFPType, cpu> *)this->oobBuf;
+        const algorithmFPType * py            = y.get();
+        size_t nPredicted                     = 0;
+        intermSummFPType _res                 = 0;
+        intermSummFPType yMean                = 0;
+        intermSummFPType sumSquaredDeviations = 0;
+        intermSummFPType sumSquaredError      = 0;
+        RegErr<intermSummFPType, cpu> * ptr   = (RegErr<intermSummFPType, cpu> *)this->oobBuf;
 
-        PRAGMA_OMP_SIMD_ARGS(reduction(+ : yMean))
+        // The mean and the sum of squared deviations from it in one pass, as in calcImpurity.
         for (size_t i = 0; i < nSamples; ++i)
         {
-            yMean += py[i];
+            const intermSummFPType delta = py[i] - yMean;
+            yMean += delta / static_cast<intermSummFPType>(i + 1);
+            sumSquaredDeviations += delta * (py[i] - yMean);
         }
-        yMean /= nSamples;
 
         for (size_t i = 0; i < nSamples; ++i)
         {
@@ -1439,19 +1440,19 @@ public:
             {
                 if (resPerObs) resPerObs[i] = intermSummFPType(-1); //was not in OOB set of any tree and hence not predicted
                 if (resPrediction) resPrediction[i] = intermSummFPType(0);
+                // scikit-learn's oob_prediction_ is 0 for such a row, not the mean, so it adds y^2.
                 sumSquaredError += intermSummFPType(py[i]) * py[i];
             }
-            sumMeanDiff += (py[i] - yMean) * (py[i] - yMean);
         }
         if (res && nPredicted > 0) *res = _res / static_cast<intermSummFPType>(nPredicted);
         // As scikit-learn's oob_score_: r2_score over all rows, a row without OOB predictions predicting 0.
         // r2_score is NaN for fewer than 2 rows, 1 for a zero error and 0 for a zero denominator otherwise.
         if (resR2)
         {
-            *resR2 = nSamples < 2         ? std::numeric_limits<intermSummFPType>::quiet_NaN() :
-                     sumSquaredError == 0 ? intermSummFPType(1) :
-                     sumMeanDiff == 0     ? intermSummFPType(0) :
-                                            1 - sumSquaredError / sumMeanDiff;
+            *resR2 = nSamples < 2              ? std::numeric_limits<intermSummFPType>::quiet_NaN() :
+                     sumSquaredError == 0      ? intermSummFPType(1) :
+                     sumSquaredDeviations == 0 ? intermSummFPType(0) :
+                                                 1 - sumSquaredError / sumSquaredDeviations;
         }
         return Status();
     }
