@@ -123,6 +123,8 @@ if "%build_system%"=="cmake" (
     if exist "Build\!solution_name!_examples.slnx" (set "sln=slnx") else (set "sln=sln")
     msbuild.exe "Build\!solution_name!_examples.!sln!" /p:Configuration=Release || set errorcode=1
 
+    rem A second call in the same directory must not run the first call's list again.
+    if exist cmake_examples_list.txt del cmake_examples_list.txt
     for /f "delims=." %%F in ('dir /B !results_dir!\*.exe 2^> nul') do (
         set example=%%F
         echo !example! >> cmake_examples_list.txt

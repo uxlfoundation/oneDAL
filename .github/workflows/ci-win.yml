@@ -77,8 +77,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # Draft pull requests skip both jobs; they run once the pull request is
-  # marked ready for review.
+  # Drafts skip `build-and-test`, `bazel-msvc` and `make-msvc` until marked ready;
+  # `bazel-build` runs on drafts too, as before #3989.
   build-and-test:
     if: '!github.event.pull_request.draft'
     strategy:
