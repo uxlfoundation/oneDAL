@@ -573,8 +573,7 @@ services::Status QuantileBinner<algorithmFPType, cpu>::build(const data_manageme
     const size_t nThreads = threader_get_threads_number();
     binner::SampleRows<cpu> sample;
     const size_t valueBytes = sizeof(algorithmFPType);
-    services::Status s =
-        sample.select(nRows, params.sampleRows, sampleStream, passBlockRows<cpu>(nRows, nThreads, 1, p * valueBytes, valueBytes, false));
+    services::Status s = sample.select(nRows, params.sampleRows, sampleStream, passBlockRows<cpu>(nRows, nThreads, 1, p * valueBytes, valueBytes));
     DAAL_CHECK_STATUS_VAR(s);
 
     // One scratch set for all feature groups.
@@ -744,11 +743,10 @@ services::Status QuantileBinner<algorithmFPType, cpu>::build(const data_manageme
             }
             return st;
         });
-        const bool tiled      = nf == p && dynamic_cast<const data_management::HomogenNumericTable<algorithmFPType> *>(&x);
-        const size_t tileFeat = tiled && cacheLineBytes / binBytes < nf ? cacheLineBytes / binBytes : nf;
-        const size_t nTiles   = tileFeat ? (nf + tileFeat - 1) / tileFeat : 1;
-        const size_t blockRows =
-            passBlockRows<cpu>(nRows, nThreads, nTiles, tileFeat * sizeof(algorithmFPType), out.rowStride(), out.storage().spansNodes());
+        const bool tiled       = nf == p && dynamic_cast<const data_management::HomogenNumericTable<algorithmFPType> *>(&x);
+        const size_t tileFeat  = tiled && cacheLineBytes / binBytes < nf ? cacheLineBytes / binBytes : nf;
+        const size_t nTiles    = tileFeat ? (nf + tileFeat - 1) / tileFeat : 1;
+        const size_t blockRows = passBlockRows<cpu>(nRows, nThreads, nTiles, tileFeat * sizeof(algorithmFPType), out.rowStride());
         const size_t nBlocks   = (nRows + blockRows - 1) / blockRows;
         services::Status local = out.storage().forEachTile(nBlocks, nTiles, [&](size_t b, size_t t) -> services::Status {
             binner::PassStats<cpu> * st = tlsStats.local();
@@ -823,7 +821,7 @@ services::Status QuantileBinner<algorithmFPType, cpu>::build(const data_manageme
         for (size_t f = 0; f < p; ++f) features[f] = f;
         services::Status st = out.allocateFeatures(p);
         DAAL_CHECK_STATUS_VAR(st);
-        st = out.allocateRows(nRows, binBytes, params.placement);
+        st = out.allocateRows(nRows, binBytes);
         DAAL_CHECK_STATUS_VAR(st);
         resetStats(features.get(), p);
         return assign(features.get(), p);

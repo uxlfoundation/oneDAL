@@ -29,7 +29,7 @@
 #include <cstdint>
 #include <type_traits>
 
-#include "src/algorithms/dtrees/engine/numa_alloc.h"
+#include "src/algorithms/dtrees/engine/block_array.h"
 #include "src/services/service_arrays.h"
 #include "src/services/service_data_utils.h"
 
@@ -138,7 +138,7 @@ inline double recordWeight(const RegWeightRecord<algorithmFPType> & r)
 }
 
 /**
- *  \brief Responses and normalized user weights of the training rows, spread over the NUMA nodes
+ *  \brief Responses and normalized user weights of the training rows
  *
  *  Weights are scaled to a maximum of 1 and weights not above 10 machine epsilons are set to 0, as
  *  the legacy normalizeWeights and DataHelper do. If no weight is positive the fit is unweighted.
@@ -147,22 +147,21 @@ template <typename algorithmFPType, CpuType cpu>
 class ResponseSource
 {
 public:
-    services::Status build(const data_management::NumericTable & y, const data_management::NumericTable * w, bool classification,
-                           const NumaPlacement & placement)
+    services::Status build(const data_management::NumericTable & y, const data_management::NumericTable * w, bool classification)
     {
         _nRows          = y.getNumberOfRows();
         _classification = classification;
         services::Status s;
         if (classification)
-            s = readColumn(y, placement, _cls, [](algorithmFPType v) { return uint32_t(v); });
+            s = readColumn(y, _cls, [](algorithmFPType v) { return uint32_t(v); });
         else
-            s = readColumn(y, placement, _y, [](algorithmFPType v) { return v; });
+            s = readColumn(y, _y, [](algorithmFPType v) { return v; });
         DAAL_CHECK_STATUS_VAR(s);
         _weighted = false;
         _mean     = 0;
         if (w)
         {
-            s = readWeights(*w, placement);
+            s = readWeights(*w);
             DAAL_CHECK_STATUS_VAR(s);
         }
         return classification ? s : computeMean();
@@ -176,14 +175,14 @@ public:
     double responseMean() const { return _mean; } // weighted if the fit is; 0 for classification
 
 private:
-    services::Status readWeights(const data_management::NumericTable & w, const NumaPlacement & placement)
+    services::Status readWeights(const data_management::NumericTable & w)
     {
         services::Status s;
         const algorithmFPType maxW = maxValue(w, s);
         DAAL_CHECK_STATUS_VAR(s);
         if (!(maxW > 0)) return s;
         const algorithmFPType eps = algorithmFPType(10) * services::internal::EpsilonVal<algorithmFPType>::get();
-        s                         = readColumn(w, placement, _w, [=](algorithmFPType v) {
+        s                         = readColumn(w, _w, [=](algorithmFPType v) {
             const algorithmFPType scaled = v / maxW;
             return scaled > eps ? scaled : algorithmFPType(0);
         });
@@ -227,10 +226,9 @@ private:
     }
 
     template <typename T, typename Convert>
-    services::Status readColumn(const data_management::NumericTable & t, const NumaPlacement & placement, NumaArray<T, cpu> & out,
-                                const Convert & convert)
+    services::Status readColumn(const data_management::NumericTable & t, BlockArray<T, cpu> & out, const Convert & convert)
     {
-        services::Status s = out.allocate(_nRows, placement);
+        services::Status s = out.allocate(_nRows);
         DAAL_CHECK_STATUS_VAR(s);
         const size_t nBlocks = (_nRows + tableBlockRows - 1) / tableBlockRows;
         T * dst              = out.data();
@@ -264,9 +262,9 @@ private:
     bool _classification = false;
     bool _weighted       = false;
     double _mean         = 0;
-    NumaArray<uint32_t, cpu> _cls;
-    NumaArray<algorithmFPType, cpu> _y;
-    NumaArray<algorithmFPType, cpu> _w;
+    BlockArray<uint32_t, cpu> _cls;
+    BlockArray<algorithmFPType, cpu> _y;
+    BlockArray<algorithmFPType, cpu> _w;
 };
 
 /**
@@ -279,7 +277,7 @@ template <typename Record, CpuType cpu>
 class ResponseSet
 {
 public:
-    /// Allocates both buffers once for up to capacity records; call inside the arena that uses them.
+    /// Allocates both buffers once for up to capacity records, first touched by the thread that fills them.
     services::Status allocate(size_t capacity)
     {
         DAAL_CHECK_MALLOC(_buffers[0].reset(capacity) && _buffers[1].reset(capacity));

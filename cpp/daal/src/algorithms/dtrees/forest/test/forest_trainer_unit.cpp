@@ -780,51 +780,6 @@ TEST("node sample counts are bootstrap draws without weights and distinct rows w
         }
 }
 
-/// Estimated seconds of a default fit (bootstrap, full depth, minimum leaf 1) of nTrees trees on nThreads threads.
-double defaultFitSeconds(size_t nRows, size_t p, bool classification, size_t nTrees, size_t nThreads)
-{
-    const size_t k  = training::internal::trainer::defaultFeaturesPerNode<cpu>(p, classification);
-    const auto work = training::internal::fitWork<cpu>(nTrees, nRows, nRows, true, k, 1, 0, 0);
-    return training::internal::estimatedFitSeconds<cpu>(work, nThreads);
-}
-
-TEST("the fit-time estimate follows rows, features, trees, threads and depth", "[unit]")
-{
-    // Half a second, about where NUMA arenas would have to pay for the topology query (design 4.9): at 224 threads
-    // and 100 trees about 365k rows at 28 features, 74k at 784 and 33k at 5000 (classification).
-    constexpr double halfSecond = 0.5;
-    REQUIRE(defaultFitSeconds(200000, 28, true, 100, 224) < halfSecond);
-    REQUIRE(defaultFitSeconds(800000, 28, true, 100, 224) > halfSecond);
-    REQUIRE(defaultFitSeconds(60000, 784, true, 100, 224) < halfSecond);
-    REQUIRE(defaultFitSeconds(200000, 784, true, 100, 224) > halfSecond);
-    REQUIRE(defaultFitSeconds(6000, 5000, true, 100, 224) < halfSecond);
-    REQUIRE(defaultFitSeconds(100000, 5000, true, 100, 224) > halfSecond);
-    // Regression draws p / 3 features here, so it reaches the same time sooner: about 80k rows at 90 features.
-    REQUIRE(defaultFitSeconds(40000, 90, false, 100, 224) < halfSecond);
-    REQUIRE(defaultFitSeconds(200000, 90, false, 100, 224) > halfSecond);
-    // Fewer threads lengthen the fit, fewer trees shorten it.
-    REQUIRE(defaultFitSeconds(200000, 28, true, 100, 32) > halfSecond);
-    REQUIRE(defaultFitSeconds(800000, 28, true, 10, 224) < halfSecond);
-    // Depth and leaf limits cap the levels.
-    const auto deep    = training::internal::fitWork<cpu>(100, 1000000, 1000000, true, 5, 1, 0, 0);
-    const auto shallow = training::internal::fitWork<cpu>(100, 1000000, 1000000, true, 5, 1, 4, 0);
-    const auto leaves  = training::internal::fitWork<cpu>(100, 1000000, 1000000, true, 5, 1, 0, 64);
-    REQUIRE(deep.levels == 19);
-    REQUIRE(shallow.levels == 4);
-    REQUIRE(leaves.levels == 6);
-    REQUIRE(training::internal::fitWork<cpu>(100, 1000, 1000, false, 5, 1, 0, 0).rows == 1000);
-}
-
-TEST("fits use one NUMA node and do not query the topology", "[unit]")
-{
-    // Querying the topology (threader_numa_count) loads hwloc, the cost the gate avoids, so the one-node placement
-    // must not come from it. A 17 s fit (Higgs 10.5M, 100 trees, 224 threads) is still below the gate.
-    const auto small = training::internal::numaPlacement<cpu>(training::internal::fitWork<cpu>(10, 1000, 1000, true, 5, 1, 0, 0), 224);
-    REQUIRE(small.nodes == 1);
-    const auto large = training::internal::numaPlacement<cpu>(training::internal::fitWork<cpu>(100, 10500000, 10500000, true, 5, 1, 0, 0), 224);
-    REQUIRE(large.nodes == 1);
-}
-
 TEST("a fractional denseThreshold is read, and a negative or NaN one is rejected", "[unit]")
 {
     namespace hpc = cls::training::internal;

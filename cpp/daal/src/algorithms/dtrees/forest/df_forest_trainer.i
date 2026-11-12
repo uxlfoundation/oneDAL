@@ -30,7 +30,7 @@
 
 #include "algorithms/engines/philox4x32x10/philox4x32x10.h"
 #include "src/algorithms/dtrees/engine/node_rng.h"
-#include "src/algorithms/dtrees/engine/numa_alloc.h"
+#include "src/algorithms/dtrees/engine/block_array.h"
 #include "src/algorithms/dtrees/engine/quantile_binner.h"
 #include "src/algorithms/dtrees/engine/response_set.h"
 #include "src/algorithms/dtrees/engine/tree_builder.h"
@@ -607,15 +607,13 @@ services::Status trainForest(const data_management::NumericTable & x, const data
     if (!par.bootstrap && nSamples > nRows) nSamples = nRows;
     const size_t k           = par.featuresPerNode ? par.featuresPerNode : trainer::defaultFeaturesPerNode<cpu>(p, nClasses > 0);
     const size_t minLeafRows = par.minObservationsInLeafNode > 1 ? par.minObservationsInLeafNode : 1;
-    const FitWork work       = fitWork<cpu>(nTrees, nRows, nSamples, par.bootstrap, k < p ? k : p, minLeafRows, par.maxTreeDepth, par.maxLeafNodes);
-    const eng::NumaPlacement placement = numaPlacement<cpu>(work, threader_get_threads_number());
 
     // X row-major, responses and normalized weights, feature types.
-    eng::NumaArray<algorithmFPType, cpu> xr;
-    services::Status s = eng::copyTableRows<algorithmFPType, cpu>(x, placement, xr);
+    eng::BlockArray<algorithmFPType, cpu> xr;
+    services::Status s = eng::copyTableRows<algorithmFPType, cpu>(x, xr);
     DAAL_CHECK_STATUS_VAR(s);
     eng::ResponseSource<algorithmFPType, cpu> src;
-    s = src.build(y, w, nClasses > 0, placement);
+    s = src.build(y, w, nClasses > 0);
     DAAL_CHECK_STATUS_VAR(s);
     if (nClasses)
         for (size_t i = 0; i < nRows; ++i) DAAL_CHECK(src.classes()[i] < nClasses, services::ErrorIncorrectClassLabels);
@@ -635,7 +633,6 @@ services::Status trainForest(const data_management::NumericTable & x, const data
         bp.maxBins    = par.maxBins;
         bp.minBinSize = par.minBinSize;
         bp.strategy   = par.binningStrategy;
-        bp.placement  = placement;
         s             = eng::QuantileBinner<algorithmFPType, cpu>::build(x, bp, baseImpl->getState(), bins, binned);
         DAAL_CHECK_STATUS_VAR(s);
     }
@@ -686,7 +683,6 @@ services::Status trainForest(const data_management::NumericTable & x, const data
     tp.randomSplitter      = par.splitter == decision_forest::training::random;
     tp.counterDraws        = counter;
     tp.treesInFlight       = size_t(hp.treesInFlight);
-    tp.numaNodes           = placement.nodes;
     tp.denseThreshold      = hp.denseThreshold;
     tp.maxBins             = par.maxBins;
     tp.chunkRows           = size_t(hp.chunkRows);
@@ -749,7 +745,7 @@ services::Status trainForest(const data_management::NumericTable & x, const data
     // OOB error and MDA, in tree order.
     if (predictions || mda)
     {
-        const eng::NumaArray<algorithmFPType, cpu> & xc = xr;
+        const eng::BlockArray<algorithmFPType, cpu> & xc = xr;
         trainer::OutOfBag<algorithmFPType, cpu> oob(xc.data(), src, categorical.get(), nRows, p, nClasses);
         DAAL_CHECK_STATUS_VAR(oob.allocate(predictions, mda && res.varImportance));
         for (size_t t = 0; t < nTrees; ++t)

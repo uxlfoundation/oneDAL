@@ -308,8 +308,8 @@ public:
         return services::Status();
     }
 
-    // Runs inside the arena of the runner's NUMA node, so the context's buffers are first touched there.
-    services::Status initContext(TreeContext & ctx, int /* numaNode */)
+    // Runs on the runner's thread, which first touches the context's buffers.
+    services::Status initContext(TreeContext & ctx)
     {
         ctx.rng.useStreams(&_streams);
         return ctx.records.allocate(_data.nRows);
@@ -1275,7 +1275,6 @@ services::Status trainTrees(const TreeData<algorithmFPType, cpu> & data, const T
     executorParams.nTrees        = nTrees;
     executorParams.maxLeafNodes  = params.maxLeafNodes;
     executorParams.treesInFlight = params.treesInFlight;
-    executorParams.numaNodes     = params.numaNodes;
     Executor<TreeBuilder<algorithmFPType, Record, cpu>, cpu> executor(builder, executorParams);
     return executor.run();
 }

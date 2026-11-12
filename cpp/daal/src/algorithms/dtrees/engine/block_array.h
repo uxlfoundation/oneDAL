@@ -1,4 +1,4 @@
-/* file: numa_alloc.h */
+/* file: block_array.h */
 /*******************************************************************************
 * Copyright contributors to the oneDAL project
 *
@@ -17,13 +17,13 @@
 
 /*
 //++
-//  Arrays placed on NUMA nodes by first touch: one copy whose blocks are
-//  touched by the arenas in turn.
+//  Uninitialized arrays for a fit's large buffers, and the table data of a fit
+//  filled in parallel blocks.
 //--
 */
 
-#ifndef __DTREES_ENGINE_NUMA_ALLOC_H__
-#define __DTREES_ENGINE_NUMA_ALLOC_H__
+#ifndef __DTREES_ENGINE_BLOCK_ARRAY_H__
+#define __DTREES_ENGINE_BLOCK_ARRAY_H__
 
 #include <cstddef>
 #include <cstdint>
@@ -53,10 +53,9 @@ using daal::internal::CpuType;
 /**
  *  \brief Uninitialized array for large per-fit and per-tree buffers
  *
- *  Elements are not constructed, so the pages are first touched by the code that fills them, on
- *  that thread's NUMA node. Buffers are not advised for transparent huge pages: on a host with
- *  defrag=madvise and fragmented memory that made binning Higgs 3-4x slower (synchronous compaction
- *  on every fault); whether huge pages pay elsewhere is part of the design's NUMA measurements.
+ *  Elements are not constructed, so the pages are first touched by the code that fills them. Buffers
+ *  are not advised for transparent huge pages: on a host with defrag=madvise and fragmented memory
+ *  that made binning Higgs 3-4x slower (synchronous compaction on every fault).
  */
 template <typename T, CpuType cpu>
 class LargeArray
@@ -96,34 +95,18 @@ private:
     size_t _size = 0;
 };
 
-/// The NUMA nodes a fit spreads its data and work over.
-struct NumaPlacement
-{
-    size_t nodes = 1; // 1: used from the calling thread's arena, without querying the topology
-
-    /// Every NUMA node of the host, which queries the topology (hwloc through TBB).
-    template <CpuType cpu>
-    static NumaPlacement host()
-    {
-        return { size_t(threader_numa_count()) };
-    }
-};
-
 /**
- *  \brief An array of n elements spread over the NUMA nodes of a placement
+ *  \brief An array of n elements of a fit's table data, owned or borrowed from the caller
  *
- *  Pages are placed by the thread that first writes them, so the array is filled through forEachBlock: on a
- *  multi-node placement the arenas write its blocks in turn, one block each. One copy serves every node: a copy per
- *  node cost more to fill each fit than the local reads saved (design 4.9).
+ *  Pages are placed by the thread that first writes them, so an owned array is filled through forEachBlock.
  */
 template <typename T, CpuType cpu>
-class NumaArray
+class BlockArray
 {
 public:
-    services::Status allocate(size_t n, const NumaPlacement & placement)
+    services::Status allocate(size_t n)
     {
         _borrowed = nullptr;
-        _nNodes   = placement.nodes ? placement.nodes : 1;
         _size     = n;
         if (n) DAAL_CHECK_MALLOC(_data.reset(n));
         return services::Status();
@@ -135,13 +118,10 @@ public:
         _data.reset(0);
         _borrowed = p;
         _size     = n;
-        _nNodes   = 1;
     }
 
     size_t size() const { return _size; }
     bool borrowed() const { return _borrowed != nullptr; }
-    /// Written by several nodes' arenas, block by block.
-    bool spansNodes() const { return _nNodes > 1; }
 
     /// A borrowed array is read through the const overload only.
     T * data()
@@ -152,7 +132,7 @@ public:
     const T * data() const { return _borrowed ? _borrowed : _data.get(); }
 
     /**
-     *  \brief Runs func(iBlock) for every block in [0, nBlocks), each block first touched by one node's arena
+     *  \brief Runs func(iBlock) for every block in [0, nBlocks) in parallel
      *
      *  func returns a services::Status; the first error is returned.
      */
@@ -162,29 +142,16 @@ public:
         return forEachTile(nBlocks, 1, [&](size_t iBlock, size_t) { return func(iBlock); });
     }
 
-    /// forEachBlock over nTiles tasks func(iBlock, iTile) per block, each run on its block's node.
+    /// forEachBlock over nTiles tasks func(iBlock, iTile) per block.
     template <typename Func>
     services::Status forEachTile(size_t nBlocks, size_t nTiles, const Func & func) const
     {
         SafeStatus safeStat;
-        // Tile-major order, so threads that start together first touch different blocks' pages.
-        auto runBlocks = [&](size_t first, size_t step) {
-            const size_t n = first < nBlocks ? (nBlocks - first + step - 1) / step : 0;
-            daal::threader_for(n * nTiles, 1, [&](size_t i) {
-                const services::Status s = func(first + (i % n) * step, i / n);
-                DAAL_CHECK_STATUS_THR(s);
-            });
-        };
-        if (_nNodes > 1)
-        {
-            const size_t nNodes = _nNodes;
-            daal::threader_for(nNodes, 1,
-                               [&](size_t node) { daal::threader_execute_in_numa(static_cast<int>(node), [&]() { runBlocks(node, nNodes); }); });
-        }
-        else
-        {
-            runBlocks(0, 1);
-        }
+        // Tile-major order, so threads that start together work on different blocks.
+        daal::threader_for(nBlocks * nTiles, 1, [&](size_t i) {
+            const services::Status s = func(i % nBlocks, i / nBlocks);
+            DAAL_CHECK_STATUS_THR(s);
+        });
         return safeStat.detach();
     }
 
@@ -192,7 +159,6 @@ private:
     LargeArray<T, cpu> _data;
     const T * _borrowed = nullptr;
     size_t _size        = 0;
-    size_t _nNodes      = 1;
 };
 
 /// Rows read per block when a table is scanned with fixed blocks, and the most rows of a passBlockRows block.
@@ -202,19 +168,15 @@ constexpr size_t tableBlockRows = 4096;
 constexpr size_t passTasksPerThread = 4;
 constexpr size_t minTaskBytes       = size_t(64) << 10;
 
-// Smallest page of the supported hosts.
-constexpr size_t pageBytes = 4096;
-
 /**
  *  \brief Rows per block of a parallel pass over nRows rows, with tasksPerBlock tasks per block
  *
  *  About passTasksPerThread tasks per thread, each reading at least minTaskBytes at taskRowBytes per row, and at
- *  most tableBlockRows rows. Blocks start on a cache line of the written rows of writeRowBytes, or on a page with
- *  pageAligned, so a single copy spread over nodes is placed block by block. The result depends on the thread
- *  count: passes that add floating-point values per block keep fixed blocks instead.
+ *  most tableBlockRows rows. Blocks start on a cache line of the written rows of writeRowBytes. The result depends
+ *  on the thread count: passes that add floating-point values per block keep fixed blocks instead.
  */
 template <CpuType cpu>
-inline size_t passBlockRows(size_t nRows, size_t nThreads, size_t tasksPerBlock, size_t taskRowBytes, size_t writeRowBytes, bool pageAligned)
+inline size_t passBlockRows(size_t nRows, size_t nThreads, size_t tasksPerBlock, size_t taskRowBytes, size_t writeRowBytes)
 {
     const size_t tasks    = (nThreads ? nThreads : 1) * passTasksPerThread;
     const size_t perBlock = tasksPerBlock ? tasksPerBlock : 1;
@@ -223,11 +185,10 @@ inline size_t passBlockRows(size_t nRows, size_t nThreads, size_t tasksPerBlock,
     size_t rows           = (nRows + nBlocks - 1) / nBlocks;
     rows                  = rows > minRows ? rows : minRows;
     rows                  = rows < tableBlockRows ? rows : tableBlockRows;
-    // unit rows of writeRowBytes are whole units of align bytes; a power of two up to tableBlockRows, so it divides it.
-    const size_t align = pageAligned ? pageBytes : cacheLineBytes;
-    size_t low         = writeRowBytes & (~writeRowBytes + 1);
-    low                = low && low < align ? low : align;
-    const size_t unit  = align / low;
+    // unit rows of writeRowBytes are whole cache lines; a power of two up to tableBlockRows, so it divides it.
+    size_t low        = writeRowBytes & (~writeRowBytes + 1);
+    low               = low && low < cacheLineBytes ? low : cacheLineBytes;
+    const size_t unit = cacheLineBytes / low;
     return (rows + unit - 1) / unit * unit;
 }
 
@@ -235,10 +196,10 @@ inline size_t passBlockRows(size_t nRows, size_t nThreads, size_t tasksPerBlock,
  *  \brief Row-major x in algorithmFPType (design 4.9)
  *
  *  A homogen table of algorithmFPType, already row-major, is borrowed; its pages stay where the caller placed them.
- *  Other tables are copied through ReadRows blocks, spread over the placement's nodes.
+ *  Other tables are copied through ReadRows blocks.
  */
 template <typename algorithmFPType, CpuType cpu>
-services::Status copyTableRows(const data_management::NumericTable & x, const NumaPlacement & placement, NumaArray<algorithmFPType, cpu> & out)
+services::Status copyTableRows(const data_management::NumericTable & x, BlockArray<algorithmFPType, cpu> & out)
 {
     const size_t nRows = x.getNumberOfRows();
     const size_t nCols = x.getNumberOfColumns();
@@ -249,10 +210,10 @@ services::Status copyTableRows(const data_management::NumericTable & x, const Nu
         out.borrow(h->getArray(), nRows * nCols);
         return services::Status();
     }
-    services::Status s = out.allocate(nRows * nCols, placement);
+    services::Status s = out.allocate(nRows * nCols);
     DAAL_CHECK_STATUS_VAR(s);
     const size_t rowBytes  = nCols * sizeof(algorithmFPType);
-    const size_t blockRows = passBlockRows<cpu>(nRows, threader_get_threads_number(), 1, rowBytes, rowBytes, out.spansNodes());
+    const size_t blockRows = passBlockRows<cpu>(nRows, threader_get_threads_number(), 1, rowBytes, rowBytes);
     const size_t nBlocks   = (nRows + blockRows - 1) / blockRows;
     algorithmFPType * dst  = out.data();
     return out.forEachBlock(nBlocks, [&](size_t iBlock) {

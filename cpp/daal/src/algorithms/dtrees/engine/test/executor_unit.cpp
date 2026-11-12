@@ -101,9 +101,8 @@ public:
         for (size_t i = 0; i < nTrees; ++i) logs.emplace_back(new TreeLog);
     }
 
-    services::Status initContext(TreeContext & ctx, int numaNode)
+    services::Status initContext(TreeContext & ctx)
     {
-        if (numaNode < 0 || numaNode >= threader_numa_count()) contractViolated = true;
         ctx.initialized = true;
         ++contexts;
         return services::Status();

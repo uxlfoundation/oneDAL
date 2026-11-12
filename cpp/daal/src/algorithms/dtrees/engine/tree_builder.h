@@ -33,7 +33,7 @@
 #include "src/algorithms/dtrees/dtrees_model_impl.h"
 #include "src/algorithms/dtrees/engine/bin_matrix.h"
 #include "src/algorithms/dtrees/engine/executor.h"
-#include "src/algorithms/dtrees/engine/numa_alloc.h"
+#include "src/algorithms/dtrees/engine/block_array.h"
 #include "src/algorithms/dtrees/engine/response_set.h"
 
 namespace daal
@@ -67,7 +67,6 @@ struct TreeParams
     bool randomSplitter        = false;
     bool counterDraws          = true; // philox4x32x10 node draws by counter; otherwise TreeInputs::nodeUniform
     size_t treesInFlight       = 0;
-    size_t numaNodes           = 0; // see ExecutorParams; the data's NumaPlacement::nodes
     // hist: nodes of fewer than denseThreshold * maxBins records take the exact phase (design 4.7).
     double denseThreshold = 2;
     size_t maxBins        = 256;
@@ -85,7 +84,7 @@ struct TreeParams
 template <typename algorithmFPType, CpuType cpu>
 struct TreeData
 {
-    const NumaArray<algorithmFPType, cpu> * x              = nullptr; // row-major, nRows x nFeatures
+    const BlockArray<algorithmFPType, cpu> * x             = nullptr; // row-major, nRows x nFeatures
     const ResponseSource<algorithmFPType, cpu> * responses = nullptr;
     const bool * categorical                               = nullptr; // per feature; nullptr: all ordered
     const BinMatrix<cpu> * bins                            = nullptr; // hist: the binned table; nullptr for defaultDense

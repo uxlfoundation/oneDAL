@@ -17,9 +17,8 @@
 
 /*
 //++
-//  Schedules tree building: trees are taken from one shared counter by runners
-//  inside one arena per NUMA node, and the nodes of a tree run as tasks in the
-//  tree's arena.
+//  Schedules tree building: trees are taken from one shared counter by runners,
+//  and the nodes of a tree run as tasks.
 //--
 */
 
@@ -54,7 +53,6 @@ struct ExecutorParams
     size_t nTrees        = 0;
     size_t maxLeafNodes  = 0; // 0 builds depth-first; otherwise best-first with this many leaves at most
     size_t treesInFlight = 0; // 0 means no limit
-    size_t numaNodes     = 0; // arenas: 0 queries the topology for every NUMA node; 1 runs in the calling arena
 };
 
 /**
@@ -62,9 +60,8 @@ struct ExecutorParams
  *
  *  Builder provides:
  *  - WorkItem, a copyable node description, and TreeContext, default-constructible per-runner state.
- *  - Status initContext(TreeContext &, int numaNode): called once per runner, inside the arena of NUMA
- *    node numaNode, in [0, ExecutorParams::numaNodes). Per-tree buffers allocated here are reused by every
- *    tree the runner builds and stay on that node.
+ *  - Status initContext(TreeContext &): called once per runner, by the runner's thread. Per-tree buffers
+ *    allocated here are reused by every tree the runner builds.
  *  - Status beginTree(TreeContext &, size_t iTree, WorkItem & root)
  *  - Status evaluate(TreeContext &, WorkItem &, bool & splittable): finds the item's split. In
  *    best-first trees it also sets the improvement the heap orders by.
@@ -78,8 +75,6 @@ struct ExecutorParams
  *  evaluate, commit and makeLeaf run concurrently for distinct items of one tree and for items of
  *  different trees. Every node goes through evaluate and then commit or makeLeaf, in that order, by
  *  the same split routine in all scheduling modes, so the trees do not depend on the mode.
- *
- *  Code run here uses daal::tls, not static_tls: thread indices are arena-relative (threading.h).
  */
 template <typename Builder, CpuType cpu>
 class Executor
@@ -96,19 +91,7 @@ public:
         SafeStatus safeStat;
         const size_t inFlight = treesInFlight(_params);
         if (!inFlight) return services::Status();
-        const size_t numaNodes = _params.numaNodes ? _params.numaNodes : size_t(threader_numa_count());
-        const size_t nArenas   = numaNodes < inFlight ? numaNodes : inFlight;
-        if (nArenas == 1)
-        {
-            runArena(0, inFlight, safeStat);
-        }
-        else
-        {
-            daal::threader_for(nArenas, 1, [&](size_t iArena) {
-                daal::threader_execute_in_numa(static_cast<int>(iArena),
-                                               [&]() { runArena(static_cast<int>(iArena), runnersPerArena(inFlight, nArenas, iArena), safeStat); });
-            });
-        }
+        runRunners(inFlight, safeStat);
         return safeStat.detach();
     }
 
@@ -116,12 +99,6 @@ public:
     static size_t treesInFlight(const ExecutorParams & params)
     {
         return params.treesInFlight && params.treesInFlight < params.nTrees ? params.treesInFlight : params.nTrees;
-    }
-
-    /// Runners arena iArena of nArenas starts for inFlight trees in flight, before its thread count caps them.
-    static size_t runnersPerArena(size_t inFlight, size_t nArenas, size_t iArena)
-    {
-        return inFlight / nArenas + (iArena < inFlight % nArenas ? 1 : 0);
     }
 
 private:
@@ -150,21 +127,20 @@ private:
         void operator()() { executor->processNode(*tree, item); }
     };
 
-    // Up to nRunners runners, at most one per thread of the arena; each runs trees one at a time until none are
-    // left. A runner owns its tree (buffers, begin, wait, emit); the tree's node tasks run on every thread of the
-    // arena, so runners beyond the trees in flight would only wake threads, and on a first fit create them, to find
-    // no tree.
-    void runArena(int numaNode, size_t nRunners, SafeStatus & safeStat)
+    // Up to nRunners runners, at most one per thread; each runs trees one at a time until none are left. A runner
+    // owns its tree (buffers, begin, wait, emit); the tree's node tasks run on every thread, so runners beyond the
+    // trees in flight would only wake threads, and on a first fit create them, to find no tree.
+    void runRunners(size_t nRunners, SafeStatus & safeStat)
     {
         const size_t nThreads = size_t(threader_get_max_threads_number());
         if (nRunners > nThreads) nRunners = nThreads;
         daal::task_group group;
-        auto runner = [&]() { runTrees(numaNode, safeStat); };
+        auto runner = [&]() { runTrees(safeStat); };
         for (size_t i = 0; i < nRunners; ++i) group.run(runner);
         group.wait();
     }
 
-    void runTrees(int numaNode, SafeStatus & safeStat)
+    void runTrees(SafeStatus & safeStat)
     {
         TreeContext ctx;
         bool initialized = false;
@@ -174,7 +150,7 @@ private:
             if (iTree >= _params.nTrees) return;
             if (!initialized)
             {
-                const services::Status s = _builder.initContext(ctx, numaNode);
+                const services::Status s = _builder.initContext(ctx);
                 DAAL_CHECK_STATUS_THR(s);
                 initialized = true;
             }

@@ -24,21 +24,16 @@
 #include "src/threading/threading.h"
 #include "services/daal_memory.h"
 #include "src/algorithms/service_qsort.h"
-#include "src/services/service_arrays.h"
-#include "services/daal_shared_ptr.h"
-#include "src/threading/service_thread_pinner.h"
 
 #define TBB_PREVIEW_GLOBAL_CONTROL 1
 #define TBB_PREVIEW_TASK_ARENA     1
 
 #include <algorithm> // std::min
-#include <new>       // std::nothrow
 #include <stdlib.h>  // malloc and free
 #include <tbb/tbb.h>
 #include <tbb/spin_mutex.h>
 #include <tbb/scalable_allocator.h>
 #include <tbb/global_control.h>
-#include <tbb/info.h>
 #include <tbb/task_arena.h>
 #include "services/daal_atomic_int.h"
 
@@ -932,112 +927,6 @@ DAAL_EXPORT void _daal_run_task_group(void * taskGroupPtr, daal::task * t)
 DAAL_EXPORT void _daal_wait_task_group(void * taskGroupPtr)
 {
     ((tbb::task_group *)taskGroupPtr)->wait();
-}
-
-namespace
-{
-/// One arena per NUMA node. The arenas are sized from the thread count set by
-/// `setNumberOfThreads` and replaced when it changes; a caller still executing in a replaced
-/// arena keeps it alive through its `SharedPtr`. Each arena is initialized by the first thread to
-/// enter it, which needs oneTBB 2023.2 or later (see `threader_execute_in_numa`).
-class NumaArenas
-{
-    template <typename T>
-    using Array = daal::services::internal::TArrayScalable<T, DAAL_BASE_CPU>;
-
-public:
-    using ArenaPtr = daal::services::SharedPtr<tbb::task_arena>;
-
-    static NumaArenas & instance()
-    {
-        static NumaArenas arenas;
-        return arenas;
-    }
-
-    int arenaCount() const { return static_cast<int>(_nodes.size()); }
-
-    ArenaPtr arena(int node)
-    {
-        const size_t nThreads = daal::threader_env()->getNumberOfThreads();
-        tbb::spin_mutex::scoped_lock lock(_mutex);
-        if (nThreads != _nThreads)
-        {
-            rebuild(nThreads);
-        }
-        return _arenas[node];
-    }
-
-private:
-    // With one node, including the `{-1}` oneTBB returns without `tbbbind`, there are no
-    // arenas: `arenaCount()` is 0 and work runs in the caller's arena. Same if an allocation fails.
-    NumaArenas() : _totalConcurrency(0), _nThreads(0)
-    {
-        const auto nodes = tbb::info::numa_nodes();
-        const size_t n   = nodes.size();
-        if (n < 2) return;
-        if (!_arenas.reset(n) || !_concurrency.reset(n) || !_nodes.reset(n))
-        {
-            _nodes.reset(0);
-            return;
-        }
-        for (size_t i = 0; i < n; ++i)
-        {
-            _nodes[i]       = nodes[i];
-            _concurrency[i] = tbb::info::default_concurrency(nodes[i]);
-            _totalConcurrency += _concurrency[i];
-        }
-    }
-
-    // A node without an arena (share 0, or a failed allocation) runs its work in the caller's arena.
-    void rebuild(size_t nThreads)
-    {
-        for (size_t i = 0; i < _nodes.size(); ++i)
-        {
-            const int share = static_cast<int>(daal::numa_arena_share(_concurrency.get(), _nodes.size(), i, nThreads));
-            _arenas[i]      = share ? ArenaPtr(new (std::nothrow)
-                                                   tbb::task_arena(tbb::task_arena::constraints {}.set_numa_id(_nodes[i]).set_max_concurrency(share))) :
-                                      ArenaPtr();
-        }
-        _nThreads = nThreads;
-    }
-
-    Array<tbb::numa_node_id> _nodes;
-    Array<int> _concurrency;
-    Array<ArenaPtr> _arenas;
-    size_t _totalConcurrency;
-    size_t _nThreads;
-    tbb::spin_mutex _mutex;
-};
-
-/// A thread pinned by `enableThreadPinning` keeps its CPU, so it sees a single node.
-bool isThreadPinned()
-{
-#if !(defined DAAL_THREAD_PINNING_DISABLED)
-    return daal::services::internal::is_thread_pinned();
-#else
-    return false;
-#endif
-}
-} // namespace
-
-DAAL_EXPORT int _daal_threader_numa_count()
-{
-    if (isThreadPinned()) return 1;
-    return std::max(1, NumaArenas::instance().arenaCount());
-}
-
-DAAL_EXPORT void _daal_threader_execute_in_numa(int node, const void * a, daal::functype_void func)
-{
-    NumaArenas & arenas              = NumaArenas::instance();
-    const NumaArenas::ArenaPtr arena = !isThreadPinned() && node >= 0 && node < arenas.arenaCount() ? arenas.arena(node) : NumaArenas::ArenaPtr();
-    if (arena)
-    {
-        arena->execute([&]() { func(a); });
-    }
-    else
-    {
-        func(a);
-    }
 }
 
 /// Class to manage the lifetime of the daal::Reducer object.

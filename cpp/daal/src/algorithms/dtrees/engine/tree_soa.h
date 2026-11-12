@@ -29,7 +29,7 @@
 #include <cstdint>
 
 #include "services/daal_atomic_int.h"
-#include "src/algorithms/dtrees/engine/numa_alloc.h"
+#include "src/algorithms/dtrees/engine/block_array.h"
 #include "src/algorithms/service_threading.h"
 #include "src/services/service_arrays.h"
 

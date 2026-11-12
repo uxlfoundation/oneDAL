@@ -42,7 +42,7 @@ TEST("unweighted classification records keep in-bag rows in order with their cou
 {
     std::vector<double> y = { 0, 1, 2, 1, 0 };
     ResponseSource<double, cpu> src;
-    REQUIRE(src.build(*column(y), nullptr, true, NumaPlacement()).ok());
+    REQUIRE(src.build(*column(y), nullptr, true).ok());
     REQUIRE(!src.weighted());
 
     const std::vector<uint16_t> counts = { 2, 0, 1, 3, 0 };
@@ -70,7 +70,7 @@ TEST("weights are normalized to a maximum of 1, scaled by the count, and zero we
     std::vector<double> y = { 1.5, -2, 3, 4 };
     std::vector<double> w = { 2, 0, 4, 1 };
     ResponseSource<double, cpu> src;
-    REQUIRE(src.build(*column(y), column(w).get(), false, NumaPlacement()).ok());
+    REQUIRE(src.build(*column(y), column(w).get(), false).ok());
     REQUIRE(src.weighted());
 
     const std::vector<uint16_t> counts = { 1, 5, 2, 0 };
@@ -91,9 +91,9 @@ TEST("the mean response is weighted by the normalized weights", "[unit]")
     std::vector<double> y = { 1.5, -2, 3, 4 };
     std::vector<double> w = { 2, 0, 4, 1 };
     ResponseSource<double, cpu> src;
-    REQUIRE(src.build(*column(y), column(w).get(), false, NumaPlacement()).ok());
+    REQUIRE(src.build(*column(y), column(w).get(), false).ok());
     REQUIRE(std::abs(src.responseMean() - 4.75 / 1.75) < 1e-15);
-    REQUIRE(src.build(*column(y), nullptr, false, NumaPlacement()).ok());
+    REQUIRE(src.build(*column(y), nullptr, false).ok());
     REQUIRE(src.responseMean() == 6.5 / 4);
 }
 
@@ -102,7 +102,7 @@ TEST("all-zero weights make the fit unweighted, as legacy", "[unit]")
     std::vector<double> y = { 0, 1 };
     std::vector<double> w = { 0, 0 };
     ResponseSource<double, cpu> src;
-    REQUIRE(src.build(*column(y), column(w).get(), true, NumaPlacement()).ok());
+    REQUIRE(src.build(*column(y), column(w).get(), true).ok());
     REQUIRE(!src.weighted());
 }
 
@@ -110,7 +110,7 @@ TEST("filling more records than allocated fails", "[unit]")
 {
     std::vector<double> y = { 0, 1, 1 };
     ResponseSource<double, cpu> src;
-    REQUIRE(src.build(*column(y), nullptr, true, NumaPlacement()).ok());
+    REQUIRE(src.build(*column(y), nullptr, true).ok());
     ResponseSet<ClsCountRecord, cpu> set;
     REQUIRE(set.allocate(2).ok());
     double total = 0;

@@ -14,7 +14,7 @@
 * limitations under the License.
 *******************************************************************************/
 
-/// Unit tests for the for-loop and NUMA entry points of the threading layer.
+/// Unit tests for the for-loop entry points of the threading layer.
 ///
 /// Before this suite nothing exercised `_daal_threader_for*` except whichever algorithm happened
 /// to call it, so a change to an iteration space, to a callback convention, or to the meaning of a
@@ -35,25 +35,16 @@
 
 #include <algorithm>
 #include <atomic>
-#include <chrono>
 #include <cstdint>
 #include <limits>
 #include <memory>
 #include <mutex>
-#include <thread>
 #include <utility>
 #include <vector>
 
 #include "oneapi/dal/test/engine/common.hpp"
 #include "services/env_detect.h"
 #include "src/threading/threading.h"
-#include "src/threading/service_thread_pinner.h"
-#include "src/services/service_topo.h"
-
-#if defined(__linux__)
-    #include <sys/syscall.h>
-    #include <unistd.h>
-#endif
 
 namespace daal::test
 {
@@ -531,253 +522,5 @@ TEST("the conditional loops cover the space and honour inParallel", "[threading]
         REQUIRE(staticThreads.distinctCount() > 1u);
     }
 }
-
-TEST("threader_execute_in_numa runs the callable once, inside or outside the node range", "[threading][unit]")
-{
-    const int nodes = threader_numa_count();
-    REQUIRE(nodes >= 1);
-
-    for (int node = -1; node <= nodes; ++node)
-    {
-        int calls = 0;
-        threader_execute_in_numa(node, [&]() { ++calls; });
-        REQUIRE(calls == 1);
-    }
-}
-
-TEST("loops run through threader_execute_in_numa cover their space with arena-relative thread indices", "[threading][unit]")
-{
-    constexpr int64_t n = 200000;
-    const int nodes     = threader_numa_count();
-
-    // All nodes at once from a parallel loop, the way a caller spreads work over the arenas.
-    std::vector<std::unique_ptr<VisitLog> > logs;
-    for (int node = 0; node < nodes; ++node)
-    {
-        logs.push_back(std::make_unique<VisitLog>(n));
-    }
-    std::atomic<bool> threadIdOutOfRange { false };
-
-    threader_for(nodes, 1, [&](int64_t node) {
-        threader_execute_in_numa(static_cast<int>(node), [&]() {
-            ThreadIdLog threads;
-            threader_for(n, 1, [&](int64_t i) {
-                logs[static_cast<size_t>(node)]->mark(i);
-                threads.mark();
-            });
-            if (!threads.inRange()) threadIdOutOfRange.store(true, std::memory_order_relaxed);
-        });
-    });
-
-    for (const auto & log : logs)
-    {
-        REQUIRE(log->visitedExactlyOnce());
-    }
-    REQUIRE(!threadIdOutOfRange.load(std::memory_order_relaxed));
-}
-
-TEST("NUMA arena shares add up to the thread count and follow each node's concurrency", "[threading][unit]")
-{
-    auto shares = [](const std::vector<int> & concurrency, size_t nThreads) {
-        std::vector<size_t> result;
-        for (size_t i = 0; i < concurrency.size(); ++i) result.push_back(numa_arena_share(concurrency.data(), concurrency.size(), i, nThreads));
-        return result;
-    };
-    // Rounding each node down on its own would give 1 + 1 here.
-    REQUIRE(shares({ 56, 56 }, 3) == std::vector<size_t> { 1, 2 });
-    REQUIRE(shares({ 56, 56 }, 2) == std::vector<size_t> { 1, 1 });
-    REQUIRE(shares({ 56, 56 }, 112) == std::vector<size_t> { 56, 56 });
-    REQUIRE(shares({ 56, 56 }, 500) == std::vector<size_t> { 56, 56 });
-    // One thread each, then 6 more in proportion to 47 : 15.
-    REQUIRE(shares({ 48, 16 }, 8) == std::vector<size_t> { 5, 3 });
-    // Fewer threads than nodes: some nodes get none, and the total is still the thread count.
-    REQUIRE(shares({ 10, 10, 10, 10 }, 1) == std::vector<size_t> { 0, 0, 0, 1 });
-    REQUIRE(shares({ 10, 10, 10, 10 }, 2) == std::vector<size_t> { 0, 1, 0, 1 });
-    REQUIRE(shares({ 1, 1 }, 2) == std::vector<size_t> { 1, 1 });
-    for (const std::vector<int> & concurrency : { std::vector<int> { 7, 3, 5 }, std::vector<int> { 1, 64 }, std::vector<int> { 4, 4, 4, 4, 4 } })
-    {
-        size_t total = 0;
-        for (const int c : concurrency) total += size_t(c);
-        for (size_t nThreads = 1; nThreads <= total + 2; ++nThreads)
-        {
-            CAPTURE(nThreads);
-            const auto s = shares(concurrency, nThreads);
-            size_t sum   = 0;
-            for (size_t i = 0; i < s.size(); ++i)
-            {
-                REQUIRE(s[i] <= size_t(concurrency[i]));
-                if (nThreads >= concurrency.size()) REQUIRE(s[i] >= 1);
-                sum += s[i];
-            }
-            REQUIRE(sum == std::min(nThreads, total));
-        }
-    }
-}
-
-TEST("NUMA arenas share the thread count set by setNumberOfThreads", "[threading][unit]")
-{
-    const int nodes = threader_numa_count();
-    if (nodes < 2) return;
-
-    const size_t savedThreads = threader_get_threads_number();
-    auto arenaThreads         = [&]() {
-        std::vector<int> result(static_cast<size_t>(nodes));
-        for (int node = 0; node < nodes; ++node)
-        {
-            threader_execute_in_numa(node, [&]() { result[static_cast<size_t>(node)] = threader_get_max_threads_number(); });
-        }
-        return result;
-    };
-
-    const std::vector<int> initial = arenaThreads();
-    int total                      = 0;
-    for (const int threads : initial)
-    {
-        REQUIRE(threads >= 1);
-        total += threads;
-    }
-    REQUIRE(static_cast<size_t>(total) <= std::max(savedThreads, static_cast<size_t>(nodes)));
-
-    // One thread per node gives every arena a single thread; restoring the thread count resizes
-    // the arenas back. The count is restored before asserting so later tests are unaffected.
-    services::Environment::getInstance()->setNumberOfThreads(static_cast<size_t>(nodes));
-    const std::vector<int> reduced = arenaThreads();
-    services::Environment::getInstance()->setNumberOfThreads(savedThreads);
-    const std::vector<int> restored = arenaThreads();
-
-    for (const int threads : reduced)
-    {
-        REQUIRE(threads == 1);
-    }
-    REQUIRE(restored == initial);
-}
-
-TEST("NUMA arenas can be first entered from a worker whose slot index exceeds their size", "[threading][unit]")
-{
-    const int nodes           = threader_numa_count();
-    const size_t savedThreads = threader_get_threads_number();
-    if (nodes < 2 || savedThreads < 4 * static_cast<size_t>(nodes)) return;
-
-    // A new thread count replaces the arenas, so the next entry into each one initializes it.
-    const size_t nThreads = savedThreads - 1;
-    services::Environment::getInstance()->setNumberOfThreads(nThreads);
-    const int64_t minSlot = static_cast<int64_t>(nThreads / static_cast<size_t>(nodes)) + 1;
-
-    // Threads below minSlot hold their iteration until a thread at or above it claims one, so the
-    // loop cannot finish on low slots alone; the deadline only keeps a broken scheduler from hanging.
-    const int64_t n     = static_cast<int64_t>(4 * nThreads);
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
-    std::atomic<bool> claimed { false };
-    std::atomic<int> entered { 0 };
-    threader_for(n, 1, [&](int64_t) {
-        if (threader_get_max_current_thread_index() < minSlot)
-        {
-            while (!claimed.load() && std::chrono::steady_clock::now() < deadline) std::this_thread::yield();
-            return;
-        }
-        if (claimed.exchange(true)) return;
-        for (int node = 0; node < nodes; ++node)
-        {
-            threader_execute_in_numa(node, [&]() { entered.fetch_add(1); });
-        }
-    });
-    services::Environment::getInstance()->setNumberOfThreads(savedThreads);
-
-    REQUIRE(claimed.load());
-    REQUIRE(entered.load() == nodes);
-}
-
-#if defined(__linux__)
-/// @return OS index of the NUMA node of the CPU the calling thread runs on.
-int currentOsNumaNode()
-{
-    unsigned cpu  = 0;
-    unsigned node = 0;
-    if (syscall(SYS_getcpu, &cpu, &node, nullptr) != 0) return -1;
-    return static_cast<int>(node);
-}
-
-TEST("threader_execute_in_numa keeps each arena's threads on one NUMA node", "[threading][unit]")
-{
-    const int nodes = threader_numa_count();
-    if (nodes < 2) return;
-
-    // OS node indices need not equal the threading layer's node indices, so each arena is only
-    // required to stay on one OS node, and different arenas on different ones.
-    constexpr int64_t n = 2000000;
-    std::vector<int> osNodeOfArena(static_cast<size_t>(nodes), -1);
-    std::atomic<bool> leftNode { false };
-
-    for (int node = 0; node < nodes; ++node)
-    {
-        threader_execute_in_numa(node, [&]() {
-            const int expected = currentOsNumaNode();
-            threader_for(n, 1, [&](int64_t i) {
-                (void)i;
-                if (currentOsNumaNode() != expected) leftNode.store(true, std::memory_order_relaxed);
-            });
-            osNodeOfArena[static_cast<size_t>(node)] = expected;
-        });
-    }
-
-    REQUIRE(!leftNode.load(std::memory_order_relaxed));
-    std::vector<int> sorted = osNodeOfArena;
-    std::sort(sorted.begin(), sorted.end());
-    REQUIRE(sorted.front() >= 0);
-    REQUIRE(std::adjacent_find(sorted.begin(), sorted.end()) == sorted.end());
-}
-#endif
-
-#if !(defined DAAL_THREAD_PINNING_DISABLED)
-/// Runs `func` in the thread pinner's arena.
-template <typename F>
-class PinnedTask : public services::internal::thread_pinner_task_t
-{
-public:
-    explicit PinnedTask(const F & func) : _func(func) {}
-    void operator()() override { _func(); }
-
-private:
-    const F & _func;
-};
-
-TEST("threads pinned by enableThreadPinning see one node and run threader_execute_in_numa inline", "[threading][unit]")
-{
-    const int nodes = threader_numa_count();
-    if (nodes < 2) return;
-
-    services::Environment::getInstance()->enableThreadPinning(true);
-    services::internal::thread_pinner_t * pinner = services::internal::getThreadPinner(false, read_topology, delete_topology);
-    if (pinner == nullptr || !pinner->get_pinning())
-    {
-        services::Environment::getInstance()->enableThreadPinning(false);
-        return;
-    }
-
-    constexpr int64_t n = 10000;
-    std::atomic<bool> sawManyNodes { false };
-    std::atomic<bool> leftThread { false };
-    std::atomic<int64_t> calls { 0 };
-    const auto body = [&]() {
-        threader_for(n, 1, [&](int64_t) {
-            if (threader_numa_count() != 1) sawManyNodes.store(true, std::memory_order_relaxed);
-            const std::thread::id caller = std::this_thread::get_id();
-            threader_execute_in_numa(nodes - 1, [&]() {
-                if (std::this_thread::get_id() != caller) leftThread.store(true, std::memory_order_relaxed);
-                calls.fetch_add(1, std::memory_order_relaxed);
-            });
-        });
-    };
-    PinnedTask<decltype(body)> task(body);
-    pinner->execute(task);
-    services::Environment::getInstance()->enableThreadPinning(false);
-
-    REQUIRE(!sawManyNodes.load(std::memory_order_relaxed));
-    REQUIRE(!leftThread.load(std::memory_order_relaxed));
-    REQUIRE(calls.load(std::memory_order_relaxed) == n);
-    // Leaving the pinner's arena unpins the thread, so it sees every node again.
-    REQUIRE(threader_numa_count() == nodes);
-}
-#endif
 
 } // namespace daal::test

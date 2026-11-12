@@ -27,7 +27,7 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "src/algorithms/dtrees/engine/numa_alloc.h"
+#include "src/algorithms/dtrees/engine/block_array.h"
 #include "src/algorithms/dtrees/engine/prefetch.h"
 #include "src/services/service_arrays.h"
 
@@ -89,13 +89,13 @@ public:
         return services::Status();
     }
 
-    services::Status allocateRows(size_t nRows, size_t binBytes, const NumaPlacement & placement)
+    services::Status allocateRows(size_t nRows, size_t binBytes)
     {
         _nRows    = nRows;
         _binBytes = binBytes;
         _stride   = binRowStride<cpu>(_nFeatures, binBytes);
         DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nRows, _stride);
-        return _rows.allocate(nRows * _stride, placement);
+        return _rows.allocate(nRows * _stride);
     }
 
     size_t nRows() const { return _nRows; }
@@ -122,7 +122,7 @@ public:
 
     // Writers used while the matrix is built.
     uint8_t * rowBytes(size_t iRow) { return _rows.data() + iRow * _stride; }
-    NumaArray<uint8_t, cpu> & storage() { return _rows; }
+    BlockArray<uint8_t, cpu> & storage() { return _rows; }
     void setFeature(size_t f, bool hasMissing, bool exactBins, double min, double max)
     {
         _hasMissing[f] = hasMissing;
@@ -136,7 +136,7 @@ private:
     size_t _nFeatures = 0;
     size_t _binBytes  = 0;
     size_t _stride    = 0;
-    NumaArray<uint8_t, cpu> _rows;
+    BlockArray<uint8_t, cpu> _rows;
     services::internal::TArray<size_t, cpu> _nBins;
     services::internal::TArray<size_t, cpu> _borderOffset;
     services::internal::TArray<double, cpu> _borders;

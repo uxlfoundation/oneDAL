@@ -29,7 +29,6 @@
 #include "algorithms/decision_forest/decision_forest_training_parameter.h"
 #include "data_management/data/numeric_table.h"
 #include "src/algorithms/dtrees/dtrees_model_impl.h"
-#include "src/algorithms/dtrees/engine/numa_alloc.h"
 #include "src/algorithms/dtrees/forest/df_hyperparameter_impl.h"
 
 namespace daal
@@ -43,56 +42,6 @@ namespace training
 namespace internal
 {
 using daal::internal::CpuType;
-
-// Thread-seconds a fit takes per unit of work (trees x in-bag rows x drawn features x levels): 4.2-7.4e-8 on
-// 2 x SPR 8480+ over letter to Higgs 10.5M (design 4.9). Provisional; 5e measures it.
-constexpr double fitSecondsPerWorkUnit = 5.5e-8;
-
-// Fits estimated below this use one NUMA node; that is every fit. On 2 x SPR 8480+ NUMA arenas were neutral to 19%
-// slower at every size measured (scikit-learn_bench ensemble cases to Higgs 10.5M), and the first topology query
-// costs 65-100 ms per process. The gate stays for hosts with more sockets or SNC, behind a measurement (design 4.9).
-constexpr double numaMinFitSeconds = 1e300;
-
-/// What a fit's time scales with.
-struct FitWork
-{
-    size_t nTrees          = 0;
-    size_t rows            = 0; // distinct in-bag rows of a tree
-    size_t featuresPerNode = 0;
-    size_t levels          = 0;
-};
-
-/// The work of a fit from its parameters; featuresPerNode at most the feature count, maxDepth and maxLeafNodes 0 when unbounded.
-template <CpuType cpu>
-inline FitWork fitWork(size_t nTrees, size_t nRows, size_t nSamples, bool bootstrap, size_t featuresPerNode, size_t minLeafRows, size_t maxDepth,
-                       size_t maxLeafNodes)
-{
-    // Bootstrap counts are weights, so a tree's rows are its distinct draws, about 1 - 1/e of them.
-    const size_t drawn = nSamples < nRows ? nSamples : nRows;
-    const size_t rows  = bootstrap ? size_t(double(drawn) * 0.632) + 1 : drawn;
-    size_t levels      = 0;
-    for (size_t r = rows / (minLeafRows ? minLeafRows : 1); r > 1; r >>= 1) ++levels;
-    if (maxDepth && maxDepth < levels) levels = maxDepth;
-    size_t leafLevels = 0;
-    for (size_t m = maxLeafNodes; m > 1; m >>= 1) ++leafLevels;
-    if (maxLeafNodes && leafLevels < levels) levels = leafLevels;
-    return { nTrees, rows, featuresPerNode, levels ? levels : 1 };
-}
-
-template <CpuType cpu>
-inline double estimatedFitSeconds(const FitWork & work, size_t nThreads)
-{
-    const double units = double(work.nTrees) * double(work.rows) * double(work.featuresPerNode) * double(work.levels);
-    return fitSecondsPerWorkUnit * units / double(nThreads ? nThreads : 1);
-}
-
-/// One node for fits estimated below numaMinFitSeconds, without querying the topology; else every node of the host.
-template <CpuType cpu>
-inline dtrees::engine::internal::NumaPlacement numaPlacement(const FitWork & work, size_t nThreads)
-{
-    using dtrees::engine::internal::NumaPlacement;
-    return estimatedFitSeconds<cpu>(work, nThreads) < numaMinFitSeconds ? NumaPlacement() : NumaPlacement::host<cpu>();
-}
 
 /// Result tables of a fit, allocated by the caller; null when not requested.
 struct ForestResults
