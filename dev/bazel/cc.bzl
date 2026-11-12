@@ -73,13 +73,38 @@ def _init_cc_rule(ctx, features=[], disable_features=[]):
         requested_features = ctx.features + features,
         unsupported_features = ctx.disabled_features + disable_features,
     )
-    if (cc_common.is_enabled(feature_configuration = feature_config, feature_name = "dpc++") and
-        not cc_common.is_enabled(feature_configuration = feature_config, feature_name = "has_dpc_compiler")):
-        fail(("{} needs the DPC++ compiler (icpx on Linux, icx on Windows; clang-cl has none), " +
-              "but the C++ toolchain was configured without it. Put it in PATH, or pass " +
-              "--release_dpc=false to skip the DPC++ targets.").format(ctx.label))
     _check_msvc_runtime(ctx, feature_config, _is_windows(ctx))
     return cc_toolchain, feature_config
+
+def _missing_dpc_compiler_inputs(ctx, feature_config):
+    """Returns a failing action's output for the compiles of a DPC++ target the toolchain cannot build.
+
+    The error waits for the build, so `--nobuild` still analyses the DPC++ targets without icpx.
+    The host driver preprocesses an `#error`, which every supported compiler accepts with `-E`.
+    """
+    if not (cc_common.is_enabled(feature_configuration = feature_config, feature_name = "dpc++") and
+            not cc_common.is_enabled(feature_configuration = feature_config, feature_name = "has_dpc_compiler")):
+        return []
+    message = ("{} needs the DPC++ compiler (icpx on Linux, icx on Windows; clang-cl has none), " +
+               "but the C++ toolchain was configured without it. Put it in PATH, or pass " +
+               "--release_dpc=false to skip the DPC++ targets.").format(ctx.label)
+    src = ctx.actions.declare_file(ctx.label.name + "_needs_dpc_compiler.c")
+    ctx.actions.write(src, "#error \"{}\"\n".format(message.replace("\"", "'")))
+    out = ctx.actions.declare_file(ctx.label.name + "_needs_dpc_compiler.i")
+    ctx.actions.run(
+        executable = cc_common.get_tool_for_action(feature_configuration = feature_config, action_name = "c-compile"),
+        arguments = ["-E", src.path],
+        inputs = [src],
+        outputs = [out],
+        env = cc_common.get_environment_variables(
+            feature_configuration = feature_config,
+            action_name = "c-compile",
+            variables = cc_common.empty_variables(),
+        ),
+        mnemonic = "DpcCompilerCheck",
+        progress_message = "Checking for the DPC++ compiler for %{label}",
+    )
+    return [out]
 
 def _is_windows(ctx):
     return ctx.target_platform_has_constraint(
@@ -190,6 +215,7 @@ def _cc_module_impl(ctx):
         quote_includes = ctx.attr.quote_includes,
         disallow_nopic_outputs = not is_windows,
         short_paths = is_windows,
+        additional_inputs = _missing_dpc_compiler_inputs(ctx, feature_config),
     )
     if compilation_outputs.objects and compilation_outputs.pic_objects:
         fail("Non-PIC object files found, oneDAL assumes " +
