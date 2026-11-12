@@ -33,6 +33,7 @@ load(
     "TEST_CPP_FILE",
     "add_compiler_option_if_supported",
     "add_linker_option_if_supported",
+    "find_tool",
     "get_cpu_specific_options",
     "get_cross_tool_prefix",
     "get_cxx_inc_directories",
@@ -40,24 +41,7 @@ load(
     "get_no_canonical_prefixes_opt",
     "get_starlark_list_dict",
     "get_toolchain_identifier",
-    "get_tmp_dpcpp_inc_directories",
 )
-
-def _find_tool(repo_ctx, tool_name, mandatory = False):
-    if tool_name.startswith("/"):
-        tool_path = repo_ctx.path(tool_name) if repo_ctx.path(tool_name).exists else None
-    else:
-        tool_path = repo_ctx.which(tool_name)
-    if tool_path == None:
-        if mandatory:
-            auto_configure_fail("Cannot find {}; try to correct your $PATH".format(tool_name))
-        # The toolchain config registers no tool for the actions of a missing
-        # optional tool, so a target that needs it fails during analysis.
-        return "", False
-    return str(tool_path), True
-
-def find_tool(repo_ctx, tool_name, mandatory = False):
-    return _find_tool(repo_ctx, tool_name, mandatory)
 
 def _find_tools(repo_ctx, reqs):
     # TODO: Use full compiler path from reqs
@@ -68,13 +52,13 @@ def _find_tools(repo_ctx, reqs):
         strip_path = reqs.downloaded_tools.strip
     else:
         cross_prefix = get_cross_tool_prefix(repo_ctx)
-        ar_path, _ = _find_tool(repo_ctx, cross_prefix + "ar", mandatory = True)
+        ar_path, _ = find_tool(repo_ctx, cross_prefix + "ar", mandatory = True)
         # Use CC as given so that a versioned name (gcc-14, clang-19) or a full
         # path selects that exact compiler.
         cc_name = repo_ctx.os.environ.get("CC") or (cross_prefix + reqs.compiler_id)
-        cc_path, _ = _find_tool(repo_ctx, cc_name, mandatory = True)
-        strip_path, _ = _find_tool(repo_ctx, cross_prefix + "strip", mandatory = True)
-    dpcc_path, dpcpp_found = _find_tool(repo_ctx, reqs.dpc_compiler_id, mandatory = False)
+        cc_path, _ = find_tool(repo_ctx, cc_name, mandatory = True)
+        strip_path, _ = find_tool(repo_ctx, cross_prefix + "strip", mandatory = True)
+    dpcc_path, dpcpp_found = find_tool(repo_ctx, reqs.dpc_compiler_id, mandatory = False)
     if dpcpp_found:
         # GNU ar on RHEL mishandles the `+` Bazel puts in directory names.
         ar_path = paths.join(paths.dirname(dpcc_path), "compiler", "llvm-ar")
@@ -87,10 +71,9 @@ def _find_tools(repo_ctx, reqs):
         strip = strip_path,
         ar = ar_path,
         is_dpc_found = dpcpp_found,
-        dpc_compiler_version = reqs.dpc_compiler_version
     )
 
-def _preapre_builtin_include_directory_paths(repo_ctx, tools):
+def _prepare_builtin_include_directory_paths(repo_ctx, tools):
     dpcc_include_directories = (
         get_cxx_inc_directories(
             repo_ctx,
@@ -106,7 +89,9 @@ def _preapre_builtin_include_directory_paths(repo_ctx, tools):
             _add_gcc_toolchain_if_needed(repo_ctx, tools.dpcc) +
             _add_sycl_linkage(repo_ctx, tools.dpcc),
         ) +
-        get_tmp_dpcpp_inc_directories(repo_ctx, tools)
+        # icpx includes the integration header it generates under /tmp, which Bazel
+        # then requires to be a builtin include directory.
+        ["/tmp"]
     ) if tools.is_dpc_found else []
 
     # Probe with the flags the compile actions pass: --gcc-toolchain can select another libstdc++.
@@ -165,18 +150,16 @@ def _add_sycl_linkage(repo_ctx, cc):
         return []
 
 def _add_new_offload_driver_link(repo_ctx, dpcc):
-    # Probe --offload-compress with a shared link, as Make's dpcpp.mk:84-92 does.
-    # A compile-only probe misses an icpx 2025.3 link failure; the probe runs in a fresh temp dir.
-    tmp = repo_ctx.execute(["mktemp", "-d"])
-    if tmp.return_code != 0:
-        return []
-    tmp_dir = tmp.stdout.strip()
+    # Probe --offload-compress with a shared link, as Make's dpcpp.mk does: a compile-only
+    # probe misses an icpx 2025.3 link failure. The probe gets a scratch dir of its own.
+    scratch_dir = repo_ctx.path("offload_probe")
+    repo_ctx.file("offload_probe/.keep", "")
     result = repo_ctx.execute([
         dpcc, "-fsycl", "--offload-new-driver", "--offload-compress",
         "-shared", "-fPIC", str(repo_ctx.path(TEST_CPP_FILE)),
-        "-o", tmp_dir + "/probe.so",
-    ], environment = {"TMPDIR": tmp_dir})
-    repo_ctx.execute(["rm", "-rf", "--", tmp_dir])
+        "-o", str(scratch_dir.get_child("probe.so")),
+    ], environment = {"TMPDIR": str(scratch_dir)})
+    repo_ctx.delete(scratch_dir)
     if result.return_code != 0:
         return []
     flags = ["--offload-new-driver"]
@@ -208,7 +191,7 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
     ]
 
     tools = _find_tools(repo_ctx, reqs)
-    builtin_include_directories = _preapre_builtin_include_directory_paths(repo_ctx, tools)
+    builtin_include_directories = _prepare_builtin_include_directory_paths(repo_ctx, tools)
 
     # No -B for a GNU cross compiler: /usr/bin holds the host `ld`, which would override its own.
     cross_compiling = get_cross_tool_prefix(repo_ctx) != ""

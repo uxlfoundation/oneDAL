@@ -28,6 +28,7 @@ load("@rules_cc//cc:cc_toolchain_config_lib.bzl",
     "tool",
     "with_feature_set",
 )
+load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 
 all_compile_actions = [
     ACTION_NAMES.c_compile,
@@ -63,20 +64,39 @@ lto_index_actions = [
     ACTION_NAMES.lto_index_for_nodeps_dynamic_library,
 ]
 
+# The actions that run the compiler driver and get their own `action_config`.
+_compiler_actions = [
+    ACTION_NAMES.assemble,
+    ACTION_NAMES.preprocess_assemble,
+    ACTION_NAMES.c_compile,
+    ACTION_NAMES.cpp_compile,
+    ACTION_NAMES.cpp_header_parsing,
+]
+
+def _flag_set_if(actions, flags, **kwargs):
+    """A `flag_set` with one `flag_group`, or with none when `flags` is empty, which it rejects.
+
+    Args:
+        actions: the actions the flags apply to.
+        flags: the flag list.
+        **kwargs: forwarded to `flag_set`, e.g. `with_features`.
+    """
+    return flag_set(
+        actions = actions,
+        flag_groups = [flag_group(flags = flags)] if flags else [],
+        **kwargs
+    )
+
 def _compiler_tools(cc_path, dpcc_path):
-    """Describe the host and DPC++ drivers an action can run.
+    """The host driver for every action, the DPC++ driver for those with the `dpc++` feature.
 
     Args:
         cc_path: path to the host compiler driver.
         dpcc_path: path to the DPC++ compiler driver; empty when none was found.
 
-    Returns:
-        The `tool` list. The DPC++ driver serves the actions of targets with
-        the `dpc++` feature, the host driver every other one. Without a DPC++
-        driver the host driver stands in, so that a header-only `cc_library`
-        with the feature (`@ccl//:headers`) still resolves the `$(CC)` make
-        variable; `_init_cc_rule` in `dev/bazel/cc.bzl` refuses to compile
-        DPC++ sources with it through the `has_dpc_compiler` feature.
+    Without a DPC++ driver the host driver stands in, so that a header-only `cc_library` with
+    the feature (`@ccl//:headers`) still resolves `$(CC)`; `has_dpc_compiler` keeps it off
+    DPC++ sources.
     """
     return [
         tool(
@@ -89,18 +109,27 @@ def _compiler_tools(cc_path, dpcc_path):
         ),
     ]
 
-def _has_dpc_compiler_feature(dpcc_path):
-    """Record whether the toolchain was configured with a DPC++ compiler."""
-    return feature(name = "has_dpc_compiler", enabled = bool(dpcc_path))
-
-def _cpp_link_static_library_action(ar_path):
-    """Describe the static library archiving action.
+def _compile_action_configs(compiler_tools, implies):
+    """One `action_config` per compile action, all with the same tools and implied features.
 
     Args:
-        ar_path: path to the archiver, `ar` or `xilib`.
+        compiler_tools: the `tool` list from `compiler_tools`.
+        implies: the features every compile action enables.
+    """
+    return [
+        action_config(
+            action_name = action_name,
+            implies = implies,
+            tools = compiler_tools,
+        )
+        for action_name in _compiler_actions
+    ]
 
-    Returns:
-        The `action_config`.
+def _cpp_link_static_library_action(ar_path):
+    """The static library archiving action.
+
+    Args:
+        ar_path: path to the archiver, `ar` or `llvm-lib`.
     """
     return action_config(
         action_name = ACTION_NAMES.cpp_link_static_library,
@@ -112,6 +141,25 @@ def _cpp_link_static_library_action(ar_path):
             tool(path = ar_path),
         ],
     )
+
+def _marker_features(dpcc_path):
+    """The flagless features that targets and the build mode request; other flag sets key on them.
+
+    Args:
+        dpcc_path: path to the DPC++ compiler driver; empty when none was found.
+    """
+    return [
+        feature(name = "dpc++"),
+        feature(name = "has_dpc_compiler", enabled = bool(dpcc_path)),
+        feature(name = "c++17"),
+        feature(name = "pedantic"),
+        feature(name = "dbg"),
+        feature(name = "opt"),
+    ]
+
+def _no_legacy_features_feature():
+    """Opt out of the features Bazel would otherwise add to the toolchain."""
+    return feature(name = "no_legacy_features", enabled = True)
 
 def _supports_dynamic_linker_feature():
     """Declare that the toolchain can link shared libraries."""
@@ -199,47 +247,85 @@ def _user_link_flags_feature():
         ],
     )
 
+def _default_compile_flags_feature(attr):
+    """The toolchain's own compile flags, picked by compiler, by mode and by requested feature.
+
+    Args:
+        attr: the rule's `ctx.attr`; reads the `compile_flags_*`, `*_compile_flags`,
+              `cxx_flags` and `cxx_std_flag_prefix` attributes.
+    """
+    return feature(
+        name = "default_compile_flags",
+        enabled = True,
+        flag_sets = [
+            _flag_set_if(
+                all_compile_actions,
+                attr.compile_flags_cc,
+                with_features = [with_feature_set(not_features = ["dpc++"])],
+            ),
+            _flag_set_if(
+                all_compile_actions,
+                attr.compile_flags_dpcc,
+                with_features = [with_feature_set(features = ["dpc++"])],
+            ),
+            _flag_set_if(
+                all_compile_actions,
+                attr.dbg_compile_flags,
+                with_features = [with_feature_set(features = ["dbg"])],
+            ),
+            _flag_set_if(
+                all_compile_actions,
+                attr.opt_compile_flags,
+                with_features = [with_feature_set(features = ["opt"])],
+            ),
+            _flag_set_if(
+                all_compile_actions,
+                [attr.cxx_std_flag_prefix + "c++17"],
+                with_features = [with_feature_set(features = ["c++17"])],
+            ),
+            _flag_set_if(
+                all_compile_actions,
+                attr.compile_flags_pedantic_cc,
+                with_features = [with_feature_set(features = ["pedantic"],
+                                                  not_features = ["dpc++"])],
+            ),
+            _flag_set_if(
+                all_compile_actions,
+                attr.compile_flags_pedantic_dpcc,
+                with_features = [with_feature_set(features = ["dpc++", "pedantic"])],
+            ),
+            _flag_set_if(
+                all_cpp_compile_actions + [ACTION_NAMES.lto_backend],
+                attr.cxx_flags,
+            ),
+        ],
+    )
+
 def _default_link_flags_feature(link_flags_cc, link_flags_dpcc, opt_link_flags):
-    """Apply the toolchain's own link flags, picked by compiler and by mode.
+    """The toolchain's own link flags, picked by compiler and by mode.
 
     Args:
         link_flags_cc: flags for the host compiler.
-        link_flags_dpcc: flags for the DPC++ compiler, used when the `dpc++`
-                         feature is on.
+        link_flags_dpcc: flags for the DPC++ compiler, used when the `dpc++` feature is on.
         opt_link_flags: flags added on top in the `opt` compilation mode.
-
-    Returns:
-        The `feature`.
     """
     return feature(
         name = "default_link_flags",
         enabled = True,
         flag_sets = [
-            flag_set(
-                actions = all_link_actions + lto_index_actions,
-                flag_groups = ([
-                    flag_group(
-                        flags = link_flags_cc,
-                    ),
-                ] if link_flags_cc else []),
+            _flag_set_if(
+                all_link_actions + lto_index_actions,
+                link_flags_cc,
                 with_features = [with_feature_set(not_features = ["dpc++"])],
             ),
-            flag_set(
-                actions = all_link_actions + lto_index_actions,
-                flag_groups = ([
-                    flag_group(
-                        flags = link_flags_dpcc,
-                    ),
-                ] if link_flags_dpcc else []),
+            _flag_set_if(
+                all_link_actions + lto_index_actions,
+                link_flags_dpcc,
                 with_features = [with_feature_set(features = ["dpc++"])],
             ),
-            flag_set(
-                actions = all_link_actions + lto_index_actions,
-                flag_groups = ([
-                    flag_group(
-                        flags = opt_link_flags,
-                    ),
-                ] if opt_link_flags else []),
+            _flag_set_if(
+                all_link_actions + lto_index_actions,
+                opt_link_flags,
                 with_features = [with_feature_set(features = ["opt"])],
             ),
         ],
@@ -250,19 +336,13 @@ def _default_dynamic_libraries_feature(dynamic_link_libs):
 
     Args:
         dynamic_link_libs: the libraries, e.g. `-lstdc++ -lm` on Linux.
-
-    Returns:
-        The `feature`.
     """
     return feature(
         name = "default_dynamic_libraries",
         flag_sets = [
-            flag_set(
-                actions = all_link_actions + lto_index_actions,
-                flag_groups = (
-                    [flag_group(flags = dynamic_link_libs)]
-                    if dynamic_link_libs else []
-                ),
+            _flag_set_if(
+                all_link_actions + lto_index_actions,
+                dynamic_link_libs,
                 with_features = [
                     with_feature_set(
                         not_features = ["do_not_link_dynamic_dependencies"],
@@ -272,31 +352,55 @@ def _default_dynamic_libraries_feature(dynamic_link_libs):
         ],
     )
 
-def _cpu_opt_feature(cpu_id, cpu_flags_cc, cpu_flags_dpcc):
-    """Describe the per-ISA compile flags of a single CPU dispatch variant.
+def _cpu_opt_features(cpu_flags_cc, cpu_flags_dpcc):
+    """One `<cpu_id>_flags` feature per CPU dispatch variant with its per-ISA compile flags.
 
     Args:
-        cpu_id: the ISA identifier, e.g. `avx2`; names the feature.
-        cpu_flags_cc: flags for the host compiler.
-        cpu_flags_dpcc: flags for the DPC++ compiler.
-
-    Returns:
-        The `feature`, named `<cpu_id>_flags`.
+        cpu_flags_cc: flags for the host compiler by ISA identifier, e.g. `avx2`.
+        cpu_flags_dpcc: flags for the DPC++ compiler by the same identifiers.
     """
-    return feature(
-        name = "{}_flags".format(cpu_id),
-        flag_sets = [
-            flag_set(
-                actions = all_compile_actions,
-                flag_groups = [flag_group(flags = cpu_flags_cc)],
-                with_features = [with_feature_set(not_features = ["dpc++"])],
-            ),
-            flag_set(
-                actions = all_compile_actions,
-                flag_groups = [flag_group(flags = cpu_flags_dpcc)],
-                with_features = [with_feature_set(features = ["dpc++"])],
-            ),
-        ],
+    return [
+        feature(
+            name = "{}_flags".format(cpu_id),
+            flag_sets = [
+                flag_set(
+                    actions = all_compile_actions,
+                    flag_groups = [flag_group(flags = flags_cc)],
+                    with_features = [with_feature_set(not_features = ["dpc++"])],
+                ),
+                flag_set(
+                    actions = all_compile_actions,
+                    flag_groups = [flag_group(flags = cpu_flags_dpcc[cpu_id])],
+                    with_features = [with_feature_set(features = ["dpc++"])],
+                ),
+            ],
+        )
+        for cpu_id, flags_cc in cpu_flags_cc.items()
+    ]
+
+def _create_config_info(ctx, features, action_configs, **kwargs):
+    """`cc_common.create_cc_toolchain_config_info` with the identity from the common attributes.
+
+    Args:
+        ctx: the rule context.
+        features: the `feature` list.
+        action_configs: the `action_config` list.
+        **kwargs: forwarded, e.g. `artifact_name_patterns`.
+    """
+    return cc_common.create_cc_toolchain_config_info(
+        ctx = ctx,
+        features = features,
+        action_configs = action_configs,
+        cxx_builtin_include_directories = ctx.attr.cxx_builtin_include_directories,
+        toolchain_identifier = ctx.attr.toolchain_identifier,
+        host_system_name = ctx.attr.host_system_name,
+        target_system_name = ctx.attr.target_system_name,
+        target_cpu = ctx.attr.cpu,
+        target_libc = ctx.attr.target_libc,
+        compiler = ctx.attr.compiler,
+        abi_version = ctx.attr.abi_version,
+        abi_libc_version = ctx.attr.abi_libc_version,
+        **kwargs
     )
 
 # Attributes declared by both `cc_toolchain_config` rules.
@@ -320,6 +424,8 @@ COMMON_ATTRS = {
     "dbg_compile_flags": attr.string_list(),
     "opt_compile_flags": attr.string_list(),
     "cxx_flags": attr.string_list(),
+    # `-std=` for gcc, clang and icx; clang-cl takes `/Qstd:` (icx) or `/std:`.
+    "cxx_std_flag_prefix": attr.string(default = "-std="),
     "link_flags_cc": attr.string_list(),
     "link_flags_dpcc": attr.string_list(),
     "dynamic_link_libs": attr.string_list(),
@@ -331,8 +437,10 @@ COMMON_ATTRS = {
 
 common = struct(
     compiler_tools = _compiler_tools,
-    has_dpc_compiler_feature = _has_dpc_compiler_feature,
+    compile_action_configs = _compile_action_configs,
     cpp_link_static_library_action = _cpp_link_static_library_action,
+    marker_features = _marker_features,
+    no_legacy_features_feature = _no_legacy_features_feature,
     supports_dynamic_linker_feature = _supports_dynamic_linker_feature,
     do_not_link_dynamic_dependencies_feature =
         _do_not_link_dynamic_dependencies_feature,
@@ -340,7 +448,9 @@ common = struct(
     linker_param_file_feature = _linker_param_file_feature,
     user_compile_flags_feature = _user_compile_flags_feature,
     user_link_flags_feature = _user_link_flags_feature,
+    default_compile_flags_feature = _default_compile_flags_feature,
     default_link_flags_feature = _default_link_flags_feature,
     default_dynamic_libraries_feature = _default_dynamic_libraries_feature,
-    cpu_opt_feature = _cpu_opt_feature,
+    cpu_opt_features = _cpu_opt_features,
+    create_config_info = _create_config_info,
 )

@@ -23,19 +23,12 @@ load("@onedal//dev/bazel/toolchains:common.bzl",
     "ARCH_ID_TO_PLATFORM_CPU",
     "TEST_CPP_FILE",
     "add_compiler_option_if_supported",
+    "find_tool",
     "get_cpu_specific_options",
     "get_default_compiler_options",
     "get_starlark_list_dict",
     "get_toolchain_identifier",
 )
-
-def _find_tool(repo_ctx, tool_name, mandatory = False):
-    tool_path = repo_ctx.which(tool_name)
-    if tool_path == None:
-        if mandatory:
-            fail("Cannot find {}; is it on PATH?".format(tool_name))
-        return "", False
-    return str(tool_path), True
 
 def _create_dpc_link_wrapper(repo_ctx, dpcc_path):
     repo_ctx.template(
@@ -61,7 +54,7 @@ def _find_llvm_tool(repo_ctx, cc_path, name, fallback):
     @param fallback  MSVC tool to use when `name` is not found, such as `link`.
     @return          Path of the tool to use.
     """
-    path, found = _find_tool(repo_ctx, name, mandatory = False)
+    path, found = find_tool(repo_ctx, name, mandatory = False)
     if found:
         return path
     bundled = repo_ctx.path(cc_path).dirname.get_child("compiler").get_child(name + ".exe")
@@ -69,13 +62,13 @@ def _find_llvm_tool(repo_ctx, cc_path, name, fallback):
         return str(bundled)
     print("{} not found; falling back to MSVC {}.exe, which is not long-path aware".format(
         name, fallback))
-    path, _ = _find_tool(repo_ctx, fallback, mandatory = True)
+    path, _ = find_tool(repo_ctx, fallback, mandatory = True)
     return path
 
 def _find_tools_icx(repo_ctx):
     # Host links run the linker directly, as Make's `link.dynamic.win`: icx writes all arguments
     # of a large link into one response-file line and fails with LNK1170.
-    cc_path, _ = _find_tool(repo_ctx, "icx", mandatory = True)
+    cc_path, _ = find_tool(repo_ctx, "icx", mandatory = True)
     dpcc_link_path = _create_dpc_link_wrapper(repo_ctx, cc_path)
     cc_link_path = _find_llvm_tool(repo_ctx, cc_path, "lld-link", "link")
     ar_path = _find_llvm_tool(repo_ctx, cc_path, "llvm-lib", "lib")
@@ -91,10 +84,10 @@ def _find_tools_icx(repo_ctx):
 
 def _find_tools_clang(repo_ctx):
     """Upstream LLVM clang-cl tools, as Make's `PLAT=winarm`; host only, as icpx targets x86_64 only."""
-    cc_path, _ = _find_tool(repo_ctx, "clang-cl", mandatory = True)
+    cc_path, _ = find_tool(repo_ctx, "clang-cl", mandatory = True)
     # Required, as in Make: falling back to `link` could find MSYS2's unrelated link.exe.
-    cc_link_path, _ = _find_tool(repo_ctx, "lld-link", mandatory = True)
-    ar_path, _ = _find_tool(repo_ctx, "llvm-lib", mandatory = True)
+    cc_link_path, _ = find_tool(repo_ctx, "lld-link", mandatory = True)
+    ar_path, _ = find_tool(repo_ctx, "llvm-lib", mandatory = True)
     return struct(
         cc = cc_path,
         dpcc = "",
@@ -250,7 +243,6 @@ def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
         compiler_id = compiler_id,
         dpc_compiler_id = "icpx",
         compiler_version = "local",
-        dpc_compiler_version = "local",
         target_arch_id = reqs.target_arch_id,
         host_arch_id = reqs.host_arch_id,
         libc_version = "local",

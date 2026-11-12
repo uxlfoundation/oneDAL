@@ -20,6 +20,7 @@ load(
     "get_cpu_flags",
 )
 load("@rules_cc//cc/private/toolchain:lib_cc_configure.bzl",
+    "auto_configure_fail",
     "get_starlark_list",
 )
 
@@ -79,6 +80,27 @@ def is_dpc_compiler_found(repo_ctx, os_id):
     if os_id != "lnx":
         return True
     return repo_ctx.which("icpx") != None
+
+def find_tool(repo_ctx, tool_name, mandatory = False):
+    """Returns `(path, found)` of a tool given as an absolute path or looked up in PATH.
+
+    Args:
+        repo_ctx: the repository context.
+        tool_name: the absolute path or the name to look up in PATH.
+        mandatory: fail when the tool is missing instead of returning `("", False)`.
+
+    The empty path of a missing optional tool registers no tool for its actions,
+    so a target that needs it fails during analysis.
+    """
+    if tool_name.startswith("/"):
+        tool_path = repo_ctx.path(tool_name) if repo_ctx.path(tool_name).exists else None
+    else:
+        tool_path = repo_ctx.which(tool_name)
+    if tool_path == None:
+        if mandatory:
+            auto_configure_fail("Cannot find {}; try to correct your $PATH".format(tool_name))
+        return "", False
+    return str(tool_path), True
 
 # oneDAL arch IDs (Make: ARCH_DIR_ONEDAL) by the machine field of a cross-compiler triple.
 _ARCH_ID_BY_TRIPLE_PREFIX = {
@@ -169,10 +191,6 @@ def detect_target_arch(repo_ctx, host_arch_id):
     _, arch_id = _detect_cross_compiler(repo_ctx)
     return arch_id or _detect_target_flag_arch(repo_ctx) or host_arch_id
 
-def get_starlark_dict(dictionary):
-    entries = [ "\"{}\":\"{}\"".format(k, v) for k, v in dictionary.items() ]
-    return ",\n    ".join(entries)
-
 def get_starlark_list_dict(dictionary):
     entries = [ "\"{}\": [{}]".format(k, get_starlark_list(v)) for k, v in dictionary.items() ]
     return ",\n    ".join(entries)
@@ -189,9 +207,6 @@ def get_cxx_inc_directories(repo_ctx, cc, lang_flag, additional_flags = []):
     index1 = result.stderr.find("\n", index0)
     inc_dirs = result.stderr[index1:index2].strip()
     return [ _prepare_include_path(repo_ctx, p) for p in inc_dirs.split("\n") if p.strip() ]
-
-def get_tmp_dpcpp_inc_directories(repo_ctx, tools):
-    return ["/tmp"] if tools.dpc_compiler_version >= "20210803" else []
 
 def _null_device(repo_ctx):
     return "NUL" if "windows" in repo_ctx.os.name else "/dev/null"

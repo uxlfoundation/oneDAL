@@ -174,32 +174,22 @@ _SINGLE_VARIANT_ISA_ID = {
 def _get_single_variant_march_flags(arch_id):
     return _SINGLE_VARIANT_MARCH_FLAGS[arch_id]
 
+# -march per x86-64 ISA variant; icx and icpx spell Skylake-SP `skx`.
+_X86_CPU_FLAGS = {
+    "sse2": ["-march=nocona"],
+    "avx2": ["-march=haswell"],
+    "avx512": ["-march=skylake-avx512"],
+}
+
+_X86_CPU_FLAGS_INTEL = dict(_X86_CPU_FLAGS, avx512 = ["-march=skx"])
+
 def get_cpu_flags(arch_id, os_id, compiler_id):
     if arch_id in ["arm", "riscv64"]:
         # Repeats the common -march only because flag_group() needs a non-empty list.
         return {
             _SINGLE_VARIANT_ISA_ID[arch_id]: _get_single_variant_march_flags(arch_id),
         }
-    sse2 = []
-    avx2 = []
-    avx512 = []
-    if compiler_id == "gcc":
-        sse2 = ["-march=nocona"]
-        avx2 = ["-march=haswell"]
-        avx512 = ["-march=skylake-avx512"]
-    elif compiler_id == "clang":
-        sse2 = ["-march=nocona"]
-        avx2 = ["-march=haswell"]
-        avx512 = ["-march=skylake-avx512"]
-    elif compiler_id in ["icx", "icpx"]:
-        sse2 = ["-march=nocona"]
-        avx2 = ["-march=haswell"]
-        avx512 = ["-march=skx"]
-    return {
-        "sse2": sse2,
-        "avx2": avx2,
-        "avx512": avx512,
-    }
+    return _X86_CPU_FLAGS_INTEL if compiler_id in ["icx", "icpx"] else _X86_CPU_FLAGS
 
 def _check_flag_category(category):
     if not category in ["common", "pedantic"]:
