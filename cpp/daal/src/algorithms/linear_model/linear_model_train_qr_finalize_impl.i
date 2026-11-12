@@ -24,6 +24,7 @@
 #include "src/algorithms/linear_model/linear_model_train_qr_kernel.h"
 #include "src/externals/service_lapack.h"
 #include "src/externals/service_blas.h"
+#include "src/externals/service_memory.h"
 #include "src/services/service_data_utils.h"
 
 namespace daal
@@ -108,6 +109,7 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & rTable
         for (DAAL_INT j = 0; j < nBetasIntercept && !isSingular; ++j)
         {
             algorithmFPType rowNormSquared(0);
+            PRAGMA_OMP_SIMD_ARGS(reduction(+ : rowNormSquared))
             for (DAAL_INT k = j; k < nBetasIntercept; ++k)
             {
                 const algorithmFPType value = r[k * nBetasIntercept + j];
@@ -180,10 +182,8 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & rTable
 
             if (nRetained == 0)
             {
-                for (size_t i = 0; i < size_t(nResponses) * size_t(nBetasIntercept); ++i)
-                {
-                    betaBuffer[i] = algorithmFPType(0.0);
-                }
+                daal::services::internal::service_memset<algorithmFPType, cpu>(betaBuffer, algorithmFPType(0.0),
+                                                                               size_t(nResponses) * size_t(nBetasIntercept));
             }
             else
             {
@@ -194,6 +194,8 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & rTable
                                                       betaBuffer, &nBetasIntercept, &zero, projection, &nRetained);
                 for (DAAL_INT i = 0; i < nResponses; ++i)
                 {
+                    PRAGMA_OMP_SIMD
+                    PRAGMA_VECTOR_ALWAYS
                     for (DAAL_INT j = 0; j < nRetained; ++j)
                     {
                         projection[i * nRetained + j] /= singularValues[j];
