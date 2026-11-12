@@ -402,7 +402,7 @@ The most used Bazel commands are `build`, `test` and `run`.
   The release tree is placed under `bazel-bin/release/daal/latest`, matching the layout of
   oneDAL release directories such as `__release_lnx/daal/latest`. The main outputs are in the
   same subdirectories: headers under `include`, libraries under `lib/<arch>`, environment
-  setup under `env/vars.sh`, and pkg-config metadata under `lib/pkgconfig/onedal.pc`. `<arch>` is
+  setup under `env/vars.sh`, and pkg-config metadata under `lib/pkgconfig/dal-*-threading-host.pc`. `<arch>` is
   `intel64`, or `arm`, `riscv64` and `ARM64` (Windows ARM64) on the other targets, as in Make.
 
   - To build for a specific CPU architecture only (useful for speeding up CI), use `--cpu`:
@@ -467,12 +467,11 @@ The debug-CRT build requires the `tbb12_debug` / `tbbmalloc_debug` libraries and
 MKL's `mkl_tbb_threadd` in the layouts being used; the oneAPI BaseKit ships all
 of them.
 
-CI builds `//:release` in both flavours on every pull request and checks the
-resulting names, but `//:release_all` is only analysed there
-(`--nobuild`): building it means building the whole Windows release twice,
-which does not fit alongside the two single-flavour builds in one hosted job.
-The `WindowsBazelReleaseAll` job builds it and verifies the merged tree, and it
-runs on manual or scheduled pipeline runs rather than per pull request.
+Pull-request CI builds the release CRT flavour and only analyses
+`//:release --config=mdd` and `//:release_all` (`--nobuild`): building them means
+building the whole Windows release twice, which does not fit in one hosted job.
+The `WindowsBazelReleaseAll` job builds the merged tree and verifies it on
+manual or scheduled pipeline runs.
 
 On non-Windows platforms both the `mdd` config and `//:release_all` are no-ops.
 Note that `//:release_all` then forwards the `//:release` tree unchanged instead
@@ -795,9 +794,9 @@ Build the full release artifact with all ISA variants (sse2, avx2, avx512):
 bazel build //:release --cpu=all
 ```
 
-By default, `--cpu=auto` builds the baseline `sse2` variant (x86 only) plus the
-detected host ISA. Use `--cpu=all` for full release coverage, or set a specific ISA to
-restrict coverage (e.g., for faster CI):
+`//:release` builds every ISA unless `--cpu` names some. For other targets the default
+`--cpu=auto` builds the baseline `sse2` variant (x86 only) plus the detected host ISA;
+`--cpu=all` builds every ISA, and a specific ISA restricts the build (e.g., for faster CI):
 
 ```sh
 bazel build //:release --cpu=avx2

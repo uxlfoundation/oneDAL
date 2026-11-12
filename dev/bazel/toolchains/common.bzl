@@ -33,6 +33,10 @@ _INC_DIR_MARKER_END = "End of search list"
 _MAC_FRAMEWORK_SUFFIX = " (framework directory)"
 _MAC_FRAMEWORK_SUFFIX_LEN = len(_MAC_FRAMEWORK_SUFFIX)
 
+def arch_dir(os_id, arch_id):
+    """The `lib/<arch>` directory of the release tree, Make's ARCH_DIR_ONEDAL."""
+    return "ARM64" if arch_id == "arm" and os_id == "win" else arch_id
+
 def detect_os(repo_ctx):
     if "linux" in repo_ctx.os.name:
         return "lnx"

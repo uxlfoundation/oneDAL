@@ -433,6 +433,7 @@ def _cc_dynamic_lib_impl(ctx):
         "-Wl,--version-script,{}".format(script.path)
         for script in ctx.files.linker_scripts
     ]
+    exclude_libs_flags = [] if is_windows else ["-Wl,--exclude-libs=ALL"]
     # Make links the version resource into every Windows DLL (dll.res, makefile:586, 870, 874).
     # Only this DLL links it, so it is kept out of the returned linking context.
     res_files = []
@@ -453,7 +454,8 @@ def _cc_dynamic_lib_impl(ctx):
         feature_configuration = feature_config,
         linking_contexts = linking_contexts,
         def_file = ctx.file.def_file,
-        user_link_flags = linux_soname_flags + linux_linker_script_flags + (["-Wl,--exclude-libs=ALL"] if not is_windows else []) + ctx.attr.linkopts + coverage.link_flags + [res.path for res in res_files],
+        user_link_flags = linux_soname_flags + linux_linker_script_flags + exclude_libs_flags +
+                          ctx.attr.linkopts + coverage.link_flags + [res.path for res in res_files],
         is_windows = is_windows,
         additional_inputs = ctx.files.linker_scripts + res_files,
     )

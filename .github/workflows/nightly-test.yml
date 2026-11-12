@@ -297,7 +297,7 @@ jobs:
           set PATH=C:\msys64\usr\bin;%PATH%
           call .\oneapi\setvars.bat
           call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
-          for /f %%d in ('date -u +%%Y%%m%%d') do set BUILD_DATE=%%d
+          for /f %%d in ('date.exe -u +%%Y%%m%%d') do set BUILD_DATE=%%d
           bazel build //:release --config=release-dpc --cpu=avx2 --build_date=%BUILD_DATE%
       - name: Compare make and Bazel releases
         shell: cmd

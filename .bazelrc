@@ -51,7 +51,7 @@ build:host \
 test:host \
     --test_tag_filters="host"
 
-# --release_dpc=true makes a missing icpx a build error instead of skipping every test.
+# --release_dpc=true makes a missing DPC++ compiler a build error instead of skipping every test.
 build:dpc \
     --build_tag_filters="dpc" \
     --release_dpc=true

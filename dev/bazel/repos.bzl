@@ -17,6 +17,7 @@
 load("@onedal//dev/bazel:utils.bzl", "utils", "paths")
 load("@onedal//dev/bazel:version.bzl", "VERSION")
 load("@onedal//dev/bazel/toolchains:common.bzl",
+    "arch_dir",
     "detect_host_arch",
     "detect_os",
     "detect_target_arch",
@@ -347,11 +348,7 @@ def _check_download_arch(repo_ctx, os_id):
         ))
 
 def _release_arch_dir(repo_ctx, os_id):
-    """Returns the target's release-tree arch directory, as TargetInfo.arch_dir in config.bzl."""
-    arch_id = detect_target_arch(repo_ctx, detect_host_arch(repo_ctx, os_id))
-    if arch_id == "arm" and os_id == "win":
-        return "ARM64"
-    return arch_id
+    return arch_dir(os_id, detect_target_arch(repo_ctx, detect_host_arch(repo_ctx, os_id)))
 
 def _prebuilt_libs_repo_impl(repo_ctx):
     os_id = _detect_os(repo_ctx)

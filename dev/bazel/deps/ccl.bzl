@@ -15,7 +15,6 @@
 #===============================================================================
 
 load("@onedal//dev/bazel:repos.bzl", "repos")
-load("@onedal//dev/bazel/deps:mpi.bzl", "mpi_test")
 
 ccl_repo = repos.prebuilt_libs_repo_rule(
     root_env_var = "CCL_ROOT",
@@ -39,6 +38,3 @@ ccl_repo = repos.prebuilt_libs_repo_rule(
         "include/":                                     "include/cpu_gpu_dpcpp/",
     },
 )
-
-# A CCL test is launched the same way, through Intel MPI's mpiexec.
-ccl_test = mpi_test

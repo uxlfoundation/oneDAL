@@ -48,11 +48,8 @@ cc_library(
         "%{repo_root}/lib/mkl_core_dll.lib",
         "%{repo_root}/lib/mkl_intel_lp64_dll.lib",
         "%{repo_root}/lib/mkl_intel_thread_dll.lib",
-        "%{repo_root}/lib/mkl_sycl_blas_dll.lib",
-        "%{repo_root}/lib/mkl_sycl_lapack_dll.lib",
-        "%{repo_root}/lib/mkl_sycl_rng_dll.lib",
-        "%{repo_root}/lib/mkl_sycl_sparse_dll.lib",
-    ],
+    # A oneAPI MKLROOT ships the SYCL domains; the downloaded wheels do not (DPC++ links then fail).
+    ] + ["%{repo_root}/" + lib for lib in glob(["lib/mkl_sycl_*_dll.lib"], allow_empty = True)],
 )
 
 cc_library(

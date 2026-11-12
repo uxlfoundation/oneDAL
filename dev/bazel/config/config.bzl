@@ -17,7 +17,7 @@
 load("@onedal//dev/bazel:utils.bzl", "utils", "sets")
 load("@onedal//dev/bazel:version.bzl", "DEV_BUILD_DATE", "VERSION")
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
-load("@onedal//dev/bazel/toolchains:common.bzl", "detect_os", "detect_compiler", "detect_host_arch", "detect_target_arch", "is_dpc_compiler_found")
+load("@onedal//dev/bazel/toolchains:common.bzl", "arch_dir", "detect_os", "detect_compiler", "detect_host_arch", "detect_target_arch", "is_dpc_compiler_found")
 load("@onedal//dev/bazel/toolchains:cc_toolchain_win.bzl", "win_compiler_id")
 
 ConfigFlagInfo = provider(
@@ -98,15 +98,25 @@ def _target_info_impl(ctx):
     def has(constraint):
         return ctx.target_platform_has_constraint(constraint[platform_common.ConstraintValueInfo])
 
-    is_windows = has(ctx.attr._windows)
-    arch = "arm" if has(ctx.attr._aarch64) else "riscv64" if has(ctx.attr._riscv64) else "intel64"
+    if has(ctx.attr._windows):
+        os = "win"
+    elif has(ctx.attr._osx):
+        os = "mac"
+    else:
+        os = "lnx"
+    if has(ctx.attr._aarch64):
+        arch = "arm"
+    elif has(ctx.attr._riscv64):
+        arch = "riscv64"
+    else:
+        arch = "intel64"
     return [TargetInfo(
-        os = "win" if is_windows else "mac" if has(ctx.attr._osx) else "lnx",
+        os = os,
         arch = arch,
-        is_windows = is_windows,
+        is_windows = os == "win",
         is_linux = has(ctx.attr._linux),
-        arch_dir = "ARM64" if arch == "arm" and is_windows else arch,
-        msvc_runtime_debug = is_windows and ctx.attr.msvc_runtime[ConfigFlagInfo].flag == "debug",
+        arch_dir = arch_dir(os, arch),
+        msvc_runtime_debug = os == "win" and ctx.attr.msvc_runtime[ConfigFlagInfo].flag == "debug",
     )]
 
 target_info = rule(

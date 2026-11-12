@@ -24,10 +24,6 @@ load("@onedal//dev/bazel:cc.bzl",
 load("@onedal//dev/bazel/deps:mpi.bzl",
     "mpi_test",
 )
-
-load("@onedal//dev/bazel/deps:ccl.bzl",
-    "ccl_test",
-)
 load("@onedal//dev/bazel:release.bzl",
     "headers_filter",
 )
@@ -455,7 +451,7 @@ def _dal_generate_cpu_dispatcher_impl(ctx):
     content = (
         "// DO NOT EDIT: file is auto-generated on build time\n" +
         "// DO NOT PUT THIS FILE TO SVC: file is auto-generated on build time\n" +
-        "// CPU detection logic specified in dev/bazel/config.bzl file\n" +
+        "// CPU detection logic specified in dev/bazel/config/config.bzl file\n" +
         "\n" +
         "".join(["#define ONEDAL_CPU_DISPATCH_{}\n".format(info.dispatch)
                  for isa, info in ISA_TABLE.items() if isa in enabled])
@@ -598,10 +594,10 @@ def _dal_cc_test(name, mpi=False, ccl=False, mpi_ranks=0, **kwargs):
         return
     if mpi_ranks <= 0:
         fail("'{}' is an MPI or CCL test, so it needs `mpi_ranks` > 0".format(name))
-    # The binary keeps its own target; mpiexec launches it with the requested ranks.
+    # The binary keeps its own target; mpiexec launches it with the requested ranks (CCL included).
     binary = ("_ccl_" if ccl else "_mpi_") + name
     cc_test(name = binary, **kwargs)
-    (ccl_test if ccl else mpi_test)(
+    mpi_test(
         name = name,
         src = binary,
         mpi_ranks = mpi_ranks,

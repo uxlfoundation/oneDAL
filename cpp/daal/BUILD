@@ -153,7 +153,7 @@ daal_module(
 )
 
 # Leaf module: the version header stays out of the compile inputs of the core
-# libraries, so only a stamped release build relinks them (dev/bazel/stamp.bzl).
+# libraries, so another --build_date relinks them without recompiling.
 daal_module(
     name = "version_info",
     srcs = ["src/services/library_version_info.cpp"],

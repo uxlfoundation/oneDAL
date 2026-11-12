@@ -95,6 +95,7 @@ coverage_dpc_link_test(
     tags = ["manual"],
 )
 
+# The DPC++ link check is not in the suite: CI runs it on manually queued pipelines only.
 test_suite(
     name = "coverage_tests",
     tags = ["manual"],

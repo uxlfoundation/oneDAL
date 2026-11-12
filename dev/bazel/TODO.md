@@ -53,12 +53,12 @@
   |         |        Intel       |        DPC++       |         GCC        |       Clang        |        MSVC        |
   |---------|:------------------:|:------------------:|:------------------:|:------------------:|:------------------:|
   | Linux   | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |                    |
-  | Windows | :heavy_check_mark: | :heavy_check_mark: |                    |        :x:         | :heavy_check_mark: |
+  | Windows | :heavy_check_mark: | :heavy_check_mark: |                    | :heavy_check_mark: | :heavy_check_mark: |
 
   Intel `icx`/`icpx` is preferred whenever it is on `PATH`; `CC` overrides the
   choice. Linux Clang builds `//:release`, but no CI job selects it, so
-  regressions in that flag set are only found by hand. Windows Clang
-  (`clang-cl`) is added by #3795.
+  regressions in that flag set are only found by hand. Windows `clang-cl` is
+  the ARM64 lane of `ci-win.yml`.
 
 - [ ] **Windows DPC++ execution.** Windows release artifacts can include the
   DPC++ libraries, but the examples and tests that create a SYCL queue are not

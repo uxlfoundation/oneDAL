@@ -96,7 +96,7 @@ def _generate_cmake_config_impl(ctx):
     )
     return [DefaultInfo(files = depset([out]))]
 
-_generate_cmake_config = rule(
+generate_cmake_config = rule(
     implementation = _generate_cmake_config_impl,
     attrs = {
         "template": attr.label(
@@ -107,14 +107,6 @@ _generate_cmake_config = rule(
         "parameters_lib": attr.bool(default = True),
     } | TARGET_ATTRS,
 )
-
-def generate_cmake_config(name, template, out, **kwargs):
-    _generate_cmake_config(
-        name = name,
-        template = template,
-        out = out,
-        **kwargs
-    )
 
 # --- NuGet nuspec ---
 
@@ -151,7 +143,7 @@ def _generate_nuspec_impl(ctx):
     )
     return [DefaultInfo(files = depset([out]))]
 
-_generate_nuspec = rule(
+generate_nuspec = rule(
     implementation = _generate_nuspec_impl,
     attrs = {
         "template": attr.label(
@@ -168,14 +160,6 @@ _generate_nuspec = rule(
         ),
     } | TARGET_ATTRS,
 )
-
-def generate_nuspec(name, template, distr_type, **kwargs):
-    _generate_nuspec(
-        name = name,
-        template = template,
-        distr_type = distr_type,
-        **kwargs
-    )
 
 # --- pkg-config ---
 
@@ -298,7 +282,7 @@ _generate_pkgconfig = rule(
     } | TARGET_ATTRS,
 )
 
-def generate_pkgconfig(name, out = "lib/pkgconfig/onedal.pc", static = False, **kwargs):
+def generate_pkgconfig(name, out, static = False, **kwargs):
     _generate_pkgconfig(
         name = name,
         out = out,

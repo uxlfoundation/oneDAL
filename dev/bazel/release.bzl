@@ -89,8 +89,8 @@ def _copy(ctx, src_file, dst_path):
 def _stage(ctx, src_file, dst_path, crlf = False):
     """Copy a text file into the release tree without spawning a process.
 
-    `crlf` converts to CRLF line endings, as Make's `.release.x` sed; the substitutions apply in
-    order, so a CRLF already in the file is not doubled. Libraries go through `_copy`.
+    `crlf` converts to CRLF line endings, as Make's `.release.x` sed; Bazel applies the
+    substitutions in order, so a CRLF already in the file is not doubled. Libraries go through `_copy`.
     """
     if src_file.extension in _BINARY_EXTENSIONS:
         return _copy(ctx, src_file, dst_path)
@@ -144,8 +144,8 @@ def _copy_include(ctx, prefix, version_info):
     staged_order = []
     staged = {}
     os_specific = {}
-    for include, prefix, skip_prefix in zip(ctx.attr.include, ctx.attr.include_prefix,
-                                            ctx.attr.include_skip_prefix):
+    for include, add_prefix, skip_prefix in zip(ctx.attr.include, ctx.attr.include_prefix,
+                                                ctx.attr.include_skip_prefix):
         headers = _collect_headers(include)
         for header in headers:
             if header.basename == "_dal_cpu_dispatcher_gen.hpp":
@@ -153,8 +153,8 @@ def _copy_include(ctx, prefix, version_info):
             if skip_prefix:
                 # file.path has a bazel-out/<cfg>/ prefix that skip_prefix would not match.
                 dst_path = _try_relativize(header.short_path, skip_prefix)
-            elif prefix:
-                dst_path = paths.join(prefix, header.basename)
+            elif add_prefix:
+                dst_path = paths.join(add_prefix, header.basename)
             dst_path = paths.join(include_prefix, dst_path)
             stripped = _strip_os_suffix(dst_path, os_suffix)
             is_os_specific = stripped != dst_path

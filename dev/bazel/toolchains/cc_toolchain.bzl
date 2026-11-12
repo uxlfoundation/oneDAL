@@ -49,10 +49,7 @@ def _detect_requirements(repo_ctx):
         host_arch_id = host_arch_id,
         target_arch_id = target_arch_id,
 
-        # TODO: Detect compiler version
         compiler_version = "local",
-
-        # TODO: Detect DPC++ compiler, use $env{DPCC}
         dpc_compiler_id = "icpx",
     )
 
