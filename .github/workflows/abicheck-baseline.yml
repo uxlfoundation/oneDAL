@@ -72,6 +72,25 @@ jobs:
             rm -rf __work
           done
 
+      # The library and header list lives in .github/abicheck/targets.json, shared with ci.yml.
+      # The release tag predates it, so read it from the ref this workflow runs on.
+      - name: Checkout the abicheck config of the workflow ref
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: __abicheck_cfg
+          sparse-checkout: .github/abicheck
+          persist-credentials: false
+      - name: Expand the library list
+        id: targets
+        run: |
+          set -euo pipefail
+          libs=$(jq -c '.include as $i | .libdir as $d | (.headers | map("\($i)/\(.)") | join(" ")) as $h
+            | [.libraries[] | {name: ., artifact: "\($d)/\(.)", header: $h, include: $i}]' \
+            __abicheck_cfg/.github/abicheck/targets.json)
+          echo "libraries=${libs}" >> "$GITHUB_OUTPUT"
+          rm -rf __abicheck_cfg
+
       - name: Build the header-depth baseline-set
         id: bset-headers
         uses: abicheck/abicheck/actions/baseline@597e47ae7cf9657f4ea987175bf9463d70dba594 # v0.8.0
@@ -82,15 +101,7 @@ jobs:
           depth: headers
           baseline-generation: ${{ env.ABICHECK_BASELINE_GENERATION }}
           snapshot-compression: zstd
-          libraries: |
-            [
-              {"name": "libonedal.so", "artifact": "__release_lnx/daal/latest/lib/intel64/libonedal.so", "header": "__release_lnx/daal/latest/include/daal.h __release_lnx/daal/latest/include/oneapi/dal.hpp", "include": "__release_lnx/daal/latest/include"},
-              {"name": "libonedal_core.so", "artifact": "__release_lnx/daal/latest/lib/intel64/libonedal_core.so", "header": "__release_lnx/daal/latest/include/daal.h __release_lnx/daal/latest/include/oneapi/dal.hpp", "include": "__release_lnx/daal/latest/include"},
-              {"name": "libonedal_dpc.so", "artifact": "__release_lnx/daal/latest/lib/intel64/libonedal_dpc.so", "header": "__release_lnx/daal/latest/include/daal.h __release_lnx/daal/latest/include/oneapi/dal.hpp", "include": "__release_lnx/daal/latest/include"},
-              {"name": "libonedal_parameters.so", "artifact": "__release_lnx/daal/latest/lib/intel64/libonedal_parameters.so", "header": "__release_lnx/daal/latest/include/daal.h __release_lnx/daal/latest/include/oneapi/dal.hpp", "include": "__release_lnx/daal/latest/include"},
-              {"name": "libonedal_parameters_dpc.so", "artifact": "__release_lnx/daal/latest/lib/intel64/libonedal_parameters_dpc.so", "header": "__release_lnx/daal/latest/include/daal.h __release_lnx/daal/latest/include/oneapi/dal.hpp", "include": "__release_lnx/daal/latest/include"},
-              {"name": "libonedal_thread.so", "artifact": "__release_lnx/daal/latest/lib/intel64/libonedal_thread.so", "header": "__release_lnx/daal/latest/include/daal.h __release_lnx/daal/latest/include/oneapi/dal.hpp", "include": "__release_lnx/daal/latest/include"}
-            ]
+          libraries: ${{ steps.targets.outputs.libraries }}
 
       - name: Package the header-depth baseline-set
         id: archive-headers

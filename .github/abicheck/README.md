@@ -19,7 +19,7 @@
 
 `ci.yml` job `LinuxAbicheckScan` compares the public headers and exports of the six shipped
 libraries (header depth, clang AST) with the baseline release named by `ABICHECK_BASELINE_TAG` in `ci.yml`. A binary or source break fails
-the job; the `API/ABI breaking change` label lifts that. The abicheck pin lives in both workflows. Config: `.abicheck.yml` (auto-discovered), `policy.yaml` (`policy:` input; a reclassify file has no config key).
+the job; the `API/ABI breaking change` label lifts that. The abicheck pin lives in both workflows. Config: `targets.json` (libraries and public headers, read by both workflows), `.abicheck.yml` (auto-discovered), `policy.yaml` (`policy:` input; a reclassify file has no config key).
 
 ## How it differs from the libabigail check
 
@@ -43,6 +43,7 @@ Neither check covers ISAs other than the one built here (`avx2`), or Windows.
   (digest from the publish summary); delete rules `unused_rules: warn` reports.
 * **Dump change** (abicheck, pin, toolchain or flags): bump `ABICHECK_BASELINE_GENERATION` in both
   workflows, publish, then move `ci.yml` to the new digest.
+* **New library or public header:** edit `targets.json` only; it changes the dump, so bump the generation as above.
 
 ## Rules
 

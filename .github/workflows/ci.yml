@@ -325,7 +325,6 @@ jobs:
       ABICHECK_AST_FRONTEND: clang   # clang -ast-dump=json, not castxml; same in both workflows
       # sha256 the publish run reported for this asset; rotate it with the tag.
       ABICHECK_BASELINE_DIGEST: sha256:2adb215ef745b8d2ee402ae4063abf50543266853270a4ae5302a75d95784843
-      ABICHECK_INCLUDE_DIR: __release_lnx/daal/latest/include
     steps:
       - name: Checkout oneDAL
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -347,6 +346,19 @@ jobs:
           mkdir -p __abi_baselines __abi_report
           gh release download "${ABICHECK_BASELINE_TAG}" --repo "${GITHUB_REPOSITORY}" \
             --pattern "${asset}" --dir __abi_baselines
+      # Libraries and headers: .github/abicheck/targets.json, shared with abicheck-baseline.yml.
+      - name: Expand the library and header list
+        id: targets
+        run: |
+          set -euo pipefail
+          cfg=.github/abicheck/targets.json
+          echo "libraries=$(jq -c '.libraries' "$cfg")" >> "$GITHUB_OUTPUT"
+          echo "include=$(jq -r '.include' "$cfg")" >> "$GITHUB_OUTPUT"
+          {
+            echo 'headers<<ABICHECK_EOF'
+            jq -r '.include as $i | .headers[] | "\($i)/\(.)"' "$cfg"
+            echo 'ABICHECK_EOF'
+          } >> "$GITHUB_OUTPUT"
       # Checks the archive digest and generation, then unpacks one snapshot per library.
       - name: Resolve the release baseline for every library
         id: resolve
@@ -355,9 +367,7 @@ jobs:
           baseline-path: __abi_baselines/${{ steps.baselines.outputs.asset }}
           channel: release-contract
           kind: members
-          bundle-members: >-
-            ["libonedal.so", "libonedal_core.so", "libonedal_dpc.so",
-             "libonedal_parameters.so", "libonedal_parameters_dpc.so", "libonedal_thread.so"]
+          bundle-members: ${{ steps.targets.outputs.libraries }}
           profile: ${{ env.ABICHECK_PROFILE }}
           expected-project-ref: ${{ env.ABICHECK_BASELINE_TAG }}
           expected-baseline-generation: ${{ env.ABICHECK_BASELINE_GENERATION }}
@@ -380,10 +390,8 @@ jobs:
           depth: headers
           old-label: ${{ env.ABICHECK_BASELINE_TAG }}
           new-label: ${{ github.sha }}
-          new-header: |
-            ${{ env.ABICHECK_INCLUDE_DIR }}/daal.h
-            ${{ env.ABICHECK_INCLUDE_DIR }}/oneapi/dal.hpp
-          new-include: ${{ env.ABICHECK_INCLUDE_DIR }}
+          new-header: ${{ steps.targets.outputs.headers }}
+          new-include: ${{ steps.targets.outputs.include }}
           # Incomplete header evidence fails the job instead of passing it.
           fail-on-breaking: ${{ ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"') }}
           fail-on-api-break: ${{ ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"') }}
