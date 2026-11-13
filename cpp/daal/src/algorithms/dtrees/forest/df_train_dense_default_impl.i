@@ -704,8 +704,7 @@ protected:
     void featureValuesToBuf(size_t iFeature, algorithmFPType * featureVal, IndexType * aIdx, size_t n)
     {
         _helper.getColumnValues(iFeature, aIdx, n, featureVal);
-        // daal::algorithms::internal::qSort<algorithmFPType, int, cpu>(n, featureVal, aIdx);
-        daal::parallel_sort<algorithmFPType, int>(n, featureVal, aIdx);
+        daal::algorithms::internal::qSort<algorithmFPType, int, cpu>(n, featureVal, aIdx);
     }
 
     services::Status computeResults(const dtrees::internal::Tree & t);

@@ -253,7 +253,7 @@ void qSortByKey(size_t n, T * x)
 template <typename algorithmDataType, typename algorithmIndexType, CpuType cpu>
 void qSort(size_t n, algorithmDataType * x, algorithmIndexType * index)
 {
-    daal::parallel_sort(n, x, index);
+    daal::parallel_index_sort(n, x, index);
 }
 
 template <typename algorithmFPtype, typename wType, typename zType, CpuType cpu>

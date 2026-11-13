@@ -490,7 +490,7 @@ struct ZipKeyLess
 } // namespace
 
 template <typename F, typename I>
-DAAL_EXPORT void _daal_parallel_sort_template(size_t n, F * data, I * index)
+DAAL_EXPORT void _daal_parallel_index_sort_template(size_t n, F * data, I * index)
 {
     const ZipIterator<F, I> first(data, index);
     const ZipIterator<F, I> last = first + std::ptrdiff_t(n);
@@ -504,14 +504,16 @@ DAAL_EXPORT void _daal_parallel_sort_template(size_t n, F * data, I * index)
     }
 }
 
-#define DAAL_PARALLEL_INDEX_SORT_IMPL(DATATYPE, INDEXTYPE, NAMESUFFIX)                              \
-    DAAL_EXPORT void _daal_parallel_sort_##NAMESUFFIX(size_t n, DATATYPE * data, INDEXTYPE * index) \
-    {                                                                                               \
-        _daal_parallel_sort_template<DATATYPE, INDEXTYPE>(n, data, index);                          \
+#define DAAL_PARALLEL_INDEX_SORT_IMPL(DATATYPE, INDEXTYPE, NAMESUFFIX)                                    \
+    DAAL_EXPORT void _daal_parallel_index_sort_##NAMESUFFIX(size_t n, DATATYPE * data, INDEXTYPE * index) \
+    {                                                                                                     \
+        _daal_parallel_index_sort_template<DATATYPE, INDEXTYPE>(n, data, index);                          \
     }
 
 DAAL_PARALLEL_INDEX_SORT_IMPL(float, int, fp32_int32)
 DAAL_PARALLEL_INDEX_SORT_IMPL(double, int, fp64_int32)
+DAAL_PARALLEL_INDEX_SORT_IMPL(size_t, float, uint64_fp32)
+DAAL_PARALLEL_INDEX_SORT_IMPL(size_t, double, uint64_fp64)
 
 #undef DAAL_PARALLEL_INDEX_SORT_IMPL
 

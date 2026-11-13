@@ -164,11 +164,13 @@ extern "C"
 #undef DAAL_PARALLEL_SORT_DECL
 
 #define DAAL_PARALLEL_INDEX_SORT_DECL(DATATYPE, INDEXTYPE, NAMESUFFIX) \
-    DAAL_EXPORT void _daal_parallel_sort_##NAMESUFFIX(size_t n, DATATYPE * data_ptr, INDEXTYPE * index_ptr);
+    DAAL_EXPORT void _daal_parallel_index_sort_##NAMESUFFIX(size_t n, DATATYPE * data_ptr, INDEXTYPE * index_ptr);
     DAAL_PARALLEL_INDEX_SORT_DECL(float, int, fp32_int32)
     DAAL_PARALLEL_INDEX_SORT_DECL(double, int, fp64_int32)
+    DAAL_PARALLEL_INDEX_SORT_DECL(size_t, float, uint64_fp32)
+    DAAL_PARALLEL_INDEX_SORT_DECL(size_t, double, uint64_fp64)
 #undef DAAL_PARALLEL_INDEX_SORT_DECL
-}
+} // extern "C"
 
 namespace daal
 {
@@ -222,20 +224,32 @@ inline void parallel_sort<double>(daal::IdxValType<double> * beginPtr, daal::Idx
     _daal_parallel_sort_pair_fp64_uint64(beginPtr, endPtr);
 }
 
-// Sorts dataPtr[0..n) in place and permutes indexPtr the same way. Defined for float/int and double/int only.
+// Sorts dataPtr[0..n) in place and permutes indexPtr the same way.
 template <typename DataType, typename IndexType>
-void parallel_sort(size_t n, DataType * dataPtr, IndexType * indexPtr);
+void parallel_index_sort(size_t n, DataType * dataPtr, IndexType * indexPtr);
 
 template <>
-inline void parallel_sort<float, int>(size_t n, float * dataPtr, int * indexPtr)
+inline void parallel_index_sort<float, int>(size_t n, float * dataPtr, int * indexPtr)
 {
-    _daal_parallel_sort_fp32_int32(n, dataPtr, indexPtr);
+    _daal_parallel_index_sort_fp32_int32(n, dataPtr, indexPtr);
 }
 
 template <>
-inline void parallel_sort<double, int>(size_t n, double * dataPtr, int * indexPtr)
+inline void parallel_index_sort<double, int>(size_t n, double * dataPtr, int * indexPtr)
 {
-    _daal_parallel_sort_fp64_int32(n, dataPtr, indexPtr);
+    _daal_parallel_index_sort_fp64_int32(n, dataPtr, indexPtr);
+}
+
+template <>
+inline void parallel_index_sort<size_t, float>(size_t n, size_t * dataPtr, float * indexPtr)
+{
+    _daal_parallel_index_sort_uint64_fp32(n, dataPtr, indexPtr);
+}
+
+template <>
+inline void parallel_index_sort<size_t, double>(size_t n, size_t * dataPtr, double * indexPtr)
+{
+    _daal_parallel_index_sort_uint64_fp64(n, dataPtr, indexPtr);
 }
 
 inline int threader_get_max_threads_number()
