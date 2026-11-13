@@ -232,6 +232,13 @@ config_setting(
     },
 )
 
+# Nothing reads it; dal-infra still passes --test_thread_mode=par. Remove with the infra update.
+config_flag(
+    name = "test_thread_mode",
+    build_setting_default = "par",
+    allowed_build_setting_values = ["par"],
+)
+
 # Catch2 cases tagged [nightly] run from the nightly tier on, [weekly] ones in the weekly tier.
 config_flag(
     name = "test_tier",

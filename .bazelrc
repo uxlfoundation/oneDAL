@@ -4,6 +4,8 @@ build --flag_alias=backend_config=@config//:backend_config
 build --flag_alias=test_link_mode=@config//:test_link_mode
 build --flag_alias=test_external_datasets=@config//:test_external_datasets
 build --flag_alias=test_tier=@config//:test_tier
+# Accepted and ignored; dal-infra still passes it. Remove with the infra update.
+build --flag_alias=test_thread_mode=@config//:test_thread_mode
 build --flag_alias=test_disable_fp64=@config//:test_disable_fp64
 build --flag_alias=release_dpc=@config//:release_dpc
 build --flag_alias=device=@config//:device
@@ -58,6 +60,16 @@ build:dpc \
 
 test:dpc \
     --test_tag_filters="dpc"
+
+# Kept for dal-infra, which still selects tests with these; `--test_tag_filters` does the same.
+build:host-public --build_tag_filters="host,-private"
+test:host-public --test_tag_filters="host,-private"
+build:host-private --build_tag_filters="host,-public"
+test:host-private --test_tag_filters="host,-public"
+build:dpc-public --build_tag_filters="dpc,-private" --release_dpc=true
+test:dpc-public --test_tag_filters="dpc,-private"
+build:dpc-private --build_tag_filters="dpc,-public" --release_dpc=true
+test:dpc-private --test_tag_filters="dpc,-public"
 
 # //:release builds every ISA unless --cpu is set and adds the DPC++ libraries when icpx is found.
 build:release-dpc \
