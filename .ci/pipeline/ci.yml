@@ -678,7 +678,8 @@ jobs:
       source /opt/intel/oneapi/setvars.sh
       export CC=icx
       bazel test //dev/bazel/tests:coverage_tests
-      bazel build --code_coverage=true --cpu=avx2 //cpp/daal:core_static
+      # Unsandboxed: the .gcno notes are undeclared side outputs of the compiles.
+      bazel build --code_coverage=true --cpu=avx2 --spawn_strategy=local //cpp/daal:core_static
       test -n "$(find -L "$(bazel info output_path)" -name '*.gcno' -print -quit)"
     displayName: 'Bazel CPU code-coverage smoke build'
   - script: |

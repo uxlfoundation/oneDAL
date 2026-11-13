@@ -21,7 +21,7 @@ dev/bazel/
 ├── cc/             # C++ build rules (compile, link, common)
 ├── config/         # Build settings, platforms, TargetInfo, ISA table
 ├── deps/           # External dependency repositories
-├── tests/          # Analysis tests of the build graph and sh_tests of built libraries
+├── tests/          # analysis.bzl (graph checks) and the two sh_test scripts that inspect built libraries
 └── toolchains/     # Compiler toolchain configurations
 ```
 
