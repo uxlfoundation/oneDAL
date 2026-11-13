@@ -30,6 +30,7 @@
 #include <algorithm> // std::min, std::sort
 #include <cstddef>
 #include <iterator>
+#include <tuple>
 #include <utility>
 #include <stdlib.h> // malloc and free
 #include <tbb/tbb.h>
@@ -345,91 +346,111 @@ DAAL_PARALLEL_SORT_IMPL(int, int32)
 DAAL_PARALLEL_SORT_IMPL(size_t, uint64)
 DAAL_PARALLEL_SORT_IMPL(float, fp32)
 DAAL_PARALLEL_SORT_IMPL(double, fp64)
-DAAL_PARALLEL_SORT_IMPL(daal::IdxValType<int>, pair_int32_uint64)
-DAAL_PARALLEL_SORT_IMPL(daal::IdxValType<float>, pair_fp32_uint64)
-DAAL_PARALLEL_SORT_IMPL(daal::IdxValType<double>, pair_fp64_uint64)
 
 #undef DAAL_PARALLEL_SORT_IMPL
 
+#define DAAL_PARALLEL_PAIR_SORT_IMPL(FPTYPE, INDEXTYPE, NAMESUFFIX)                                       \
+    DAAL_EXPORT void _daal_parallel_sort_pair_##NAMESUFFIX(daal::IdxValType<FPTYPE, INDEXTYPE> * begin_p, \
+                                                           daal::IdxValType<FPTYPE, INDEXTYPE> * end_p)   \
+    {                                                                                                     \
+        _daal_parallel_sort_template(begin_p, end_p);                                                     \
+    }
+
+DAAL_PARALLEL_PAIR_SORT_IMPL(int, size_t, int32_uint64)
+DAAL_PARALLEL_PAIR_SORT_IMPL(float, size_t, fp32_uint64)
+DAAL_PARALLEL_PAIR_SORT_IMPL(double, size_t, fp64_uint64)
+DAAL_PARALLEL_PAIR_SORT_IMPL(float, int, fp32_int32)
+DAAL_PARALLEL_PAIR_SORT_IMPL(double, int, fp64_int32)
+
+#undef DAAL_PARALLEL_PAIR_SORT_IMPL
+
 namespace
 {
-/// Zip iterator over a key array and an index array, so both are sorted in place without copies.
-/// The reference type is a proxy whose assignment and swap move the pointed-to elements.
-template <typename F, typename I>
-struct ZipValue
-{
-    F key;
-    I index;
-};
-
-template <typename F, typename I>
+/// Proxy reference to the same position in several parallel arrays. Assignment and swap act on
+/// the pointed-to elements, so ZipIterator sorts all the arrays in place without copies.
+template <typename... T>
 struct ZipRef
 {
-    F * key;
-    I * index;
+    using Seq = std::index_sequence_for<T...>;
 
-    ZipRef(F * k, I * i) : key(k), index(i) {}
+    std::tuple<T *...> ptr;
+
+    explicit ZipRef(const std::tuple<T *...> & p) : ptr(p) {}
     ZipRef(const ZipRef &) = default;
 
-    operator ZipValue<F, I>() const { return { *key, *index }; }
+    operator std::tuple<T...>() const { return load(Seq()); }
 
-    ZipRef & operator=(const ZipValue<F, I> & v)
+    ZipRef & operator=(const std::tuple<T...> & v)
     {
-        *key   = v.key;
-        *index = v.index;
+        store(v, Seq());
         return *this;
     }
 
     // Assigns the elements, not the pointers.
     ZipRef & operator=(const ZipRef & other)
     {
-        *key   = *other.key;
-        *index = *other.index;
+        assign(other, Seq());
         return *this;
     }
 
     // Found by ADL from std::iter_swap, which is called on proxy prvalues.
-    friend void swap(ZipRef a, ZipRef b)
+    friend void swap(ZipRef a, ZipRef b) { a.swapWith(b, Seq()); }
+
+private:
+    template <std::size_t... K>
+    std::tuple<T...> load(std::index_sequence<K...>) const
     {
-        std::swap(*a.key, *b.key);
-        std::swap(*a.index, *b.index);
+        return std::tuple<T...>(*std::get<K>(ptr)...);
+    }
+    template <std::size_t... K>
+    void store(const std::tuple<T...> & v, std::index_sequence<K...>)
+    {
+        ((*std::get<K>(ptr) = std::get<K>(v)), ...);
+    }
+    template <std::size_t... K>
+    void assign(const ZipRef & other, std::index_sequence<K...>)
+    {
+        ((*std::get<K>(ptr) = *std::get<K>(other.ptr)), ...);
+    }
+    template <std::size_t... K>
+    void swapWith(ZipRef & other, std::index_sequence<K...>)
+    {
+        (std::swap(*std::get<K>(ptr), *std::get<K>(other.ptr)), ...);
     }
 };
 
 // TODO: Replace with std::zip_view::iterator (C++23).
-template <typename F, typename I>
+template <typename... T>
 class ZipIterator
 {
+    using Seq = std::index_sequence_for<T...>;
+
 public:
     using iterator_category = std::random_access_iterator_tag;
-    using value_type        = ZipValue<F, I>;
+    using value_type        = std::tuple<T...>;
     using difference_type   = std::ptrdiff_t;
-    using reference         = ZipRef<F, I>;
+    using reference         = ZipRef<T...>;
     using pointer           = void;
 
-    ZipIterator() : _key(nullptr), _index(nullptr) {}
-    ZipIterator(F * key, I * index) : _key(key), _index(index) {}
+    ZipIterator() : _ptr() {}
+    explicit ZipIterator(T *... ptr) : _ptr(ptr...) {}
 
-    reference operator*() const { return reference(_key, _index); }
-    reference operator[](difference_type d) const { return reference(_key + d, _index + d); }
+    reference operator*() const { return reference(_ptr); }
+    reference operator[](difference_type d) const { return *(*this + d); }
 
-    ZipIterator & operator++()
+    ZipIterator & operator+=(difference_type d)
     {
-        ++_key;
-        ++_index;
+        advance(d, Seq());
         return *this;
     }
+    ZipIterator & operator-=(difference_type d) { return *this += -d; }
+    ZipIterator & operator++() { return *this += 1; }
+    ZipIterator & operator--() { return *this -= 1; }
     ZipIterator operator++(int)
     {
         ZipIterator tmp(*this);
         ++*this;
         return tmp;
-    }
-    ZipIterator & operator--()
-    {
-        --_key;
-        --_index;
-        return *this;
     }
     ZipIterator operator--(int)
     {
@@ -437,48 +458,42 @@ public:
         --*this;
         return tmp;
     }
-    ZipIterator & operator+=(difference_type d)
-    {
-        _key += d;
-        _index += d;
-        return *this;
-    }
-    ZipIterator & operator-=(difference_type d)
-    {
-        _key -= d;
-        _index -= d;
-        return *this;
-    }
 
     friend ZipIterator operator+(ZipIterator it, difference_type d) { return it += d; }
     friend ZipIterator operator+(difference_type d, ZipIterator it) { return it += d; }
     friend ZipIterator operator-(ZipIterator it, difference_type d) { return it -= d; }
-    friend difference_type operator-(const ZipIterator & a, const ZipIterator & b) { return a._key - b._key; }
+    friend difference_type operator-(const ZipIterator & a, const ZipIterator & b) { return a.head() - b.head(); }
 
-    friend bool operator==(const ZipIterator & a, const ZipIterator & b) { return a._key == b._key; }
-    friend bool operator!=(const ZipIterator & a, const ZipIterator & b) { return a._key != b._key; }
-    friend bool operator<(const ZipIterator & a, const ZipIterator & b) { return a._key < b._key; }
-    friend bool operator>(const ZipIterator & a, const ZipIterator & b) { return a._key > b._key; }
-    friend bool operator<=(const ZipIterator & a, const ZipIterator & b) { return a._key <= b._key; }
-    friend bool operator>=(const ZipIterator & a, const ZipIterator & b) { return a._key >= b._key; }
+    friend bool operator==(const ZipIterator & a, const ZipIterator & b) { return a.head() == b.head(); }
+    friend bool operator!=(const ZipIterator & a, const ZipIterator & b) { return a.head() != b.head(); }
+    friend bool operator<(const ZipIterator & a, const ZipIterator & b) { return a.head() < b.head(); }
+    friend bool operator>(const ZipIterator & a, const ZipIterator & b) { return a.head() > b.head(); }
+    friend bool operator<=(const ZipIterator & a, const ZipIterator & b) { return a.head() <= b.head(); }
+    friend bool operator>=(const ZipIterator & a, const ZipIterator & b) { return a.head() >= b.head(); }
 
 private:
-    F * _key;
-    I * _index;
+    template <std::size_t... K>
+    void advance(difference_type d, std::index_sequence<K...>)
+    {
+        ((std::get<K>(_ptr) += d), ...);
+    }
+    auto head() const { return std::get<0>(_ptr); }
+
+    std::tuple<T *...> _ptr;
 };
 
-// The sorts compare proxies and values in every combination; only the keys are read.
+// The sorts compare proxies and values in every combination; only the first array (the key) is read.
 struct ZipKeyLess
 {
-    template <typename F, typename I>
-    static F keyOf(const ZipRef<F, I> & r)
+    template <typename... T>
+    static auto keyOf(const ZipRef<T...> & r)
     {
-        return *r.key;
+        return *std::get<0>(r.ptr);
     }
-    template <typename F, typename I>
-    static F keyOf(const ZipValue<F, I> & v)
+    template <typename... T>
+    static auto keyOf(const std::tuple<T...> & v)
     {
-        return v.key;
+        return std::get<0>(v);
     }
 
     template <typename A, typename B>
@@ -487,13 +502,13 @@ struct ZipKeyLess
         return keyOf(a) < keyOf(b);
     }
 };
-} // namespace
 
-template <typename F, typename I>
-DAAL_EXPORT void _daal_parallel_index_sort_template(size_t n, F * data, I * index)
+// Sorts data[0..n) and permutes every index array the same way.
+template <typename F, typename... I>
+void parallelIndexSort(size_t n, F * data, I *... index)
 {
-    const ZipIterator<F, I> first(data, index);
-    const ZipIterator<F, I> last = first + std::ptrdiff_t(n);
+    const ZipIterator<F, I...> first(data, index...);
+    const ZipIterator<F, I...> last = first + std::ptrdiff_t(n);
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
         tbb::parallel_sort(first, last, ZipKeyLess());
@@ -503,11 +518,12 @@ DAAL_EXPORT void _daal_parallel_index_sort_template(size_t n, F * data, I * inde
         std::sort(first, last, ZipKeyLess());
     }
 }
+} // namespace
 
 #define DAAL_PARALLEL_INDEX_SORT_IMPL(DATATYPE, INDEXTYPE, NAMESUFFIX)                                    \
     DAAL_EXPORT void _daal_parallel_index_sort_##NAMESUFFIX(size_t n, DATATYPE * data, INDEXTYPE * index) \
     {                                                                                                     \
-        _daal_parallel_index_sort_template<DATATYPE, INDEXTYPE>(n, data, index);                          \
+        parallelIndexSort(n, data, index);                                                                \
     }
 
 DAAL_PARALLEL_INDEX_SORT_IMPL(float, int, fp32_int32)
@@ -516,6 +532,17 @@ DAAL_PARALLEL_INDEX_SORT_IMPL(size_t, float, uint64_fp32)
 DAAL_PARALLEL_INDEX_SORT_IMPL(size_t, double, uint64_fp64)
 
 #undef DAAL_PARALLEL_INDEX_SORT_IMPL
+
+#define DAAL_PARALLEL_INDEX2_SORT_IMPL(DATATYPE, INDEXTYPE1, INDEXTYPE2, NAMESUFFIX)                                             \
+    DAAL_EXPORT void _daal_parallel_index_sort_##NAMESUFFIX(size_t n, DATATYPE * data, INDEXTYPE1 * index1, INDEXTYPE2 * index2) \
+    {                                                                                                                            \
+        parallelIndexSort(n, data, index1, index2);                                                                              \
+    }
+
+DAAL_PARALLEL_INDEX2_SORT_IMPL(size_t, float, size_t, uint64_fp32_uint64)
+DAAL_PARALLEL_INDEX2_SORT_IMPL(size_t, double, size_t, uint64_fp64_uint64)
+
+#undef DAAL_PARALLEL_INDEX2_SORT_IMPL
 
 DAAL_EXPORT void _daal_threader_for_blocked(int64_t n, int64_t grain_size, const void * a, daal::functype2 func)
 {

@@ -42,8 +42,6 @@ namespace internal
 using namespace daal::internal;
 using namespace services::internal;
 
-typedef int (*CompareFunction)(const void *, const void *);
-
 /**
  * \brief Quick sort function that sorts array x
  *
@@ -57,189 +55,15 @@ void qSort(size_t n, algorithmDataType * x)
 }
 
 /**
- * \brief Quick sort function that sorts array x
+ * \brief Sorts array x of daal::IdxValType elements by value, then by index
  *
- * \param n[in]       Length of input arrays
- * \param x[in,out]   Array to sort
- * \param compare[in] Pointer to compare function
+ * \param n[in]     Length of input array
+ * \param x[in,out] Array to sort
  */
-template <typename algorithmDataType, CpuType cpu>
-void qSort(size_t n, algorithmDataType * x, CompareFunction compare)
-{
-    int i, ir, j, k, jstack = -1, l = 0;
-    algorithmDataType a;
-    const int M = 7, NSTACK = 128;
-    int istack[NSTACK];
-
-    ir = n - 1;
-
-    for (;;)
-    {
-        if (ir - l < M)
-        {
-            for (j = l + 1; j <= ir; j++)
-            {
-                a = x[j];
-
-                for (i = j - 1; i >= l; i--)
-                {
-                    if (compare(x + i, &a) < 1)
-                    {
-                        break;
-                    }
-                    x[i + 1] = x[i];
-                }
-
-                x[i + 1] = a;
-            }
-
-            if (jstack < 0)
-            {
-                break;
-            }
-
-            ir = istack[jstack--];
-            l  = istack[jstack--];
-        }
-        else
-        {
-            k = (l + ir) >> 1;
-            daal::services::internal::swap<cpu, algorithmDataType>(x[k], x[l + 1]);
-
-            if (compare(x + l, x + ir) == 1)
-            {
-                daal::services::internal::swap<cpu, algorithmDataType>(x[l], x[ir]);
-            }
-            if (compare(x + l + 1, x + ir) == 1)
-            {
-                daal::services::internal::swap<cpu, algorithmDataType>(x[l + 1], x[ir]);
-            }
-            if (compare(x + l, x + l + 1) == 1)
-            {
-                daal::services::internal::swap<cpu, algorithmDataType>(x[l], x[l + 1]);
-            }
-            i = l + 1;
-            j = ir;
-            a = x[l + 1];
-            for (;;)
-            {
-                while (compare(&x[++i], &a) == -1);
-                while (compare(&x[--j], &a) == 1);
-                if (j < i)
-                {
-                    break;
-                }
-                daal::services::internal::swap<cpu, algorithmDataType>(x[i], x[j]);
-            }
-            x[l + 1] = x[j];
-
-            x[j] = a;
-            jstack += 2;
-
-            if (ir - i + 1 >= j - l)
-            {
-                istack[jstack]     = ir;
-                istack[jstack - 1] = i;
-                ir                 = j - 1;
-            }
-            else
-            {
-                istack[jstack]     = j - 1;
-                istack[jstack - 1] = l;
-                l                  = i;
-            }
-        }
-    }
-}
-
 template <typename T, CpuType cpu>
 void qSortByKey(size_t n, T * x)
 {
-    int i, ir, j, k, jstack = -1, l = 0;
-    T a;
-    const int M = 7, NSTACK = 128;
-    int istack[NSTACK];
-
-    ir = n - 1;
-
-    for (;;)
-    {
-        if (ir - l < M)
-        {
-            for (j = l + 1; j <= ir; j++)
-            {
-                a = x[j];
-
-                for (i = j - 1; i >= l; i--)
-                {
-                    if (x[i].key <= a.key)
-                    {
-                        break;
-                    }
-                    x[i + 1] = x[i];
-                }
-
-                x[i + 1] = a;
-            }
-
-            if (jstack < 0)
-            {
-                break;
-            }
-
-            ir = istack[jstack--];
-            l  = istack[jstack--];
-        }
-        else
-        {
-            k = (l + ir) >> 1;
-            daal::services::internal::swap<cpu, T>(x[k], x[l + 1]);
-
-            if (x[l].key > x[ir].key)
-            {
-                daal::services::internal::swap<cpu, T>(x[l], x[ir]);
-            }
-            if (x[l + 1].key > x[ir].key)
-            {
-                daal::services::internal::swap<cpu, T>(x[l + 1], x[ir]);
-            }
-            if (x[l].key > x[l + 1].key)
-            {
-                daal::services::internal::swap<cpu, T>(x[l], x[l + 1]);
-            }
-            i = l + 1;
-            j = ir;
-            a = x[l + 1];
-            for (;;)
-            {
-                while (x[++i].key < a.key);
-                while (x[--j].key > a.key);
-
-                if (j < i)
-                {
-                    break;
-                }
-                daal::services::internal::swap<cpu, T>(x[i], x[j]);
-            }
-            x[l + 1] = x[j];
-
-            x[j] = a;
-            jstack += 2;
-
-            if (ir - i + 1 >= j - l)
-            {
-                istack[jstack]     = ir;
-                istack[jstack - 1] = i;
-                ir                 = j - 1;
-            }
-            else
-            {
-                istack[jstack]     = j - 1;
-                istack[jstack - 1] = l;
-                l                  = i;
-            }
-        }
-    }
+    daal::parallel_sort(x, x + n);
 }
 
 /**
@@ -256,116 +80,18 @@ void qSort(size_t n, algorithmDataType * x, algorithmIndexType * index)
     daal::parallel_index_sort(n, x, index);
 }
 
+/**
+ *  \brief Sorts array x and rearranges arrays w and z accordingly
+ *
+ *  \param n[in] Length of input arrays
+ *  \param x     Array that is used as "key" when sorted
+ *  \param w     Array that is used as "value" when sorted
+ *  \param z     Array that is used as "value" when sorted
+ */
 template <typename algorithmFPtype, typename wType, typename zType, CpuType cpu>
 void qSort(size_t n, algorithmFPtype * x, wType * w, zType * z)
 {
-    int i, ir, j, k, jstack = -1, l = 0;
-    algorithmFPtype a;
-    wType b;
-    zType c;
-    const int M = 7, NSTACK = 128;
-    algorithmFPtype istack[NSTACK];
-
-    ir = n - 1;
-
-    for (;;)
-    {
-        if (ir - l < M)
-        {
-            for (j = l + 1; j <= ir; j++)
-            {
-                a = x[j];
-                b = w[j];
-                c = z[j];
-
-                for (i = j - 1; i >= l; i--)
-                {
-                    if (x[i] <= a)
-                    {
-                        break;
-                    }
-                    x[i + 1] = x[i];
-                    w[i + 1] = w[i];
-                    z[i + 1] = z[i];
-                }
-
-                x[i + 1] = a;
-                w[i + 1] = b;
-                z[i + 1] = c;
-            }
-
-            if (jstack < 0)
-            {
-                break;
-            }
-
-            ir = istack[jstack--];
-            l  = istack[jstack--];
-        }
-        else
-        {
-            k = (l + ir) >> 1;
-            daal::services::internal::swap<cpu, algorithmFPtype>(x[k], x[l + 1]);
-            daal::services::internal::swap<cpu, wType>(w[k], w[l + 1]);
-            daal::services::internal::swap<cpu, zType>(z[k], z[l + 1]);
-            if (x[l] > x[ir])
-            {
-                daal::services::internal::swap<cpu, algorithmFPtype>(x[l], x[ir]);
-                daal::services::internal::swap<cpu, wType>(w[l], w[ir]);
-                daal::services::internal::swap<cpu, zType>(z[l], z[ir]);
-            }
-            if (x[l + 1] > x[ir])
-            {
-                daal::services::internal::swap<cpu, algorithmFPtype>(x[l + 1], x[ir]);
-                daal::services::internal::swap<cpu, wType>(w[l + 1], w[ir]);
-                daal::services::internal::swap<cpu, zType>(z[l + 1], z[ir]);
-            }
-            if (x[l] > x[l + 1])
-            {
-                daal::services::internal::swap<cpu, algorithmFPtype>(x[l], x[l + 1]);
-                daal::services::internal::swap<cpu, wType>(w[l], w[l + 1]);
-                daal::services::internal::swap<cpu, zType>(z[l], z[l + 1]);
-            }
-            i = l + 1;
-            j = ir;
-            a = x[l + 1];
-            b = w[l + 1];
-            c = z[l + 1];
-            for (;;)
-            {
-                while (x[++i] < a);
-                while (x[--j] > a);
-                if (j < i)
-                {
-                    break;
-                }
-                daal::services::internal::swap<cpu, algorithmFPtype>(x[i], x[j]);
-                daal::services::internal::swap<cpu, wType>(w[i], w[j]);
-                daal::services::internal::swap<cpu, zType>(z[i], z[j]);
-            }
-            x[l + 1] = x[j];
-            w[l + 1] = w[j];
-            z[l + 1] = z[j];
-
-            x[j] = a;
-            w[j] = b;
-            z[j] = c;
-            jstack += 2;
-
-            if (ir - i + 1 >= j - l)
-            {
-                istack[jstack]     = ir;
-                istack[jstack - 1] = i;
-                ir                 = j - 1;
-            }
-            else
-            {
-                istack[jstack]     = j - 1;
-                istack[jstack - 1] = l;
-                l                  = i;
-            }
-        }
-    }
+    daal::parallel_index_sort(n, x, w, z);
 }
 
 template <typename algorithmFPtype, CpuType cpu>

@@ -14,12 +14,13 @@
 * limitations under the License.
 *******************************************************************************/
 
-/// Unit tests for `daal::parallel_sort(n, data, index)`, which must behave like the indexed
-/// `qSort`: the (data[k], index[k]) pairs are reordered so that `data` is non-decreasing.
+/// Unit tests for `daal::parallel_index_sort` and for `daal::parallel_sort` on `daal::IdxValType` with int
+/// indices: the keys must end up non-decreasing, and the indices move with them.
 
 #include <algorithm>
 #include <cstddef>
 #include <random>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -65,7 +66,7 @@ void checkIndexedSort(std::size_t n, IndexKind kind, int valueRange, unsigned se
         expected[i] = { data[i], index[i] };
     }
 
-    daal::parallel_sort<FPType, int>(n, data.data(), index.data());
+    daal::parallel_index_sort<FPType, int>(n, data.data(), index.data());
 
     for (std::size_t i = 1; i < n; ++i)
     {
@@ -105,13 +106,84 @@ TEMPLATE_TEST("parallel_sort on already sorted and reversed data", "[unit][paral
         index[i] = int(5 * i + 1);
     }
 
-    daal::parallel_sort<TestType, int>(n, data.data(), index.data());
+    daal::parallel_index_sort<TestType, int>(n, data.data(), index.data());
 
     for (std::size_t i = 0; i < n; ++i)
     {
         INFO("n = " << n << ", position " << i);
         REQUIRE(data[i] == TestType(reversed ? i + 1 : i));
         REQUIRE(index[i] == int(5 * (reversed ? n - 1 - i : i) + 1));
+    }
+}
+
+// Mirrors the CSR to CSC conversion in implicit ALS: column indices are the keys.
+template <typename FPType>
+void checkTwoIndexSort(std::size_t n, std::size_t nCols, unsigned seed)
+{
+    std::mt19937 gen(seed);
+    std::uniform_int_distribution<std::size_t> colDist(0, nCols - 1);
+    std::uniform_real_distribution<FPType> valDist(-1, 1);
+    std::vector<std::size_t> cols(n), rows(n);
+    std::vector<FPType> values(n);
+    for (std::size_t i = 0; i < n; ++i)
+    {
+        cols[i]   = colDist(gen);
+        values[i] = valDist(gen);
+        rows[i]   = i;
+    }
+
+    std::vector<std::tuple<std::size_t, FPType, std::size_t> > expected(n), actual(n);
+    for (std::size_t i = 0; i < n; ++i)
+    {
+        expected[i] = { cols[i], values[i], rows[i] };
+    }
+
+    daal::parallel_index_sort<std::size_t, FPType, std::size_t>(n, cols.data(), values.data(), rows.data());
+
+    for (std::size_t i = 0; i < n; ++i)
+    {
+        INFO("n = " << n << ", position " << i);
+        if (i > 0) REQUIRE(cols[i - 1] <= cols[i]);
+        actual[i] = { cols[i], values[i], rows[i] };
+    }
+    std::sort(expected.begin(), expected.end());
+    std::sort(actual.begin(), actual.end());
+    REQUIRE(actual == expected);
+}
+
+TEMPLATE_TEST("parallel_index_sort keeps data and two index arrays together", "[unit][parallel_sort]", float, double)
+{
+    const std::size_t n     = GENERATE(0, 1, 2, 7, 100, 10000, 100000);
+    const std::size_t nCols = GENERATE(1, 10, 1000);
+    checkTwoIndexSort<TestType>(n, nCols, 777u + unsigned(n));
+}
+
+TEMPLATE_TEST("parallel_sort orders IdxValType with int index by value, then index", "[unit][parallel_sort]", float, double)
+{
+    const std::size_t n  = GENERATE(0, 1, 2, 7, 100, 10000, 100000);
+    const int valueRange = GENERATE(0, 1, 10);
+
+    std::mt19937 gen(777u + unsigned(n));
+    std::uniform_real_distribution<TestType> realDist(-1, 1);
+    std::uniform_int_distribution<int> intDist(0, valueRange > 0 ? valueRange - 1 : 0);
+    std::vector<daal::IdxValType<TestType, int> > a(n);
+    std::vector<std::pair<TestType, int> > expected(n);
+    for (std::size_t i = 0; i < n; ++i)
+    {
+        a[i].value  = valueRange > 0 ? TestType(intDist(gen)) : realDist(gen);
+        a[i].index  = int(i);
+        expected[i] = { a[i].value, a[i].index };
+    }
+
+    daal::parallel_sort(a.data(), a.data() + n);
+
+    // Ties are broken by index, so the result equals the lexicographically sorted pairs.
+    std::sort(expected.begin(), expected.end());
+    for (std::size_t i = 0; i < n; ++i)
+    {
+        INFO("n = " << n << ", position " << i);
+        REQUIRE(a[i].value == expected[i].first);
+        REQUIRE(a[i].index == expected[i].second);
     }
 }
 } // namespace daal::test

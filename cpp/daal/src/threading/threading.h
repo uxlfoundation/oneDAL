@@ -30,16 +30,17 @@
 
 namespace daal
 {
-template <typename FPType>
+template <typename FPType, typename IndexType = size_t>
 struct IdxValType
 {
     FPType value;
-    size_t index;
+    IndexType index;
 
     bool operator<(const IdxValType & o) const { return o.value == value ? index < o.index : value < o.value; }
     bool operator>(const IdxValType & o) const { return o.value == value ? index > o.index : value > o.value; }
     bool operator<=(const IdxValType & o) const { return value < o.value || (value == o.value && index == o.index); }
 };
+
 typedef void (*functype)(int64_t i, const void * a);
 typedef void (*functype_int64ptr)(const int64_t * i, const void * a);
 typedef void (*functype_static)(int64_t i, size_t tid, const void * a);
@@ -157,11 +158,17 @@ extern "C"
     DAAL_PARALLEL_SORT_DECL(size_t, uint64)
     DAAL_PARALLEL_SORT_DECL(float, fp32)
     DAAL_PARALLEL_SORT_DECL(double, fp64)
-
-    DAAL_PARALLEL_SORT_DECL(daal::IdxValType<int>, pair_int32_uint64)
-    DAAL_PARALLEL_SORT_DECL(daal::IdxValType<float>, pair_fp32_uint64)
-    DAAL_PARALLEL_SORT_DECL(daal::IdxValType<double>, pair_fp64_uint64)
 #undef DAAL_PARALLEL_SORT_DECL
+
+#define DAAL_PARALLEL_PAIR_SORT_DECL(FPTYPE, INDEXTYPE, NAMESUFFIX)                                         \
+    DAAL_EXPORT void _daal_parallel_sort_pair_##NAMESUFFIX(daal::IdxValType<FPTYPE, INDEXTYPE> * begin_ptr, \
+                                                           daal::IdxValType<FPTYPE, INDEXTYPE> * end_ptr);
+    DAAL_PARALLEL_PAIR_SORT_DECL(int, size_t, int32_uint64)
+    DAAL_PARALLEL_PAIR_SORT_DECL(float, size_t, fp32_uint64)
+    DAAL_PARALLEL_PAIR_SORT_DECL(double, size_t, fp64_uint64)
+    DAAL_PARALLEL_PAIR_SORT_DECL(float, int, fp32_int32)
+    DAAL_PARALLEL_PAIR_SORT_DECL(double, int, fp64_int32)
+#undef DAAL_PARALLEL_PAIR_SORT_DECL
 
 #define DAAL_PARALLEL_INDEX_SORT_DECL(DATATYPE, INDEXTYPE, NAMESUFFIX) \
     DAAL_EXPORT void _daal_parallel_index_sort_##NAMESUFFIX(size_t n, DATATYPE * data_ptr, INDEXTYPE * index_ptr);
@@ -170,6 +177,12 @@ extern "C"
     DAAL_PARALLEL_INDEX_SORT_DECL(size_t, float, uint64_fp32)
     DAAL_PARALLEL_INDEX_SORT_DECL(size_t, double, uint64_fp64)
 #undef DAAL_PARALLEL_INDEX_SORT_DECL
+
+#define DAAL_PARALLEL_INDEX2_SORT_DECL(DATATYPE, INDEXTYPE1, INDEXTYPE2, NAMESUFFIX) \
+    DAAL_EXPORT void _daal_parallel_index_sort_##NAMESUFFIX(size_t n, DATATYPE * data_ptr, INDEXTYPE1 * index1_ptr, INDEXTYPE2 * index2_ptr);
+    DAAL_PARALLEL_INDEX2_SORT_DECL(size_t, float, size_t, uint64_fp32_uint64)
+    DAAL_PARALLEL_INDEX2_SORT_DECL(size_t, double, size_t, uint64_fp64_uint64)
+#undef DAAL_PARALLEL_INDEX2_SORT_DECL
 } // extern "C"
 
 namespace daal
@@ -202,26 +215,37 @@ inline void parallel_sort<double>(double * beginPtr, double * endPtr)
     _daal_parallel_sort_fp64(beginPtr, endPtr);
 }
 
-template <typename FPType>
-inline void parallel_sort(daal::IdxValType<FPType> * beginPtr, daal::IdxValType<FPType> * endPtr)
-{}
+template <typename FPType, typename IndexType>
+void parallel_sort(daal::IdxValType<FPType, IndexType> * beginPtr, daal::IdxValType<FPType, IndexType> * endPtr);
 
 template <>
-inline void parallel_sort<int>(daal::IdxValType<int> * beginPtr, daal::IdxValType<int> * endPtr)
+inline void parallel_sort<int, size_t>(daal::IdxValType<int, size_t> * beginPtr, daal::IdxValType<int, size_t> * endPtr)
 {
     _daal_parallel_sort_pair_int32_uint64(beginPtr, endPtr);
 }
 
 template <>
-inline void parallel_sort<float>(daal::IdxValType<float> * beginPtr, daal::IdxValType<float> * endPtr)
+inline void parallel_sort<float, size_t>(daal::IdxValType<float, size_t> * beginPtr, daal::IdxValType<float, size_t> * endPtr)
 {
     _daal_parallel_sort_pair_fp32_uint64(beginPtr, endPtr);
 }
 
 template <>
-inline void parallel_sort<double>(daal::IdxValType<double> * beginPtr, daal::IdxValType<double> * endPtr)
+inline void parallel_sort<double, size_t>(daal::IdxValType<double, size_t> * beginPtr, daal::IdxValType<double, size_t> * endPtr)
 {
     _daal_parallel_sort_pair_fp64_uint64(beginPtr, endPtr);
+}
+
+template <>
+inline void parallel_sort<float, int>(daal::IdxValType<float, int> * beginPtr, daal::IdxValType<float, int> * endPtr)
+{
+    _daal_parallel_sort_pair_fp32_int32(beginPtr, endPtr);
+}
+
+template <>
+inline void parallel_sort<double, int>(daal::IdxValType<double, int> * beginPtr, daal::IdxValType<double, int> * endPtr)
+{
+    _daal_parallel_sort_pair_fp64_int32(beginPtr, endPtr);
 }
 
 // Sorts dataPtr[0..n) in place and permutes indexPtr the same way.
@@ -250,6 +274,22 @@ template <>
 inline void parallel_index_sort<size_t, double>(size_t n, size_t * dataPtr, double * indexPtr)
 {
     _daal_parallel_index_sort_uint64_fp64(n, dataPtr, indexPtr);
+}
+
+// Sorts dataPtr[0..n) in place and permutes indexPtr1 and indexPtr2 the same way.
+template <typename DataType, typename IndexType1, typename IndexType2>
+void parallel_index_sort(size_t n, DataType * dataPtr, IndexType1 * indexPtr1, IndexType2 * indexPtr2);
+
+template <>
+inline void parallel_index_sort<size_t, float, size_t>(size_t n, size_t * dataPtr, float * indexPtr1, size_t * indexPtr2)
+{
+    _daal_parallel_index_sort_uint64_fp32_uint64(n, dataPtr, indexPtr1, indexPtr2);
+}
+
+template <>
+inline void parallel_index_sort<size_t, double, size_t>(size_t n, size_t * dataPtr, double * indexPtr1, size_t * indexPtr2)
+{
+    _daal_parallel_index_sort_uint64_fp64_uint64(n, dataPtr, indexPtr1, indexPtr2);
 }
 
 inline int threader_get_max_threads_number()
