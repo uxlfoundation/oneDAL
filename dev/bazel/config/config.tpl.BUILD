@@ -225,6 +225,23 @@ config_flag(
     ],
 )
 
+# Set only by the transition on the deps of `cc_static_lib` on Windows (see
+# dev/bazel/cc.bzl). Objects built with it drop the `__DAAL_IMPLEMENTATION` and
+# `__ONEDAL_ENABLE_EXPORT__` defines, so their `__declspec(dllexport)` and
+# `/EXPORT:` directives do not reach the static archives, matching Make's
+# static Windows objects (makefile: `objs_a`, compiled without the DLL defines).
+config_bool_flag(
+    name = "static_export_free",
+    build_setting_default = False,
+)
+
+config_setting(
+    name = "static_export_free_enabled",
+    flag_values  = {
+        ":static_export_free": "True",
+    },
+)
+
 config_bool_flag(
     name = "test_external_datasets",
     build_setting_default = False,
@@ -273,9 +290,21 @@ config_setting(
     },
 )
 
+# Builds the DPC++ targets and puts the DPC++ libraries into //:release.
+# Defaults to whether icpx is in PATH.
 config_bool_flag(
     name = "release_dpc",
-    build_setting_default = True,
+    build_setting_default = %{dpc_compiler_found},
+)
+
+# No platform has this constraint. DPC++ targets require it under
+# --release_dpc=false, so they are skipped, and a direct request for one
+# names the missing compiler.
+constraint_setting(name = "dpc_compiler")
+
+constraint_value(
+    name = "dpc_needs_icpx_in_PATH",
+    constraint_setting = ":dpc_compiler",
 )
 
 config_bool_flag(

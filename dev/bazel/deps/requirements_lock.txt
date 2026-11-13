@@ -1,0 +1,67 @@
+# ===============================================================================
+# Copyright Contributors to the oneDAL Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ===============================================================================
+
+# Prebuilt oneAPI libraries the Bazel build downloads when the matching root
+# variable (MKLROOT, TBBROOT, DPL_ROOT, MPIROOT, CCL_ROOT) is not set. Read by `pypi_packages` in
+# dev/bazel/repos.bzl; Renovate bumps the versions and rewrites the hashes.
+# Each package lists the hashes of all its wheels (Linux and Windows).
+mkl-static==2026.2.1 \
+    --hash=sha256:55921ea793ff60742ed99ddd2a19995cd8c26b5128138331bc99b39db0c6925d \
+    --hash=sha256:5d5023b4452c4e5064595b305d7f7605dfc1ca99811315d09f1c15b9c65277fd
+mkl-include==2026.2.1 \
+    --hash=sha256:0c4e6f27b1ee435cc7fac115f6df259eb5be38328428cb73927c68dbac32d39f \
+    --hash=sha256:2778e6220af2993559d4c2e92f743e38b8464d752d2eb81b1fb73679bbef21b7
+mkl==2026.2.1 \
+    --hash=sha256:76322a3abf512594ab7b4e82cb72df91e4e5d195498769aa8b292373c1ddd6d1 \
+    --hash=sha256:96f9ee6a5f101801c56225bd6b7a4a82c95d3da1268d7bf952fa07d09992a619
+mkl-devel==2026.2.1 \
+    --hash=sha256:732971d883c770c90cb28f887f37f67d7e40ac045916cd8261a2fcadcc4019fc \
+    --hash=sha256:88374aff666d6adffc166773a9c8e39a90b737034b90a92108d6f96248c334ab
+onemkl-sycl-include==2026.2.1 \
+    --hash=sha256:48b441245bdf559c818f160749f5e8df3184f1657fe1d0be9c532a53783cd7a1 \
+    --hash=sha256:7b466062231dd140df9df054334e7daba0daf6632e6fe1c4d046bc6170f7a65d
+onemkl-sycl-blas==2026.2.1 \
+    --hash=sha256:4d0e8dc36d809f2b1261f7543215560fd7cdaa67dde23149a3a2646185b5e840 \
+    --hash=sha256:ae64990901643783f87c076957c4acaa0326261d2e35648e41e729ae21be3d7e
+onemkl-sycl-lapack==2026.2.1 \
+    --hash=sha256:2202f44a05ce73face7333d6a558ce4a334ba915cc23f9585d8a1aea648670a6 \
+    --hash=sha256:4189a9507bc6b8855e1d7d097c5395c7251c4b090b857cf5e04a75a2635d1b6c
+onemkl-sycl-sparse==2026.2.1 \
+    --hash=sha256:5e623b1d8b1029f55e9bd700e9cae7adda97bb171e7563be0b1ef7712856e73b \
+    --hash=sha256:ccda8662b0fda4cb7d343f1f38eeae93d5675187e60cc45d4859ca7eac3052ca
+onemkl-sycl-rng==2026.2.1 \
+    --hash=sha256:a5a77085561d3e121302302c13ca0fa667f2bad094797b1ae99ab7e69edd48dd \
+    --hash=sha256:c045674788f3159e76dca3b401416b5d49f00b7e06ff72b7f2e4456fee2023f9
+tbb==2023.2.0 \
+    --hash=sha256:7d80615b6e970f11671fa05b6eaa9483ac864fbfe525ac280271a78b37870b7c \
+    --hash=sha256:b39121cbdaff350fc61a448766cbb26807c523491d66e364838c9feeb3c6a0eb
+tbb-devel==2023.2.0 \
+    --hash=sha256:1655eb481004cadd2dbfdd98e98f43513a73a7f45c42076e6fc0f2abd424a459 \
+    --hash=sha256:83d004c948614a3d36c10e19e10f9620eeee927cc68cee29442b94ec609e31d0
+onedpl-devel==2022.14.0 \
+    --hash=sha256:03b09fc9be4d167a78fc0451f4b9bfb839222d90192a5360fa142a6577d1c5f3 \
+    --hash=sha256:41b153353e06af8cb7466f94baf5f237cc75982b7513ae8bbe4f28be2f80414a
+impi-rt==2021.19.2 \
+    --hash=sha256:0c36dcd4bb44fd6ace22040e43a861b9887dc35a6b21907e2f2c2e9f1fdadd12 \
+    --hash=sha256:85c606528aec92ba2747f21fd07e63519d07631d1c711c39cad55af0f81271ec
+impi-devel==2021.19.2 \
+    --hash=sha256:4ee3b85a9e45a9127bf7c1b333c459cbaac8d03f8bb26caa29752abbabfb01f0 \
+    --hash=sha256:781e17be8bbf22f0e9b63a9805710daa9bfad9ddb1973827929312ee47175c50
+modified-libfabric==2.6.14 \
+    --hash=sha256:3f631950a2c926467b3ce54abe9269663669a3bac931917570e10230674d4b7d \
+    --hash=sha256:7d5a34b8a0f62209156ce33f96a681f3a61de81beae2b556dcd19d43e004665c
+oneccl==2022.2.2 \
+    --hash=sha256:0abcd5cb846e52d20c9056318f63229ec33c34397fea6000228e62c5661d7210

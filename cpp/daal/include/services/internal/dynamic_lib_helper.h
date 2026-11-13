@@ -32,7 +32,9 @@
 
     #elif defined(_WIN32) || defined(_WIN64)
 
-        #define NOMINMAX
+        #ifndef NOMINMAX
+            #define NOMINMAX
+        #endif
         #include "services/internal/daal_load_win_dynamic_lib.h"
 
     #endif // __linux__

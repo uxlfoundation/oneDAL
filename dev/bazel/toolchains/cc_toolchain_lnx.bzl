@@ -45,8 +45,9 @@ load(
 
 def _find_tool(repo_ctx, tool_name, mandatory = False):
     if tool_name.startswith("/"):
-        return tool_name
-    tool_path = repo_ctx.which(tool_name)
+        tool_path = repo_ctx.path(tool_name) if repo_ctx.path(tool_name).exists else None
+    else:
+        tool_path = repo_ctx.which(tool_name)
     is_found = tool_path != None
     if not is_found:
         if mandatory:
@@ -69,10 +70,18 @@ def _find_tools(repo_ctx, reqs):
     # binutils (`ar`, `strip`) as well as the compiler itself; without it,
     # cross-compiling with CC=aarch64-linux-gnu-gcc would silently pick up
     # the exec host's native `ar`/`strip`, producing wrong-arch archives.
-    cross_prefix = get_cross_tool_prefix(repo_ctx)
-    ar_path, _ = _find_tool(repo_ctx, cross_prefix + "ar", mandatory = True)
-    cc_path, _ = _find_tool(repo_ctx, cross_prefix + reqs.compiler_id, mandatory = True)
-    strip_path, _ = _find_tool(repo_ctx, cross_prefix + "strip", mandatory = True)
+    if reqs.downloaded_tools:
+        ar_path = reqs.downloaded_tools.ar
+        cc_path = reqs.downloaded_tools.cc
+        strip_path = reqs.downloaded_tools.strip
+    else:
+        cross_prefix = get_cross_tool_prefix(repo_ctx)
+        ar_path, _ = _find_tool(repo_ctx, cross_prefix + "ar", mandatory = True)
+        # Use CC as given so that a versioned name (gcc-14, clang-19) or a full
+        # path selects that exact compiler.
+        cc_name = repo_ctx.os.environ.get("CC") or (cross_prefix + reqs.compiler_id)
+        cc_path, _ = _find_tool(repo_ctx, cc_name, mandatory = True)
+        strip_path, _ = _find_tool(repo_ctx, cross_prefix + "strip", mandatory = True)
     dpcc_path, dpcpp_found = _find_tool(repo_ctx, reqs.dpc_compiler_id, mandatory = False)
     if dpcpp_found:
         # The llvm-ar tool is used because Bazel prepends directory names with +,
@@ -93,20 +102,21 @@ def _find_tools(repo_ctx, reqs):
 
 def _preapre_builtin_include_directory_paths(repo_ctx, tools):
     required_tmp_includes = get_tmp_dpcpp_inc_directories(repo_ctx, tools) if tools.is_dpc_found else []
+
+    # Probe with the flags the compile actions pass: --gcc-toolchain can select another libstdc++.
+    cc_flags = _add_gcc_toolchain_if_needed(repo_ctx, tools.cc)
+    cc_no_canonical_flags = cc_flags + get_no_canonical_prefixes_opt(repo_ctx, tools.cc)
+
+    # As in rules_cc, the libc++ headers are builtin too, so a -stdlib=libc++ build works.
+    libcxx_flags = add_compiler_option_if_supported(repo_ctx, tools.cc, "-stdlib=libc++")
     builtin_include_directories = utils.unique(
-        get_cxx_inc_directories(repo_ctx, tools.cc, "-xc") +
-        get_cxx_inc_directories(repo_ctx, tools.cc, "-xc++") +
-        get_cxx_inc_directories(
-            repo_ctx,
-            tools.cc,
-            "-xc",
-            get_no_canonical_prefixes_opt(repo_ctx, tools.cc),
-        ) +
-        get_cxx_inc_directories(
-            repo_ctx,
-            tools.cc,
-            "-xc++",
-            get_no_canonical_prefixes_opt(repo_ctx, tools.cc),
+        get_cxx_inc_directories(repo_ctx, tools.cc, "-xc", cc_flags) +
+        get_cxx_inc_directories(repo_ctx, tools.cc, "-xc++", cc_flags) +
+        get_cxx_inc_directories(repo_ctx, tools.cc, "-xc", cc_no_canonical_flags) +
+        get_cxx_inc_directories(repo_ctx, tools.cc, "-xc++", cc_no_canonical_flags) +
+        (
+            get_cxx_inc_directories(repo_ctx, tools.cc, "-xc++", cc_flags + libcxx_flags) +
+            get_cxx_inc_directories(repo_ctx, tools.cc, "-xc++", cc_no_canonical_flags + libcxx_flags) if libcxx_flags else []
         ) +
         get_cxx_inc_directories(
             repo_ctx,
@@ -137,13 +147,25 @@ def _get_bin_search_flag(repo_ctx, cc_path):
         bin_search_flag = []
     return bin_search_flag
 
-def _get_gcc_toolchain_path(repo_ctx):
-    return str(repo_ctx.which("gcc").dirname.dirname.realpath)
+def _get_gcc_toolchain_path(repo_ctx, cc):
+    # A gcc in PATH for another target (the host gcc next to a conda-forge clang) would pair
+    # the compiler with a libstdc++ that does not match its sysroot, so prefer <triple>-gcc next to cc.
+    gcc = repo_ctx.which("gcc")
+    triple = repo_ctx.execute([cc, "-dumpmachine"]).stdout.strip()
+    if not gcc or repo_ctx.execute([gcc, "-dumpmachine"]).stdout.strip() != triple:
+        sibling_gcc = repo_ctx.path(cc).dirname.get_child(triple + "-gcc")
+        if triple and sibling_gcc.exists:
+            gcc = sibling_gcc
+    return str(gcc.dirname.dirname.realpath) if gcc else None
 
 def _add_gcc_toolchain_if_needed(repo_ctx, cc):
-    if ("clang" in cc) or ("icpx" in cc):
-        return ["--gcc-toolchain=" + _get_gcc_toolchain_path(repo_ctx)]
+    # Pin icx to the same gcc as icpx (the one on PATH), as Make does. Without it, icx's cc
+    # actions fall back to icx's default gcc lookup, which can be a different install.
+    gcc_toolchain = _get_gcc_toolchain_path(repo_ctx, cc) if ("clang" in cc) or ("icx" in cc) or ("icpx" in cc) else None
+    if gcc_toolchain:
+        return ["--gcc-toolchain=" + gcc_toolchain]
     else:
+        # Without a gcc driver in PATH, clang finds the installed libstdc++ itself.
         return []
 
 def _add_sycl_linkage(repo_ctx, cc):
@@ -151,6 +173,33 @@ def _add_sycl_linkage(repo_ctx, cc):
         return ["-fsycl"]
     else:
         return []
+
+def _add_new_offload_driver_link(repo_ctx, dpcc):
+    # Probe --offload-compress with a shared link, as Make's dpcpp.mk:84-92 does.
+    # A compile-only probe misses an icpx 2025.3 link failure; the probe runs in a fresh temp dir.
+    tmp = repo_ctx.execute(["mktemp", "-d"])
+    if tmp.return_code != 0:
+        return []
+    tmp_dir = tmp.stdout.strip()
+    result = repo_ctx.execute([
+        dpcc, "-fsycl", "--offload-new-driver", "--offload-compress",
+        "-shared", "-fPIC", str(repo_ctx.path(TEST_CPP_FILE)),
+        "-o", tmp_dir + "/probe.so",
+    ], environment = {"TMPDIR": tmp_dir})
+    repo_ctx.execute(["rm", "-rf", "--", tmp_dir])
+    if result.return_code != 0:
+        return []
+    flags = ["--offload-new-driver"]
+
+    # The legacy driver embeds -ftarget-register-alloc-mode=pvc:<opt> in the
+    # device image, so the PVC-only JIT option is applied to PVC devices alone.
+    # The new driver embeds no GRF option on its own, so pass it in that same
+    # form. A bare -ze-intel-enable-auto-large-GRF-mode for every device breaks
+    # the CPU OpenCL JIT ("Unrecognized build options").
+    return flags + [
+        "-Xsycl-target-backend=spir64",
+        "-ftarget-register-alloc-mode=pvc:-ze-intel-enable-auto-large-GRF-mode",
+    ]
 
 def configure_cc_toolchain_lnx(repo_ctx, reqs):
     if reqs.os_id != "lnx":
@@ -162,7 +211,16 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
     # Default compilations/link options
     cxx_opts = []
     link_opts = []
-    dynamic_link_libs = ["-lstdc++", "-lm", "-ldl"]
+    # -lpthread -ldl stay outside --as-needed, as in Make (lnx32e.mk, deps.mkl.mk).
+    # They add NEEDED entries on glibc < 2.34 and resolve to empty stubs after it.
+    dynamic_link_libs = [
+        "-lstdc++",
+        "-lm",
+        "-Wl,--no-as-needed",
+        "-lpthread",
+        "-ldl",
+        "-Wl,--as-needed",
+    ]
 
     # Paths to tools/compiler includes
     tools = _find_tools(repo_ctx, reqs)
@@ -322,6 +380,15 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
                     tools.dpcc,
                     "-fsycl-device-code-split={}".format(dpcc_code_split),
                 ) +
+                # Device link with the new offloading driver. The legacy driver
+                # runs clang-offload-bundler, llvm-objcopy and
+                # spirv-to-ir-wrapper once for every input object, including the
+                # host-only DAAL objects that carry no device code. On
+                # libonedal_dpc.so that is ~9.3k serial subprocesses. With this
+                # flag the host-only objects are skipped and the DPC objects
+                # keep their existing (legacy) format. Link actions only; compile
+                # actions are unchanged.
+                _add_new_offload_driver_link(repo_ctx, tools.dpcc) +
                 add_linker_option_if_supported(
                     repo_ctx,
                     tools.dpcc,

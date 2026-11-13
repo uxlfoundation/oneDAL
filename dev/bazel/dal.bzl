@@ -106,7 +106,12 @@ def dal_collect_modules(name, root, modules, dal_deps=[], **kwargs):
 def dal_public_includes(name, dal_deps=[], **kwargs):
     headers_filter(
         name = name,
-        deps = dal_deps + _get_dpc_deps(dal_deps),
+        # A DPC++ module declares the same public headers as its host module,
+        # so the host modules alone give the full set when DPC++ is skipped.
+        deps = dal_deps + select({
+            "@config//:release_dpc_enabled": _get_dpc_deps(dal_deps),
+            "//conditions:default": [],
+        }),
         include = [
             "oneapi/",
         ],
@@ -145,7 +150,14 @@ def dal_static_lib(name, lib_name, dal_deps=[], host_deps=[],
 
 def dal_dynamic_lib(name, lib_name, dal_deps=[], host_deps=[],
                     dpc_deps=[], dpc_host_deps=[], extra_deps=[], lib_tags=["dal"],
-                    dpc_lib_tags=None, features=[], **kwargs):
+                    dpc_lib_tags=None, dpc_linkopts=[], features=[], **kwargs):
+    # Every oneAPI DLL carries the version resource of onedal_dll.rc (dll.res,
+    # makefile:870, 874).
+    kwargs.setdefault("rc_file", "@onedal//cpp/oneapi/dal:onedal_dll.rc")
+    kwargs.setdefault("rc_headers", [
+        "@onedal//cpp/daal:src/services/daal_version.h",
+        "@onedal//cpp/daal:version",
+    ])
     cc_dynamic_lib(
         name = name,
         lib_name = lib_name,
@@ -153,6 +165,15 @@ def dal_dynamic_lib(name, lib_name, dal_deps=[], host_deps=[],
         deps = dal_deps + extra_deps + host_deps,
         **kwargs
     )
+    # dpc_linkopts go to the DPC library only; Make puts such flags on LOPT of those targets.
+    # On Windows Make's dpc.link.dynamic.win drops LOPT, so the flags are Linux-only.
+    dpc_kwargs = dict(kwargs)
+    dpc_kwargs["linkopts"] = kwargs.get("linkopts", []) + select({
+        "@platforms//os:windows": [],
+        "//conditions:default": dpc_linkopts,
+    })
+    # The DPC DLLs name themselves onedal_dpc in their resource (makefile:875).
+    dpc_kwargs["rc_defines"] = kwargs.get("rc_defines", []) + ["ONEDAL_DLL_RC_DATA_PARALLEL"]
     cc_dynamic_lib(
         name = name + "_dpc",
         features = features + [ "dpc++" ],
@@ -162,15 +183,23 @@ def dal_dynamic_lib(name, lib_name, dal_deps=[], host_deps=[],
         # into a DPC library. Never forward ordinary host_deps here: doing so
         # folds host parameter objects into the DPC library as duplicates.
         deps = _get_dpc_deps(dal_deps) + extra_deps + dpc_deps + dpc_host_deps,
-        **kwargs
+        **dpc_kwargs
     )
+
+def _not_on_windows():
+    # Test suites skip incompatible tests, so the test is reported as
+    # SKIPPED on Windows and runs everywhere else.
+    return select({
+        "@platforms//os:windows": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })
 
 def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
              extra_deps=[], host_hdrs=[], host_srcs=[], host_deps=[],
              dpc_hdrs=[], dpc_srcs=[], dpc_deps=[], compile_as=[ "c++", "dpc++" ],
              framework="catch2", data=[], tags=[], private=False,
              mpi=False, ccl=False, mpi_ranks=0, args=[],
-             use_onedal_release_libs=True, **kwargs):
+             use_onedal_release_libs=True, target_compatible_with=[], **kwargs):
     # TODO: Check `compile_as` parameter
     # TODO: Refactor this rule once decision on the tests structure is made
     if not framework in ["catch2", "none"]:
@@ -225,7 +254,9 @@ def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
             deps = [ ":" + module_name ],
             data = _expand_select(data + _test_runtime_data()),
             tags = common_tags + tags + ["host", iface_access_tag],
+            build_from_sources = private,
             args = test_args,
+            target_compatible_with = target_compatible_with,
         )
         tests_for_test_suite.append(name + "_host")
     if "dpc++" in compile_as:
@@ -240,7 +271,9 @@ def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
             ],
             data = _expand_select(data + _test_runtime_data()),
             tags = common_tags + tags + ["dpc", iface_access_tag],
+            build_from_sources = private,
             args = test_args,
+            target_compatible_with = target_compatible_with,
         )
         tests_for_test_suite.append(name + "_dpc")
     native.test_suite(
@@ -249,7 +282,14 @@ def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
     )
 
 def dal_test_suite(name, srcs=[], tests=[],
-                   compile_as=[ "c++", "dpc++" ], **kwargs):
+                   compile_as=[ "c++", "dpc++" ], not_on_windows=[], **kwargs):
+    """
+    @param not_on_windows  Entries of `srcs` whose tests are skipped on Windows.
+    """
+    for test_file in not_on_windows:
+        if test_file not in srcs:
+            fail("'{}' in not_on_windows is not in srcs of '{}'".format(test_file, name))
+    target_compatible_with = kwargs.pop("target_compatible_with", [])
     targets = []
     for test_file in srcs:
         target = test_file.replace(".cpp", "").replace("/", "_")
@@ -268,6 +308,8 @@ def dal_test_suite(name, srcs=[], tests=[],
             name = target,
             srcs = [test_file],
             compile_as = compile_as,
+            target_compatible_with = target_compatible_with +
+                                     (_not_on_windows() if test_file in not_on_windows else []),
             **kwargs,
         )
         targets.append(":" + target)
@@ -369,7 +411,12 @@ def _test_deps_on_daal():
 
 def _test_runtime_data():
     return _select({
-        "@config//:test_link_mode_dev": [],
+        # The dev threading layer links TBB through import libraries on
+        # Windows; the loader finds tbb12.dll only next to the test exe,
+        # where _copy_windows_runtime_files puts the DLLs of `data`.
+        "@config//:test_link_mode_dev": [
+            "@tbb//:tbb_runtime",
+        ],
         "@config//:test_link_mode_release_static": [],
         "@config//:test_link_mode_release_dynamic": [
             "@onedal_release//:core_dynamic_runtime",
@@ -538,14 +585,17 @@ def _dal_module(name, lib_tag="dal", is_dpc=False, features=[],
             "rv64":   [ "__CPU_TAG__=__CPU_TAG_RISCV64GC__" ],
         },
         copts = copts + select({
-            "@platforms//os:windows": ["/utf-8"],
+            # -EHsc on the oneAPI objects only, as Make's icx build; the vc build adds it via compile.bzl.
+            # Tests and examples keep exception handling; Catch2 needs it for tests.
+            "@platforms//os:windows": ["/utf-8", "-EHsc"],
             "//conditions:default": ["-fvisibility=hidden", "-fvisibility-inlines-hidden"],
         }),
-        local_defines = local_defines + [
-            # Enable ONEDAL_EXPORT visibility annotations, matching Make's
-            # -D__ONEDAL_ENABLE_EXPORT__ flag for cpp/oneapi/dal .so objects.
-            "__ONEDAL_ENABLE_EXPORT__",
-        ] + ([
+        local_defines = local_defines + select({
+            # ONEDAL_EXPORT visibility, as Make's -D__ONEDAL_ENABLE_EXPORT__ for the .so objects.
+            # Export-free Windows static archives omit it, as Make's objs_a do.
+            "@config//:static_export_free_enabled": [],
+            "//conditions:default": ["__ONEDAL_ENABLE_EXPORT__"],
+        }) + ([
             "ONEDAL_DATA_PARALLEL"
         ] if is_dpc else []) + select({
             "@config//:test_fp64_disabled": [
@@ -565,6 +615,9 @@ def _dal_module(name, lib_tag="dal", is_dpc=False, features=[],
             "//conditions:default": [],
         }),
         deps = _expand_select(deps),
+        # DPC++ library objects are LP64, as Make's are.
+        # A DPC test may link ILP64 MKL itself, so it keeps the MKL_ILP64 it inherits.
+        drop_mkl_ilp64 = is_dpc and not kwargs.get("testonly", False),
         **kwargs,
     )
 
@@ -583,6 +636,7 @@ def _dal_cc_test(name, mpi=False, ccl = False, mpi_ranks=0, **kwargs):
             mpi_ranks = mpi_ranks,
             mpiexec = "@mpi//:mpiexec",
             fi = "@mpi//:fi",
+            libfabric = "@mpi//:libfabric_runtime",
         )
     elif ccl:
         if mpi_ranks <= 0:
@@ -598,6 +652,7 @@ def _dal_cc_test(name, mpi=False, ccl = False, mpi_ranks=0, **kwargs):
             mpi_ranks = mpi_ranks,
             mpiexec = "@mpi//:mpiexec",
             fi = "@mpi//:fi",
+            libfabric = "@mpi//:libfabric_runtime",
         )
     else:
         cc_test(

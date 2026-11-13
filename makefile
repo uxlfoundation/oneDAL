@@ -647,6 +647,9 @@ ONEAPI.objs_y.dpc := $(ONEAPI.srcs.mangled.dpc:%.cpp=$(ONEAPI.tmpdir_y.dpc)/%.$o
 define .populate_cpus
 $(eval non_cpu_files := $(call notcontaining,_cpu,$2))
 $(eval cpu_files := $(call containing,_cpu,$2))
+# Drop ISA-specific sources (`_skx.cpp` etc.) for CPUs not in USECPUS: the dispatcher
+# never calls them, and Bazel does not build them. Match the file name, not the path.
+$(foreach s,$(filter-out $(USECPUS.files),nrh hsw skx),$(eval non_cpu_files := $(foreach f,$(non_cpu_files),$(if $(findstring _$s.,$(notdir $f)),,$f))))
 
 $(eval $(call add_cpu_to_uarch_in_files,non_cpu_files))
 
@@ -828,6 +831,10 @@ $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_win),sycl$d.lib)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += \
     $(daaldep.math_backend.dpc_link_deps) \
     $(if $(OS_is_win),, -Wl,-rpath,'$$ORIGIN/../../..:$$ORIGIN/../../../')
+# New offloading driver for the DPC libraries only; see dev/make/compiler_definitions/dpcpp.mk
+$(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += \
+    $(if $(offload.new.driver.lnx.dpcpp),--offload-new-driver \
+      -Xsycl-target-backend=spir64 -ftarget-register-alloc-mode=pvc:-ze-intel-enable-auto-large-GRF-mode,)
 
 ifdef OS_is_win
 $(WORKDIR.lib)/$(oneapi_y.dpc:%.$(MAJORBINARY).dll=%_dll.lib): $(WORKDIR.lib)/$(oneapi_y.dpc)
@@ -840,6 +847,9 @@ $(WORKDIR.lib)/$(parameters_y.dpc): \
     $(WORKDIR.lib)/$(oneapi_y.dpc) \
     $(ONEAPI.tmpdir_y.dpc)/$(parameters_y.dpc:%.$y=%_link.txt) ; $(DPC.LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(-fPIC) $(-lsections)
+$(WORKDIR.lib)/$(parameters_y.dpc): LOPT += \
+    $(if $(offload.new.driver.lnx.dpcpp),--offload-new-driver \
+      -Xsycl-target-backend=spir64 -ftarget-register-alloc-mode=pvc:-ze-intel-enable-auto-large-GRF-mode,)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(daaldep.rt.dpc)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(if $(REQDBG),-flink-huge-device-code,) $(-offloadcompress)
 ifndef OS_is_win
@@ -890,7 +900,7 @@ THR.objs_y := $(THR_TBB.objs_y)
 THR_TBB.objs := $(THR_TBB.objs_a) $(THR_TBB.objs_y)
 THR.objs := $(THR.objs_a) $(THR.objs_y)
 
-$(THR.objs): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-sections) $(-Zl) $(-DEBC) -DDAAL_HIDE_DEPRECATED -DTBB_USE_ASSERT=0 -D_ENABLE_ATOMIC_ALIGNMENT_FIX
+$(THR.objs): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-sections) $(-Zl) $(-visibility) $(-DEBC) -DDAAL_HIDE_DEPRECATED -DTBB_USE_ASSERT=0 -D_ENABLE_ATOMIC_ALIGNMENT_FIX
 
 $(THR.objs_a): $(THR.tmpdir_a)/thr_inc_a_folders.txt
 $(THR.objs_a): COPT += @$(THR.tmpdir_a)/thr_inc_a_folders.txt
