@@ -352,8 +352,10 @@ jobs:
         run: |
           set -euo pipefail
           cfg=.github/abicheck/targets.json
-          echo "libraries=$(jq -c '.libraries' "$cfg")" >> "$GITHUB_OUTPUT"
-          echo "include=$(jq -r '.include' "$cfg")" >> "$GITHUB_OUTPUT"
+          libs=$(jq -ce '.libraries' "$cfg")
+          inc=$(jq -re '.include' "$cfg")
+          echo "libraries=${libs}" >> "$GITHUB_OUTPUT"
+          echo "include=${inc}" >> "$GITHUB_OUTPUT"
           {
             echo 'headers<<ABICHECK_EOF'
             jq -r '.include as $i | .headers[] | "\($i)/\(.)"' "$cfg"

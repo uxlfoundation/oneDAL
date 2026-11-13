@@ -73,11 +73,11 @@ jobs:
           done
 
       # The library and header list lives in .github/abicheck/targets.json, shared with ci.yml.
-      # The release tag predates it, so read it from the ref this workflow runs on.
-      - name: Checkout the abicheck config of the workflow ref
+      # A release tag can predate it (on `release`, github.sha is the tag), so read the default branch's.
+      - name: Checkout the abicheck config of the default branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.repository.default_branch }}
           path: __abicheck_cfg
           sparse-checkout: .github/abicheck
           persist-credentials: false
