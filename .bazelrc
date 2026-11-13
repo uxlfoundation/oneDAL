@@ -135,4 +135,10 @@ build:type \
     --linkopt=-fsanitize=type \
     --linkopt=-fuse-ld=lld
 
+# CI pipelines add `--config=ci` with their own --disk_cache and
+# --experimental_disk_cache_gc_max_size, as the cache path and size differ per runner.
+common:ci --announce_rc
+common:ci --experimental_disk_cache_gc_idle_delay=0s
+common:ci --test_output=errors
+
 try-import %workspace%/user.bazelrc

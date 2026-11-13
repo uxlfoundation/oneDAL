@@ -255,7 +255,7 @@ jobs:
         shell: pwsh
         run: |
           $cache = "${{ runner.temp }}".Replace('\', '/') + '/bazel-disk'
-          Add-Content -Path "$HOME/.bazelrc" -Value "build --disk_cache=$cache --experimental_disk_cache_gc_max_size=2G --experimental_disk_cache_gc_idle_delay=0s"
+          Add-Content -Path "$HOME/.bazelrc" -Value "build --disk_cache=$cache --experimental_disk_cache_gc_max_size=2G --config=ci"
           $repo = "${{ runner.temp }}".Replace('\', '/') + '/bazel-repo'
           Add-Content -Path "$HOME/.bazelrc" -Value "common --repository_cache=$repo"
           $versions = (& "$env:ProgramFiles\LLVM\bin\clang-cl.exe" --version) -join "`n"
@@ -396,7 +396,7 @@ jobs:
           CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" arm64
           set PATH=%PATH%;C:\msys64\usr\bin
           bazel test --platforms=@config//:windows_arm64 ^
-            --enable_runfiles --test_output=errors ^
+            --enable_runfiles ^
             //examples/oneapi/cpp:kmeans_lloyd_dense_batch_host
 
       - name: Trim the Bazel disk cache
