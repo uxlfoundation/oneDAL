@@ -9,6 +9,7 @@ load("@onedal//dev/bazel/config:config.bzl",
     "unsupported_config",
     "target_info",
 )
+load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 
 cpu_info(
@@ -37,43 +38,49 @@ version_info(
     binary_minor = "%{version_binary_minor}",
 )
 
-# mkl on x86-64; the other arches build with the ref backend, as Make's BACKEND_CONFIG does.
+# `auto` is mkl on x86-64 and ref on the other arches of the target platform, as Make's
+# BACKEND_CONFIG does; read it through :backend_ref and :backend_mkl.
 config_flag(
     name = "backend_config",
-    build_setting_default = "%{backend_config_default}",
+    build_setting_default = "auto",
     allowed_build_setting_values = [
+        "auto",
         "ref",
         "mkl",
     ],
 )
 
-config_setting(
+[config_setting(
+    name = "_backend_{}".format(value),
+    flag_values = {":backend_config": value},
+) for value in ["auto", "ref", "mkl"]]
+
+[config_setting(
+    name = "_backend_auto_{}".format(cpu),
+    flag_values = {":backend_config": "auto"},
+    constraint_values = ["@platforms//cpu:{}".format(cpu)],
+) for cpu in ["x86_64", "aarch64", "riscv64"]]
+
+selects.config_setting_group(
     name = "backend_ref",
-    flag_values  = {
-        ":backend_config": "ref",
-    },
+    match_any = [":_backend_ref", ":_backend_auto_aarch64", ":_backend_auto_riscv64"],
+)
+
+selects.config_setting_group(
+    name = "backend_mkl",
+    match_any = [":_backend_mkl", ":_backend_auto_x86_64"],
 )
 
 # A DLL resolves every symbol at link time, so onedal_core links the ref math backend
 # directly (Make: daaldep.math_backend.shared_link_deps).
-config_setting(
+selects.config_setting_group(
     name = "backend_ref_windows",
-    flag_values = {
-        ":backend_config": "ref",
-    },
-    constraint_values = [
-        "@platforms//os:windows",
-    ],
+    match_all = [":backend_ref", "@platforms//os:windows"],
 )
 
-config_setting(
+selects.config_setting_group(
     name = "backend_config_mkl_linux",
-    flag_values = {
-        ":backend_config": "mkl",
-    },
-    constraint_values = [
-        "@platforms//os:linux",
-    ],
+    match_all = [":backend_mkl", "@platforms//os:linux"],
 )
 
 # Windows CRT (Make MSVC_RUNTIME_VERSION), independent of --compilation_mode as it renames the
@@ -140,11 +147,13 @@ config_flag(
 # Gate OpenRNG on this rather than `:rng_backend_openrng`: Make reaches it on the ref backend
 # only, and an MKL build would otherwise require OPENRNGROOT.
 config_setting(
+    name = "_rng_backend_openrng",
+    flag_values = {":rng_backend": "openrng"},
+)
+
+selects.config_setting_group(
     name = "rng_backend_openrng_ref",
-    flag_values = {
-        ":rng_backend": "openrng",
-        ":backend_config": "ref",
-    },
+    match_all = [":_rng_backend_openrng", ":backend_ref"],
 )
 
 # Cross-compile targets, e.g. `--platforms=@config//:linux_aarch64` with `CC=aarch64-linux-gnu-gcc`.

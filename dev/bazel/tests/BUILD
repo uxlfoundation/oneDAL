@@ -1,4 +1,9 @@
 load("@onedal//dev/bazel/tests:analysis.bzl",
+    "backend_aarch64_test",
+    "backend_explicit_ref_test",
+    "backend_probe",
+    "backend_riscv64_test",
+    "backend_x86_64_test",
     "coverage_core_test",
     "coverage_dpc_link_test",
     "coverage_threading_test",
@@ -75,6 +80,28 @@ release_layout_test(
     lib_name = lib_name,
     target_compatible_with = ["@platforms//os:linux"],
 ) for name, lib_name in [("core_dynamic", "onedal_core"), ("thread_dynamic", "onedal_thread")]]
+
+# The math backend follows the target platform unless --backend_config is set.
+platform(
+    name = "linux_x86_64",
+    constraint_values = ["@platforms//cpu:x86_64", "@platforms//os:linux"],
+)
+
+backend_probe(
+    name = "backend_probe",
+    backend = select({
+        "@config//:backend_ref": "ref",
+        "@config//:backend_mkl": "mkl",
+    }),
+)
+
+backend_x86_64_test(name = "backend_x86_64_test", target_under_test = ":backend_probe", expected = "mkl")
+
+backend_aarch64_test(name = "backend_aarch64_test", target_under_test = ":backend_probe", expected = "ref")
+
+backend_riscv64_test(name = "backend_riscv64_test", target_under_test = ":backend_probe", expected = "ref")
+
+backend_explicit_ref_test(name = "backend_explicit_ref_test", target_under_test = ":backend_probe", expected = "ref")
 
 # Coverage needs the icx toolchain, so only the coverage CI step runs these (manual).
 coverage_core_test(

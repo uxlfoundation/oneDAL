@@ -265,3 +265,33 @@ soname_test = analysistest.make(
     } | VERSION_ATTRS,
     config_settings = {_CPU: "avx2"},
 )
+
+# --- math backend default ---
+
+_BackendInfo = provider(fields = ["backend"])
+
+def _backend_probe_impl(ctx):
+    return [_BackendInfo(backend = ctx.attr.backend)]
+
+backend_probe = rule(implementation = _backend_probe_impl, attrs = {"backend": attr.string()})
+
+def _backend_test_impl(ctx):
+    env = analysistest.begin(ctx)
+    backend = analysistest.target_under_test(env)[_BackendInfo].backend
+    asserts.equals(env, ctx.attr.expected, backend, "math backend")
+    return analysistest.end(env)
+
+def _make_backend_test(platform, backend_config = None):
+    settings = {"//command_line_option:platforms": str(Label(platform))}
+    if backend_config:
+        settings[str(Label("@config//:backend_config"))] = backend_config
+    return analysistest.make(
+        _backend_test_impl,
+        attrs = {"expected": attr.string(mandatory = True)},
+        config_settings = settings,
+    )
+
+backend_x86_64_test = _make_backend_test("@onedal//dev/bazel/tests:linux_x86_64")
+backend_aarch64_test = _make_backend_test("@config//:linux_aarch64")
+backend_riscv64_test = _make_backend_test("@config//:linux_riscv64")
+backend_explicit_ref_test = _make_backend_test("@onedal//dev/bazel/tests:linux_x86_64", "ref")
