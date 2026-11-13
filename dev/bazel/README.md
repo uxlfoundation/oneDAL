@@ -454,8 +454,8 @@ implemented for the icx and clang-cl toolchains only. The `cl` fallback
 (`ONEDAL_WIN_COMPILER=cl` or `CC=cl`, see [Compiler choice](#compiler-choice))
 delegates to rules_cc's MSVC auto-config, which has no such feature, so
 `--config=mdd` there fails during analysis with an explanatory message rather
-than silently building against the wrong CRT. Do not set the feature through
-`--features`; that is rejected the same way.
+than silently building against the wrong CRT. The feature, if also set through
+`--features`, must agree with `--msvc_runtime`; a mismatch fails the same way.
 
 `//:release_all` takes the libraries under `lib/<arch>` and `redist/<arch>`
 (`<arch>` as above) from both builds; everything else — headers, datasets, examples, env scripts,

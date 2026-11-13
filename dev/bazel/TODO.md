@@ -89,3 +89,13 @@
   run to validate: archive the objects of executables the same way, convert the
   `.res` with `cvtres` into an object that joins that archive, or link through
   `lld-link` (`-fuse-ld=lld`), which has no line limit.
+
+- [ ] **No inherited shell environment.** Three actions still run with
+  `use_default_shell_env = True`: the Windows `cmd.exe` copy in `release.bzl`,
+  the resource compile in `cc.bzl` (`rc.exe`/`llvm-rc` resolved from `PATH`, not
+  from the toolchain) and the Windows archive merge in `cc/link.bzl`. Taking the
+  rc tool from the toolchain config, as the archiver is via
+  `cc_common.get_tool_for_action`, removes the second. A CI check on the Starlark
+  AST (not a regex) that lists these sites as exceptions would stop the count
+  from growing back; `buildifier` as a required check and a stored aquery diff of
+  `//:release` across the release matrix belong to the same CI policy step.
