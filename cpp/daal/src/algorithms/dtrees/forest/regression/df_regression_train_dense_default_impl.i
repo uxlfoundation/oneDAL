@@ -110,13 +110,13 @@ constexpr size_t simdBatchSize        = 1;
 constexpr size_t minObsVectorizedPath = std::numeric_limits<size_t>::max();
 #endif
 
-// Mean and sum of squared deviations of n values read through value(i), in one pass; the vectorized
-// form is the parallel algorithm of https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+// Mean and variance (MSE) of n values read through value(i), in one pass; the vectorized form is
+// the parallel algorithm of https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
 template <CpuType cpu, typename intermSummFPType, typename ValueAt>
-void computeMeanAndSumOfSquares(size_t n, const ValueAt & value, intermSummFPType & mean, intermSummFPType & sumOfSquares)
+void calcMeanAndVariance(size_t n, const ValueAt & value, intermSummFPType & mean, intermSummFPType & var)
 {
-    mean         = 0;
-    sumOfSquares = 0;
+    mean = 0;
+    var  = 0;
     if (n == 0) return;
     if (n < minObsVectorizedPath)
     {
@@ -126,8 +126,9 @@ void computeMeanAndSumOfSquares(size_t n, const ValueAt & value, intermSummFPTyp
             const intermSummFPType y     = value(i);
             const intermSummFPType delta = y - mean;
             mean += delta / static_cast<intermSummFPType>(i + 1);
-            sumOfSquares += delta * (y - mean);
+            var += delta * (y - mean);
         }
+        var /= static_cast<intermSummFPType>(n);
         return;
     }
 
@@ -169,7 +170,7 @@ void computeMeanAndSumOfSquares(size_t n, const ValueAt & value, intermSummFPTyp
     }
 
     mean                        = means[0];
-    sumOfSquares                = sumsOfSquares[0];
+    var                         = sumsOfSquares[0];
     intermSummFPType var_deltas = 0;
     // Merge the partial means and sums of squares of the first `sizeSimdLoop` values
     for (size_t i = 1; i < simdBatchSize; i++)
@@ -177,10 +178,10 @@ void computeMeanAndSumOfSquares(size_t n, const ValueAt & value, intermSummFPTyp
         const intermSummFPType delta = means[i] - mean;
         const intermSummFPType div   = 1.0 / static_cast<intermSummFPType>(i + 1);
         mean += delta * div;
-        sumOfSquares += sumsOfSquares[i];
+        var += sumsOfSquares[i];
         var_deltas += (delta * delta) * (static_cast<intermSummFPType>(i) * div);
     }
-    sumOfSquares += var_deltas * itersSimdLoop;
+    var += var_deltas * itersSimdLoop;
 
     // Process tail elements, if any
     for (size_t i = sizeSimdLoop; i < n; i++)
@@ -188,8 +189,111 @@ void computeMeanAndSumOfSquares(size_t n, const ValueAt & value, intermSummFPTyp
         const intermSummFPType y     = value(i);
         const intermSummFPType delta = y - mean;
         mean += delta / static_cast<intermSummFPType>(i + 1);
-        sumOfSquares += delta * (y - mean);
+        var += delta * (y - mean);
     }
+    var /= static_cast<intermSummFPType>(n);
+}
+
+// The weighted counterpart: `totalWeights` is the weight sum and the variance is weighted.
+template <CpuType cpu, typename intermSummFPType, typename ValueAt, typename WeightAt>
+void calcWeightedMeanAndVariance(size_t n, const ValueAt & value, const WeightAt & weight, intermSummFPType & mean, intermSummFPType & var,
+                                 intermSummFPType & totalWeights)
+{
+    mean         = 0;
+    var          = 0;
+    totalWeights = 0;
+    if (n < minObsVectorizedPath)
+    {
+        // Zero weights would break the division; they do not change the result, so skip to the first nonzero one.
+        size_t iStart;
+        for (iStart = 0; iStart < n && !weight(iStart); iStart++);
+
+        for (size_t i = iStart; i < n; ++i)
+        {
+            const intermSummFPType w     = weight(i);
+            const intermSummFPType y     = value(i);
+            const intermSummFPType delta = y - mean;
+            totalWeights += w;
+            mean += delta * (w / totalWeights);
+            var += w * delta * (y - mean);
+        }
+        if (totalWeights) var /= totalWeights;
+        return;
+    }
+
+    intermSummFPType means[simdBatchSize]         = { 0 };
+    intermSummFPType sumsOfSquares[simdBatchSize] = { 0 };
+    intermSummFPType sumsOfWeights[simdBatchSize] = { 0 };
+    intermSummFPType yBatch[simdBatchSize];
+    intermSummFPType weightsBatch[simdBatchSize];
+
+    const size_t itersSimdLoop = n / simdBatchSize;
+    const size_t sizeSimdLoop  = itersSimdLoop * simdBatchSize;
+
+    for (size_t iMain = 0; iMain < itersSimdLoop; iMain++)
+    {
+        const size_t iStart = iMain * simdBatchSize;
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ >= 13
+        __attribute__((__assume__(iStart < std::numeric_limits<std::ptrdiff_t>::max())));
+#endif
+
+        // Pack the data into contiguous blocks
+        PRAGMA_OMP_SIMD_ARGS(simdlen(simdBatchSize))
+        for (size_t iSub = 0; iSub < simdBatchSize; iSub++)
+        {
+            yBatch[iSub]       = value(iStart + iSub);
+            weightsBatch[iSub] = weight(iStart + iSub);
+        }
+
+        // Update the vectors of means, variances, and cumulative weights
+        PRAGMA_OMP_SIMD
+        for (size_t iSub = 0; iSub < simdBatchSize; iSub++)
+        {
+            const intermSummFPType y = yBatch[iSub];
+            const intermSummFPType w = weightsBatch[iSub];
+            sumsOfWeights[iSub] += w;
+
+            intermSummFPType meanBatch   = means[iSub];
+            const intermSummFPType delta = y - meanBatch;
+            meanBatch += sumsOfWeights[iSub] ? (delta * (w / sumsOfWeights[iSub])) : 0;
+            sumsOfSquares[iSub] += w * (delta * (y - meanBatch));
+            means[iSub] = meanBatch;
+        }
+    }
+
+    // Merge the aggregates
+    mean                        = means[0];
+    var                         = sumsOfSquares[0];
+    totalWeights                = sumsOfWeights[0];
+    intermSummFPType var_deltas = 0;
+    size_t iBatch;
+    for (iBatch = 1; iBatch < simdBatchSize && !sumsOfWeights[iBatch]; iBatch++);
+    for (; iBatch < simdBatchSize; iBatch++)
+    {
+        const intermSummFPType weightNew  = sumsOfWeights[iBatch];
+        const intermSummFPType weightLeft = totalWeights;
+        totalWeights += weightNew;
+        const intermSummFPType fractionRight = weightNew / totalWeights;
+        const intermSummFPType delta         = means[iBatch] - mean;
+        mean += delta * fractionRight;
+        var += sumsOfSquares[iBatch];
+        var_deltas += (delta * delta) * (weightLeft * fractionRight);
+    }
+    var += var_deltas;
+
+    // Process tail elements, if any
+    size_t i;
+    for (i = sizeSimdLoop; i < n && !weight(i); i++);
+    for (; i < n; i++)
+    {
+        const intermSummFPType w     = weight(i);
+        const intermSummFPType y     = value(i);
+        const intermSummFPType delta = y - mean;
+        totalWeights += w;
+        mean += delta * (w / totalWeights);
+        var += w * delta * (y - mean);
+    }
+    if (totalWeights) var /= totalWeights;
 }
 
 template <typename algorithmFPType, CpuType cpu>
@@ -267,113 +371,14 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
 {
     if (noWeights)
     {
-        computeMeanAndSumOfSquares<cpu>(n, [&](size_t i) { return static_cast<intermSummFPType>(this->_aResponse[aIdx[i]].val); }, imp.mean, imp.var);
+        calcMeanAndVariance<cpu>(n, [&](size_t i) { return static_cast<intermSummFPType>(this->_aResponse[aIdx[i]].val); }, imp.mean, imp.var);
         totalWeights = static_cast<intermSummFPType>(n);
-        imp.var /= totalWeights; //impurity is MSE
     }
     else
     {
-        if (n < minObsVectorizedPath)
-        {
-            imp.mean     = 0;
-            imp.var      = 0;
-            totalWeights = 0;
-
-            // Note: weights can be exactly zero, in which case they'd break the division.
-            // Since zero-weight observations have no impact on the results, this tries to
-            // look for the first non-zero weight.
-            size_t iStart;
-            for (iStart = 0; iStart < n && !this->_aWeights[aIdx[iStart]].val; iStart++);
-
-            for (size_t i = iStart; i < n; ++i)
-            {
-                const intermSummFPType weights = this->_aWeights[aIdx[i]].val;
-                const intermSummFPType y       = this->_aResponse[aIdx[i]].val;
-                const intermSummFPType delta   = y - imp.mean;
-                totalWeights += weights;
-                imp.mean += delta * (weights / totalWeights);
-                imp.var += weights * delta * (y - imp.mean);
-            }
-            if (totalWeights) imp.var /= totalWeights; //impurity is MSE
-        }
-
-        else
-        {
-            intermSummFPType means[simdBatchSize]         = { 0 };
-            intermSummFPType sumsOfSquares[simdBatchSize] = { 0 };
-            intermSummFPType sumsOfWeights[simdBatchSize] = { 0 };
-            intermSummFPType yBatch[simdBatchSize];
-            intermSummFPType weightsBatch[simdBatchSize];
-
-            const size_t itersSimdLoop = n / simdBatchSize;
-            const size_t sizeSimdLoop  = itersSimdLoop * simdBatchSize;
-
-            for (size_t iMain = 0; iMain < itersSimdLoop; iMain++)
-            {
-                const size_t iStart = iMain * simdBatchSize;
-#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ >= 13
-                __attribute__((__assume__(iStart < std::numeric_limits<std::ptrdiff_t>::max())));
-#endif
-                const auto aIdxStart = aIdx + iStart;
-
-                // Pack the data from indices into contiguous blocks
-                PRAGMA_OMP_SIMD_ARGS(simdlen(simdBatchSize))
-                for (size_t iSub = 0; iSub < simdBatchSize; iSub++)
-                {
-                    yBatch[iSub]       = this->_aResponse[aIdxStart[iSub]].val;
-                    weightsBatch[iSub] = this->_aWeights[aIdxStart[iSub]].val;
-                }
-
-                // Update the vectors of means, variances, and cumulative weights
-                PRAGMA_OMP_SIMD
-                for (size_t iSub = 0; iSub < simdBatchSize; iSub++)
-                {
-                    const intermSummFPType y      = yBatch[iSub];
-                    const intermSummFPType weight = weightsBatch[iSub];
-                    sumsOfWeights[iSub] += weight;
-
-                    intermSummFPType meanBatch   = means[iSub];
-                    const intermSummFPType delta = y - meanBatch;
-                    meanBatch += sumsOfWeights[iSub] ? (delta * (weight / sumsOfWeights[iSub])) : 0;
-                    sumsOfSquares[iSub] += weight * (delta * (y - meanBatch));
-                    means[iSub] = meanBatch;
-                }
-            }
-
-            // Merge the aggregates
-            imp.mean                    = means[0];
-            imp.var                     = sumsOfSquares[0];
-            totalWeights                = sumsOfWeights[0];
-            intermSummFPType var_deltas = 0;
-            size_t iBatch;
-            for (iBatch = 1; iBatch < simdBatchSize && !sumsOfWeights[iBatch]; iBatch++);
-            for (; iBatch < simdBatchSize; iBatch++)
-            {
-                const intermSummFPType weightNew  = sumsOfWeights[iBatch];
-                const intermSummFPType weightLeft = totalWeights;
-                totalWeights += weightNew;
-                const intermSummFPType fractionRight = weightNew / totalWeights;
-                const intermSummFPType delta         = means[iBatch] - imp.mean;
-                imp.mean += delta * fractionRight;
-                imp.var += sumsOfSquares[iBatch];
-                var_deltas += (delta * delta) * (weightLeft * fractionRight);
-            }
-            imp.var += var_deltas;
-
-            // Process tail elements, if any
-            size_t i;
-            for (i = sizeSimdLoop; i < n && !this->_aWeights[aIdx[i]].val; i++);
-            for (; i < n; i++)
-            {
-                const intermSummFPType weight = this->_aWeights[aIdx[i]].val;
-                const intermSummFPType y      = this->_aResponse[aIdx[i]].val;
-                const intermSummFPType delta  = y - imp.mean;
-                totalWeights += weight;
-                imp.mean += delta * (weight / totalWeights);
-                imp.var += weight * delta * (y - imp.mean);
-            }
-            if (totalWeights) imp.var /= totalWeights;
-        }
+        calcWeightedMeanAndVariance<cpu>(
+            n, [&](size_t i) { return static_cast<intermSummFPType>(this->_aResponse[aIdx[i]].val); },
+            [&](size_t i) { return static_cast<intermSummFPType>(this->_aWeights[aIdx[i]].val); }, imp.mean, imp.var, totalWeights);
     }
 
 #ifdef DEBUG_CHECK_IMPURITY
@@ -1455,15 +1460,15 @@ public:
         const size_t nSamples = resp->getNumberOfRows();
         ReadRows<algorithmFPType, cpu> y(const_cast<NumericTable *>(resp), 0, nSamples);
         DAAL_CHECK_BLOCK_STATUS(y);
-        const algorithmFPType * py            = y.get();
-        size_t nPredicted                     = 0;
-        intermSummFPType _res                 = 0;
-        intermSummFPType yMean                = 0;
-        intermSummFPType sumSquaredDeviations = 0;
-        intermSummFPType sumSquaredError      = 0;
-        RegErr<intermSummFPType, cpu> * ptr   = (RegErr<intermSummFPType, cpu> *)this->oobBuf;
+        const algorithmFPType * py          = y.get();
+        size_t nPredicted                   = 0;
+        intermSummFPType _res               = 0;
+        intermSummFPType yMean              = 0;
+        intermSummFPType yVariance          = 0;
+        intermSummFPType sumSquaredError    = 0;
+        RegErr<intermSummFPType, cpu> * ptr = (RegErr<intermSummFPType, cpu> *)this->oobBuf;
 
-        computeMeanAndSumOfSquares<cpu>(nSamples, [py](size_t i) { return static_cast<intermSummFPType>(py[i]); }, yMean, sumSquaredDeviations);
+        calcMeanAndVariance<cpu>(nSamples, [py](size_t i) { return static_cast<intermSummFPType>(py[i]); }, yMean, yVariance);
 
         for (size_t i = 0; i < nSamples; ++i)
         {
@@ -1488,14 +1493,14 @@ public:
             }
         }
         if (res && nPredicted > 0) *res = _res / static_cast<intermSummFPType>(nPredicted);
-        // As scikit-learn's oob_score_: r2_score over all rows, a row without OOB predictions predicting 0.
-        // r2_score is NaN for fewer than 2 rows, 1 for a zero error and 0 for a zero denominator otherwise.
+        // As scikit-learn's oob_score_: r2_score over all rows, a row without OOB predictions predicting 0,
+        // as 1 - MSE / variance; NaN for fewer than 2 rows, 1 for a zero error and 0 for a zero variance otherwise.
         if (resR2)
         {
-            *resR2 = nSamples < 2              ? std::numeric_limits<intermSummFPType>::quiet_NaN() :
-                     sumSquaredError == 0      ? intermSummFPType(1) :
-                     sumSquaredDeviations == 0 ? intermSummFPType(0) :
-                                                 1 - sumSquaredError / sumSquaredDeviations;
+            *resR2 = nSamples < 2         ? std::numeric_limits<intermSummFPType>::quiet_NaN() :
+                     sumSquaredError == 0 ? intermSummFPType(1) :
+                     yVariance == 0       ? intermSummFPType(0) :
+                                            1 - (sumSquaredError / static_cast<intermSummFPType>(nSamples)) / yVariance;
         }
         return Status();
     }
