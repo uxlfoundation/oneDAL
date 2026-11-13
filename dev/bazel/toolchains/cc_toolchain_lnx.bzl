@@ -261,7 +261,7 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
                 ) +
                 add_compiler_option_if_supported(
                     repo_ctx,
-                    tools.cc,
+                    tools.dpcc,
                     "-fdiagnostics-color=always",
                 ),
             ) if tools.is_dpc_found else "",
