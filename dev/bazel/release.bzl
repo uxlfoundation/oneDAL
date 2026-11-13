@@ -65,7 +65,9 @@ _BINARY_EXTENSIONS = ["a", "so", "lib", "dll", "exe", "pdb"]
 
 def _copy(ctx, src_file, dst_path):
     dst_file = ctx.actions.declare_file(dst_path)
-    if target(ctx).is_windows:
+    # The copy runs on the exec host, so its OS picks the tool, not the target's.
+    exec_windows = ctx.configuration.host_path_separator == ";"
+    if exec_windows:
         executable = "cmd.exe"
         # `copy` reports "1 file(s) copied." on stdout, which Bazel would echo for every file.
         arguments = ["/d", "/c", 'copy /Y "{}" "{}" >NUL'.format(
@@ -80,7 +82,8 @@ def _copy(ctx, src_file, dst_path):
         inputs = [src_file],
         outputs = [dst_file],
         arguments = arguments,
-        use_default_shell_env = True,
+        # cmd.exe needs SystemRoot; cp resolves from the default search path.
+        use_default_shell_env = exec_windows,
         mnemonic = "CopyFile",
         progress_message = "Copying %s" % dst_file.short_path,
     )
