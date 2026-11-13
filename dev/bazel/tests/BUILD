@@ -4,6 +4,8 @@ load("@onedal//dev/bazel/tests:analysis.bzl",
     "backend_probe",
     "backend_riscv64_test",
     "backend_x86_64_test",
+    "build_date_invalid_test",
+    "build_date_required_test",
     "coverage_core_test",
     "coverage_dpc_link_test",
     "coverage_threading_test",
@@ -102,6 +104,11 @@ backend_aarch64_test(name = "backend_aarch64_test", target_under_test = ":backen
 backend_riscv64_test(name = "backend_riscv64_test", target_under_test = ":backend_probe", expected = "ref")
 
 backend_explicit_ref_test(name = "backend_explicit_ref_test", target_under_test = ":backend_probe", expected = "ref")
+
+# --config=release-dpc refuses the placeholder date, and the date must exist in the calendar.
+build_date_required_test(name = "build_date_required_test", target_under_test = "@config//:version")
+
+build_date_invalid_test(name = "build_date_invalid_test", target_under_test = "@config//:version")
 
 # Coverage needs the icx toolchain, so only the coverage CI step runs these (manual).
 coverage_core_test(

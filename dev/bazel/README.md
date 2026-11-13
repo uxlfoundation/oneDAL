@@ -396,8 +396,9 @@ The most used Bazel commands are `build`, `test` and `run`.
   This automatically builds all required ISA variants (SSE2, AVX2, AVX-512) and includes DPC++ libraries when `icpx` is in `PATH`.
 
   The build date (`__INTEL_DAAL_BUILD_DATE`, `BUILD` in the version header) is the value of
-  `--build_date=YYYYMMDD`, which the release jobs pass. Other builds keep the placeholder
-  `21990101`, so their outputs do not change from one day to the next.
+  `--build_date=YYYYMMDD`, which the release jobs pass; `--config=release-dpc` fails without it.
+  Other builds keep the placeholder `21990101`, so their outputs do not change from one day to
+  the next.
 
   The release tree is placed under `bazel-bin/release/daal/latest`, matching the layout of
   oneDAL release directories such as `__release_lnx/daal/latest`. The main outputs are in the
@@ -805,7 +806,7 @@ bazel build //:release --cpu=avx2
 To include DPC++ libraries:
 
 ```sh
-bazel build //:release --config=release-dpc --cpu=all
+bazel build //:release --config=release-dpc --cpu=all --build_date=$(date -u +%Y%m%d)
 ```
 
 ---

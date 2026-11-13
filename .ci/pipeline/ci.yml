@@ -327,7 +327,7 @@ jobs:
       done
 
       echo "Checking Bazel config: release-dpc"
-      bazel build --nobuild :release --config=release-dpc --cpu=all
+      bazel build --nobuild :release --config=release-dpc --cpu=all --build_date="$(date -u +%Y%m%d)"
 
       echo "Checking Bazel config: stdalloc"
       bazel build --nobuild :release --stdalloc=true --release_dpc=false

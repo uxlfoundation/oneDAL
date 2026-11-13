@@ -10,7 +10,7 @@ load("@onedal//dev/bazel/config:config.bzl",
     "target_info",
 )
 load("@bazel_skylib//lib:selects.bzl", "selects")
-load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag", "string_flag")
 
 cpu_info(
     name = "cpu",
@@ -25,12 +25,19 @@ string_flag(
     build_setting_default = "",
 )
 
+# Set by --config=release-dpc, so a package never ships the placeholder date.
+bool_flag(
+    name = "require_build_date",
+    build_setting_default = False,
+)
+
 version_info(
     name = "version",
     major = "%{version_major}",
     minor = "%{version_minor}",
     update = "%{version_update}",
     build_date = ":build_date",
+    require_build_date = ":require_build_date",
     buildrev = "%{version_buildrev}",
     status = "%{version_status}",
     # Binary ABI version for SONAME and shared library symlinks.

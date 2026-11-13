@@ -295,3 +295,20 @@ backend_x86_64_test = _make_backend_test("@onedal//dev/bazel/tests:linux_x86_64"
 backend_aarch64_test = _make_backend_test("@config//:linux_aarch64")
 backend_riscv64_test = _make_backend_test("@config//:linux_riscv64")
 backend_explicit_ref_test = _make_backend_test("@onedal//dev/bazel/tests:linux_x86_64", "ref")
+
+# --- build date ---
+
+_BUILD_DATE = str(Label("@config//:build_date"))
+_REQUIRE_BUILD_DATE = str(Label("@config//:require_build_date"))
+
+def _make_build_date_failure_test(message, settings):
+    def _impl(ctx):
+        env = analysistest.begin(ctx)
+        asserts.expect_failure(env, message)
+        return analysistest.end(env)
+    return analysistest.make(_impl, expect_failure = True, config_settings = settings)
+
+build_date_required_test = _make_build_date_failure_test(
+    "--config=release-dpc needs --build_date=YYYYMMDD", {_REQUIRE_BUILD_DATE: True})
+build_date_invalid_test = _make_build_date_failure_test(
+    "must be a YYYYMMDD calendar date", {_BUILD_DATE: "20261313"})

@@ -249,10 +249,21 @@ VERSION_ATTRS = {
 def get_version_info(ctx):
     return ctx.attr._version_info[VersionInfo]
 
+def _is_calendar_date(yyyymmdd):
+    if len(yyyymmdd) != 8 or not yyyymmdd.isdigit():
+        return False
+    year, month, day = int(yyyymmdd[:4]), int(yyyymmdd[4:6]), int(yyyymmdd[6:])
+    leap = year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
+    days = [31, 29 if leap else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    return 1 <= month and month <= 12 and 1 <= day and day <= days[month - 1]
+
 def _version_info_impl(ctx):
-    build = ctx.attr.build_date[BuildSettingInfo].value or DEV_BUILD_DATE
-    if len(build) != 8 or not build.isdigit():
-        fail("--build_date must be YYYYMMDD, got '{}'".format(build))
+    date = ctx.attr.build_date[BuildSettingInfo].value
+    if not date and ctx.attr.require_build_date[BuildSettingInfo].value:
+        fail("--config=release-dpc needs --build_date=YYYYMMDD; without it the package carries the placeholder date")
+    build = date or DEV_BUILD_DATE
+    if not _is_calendar_date(build):
+        fail("--build_date must be a YYYYMMDD calendar date, got '{}'".format(build))
     return [
         VersionInfo(
             major        = ctx.attr.major,
@@ -273,6 +284,7 @@ version_info = rule(
         "minor": attr.string(mandatory=True),
         "update": attr.string(mandatory=True),
         "build_date": attr.label(mandatory=True, providers=[BuildSettingInfo]),
+        "require_build_date": attr.label(mandatory=True, providers=[BuildSettingInfo]),
         "buildrev": attr.string(mandatory=True),
         "status": attr.string(mandatory=True),
         "binary_major": attr.string(mandatory=True),
