@@ -178,40 +178,50 @@ def _without_cpu_list_headers(compilation_context):
 # MAX_PATH (260), and the output base takes up to ~165 characters in CI.
 _WIN_MAX_OBJ_PATH = 95
 
-def _longest_obj_path(ctx, name, sources, fpts, cpus):
+def _compile_calls(sources, fpts, cpus):
+    """The compile calls of a target in link order: normal, per-fpt, per-cpu, per-fpt-cpu.
+
+    @param sources  Result of `_categorize_sources`.
+    @param fpts     Floating-point types of the per-fpt calls.
+    @param cpus     CPU variants of the per-cpu calls.
+    @return         List of struct(fpt, cpu, srcs); `fpt` and `cpu` are None where unused.
+    """
+    calls = [struct(fpt = None, cpu = None, srcs = sources.normal_files)]
+    if sources.fpt_files:
+        calls += [struct(fpt = fpt, cpu = None, srcs = sources.fpt_files) for fpt in fpts]
+    if sources.cpu_files:
+        cpu_to_files = {}
+        if sources.special_cpu_files:
+            cpu_to_files = _normalize_cpu_files(sources.cpu_files, sources.special_cpu_files)
+        # Only x86 ISAs have per-ISA files; ARM and RISC-V use the `_cpu` files.
+        calls += [struct(fpt = None, cpu = cpu, srcs = cpu_to_files.get(cpu, sources.cpu_files)) for cpu in cpus]
+    if sources.fpt_cpu_files:
+        calls += [struct(fpt = fpt, cpu = cpu, srcs = sources.fpt_cpu_files) for cpu in cpus for fpt in fpts]
+    return calls
+
+def _call_name(name, call, fpt_tags, cpu_tags):
+    return name + ("_" + fpt_tags[call.fpt] if call.fpt else "") + ("_" + cpu_tags[call.cpu] if call.cpu else "")
+
+def _longest_obj_path(ctx, name, calls):
     """Upper bound on the object path length, `.params` included, with real names.
 
     Counts the longer Linux `.pic.o` suffix, so the bound also holds for `.obj`.
 
     @param ctx      Rule context.
     @param name     Compile name of the target.
-    @param sources  Result of `_categorize_sources`.
-    @param fpts     Floating-point types of the per-fpt compile calls.
-    @param cpus     CPU variants of the per-cpu compile calls.
+    @param calls    Result of `_compile_calls`.
     @return         Length in characters.
     """
     prefix = ctx.label.package
     if ctx.label.workspace_name:
         prefix = "../{}/{}".format(ctx.label.workspace_name, prefix)
-    special_cpu_files = []
-    for files in (sources.special_cpu_files or {}).values():
-        special_cpu_files += files
-    fpt_suffixes = ["_" + fpt for fpt in fpts]
-    cpu_suffixes = ["_" + cpu for cpu in cpus]
-    calls = [
-        (sources.normal_files, [""]),
-        (sources.fpt_files, fpt_suffixes),
-        (sources.cpu_files + special_cpu_files, cpu_suffixes),
-        (sources.fpt_cpu_files, [f + c for f in fpt_suffixes for c in cpu_suffixes]),
-    ]
     longest = 0
-    for files, suffixes in calls:
-        if not files or not suffixes:
+    for call in calls:
+        if not call.srcs:
             continue
-        stem = max([len(f.basename) - len(f.extension) - 1 for f in files])
-        suffix = max([len(x) for x in suffixes])
-        longest = max(longest, len(prefix) + len("/_objs/") + len(name) + suffix +
-                      len("/") + stem + len(".pic.o.params"))
+        stem = max([len(f.basename) - len(f.extension) - 1 for f in call.srcs])
+        call_name = _call_name(name, call, {call.fpt: call.fpt}, {call.cpu: call.cpu})
+        longest = max(longest, len(prefix) + len("/_objs/") + len(call_name) + len("/") + stem + len(".pic.o.params"))
     return longest
 
 _BASE32 = "0123456789abcdefghijklmnopqrstuv"
@@ -324,9 +334,10 @@ def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
 
     kwargs = _get_msvc_compile_kwargs(toolchain, kwargs)
     sources_by_category = _categorize_sources(srcs)
+    calls = _compile_calls(sources_by_category, fpts, cpus)
     check_obj_paths = short_paths
     # Stand-ins only for targets whose real object paths would not fit.
-    if short_paths and _longest_obj_path(ctx, name, sources_by_category, fpts, cpus) <= _WIN_MAX_OBJ_PATH:
+    if short_paths and _longest_obj_path(ctx, name, calls) <= _WIN_MAX_OBJ_PATH:
         short_paths = False
     if short_paths:
         name = _short_name(ctx)
@@ -359,71 +370,19 @@ def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
 
     compilation_contexts = []
     compilation_outputs = []
-
-    # Compile normal files
-    call_srcs, call_kwargs = _staged_srcs(staged, sources_by_category.normal_files,
-                                          short_paths, kwargs)
-    compilation_context, compulation_output = _compile_wrapper(
-        name, ctx, toolchain, feature_config,
-        srcs = call_srcs,
-        local_defines = local_defines,
-        compilation_contexts = dep_compilation_contexts,
-        **call_kwargs,
-    )
-    compilation_contexts.append(compilation_context)
-    compilation_outputs.append(compulation_output)
-
-    # Compile FPT files
-    if sources_by_category.fpt_files:
-        for fpt in fpts:
-            call_srcs, call_kwargs = _staged_srcs(staged, sources_by_category.fpt_files,
-                                                  short_paths, kwargs)
-            compilation_context, compulation_output = _compile_wrapper(
-                name + "_" + fpt_tags[fpt], ctx, toolchain, feature_config,
-                srcs = call_srcs,
-                local_defines = local_defines + fpt_defines[fpt],
-                compilation_contexts = dep_compilation_contexts,
-                **call_kwargs,
-            )
-            compilation_contexts.append(compilation_context)
-            compilation_outputs.append(compulation_output)
-
-    # Compile CPU files
-    if sources_by_category.cpu_files:
-        cpu_to_file_dict = {}
-        if sources_by_category.special_cpu_files:
-            cpu_to_file_dict = _normalize_cpu_files(sources_by_category.cpu_files,
-                                                    sources_by_category.special_cpu_files)
-        for cpu in cpus:
-            # Only x86 ISAs have per-ISA files; ARM and RISC-V use the `_cpu` files.
-            srcs = cpu_to_file_dict.get(cpu, sources_by_category.cpu_files) if cpu_to_file_dict else sources_by_category.cpu_files
-            call_srcs, call_kwargs = _staged_srcs(staged, srcs, short_paths, kwargs)
-            compilation_context, compulation_output = _compile_wrapper(
-                name + "_" + cpu_tags[cpu], ctx, toolchain, cpu_feature_configs[cpu],
-                srcs = call_srcs,
-                local_defines = local_defines + cpu_defines[cpu],
-                compilation_contexts = cpu_dep_compilation_contexts,
-                **_get_cpu_compile_kwargs(toolchain, cpu, call_kwargs),
-            )
-            compilation_contexts.append(compilation_context)
-            compilation_outputs.append(compulation_output)
-
-    # Compile FPT-CPU files
-    if sources_by_category.fpt_cpu_files:
-        for cpu in cpus:
-            for fpt in fpts:
-                call_srcs, call_kwargs = _staged_srcs(staged, sources_by_category.fpt_cpu_files,
-                                                      short_paths, kwargs)
-                compilation_context, compulation_output = _compile_wrapper(
-                    name + "_" + fpt_tags[fpt] + "_" + cpu_tags[cpu], ctx, toolchain,
-                    cpu_feature_configs[cpu],
-                    srcs = call_srcs,
-                    local_defines = local_defines + cpu_defines[cpu] + fpt_defines[fpt],
-                    compilation_contexts = cpu_dep_compilation_contexts,
-                    **_get_cpu_compile_kwargs(toolchain, cpu, call_kwargs),
-                )
-                compilation_contexts.append(compilation_context)
-                compilation_outputs.append(compulation_output)
+    for call in calls:
+        call_srcs, call_kwargs = _staged_srcs(staged, call.srcs, short_paths, kwargs)
+        call_defines = local_defines + (cpu_defines[call.cpu] if call.cpu else []) + (fpt_defines[call.fpt] if call.fpt else [])
+        compilation_context, compilation_output = _compile_wrapper(
+            _call_name(name, call, fpt_tags, cpu_tags), ctx, toolchain,
+            cpu_feature_configs[call.cpu] if call.cpu else feature_config,
+            srcs = call_srcs,
+            local_defines = call_defines,
+            compilation_contexts = cpu_dep_compilation_contexts if call.cpu else dep_compilation_contexts,
+            **(_get_cpu_compile_kwargs(toolchain, call.cpu, call_kwargs) if call.cpu else call_kwargs),
+        )
+        compilation_contexts.append(compilation_context)
+        compilation_outputs.append(compilation_output)
 
     compilation_context = onedal_cc_common.merge_compilation_contexts(
         compilation_contexts = compilation_contexts,
