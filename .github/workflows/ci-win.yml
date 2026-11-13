@@ -248,14 +248,14 @@ jobs:
         shell: pwsh
         run: .\.ci\env\bazelisk.ps1
 
-      # ~/.bazelrc is read from %USERPROFILE%; forward slashes, since the rc parser does not split on
-      # backslashes. The fingerprint covers clang-cl; `action_env=PATH` already keys the image PATH.
+      # Forward slashes: the rc parser does not split on backslashes. The fingerprint covers clang-cl;
+      # `action_env=PATH` already keys the image PATH.
       - name: Configure the Bazel disk cache
         id: bazel-disk
         shell: pwsh
         run: |
           $cache = "${{ runner.temp }}".Replace('\', '/') + '/bazel-disk'
-          Add-Content -Path "$HOME/.bazelrc" -Value "build --disk_cache=$cache --experimental_disk_cache_gc_max_size=2G --config=ci"
+          Add-Content -Path "user.bazelrc" -Value "build --disk_cache=$cache --experimental_disk_cache_gc_max_size=2G --config=ci"
           $repo = "${{ runner.temp }}".Replace('\', '/') + '/bazel-repo'
           Add-Content -Path "$HOME/.bazelrc" -Value "common --repository_cache=$repo"
           $versions = (& "$env:ProgramFiles\LLVM\bin\clang-cl.exe" --version) -join "`n"

@@ -330,7 +330,7 @@ jobs:
       - name: Configure the Bazel disk cache
         id: bazel-disk
         run: |
-          echo "build --disk_cache=$RUNNER_TEMP/bazel-disk --config=ci" >> ~/.bazelrc
+          echo "build --disk_cache=$RUNNER_TEMP/bazel-disk --config=ci" >> user.bazelrc
           echo "common --repository_cache=$RUNNER_TEMP/bazel-repo" >> ~/.bazelrc
           fingerprint=$({ cat .bazelversion; echo ubuntu-26.04; } | sha256sum | cut -c1-16)
           echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
@@ -433,7 +433,7 @@ jobs:
             gcc11) cap=350M ;;
             *) cap=400M ;;
           esac
-          echo "build --disk_cache=$RUNNER_TEMP/bazel-disk --experimental_disk_cache_gc_max_size=$cap --config=ci" >> ~/.bazelrc
+          echo "build --disk_cache=$RUNNER_TEMP/bazel-disk --experimental_disk_cache_gc_max_size=$cap --config=ci" >> user.bazelrc
           echo "common --repository_cache=$RUNNER_TEMP/bazel-repo" >> ~/.bazelrc
           fingerprint=$({ clang --version 2>&1; gcc -v 2>&1; ld --version; } | sha256sum | cut -c1-16)
           echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
