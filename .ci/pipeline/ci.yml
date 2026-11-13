@@ -586,9 +586,8 @@ jobs:
     displayName: 'Check ISA coverage'
 
   - script: |
-      # The disk cache GC flags in user.bazelrc trim the cache to its size cap once
-      # the server is idle; `shutdown` waits for that collection, so Cache@2 saves
-      # the most recently used entries.
+      # The disk cache GC (user.bazelrc) runs once the server is idle; `shutdown` waits for it,
+      # so Cache@2 saves the trimmed cache.
       bazel shutdown
       echo "Bazel cache size is $(du -sm "${BAZEL_CACHE_DIR}" | cut -f1)Mb"
     displayName: 'bazel-cache-limit'
@@ -857,9 +856,8 @@ jobs:
     displayName: 'cpp-examples-thread-release-dynamic'
   - powershell: |
       $ErrorActionPreference = "Stop"
-      # The disk cache GC flags in user.bazelrc trim the cache to its size cap once the
-      # server is idle; `shutdown` waits for that collection, so Cache@2 saves the
-      # most recently used entries.
+      # The disk cache GC (user.bazelrc) runs once the server is idle; `shutdown` waits for it,
+      # so Cache@2 saves the trimmed cache.
       & "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
       $cacheBytes = (Get-ChildItem "$(BAZEL_CACHE_DIR)" -Recurse -Force -ErrorAction SilentlyContinue |
           Measure-Object -Property Length -Sum).Sum
