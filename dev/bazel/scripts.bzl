@@ -16,13 +16,13 @@
 
 """Rules for generating release scripts and configuration files."""
 
-load("@onedal//dev/bazel/config:config.bzl", "TARGET_ATTRS", "VersionInfo", "target")
+load("@onedal//dev/bazel/config:config.bzl", "TARGET_ATTRS", "VERSION_ATTRS", "get_version_info", "target")
 
 # --- Versioned template files ---
 
 def _generate_versioned_template_impl(ctx):
     """Expand a release template substituting binary version placeholders."""
-    vi = ctx.attr._version_info[VersionInfo]
+    vi = get_version_info(ctx)
     out = ctx.actions.declare_file(ctx.attr.out)
     ctx.actions.expand_template(
         template = ctx.file.template,
@@ -46,11 +46,7 @@ _generate_versioned_template = rule(
             mandatory = True,
             doc = "Output path relative to the package.",
         ),
-        "_version_info": attr.label(
-            default = "@config//:version",
-            providers = [VersionInfo],
-        ),
-    },
+    } | VERSION_ATTRS,
 )
 
 def generate_vars_sh(name, out = "env/vars.sh", **kwargs):
@@ -119,7 +115,7 @@ _NUSPEC_CONTENT = {
 
 def _generate_nuspec_impl(ctx):
     """Expand deploy/nuget/inteldal.nuspec.tpl as prepare_dal_nuget.sh does."""
-    vi = ctx.attr._version_info[VersionInfo]
+    vi = get_version_info(ctx)
     t = target(ctx)
     # Same ids as prepare_dal_nuget.sh: x64 keeps linux, win-x64, osx-x64 (Make has no macOS ARM64).
     # ARM64 and RISC-V get their own ids, so they never publish under an x64 name.
@@ -154,11 +150,7 @@ generate_nuspec = rule(
             mandatory = True,
             values = ["redist", "devel", "static"],
         ),
-        "_version_info": attr.label(
-            default = "@config//:version",
-            providers = [VersionInfo],
-        ),
-    } | TARGET_ATTRS,
+    } | TARGET_ATTRS | VERSION_ATTRS,
 )
 
 # --- pkg-config ---
@@ -183,7 +175,7 @@ _PKGCONFIG_LICENSE_HEADER = """#================================================
 
 def _generate_pkgconfig_impl(ctx):
     """Write a pkg-config file with the content of deploy/pkg-config/pkg-config.cpp."""
-    vi = ctx.attr._version_info[VersionInfo]
+    vi = get_version_info(ctx)
     out = ctx.actions.declare_file(ctx.attr.out)
     t = target(ctx)
     arch_dir = t.arch_dir
@@ -275,11 +267,7 @@ _generate_pkgconfig = rule(
             doc = "Generate a static-library pkg-config file.",
         ),
         "parameters_lib": attr.bool(default = True),
-        "_version_info": attr.label(
-            default = "@config//:version",
-            providers = [VersionInfo],
-        ),
-    } | TARGET_ATTRS,
+    } | TARGET_ATTRS | VERSION_ATTRS,
 )
 
 def generate_pkgconfig(name, out, static = False, **kwargs):

@@ -16,7 +16,7 @@
 
 load("@onedal//dev/bazel:utils.bzl", "utils", "paths")
 load("@onedal//dev/bazel:cc.bzl", "ModuleInfo")
-load("@onedal//dev/bazel/config:config.bzl", "TARGET_ATTRS", "VersionInfo", "target")
+load("@onedal//dev/bazel/config:config.bzl", "TARGET_ATTRS", "VERSION_ATTRS", "get_version_info", "target")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 
 # Transitions get no repo mapping, so they need the canonical label.
@@ -328,7 +328,7 @@ def _copy_data(ctx, prefix):
 
 def _copy_to_release_impl(ctx):
     prefix = ctx.attr.name + "/daal/latest"
-    version_info = ctx.attr._version_info[VersionInfo]
+    version_info = get_version_info(ctx)
     files = []
     files += _copy_include(ctx, prefix, version_info)
     files += _copy_lib(ctx, prefix, version_info)
@@ -364,11 +364,7 @@ _release = rule(
         "dep_runtime": attr.string_keyed_label_dict(
             doc = "Destination directory next to `daal/latest` -> the target whose files are staged there.",
         ),
-        "_version_info": attr.label(
-            default = "@config//:version",
-            providers = [VersionInfo],
-        ),
-    } | TARGET_ATTRS,
+    } | TARGET_ATTRS | VERSION_ATTRS,
 )
 
 def _headers_filter_impl(ctx):

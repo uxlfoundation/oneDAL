@@ -20,12 +20,14 @@ load("@onedal//dev/bazel:utils.bzl",
 
 load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@onedal//dev/bazel/config:config.bzl",
+    "CPU_ATTRS",
     "ConfigFlagInfo",
-    "CpuInfo",
     "TARGET_ATTRS",
-    "VersionInfo",
+    "VERSION_ATTRS",
+    "get_cpu_info",
     "target",
     "validate_build_parameters_lib",
+    "get_version_info",
 )
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
@@ -38,6 +40,14 @@ load("@onedal//dev/bazel/cc:compile.bzl",
 load("@onedal//dev/bazel/cc:link.bzl",
     onedal_cc_link = "link",
 )
+
+_CODE_COVERAGE_ATTRS = {
+    "_code_coverage": attr.label(default = "@config//:code_coverage", providers = [ConfigFlagInfo]),
+}
+
+_PARAMETERS_LIB_ATTRS = {
+    "_build_parameters_lib": attr.label(default = "@config//:build_parameters_lib", providers = [ConfigFlagInfo]),
+}
 
 ModuleInfo = onedal_cc_common.ModuleInfo
 
@@ -193,7 +203,7 @@ def _cc_module_impl(ctx):
         feature_config = feature_config,
         compilation_contexts = dep_compilation_contexts,
         fpts = ctx.attr._fpts,
-        cpus = ctx.attr._cpus[CpuInfo].enabled,
+        cpus = get_cpu_info(ctx).enabled,
         cpu_defines = ctx.attr.cpu_defines,
         fpt_defines = ctx.attr.fpt_defines,
         srcs = ctx.files.srcs,
@@ -275,15 +285,8 @@ _cc_module = rule(
         "includes": attr.string_list(),
         "quote_includes": attr.string_list(),
         "system_includes": attr.string_list(),
-        "_cpus": attr.label(
-            default = "@config//:cpu",
-        ),
         "_fpts": attr.string_list(default = ["f32", "f64"]),
-        "_code_coverage": attr.label(
-            default = "@config//:code_coverage",
-            providers = [ConfigFlagInfo],
-        ),
-    } | TARGET_ATTRS,
+    } | TARGET_ATTRS | CPU_ATTRS | _CODE_COVERAGE_ATTRS,
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
     fragments = ["cpp"],
 )
@@ -365,11 +368,7 @@ _cc_static_lib = rule(
         # when `static_export_free` is set.
         "deps": attr.label_list(mandatory=True, cfg=_static_export_free_transition),
         "static_export_free": attr.bool(default=False),
-        "_build_parameters_lib": attr.label(
-            default = "@config//:build_parameters_lib",
-            providers = [ConfigFlagInfo],
-        ),
-    } | TARGET_ATTRS,
+    } | TARGET_ATTRS | _PARAMETERS_LIB_ATTRS,
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
     fragments = ["cpp"],
 )
@@ -422,7 +421,7 @@ def _cc_dynamic_lib_impl(ctx):
     linking_contexts = onedal_cc_common.collect_and_filter_linking_contexts(
         ctx.attr.deps, ctx.attr.lib_tags)
 
-    vi = ctx.attr._version_info[VersionInfo]
+    vi = get_version_info(ctx)
     # The CRT suffix goes before the ABI version, as in Make: `onedal_cored.4.dll`.
     rt_name = ctx.attr.lib_name + _msvc_runtime_suffix(ctx)
     link_name = "{}.{}".format(rt_name, vi.binary_major) if is_windows else rt_name
@@ -490,19 +489,7 @@ cc_dynamic_lib = rule(
             doc = "Headers that `rc_file` includes; their directories are include paths.",
         ),
         "rc_defines": attr.string_list(),
-        "_version_info": attr.label(
-            default = "@config//:version",
-            providers = [VersionInfo],
-        ),
-        "_code_coverage": attr.label(
-            default = "@config//:code_coverage",
-            providers = [ConfigFlagInfo],
-        ),
-        "_build_parameters_lib": attr.label(
-            default = "@config//:build_parameters_lib",
-            providers = [ConfigFlagInfo],
-        ),
-    } | TARGET_ATTRS,
+    } | TARGET_ATTRS | VERSION_ATTRS | _CODE_COVERAGE_ATTRS | _PARAMETERS_LIB_ATTRS,
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
     fragments = ["cpp"],
 )
@@ -559,11 +546,7 @@ cc_test = rule(
         "user_link_flags": attr.string_list(),
         "build_from_sources": attr.bool(default=False),
         "_is_test": attr.bool(default=True),
-        "_code_coverage": attr.label(
-            default = "@config//:code_coverage",
-            providers = [ConfigFlagInfo],
-        ),
-    } | TARGET_ATTRS,
+    } | TARGET_ATTRS | _CODE_COVERAGE_ATTRS,
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
     fragments = ["cpp"],
     test = True,
@@ -577,11 +560,7 @@ cc_executable = rule(
         "data": attr.label_list(allow_files=True),
         "user_link_flags": attr.string_list(),
         "_is_test": attr.bool(default=False),
-        "_code_coverage": attr.label(
-            default = "@config//:code_coverage",
-            providers = [ConfigFlagInfo],
-        ),
-    } | TARGET_ATTRS,
+    } | TARGET_ATTRS | _CODE_COVERAGE_ATTRS,
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
     fragments = ["cpp"],
     executable = True,

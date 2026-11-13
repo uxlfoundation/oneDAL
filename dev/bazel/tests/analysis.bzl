@@ -17,7 +17,7 @@
 """Analysis-time checks of the configured build graph; `bazel test //dev/bazel/tests:all`."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("@onedal//dev/bazel/config:config.bzl", "TARGET_ATTRS", "VersionInfo", "target")
+load("@onedal//dev/bazel/config:config.bzl", "TARGET_ATTRS", "VERSION_ATTRS", "get_version_info", "target")
 
 _RELEASE_DPC = str(Label("@config//:release_dpc"))
 _CPU = str(Label("@config//:cpu"))
@@ -214,7 +214,7 @@ _FOREIGN_HEADER_PREFIXES = ["mkl", "tbb", "dpl_"]
 def _release_layout_test_impl(ctx):
     env = analysistest.begin(ctx)
     t = target(ctx)
-    vi = ctx.attr._version[VersionInfo]
+    vi = get_version_info(ctx)
     root = analysistest.target_under_test(env).label.name + "/"
     paths = {}
     for f in analysistest.target_under_test(env)[DefaultInfo].files.to_list():
@@ -244,13 +244,13 @@ def _release_layout_test_impl(ctx):
 
 release_layout_test = analysistest.make(
     _release_layout_test_impl,
-    attrs = {"_version": attr.label(default = "@config//:version", providers = [VersionInfo])} | TARGET_ATTRS,
+    attrs = TARGET_ATTRS | VERSION_ATTRS,
     config_settings = {_RELEASE_DPC: False, _CPU: "avx2"},
 )
 
 def _soname_test_impl(ctx):
     env = analysistest.begin(ctx)
-    vi = ctx.attr._version[VersionInfo]
+    vi = get_version_info(ctx)
     soname = "-Wl,-soname,lib{}.so.{}".format(ctx.attr.lib_name, vi.binary_major)
     links = [a for a in analysistest.target_actions(env) if a.mnemonic.startswith("CppLink")]
     asserts.true(env, links, "no link action found")
@@ -262,7 +262,6 @@ soname_test = analysistest.make(
     _soname_test_impl,
     attrs = {
         "lib_name": attr.string(mandatory = True),
-        "_version": attr.label(default = "@config//:version", providers = [VersionInfo]),
-    },
+    } | VERSION_ATTRS,
     config_settings = {_CPU: "avx2"},
 )

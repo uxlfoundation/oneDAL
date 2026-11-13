@@ -24,11 +24,13 @@ load("@onedal//dev/bazel:utils.bzl",
     "paths",
 )
 load("@onedal//dev/bazel/config:config.bzl",
-    "CpuInfo",
+    "CPU_ATTRS",
     "ISA_TABLE",
     "TARGET_ATTRS",
-    "VersionInfo",
+    "VERSION_ATTRS",
+    "get_cpu_info",
     "target",
+    "get_version_info",
 )
 
 def daal_module(name, features=[], lib_tag="daal",
@@ -129,7 +131,7 @@ def daal_algorithms(name, algorithms=[]):
     )
 
 def _daal_generate_version_impl(ctx):
-    vi = ctx.attr._version_info[VersionInfo]
+    vi = get_version_info(ctx)
     version = ctx.actions.declare_file(ctx.attr.out)
     ctx.actions.write(version, (
         "// DO NOT EDIT: file is auto-generated on build time\n" +
@@ -150,15 +152,11 @@ daal_generate_version = rule(
     output_to_genfiles = True,
     attrs = {
         "out": attr.string(mandatory=True),
-        "_version_info": attr.label(
-            default = "@config//:version",
-            providers = [VersionInfo],
-        ),
-    },
+    } | VERSION_ATTRS,
 )
 
 def _get_disabled_cpus(ctx):
-    cpu_info = ctx.attr._cpus[CpuInfo]
+    cpu_info = get_cpu_info(ctx)
     all_cpus = sets.make(cpu_info.allowed)
     enabled_cpus = sets.make(cpu_info.enabled)
     return sets.difference(all_cpus, enabled_cpus)
@@ -192,8 +190,5 @@ daal_patch_kernel_defines = rule(
     output_to_genfiles = True,
     attrs = {
         "src": attr.label(allow_single_file=True, mandatory=True),
-        "_cpus": attr.label(
-            default = "@config//:cpu",
-        ),
-    } | TARGET_ATTRS,
+    } | TARGET_ATTRS | CPU_ATTRS,
 )

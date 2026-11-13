@@ -162,6 +162,14 @@ CpuInfo = provider(
     ],
 )
 
+# Merge into a rule's attrs with `|`; `get_cpu_info(ctx)` then gives the CpuInfo of --cpu.
+CPU_ATTRS = {
+    "_cpus": attr.label(default = "@config//:cpu", providers = [CpuInfo]),
+}
+
+def get_cpu_info(ctx):
+    return ctx.attr._cpus[CpuInfo]
+
 # One row per ISA: its arch, the DAAL dispatch macro, the oneAPI CPU tag and the suffix of the
 # per-ISA source files (`_nrh`, `_hsw`, `_skx`); x86 is the only arch with several ISAs.
 ISA_TABLE = {
@@ -232,6 +240,14 @@ VersionInfo = provider(
         "binary_minor",
     ],
 )
+
+# Merge into a rule's attrs with `|`; `get_version_info(ctx)` then gives the VersionInfo.
+VERSION_ATTRS = {
+    "_version_info": attr.label(default = "@config//:version", providers = [VersionInfo]),
+}
+
+def get_version_info(ctx):
+    return ctx.attr._version_info[VersionInfo]
 
 def _version_info_impl(ctx):
     build = ctx.attr.build_date[BuildSettingInfo].value or DEV_BUILD_DATE

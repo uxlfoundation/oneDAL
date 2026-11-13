@@ -33,8 +33,9 @@ load("@onedal//dev/bazel:utils.bzl",
     "utils",
 )
 load("@onedal//dev/bazel/config:config.bzl",
-    "CpuInfo",
+    "CPU_ATTRS",
     "ISA_TABLE",
+    "get_cpu_info",
 )
 
 _COMPILE_AS = ["c++", "dpc++"]
@@ -446,7 +447,7 @@ def _test_filter_args(framework):
     return []
 
 def _dal_generate_cpu_dispatcher_impl(ctx):
-    enabled = ctx.attr._cpus[CpuInfo].enabled
+    enabled = get_cpu_info(ctx).enabled
     content = (
         "// DO NOT EDIT: file is auto-generated on build time\n" +
         "// DO NOT PUT THIS FILE TO SVC: file is auto-generated on build time\n" +
@@ -464,10 +465,7 @@ dal_generate_cpu_dispatcher = rule(
     output_to_genfiles = True,
     attrs = {
         "out": attr.string(mandatory=True),
-        "_cpus": attr.label(
-            default = "@config//:cpu",
-        ),
-    },
+    } | CPU_ATTRS,
 )
 
 def dal_global_header_test(name, algo_dir, algo_exclude=[], algo_preview=[], dal_deps=[]):
