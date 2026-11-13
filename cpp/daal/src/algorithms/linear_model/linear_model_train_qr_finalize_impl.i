@@ -154,7 +154,8 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & rTable
             DAAL_CHECK_MALLOC(singularValues);
             DAAL_CHECK_MALLOC(projection);
 
-            /* gesvd destroys its input */
+            /* gesvd destroys its input.
+            TODO: check whether r can be overwritten here (for example in the batch scenario) and drop this copy */
             const int copyResult = daal::services::internal::daal_memcpy_s(rCopy, rSizeInBytes, r, rSizeInBytes);
             DAAL_CHECK(!copyResult, services::ErrorMemoryCopyFailedInternal);
 

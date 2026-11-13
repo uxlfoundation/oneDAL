@@ -106,6 +106,7 @@ Status CommonKernel<algorithmFPType, cpu>::computeQRForBlock(DAAL_INT p, DAAL_IN
     {
         /* Fewer observations than coefficients: pad R with zero rows so the
          * block contributes no spurious equations when merged */
+        /* TODO: without regularization this case could go straight through SVD, which would need changes to many function signatures */
         const algorithmFPType zero(0.0);
 
         for (size_t i = 0; i < p - n; ++i)
