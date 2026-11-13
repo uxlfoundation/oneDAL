@@ -26,10 +26,8 @@ _TRIPLE = "x86_64-conda-linux-gnu"
 _URL = "https://anaconda.org/conda-forge/{name}/{version}/download/{subdir}/{name}-{version}-{build}.conda"
 
 def _pkg(name, version, build, sha256, subdir = "linux-64"):
-    return struct(
-        url = _URL.format(name = name, version = version, build = build, subdir = subdir),
-        sha256 = sha256,
-    )
+    url = _URL.format(name = name, version = version, build = build, subdir = subdir)
+    return repos.archive(url = url, sha256 = sha256)
 
 _PACKAGES = [
     _pkg("gcc_impl_linux-64", _GCC_VERSION, "h054831b_20", "09bb9b0d54b012c36a115e3ecebc80276df261555e847afbb3fbc7ab5566408c"),
@@ -73,10 +71,7 @@ def download_gcc(repo_ctx, prefix):
         A struct with the absolute paths of `cc`, `ar` and `strip`.
     """
     for pkg in _PACKAGES:
-        archive = repo_ctx.path(pkg.url.split("/")[-1])
-        repo_ctx.download(url = pkg.url, output = archive, sha256 = pkg.sha256)
-        repos.extract_conda(repo_ctx, archive, prefix)
-        repo_ctx.delete(archive)
+        repos.download_and_extract(repo_ctx, pkg.url, pkg.sha256, prefix, pkg.strip_prefix)
     _drop_build_rpath(repo_ctx, prefix)
     tool = lambda name: str(repo_ctx.path("{}/bin/{}-{}".format(prefix, _TRIPLE, name)))
     return struct(cc = tool("gcc"), ar = tool("ar"), strip = tool("strip"))

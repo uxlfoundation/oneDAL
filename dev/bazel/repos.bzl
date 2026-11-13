@@ -479,7 +479,7 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_l
 
 repos = struct(
     archive = _archive,
-    extract_conda = _extract_conda,
+    download_and_extract = _download_and_extract,
     prebuilt_libs_repo_rule = _prebuilt_libs_repo_rule,
     create_symlinks = _create_symlinks,
 )
