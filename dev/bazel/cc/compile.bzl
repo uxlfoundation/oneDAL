@@ -124,7 +124,7 @@ def _normalize_includes(ctx, includes, extra=[]):
     return normalized_includes
 
 def _patch_includes(ctx, compilation_context, includes=[],
-                    system_includes=[], quote_includes=[], drop_defines=[]):
+                    system_includes=[], drop_defines=[]):
     system_includes = _normalize_includes(
         ctx,
         system_includes,
@@ -132,7 +132,7 @@ def _patch_includes(ctx, compilation_context, includes=[],
     )
     includes = [x for x in _normalize_includes(ctx, includes, compilation_context.includes.to_list())
                 if x not in system_includes]
-    quote_includes = [x for x in _normalize_includes(ctx, quote_includes, compilation_context.quote_includes.to_list())
+    quote_includes = [x for x in _normalize_includes(ctx, [], compilation_context.quote_includes.to_list())
                       if x not in system_includes]
     return cc_common.create_compilation_context(
         headers = compilation_context.headers,
@@ -330,7 +330,7 @@ def _configure_cpu_features(ctx, toolchain, cpus):
 def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
              cpus=[], fpts=[], cpu_defines={}, fpt_defines={},
              srcs=[], local_defines=[], includes=[], system_includes=[],
-             quote_includes=[], short_paths=False, drop_mkl_ilp64=False, **kwargs):
+             short_paths=False, drop_mkl_ilp64=False, **kwargs):
 
     kwargs = _get_msvc_compile_kwargs(toolchain, kwargs)
     sources_by_category = _categorize_sources(srcs)
@@ -353,7 +353,6 @@ def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
         ctx, dep_compilation_context,
         includes = includes,
         system_includes = system_includes,
-        quote_includes = quote_includes,
         # DPC library objects are LP64 (Make's ONEAPI.objs_y.dpc); a DPC test that links the ILP64
         # archives keeps MKL_ILP64, see cpp/oneapi/dal/test/engine/mkl.
         drop_defines = ["MKL_ILP64"] if drop_mkl_ilp64 else [],

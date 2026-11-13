@@ -46,7 +46,7 @@ def _check_compile_as(name, compile_as):
             fail("'{}': compile_as holds '{}', expected values from {}".format(name, value, _COMPILE_AS))
 
 def dal_module(name, hdrs=[], srcs=[], dal_deps=[], extra_deps=[],
-               host_hdrs=[], host_srcs=[], host_deps=[], dpc_hdrs=[],
+               host_srcs=[], host_deps=[],
                dpc_srcs=[], dpc_deps=[], auto=False, auto_exclude=[],
                compile_as=_COMPILE_AS, **kwargs):
     """A oneAPI module: `name` for C++ and `name_dpc` for DPC++, with `_dpc` deps on the DPC++ side.
@@ -63,7 +63,7 @@ def dal_module(name, hdrs=[], srcs=[], dal_deps=[], extra_deps=[],
     if "c++" in compile_as:
         _dal_module(
             name = name,
-            hdrs = hdrs + auto_hdrs + host_hdrs,
+            hdrs = hdrs + auto_hdrs,
             srcs = srcs + host_auto_srcs + host_srcs,
             deps = dal_deps + host_deps + extra_deps,
             **kwargs,
@@ -71,7 +71,7 @@ def dal_module(name, hdrs=[], srcs=[], dal_deps=[], extra_deps=[],
     if "dpc++" in compile_as:
         _dal_module(
             name = name + "_dpc",
-            hdrs = hdrs + auto_hdrs + dpc_hdrs,
+            hdrs = hdrs + auto_hdrs,
             srcs = srcs + dpc_auto_srcs + dpc_srcs,
             deps = _get_dpc_deps(dal_deps) + dpc_deps + extra_deps,
             is_dpc = True,
@@ -188,8 +188,8 @@ def _not_on_windows():
     })
 
 def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
-             extra_deps=[], host_hdrs=[], host_srcs=[], host_deps=[],
-             dpc_hdrs=[], dpc_srcs=[], dpc_deps=[], compile_as=_COMPILE_AS,
+             extra_deps=[], host_srcs=[], host_deps=[],
+             dpc_srcs=[], dpc_deps=[], compile_as=_COMPILE_AS,
              framework="catch2", data=[], tags=[], private=False,
              mpi=False, ccl=False, mpi_ranks=0, args=[],
              use_onedal_release_libs=True, target_compatible_with=[], **kwargs):
@@ -202,10 +202,8 @@ def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
         name = module_name,
         hdrs = hdrs,
         srcs = srcs,
-        host_hdrs = host_hdrs,
         host_srcs = host_srcs,
         host_deps = host_deps,
-        dpc_hdrs = dpc_hdrs,
         dpc_srcs = dpc_srcs,
         dpc_deps = dpc_deps,
         compile_as = compile_as,

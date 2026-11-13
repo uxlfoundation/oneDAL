@@ -35,7 +35,7 @@ load("@onedal//dev/bazel/config:config.bzl",
 
 def daal_module(name, features=[], lib_tag="daal",
                 hdrs=[], srcs=[], auto=False,
-                local_defines=[], copts=[], visibility_hidden=True,
+                local_defines=[], copts=[],
                 stdalloc=True, define_gcov_build=True, **kwargs):
     """A DAAL module; `auto` globs the package's `.h`, `.i` and `.cpp` files."""
     auto_hdrs, auto_srcs = [], []
@@ -48,7 +48,7 @@ def daal_module(name, features=[], lib_tag="daal",
         "@config//:stdalloc_disabled": [],
         "//conditions:default": ["@config//:stdalloc_non_linux_error"],
     })
-    hidden = ["-fvisibility=hidden", "-fvisibility-inlines-hidden"] if visibility_hidden else []
+    hidden = ["-fvisibility=hidden", "-fvisibility-inlines-hidden"]
     cc_module(
         name = name,
         lib_tag = lib_tag,
