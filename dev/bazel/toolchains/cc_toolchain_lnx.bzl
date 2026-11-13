@@ -73,21 +73,19 @@ def _find_tools(repo_ctx, reqs):
         is_dpc_found = dpcpp_found,
     )
 
-def _prepare_builtin_include_directory_paths(repo_ctx, tools):
+def _prepare_builtin_include_directory_paths(repo_ctx, tools, cc_probe, dpcc_probe):
     dpcc_include_directories = (
         get_cxx_inc_directories(
             repo_ctx,
             tools.dpcc,
             "-xc++",
-            _add_gcc_toolchain_if_needed(repo_ctx, tools.dpcc),
+            dpcc_probe.gcc_toolchain,
         ) +
         get_cxx_inc_directories(
             repo_ctx,
             tools.dpcc,
             "-xc++",
-            get_no_canonical_prefixes_opt(repo_ctx, tools.dpcc) +
-            _add_gcc_toolchain_if_needed(repo_ctx, tools.dpcc) +
-            _add_sycl_linkage(repo_ctx, tools.dpcc),
+            dpcc_probe.no_canonical + dpcc_probe.gcc_toolchain + _add_sycl_linkage(repo_ctx, tools.dpcc),
         ) +
         # icpx includes the integration header it generates under /tmp, which Bazel
         # then requires to be a builtin include directory.
@@ -95,8 +93,8 @@ def _prepare_builtin_include_directory_paths(repo_ctx, tools):
     ) if tools.is_dpc_found else []
 
     # Probe with the flags the compile actions pass: --gcc-toolchain can select another libstdc++.
-    cc_flags = _add_gcc_toolchain_if_needed(repo_ctx, tools.cc)
-    cc_no_canonical_flags = cc_flags + get_no_canonical_prefixes_opt(repo_ctx, tools.cc)
+    cc_flags = cc_probe.gcc_toolchain
+    cc_no_canonical_flags = cc_flags + cc_probe.no_canonical
 
     # As in rules_cc, the libc++ headers are builtin too, so a -stdlib=libc++ build works.
     libcxx_flags = add_compiler_option_if_supported(repo_ctx, tools.cc, "-stdlib=libc++")
@@ -171,6 +169,24 @@ def _add_new_offload_driver_link(repo_ctx, dpcc):
         "-ftarget-register-alloc-mode=pvc:-ze-intel-enable-auto-large-GRF-mode",
     ]
 
+def _secure_link_flags(repo_ctx, driver):
+    # Make's secure.opts.link.lnx; some linkers still default to a writable and executable stack.
+    # -pass-exit-codes has gcc return the exit code from ld.
+    return (
+        add_linker_option_if_supported(repo_ctx, driver, "-Wl,--as-needed", "--as-needed") +
+        add_linker_option_if_supported(repo_ctx, driver, "-Wl,-z,relro,-z,now", "-z") +
+        add_linker_option_if_supported(repo_ctx, driver, "-Wl,-z,noexecstack", "-z") +
+        add_compiler_option_if_supported(repo_ctx, driver, "-pass-exit-codes")
+    )
+
+def _probe_driver(repo_ctx, driver):
+    """Flags probed once per compiler driver and shared by its compile, link and include setup."""
+    return struct(
+        gcc_toolchain = _add_gcc_toolchain_if_needed(repo_ctx, driver),
+        no_canonical = get_no_canonical_prefixes_opt(repo_ctx, driver),
+        secure_link = _secure_link_flags(repo_ctx, driver),
+    )
+
 def configure_cc_toolchain_lnx(repo_ctx, reqs):
     if reqs.os_id != "lnx":
         auto_configure_fail("Cannot configure Linux toolchain for '{}'".format(reqs.os_id))
@@ -191,7 +207,9 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
     ]
 
     tools = _find_tools(repo_ctx, reqs)
-    builtin_include_directories = _prepare_builtin_include_directory_paths(repo_ctx, tools)
+    cc_probe = _probe_driver(repo_ctx, tools.cc)
+    dpcc_probe = _probe_driver(repo_ctx, tools.dpcc) if tools.is_dpc_found else None
+    builtin_include_directories = _prepare_builtin_include_directory_paths(repo_ctx, tools, cc_probe, dpcc_probe)
 
     # No -B for a GNU cross compiler: /usr/bin holds the host `ld`, which would override its own.
     cross_compiling = get_cross_tool_prefix(repo_ctx) != ""
@@ -226,7 +244,7 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
             "%{strip_path}": tools.strip,
             "%{cxx_builtin_include_directories}": get_starlark_list(builtin_include_directories),
             "%{compile_flags_cc}": get_starlark_list(
-                _add_gcc_toolchain_if_needed(repo_ctx, tools.cc) +
+                cc_probe.gcc_toolchain +
                 get_default_compiler_options(
                     repo_ctx,
                     reqs,
@@ -246,7 +264,7 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
                 ),
             ),
             "%{compile_flags_dpcc}": get_starlark_list(
-                _add_gcc_toolchain_if_needed(repo_ctx, tools.dpcc) +
+                dpcc_probe.gcc_toolchain +
                 get_default_compiler_options(
                     repo_ctx,
                     reqs,
@@ -285,33 +303,8 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
             ) if tools.is_dpc_found else "",
             "%{cxx_flags}": get_starlark_list(cxx_opts),
             "%{link_flags_cc}": get_starlark_list(
-                _add_gcc_toolchain_if_needed(repo_ctx, tools.cc) +
-                add_linker_option_if_supported(
-                    repo_ctx,
-                    tools.cc,
-                    "-Wl,--as-needed",
-                    "--as-needed",
-                ) +
-                add_linker_option_if_supported(
-                    repo_ctx,
-                    tools.cc,
-                    "-Wl,-z,relro,-z,now",
-                    "-z",
-                ) +
-                add_linker_option_if_supported(
-                    # Matches the Make build's secure.opts.link.lnx; some linkers
-                    # still default to a writable and executable stack.
-                    repo_ctx,
-                    tools.cc,
-                    "-Wl,-z,noexecstack",
-                    "-z",
-                ) +
-                add_compiler_option_if_supported(
-                    # Have gcc return the exit code from ld.
-                    repo_ctx,
-                    tools.cc,
-                    "-pass-exit-codes",
-                ) +
+                cc_probe.gcc_toolchain +
+                cc_probe.secure_link +
                 (
                     # icx adds -limf to shared links despite -static-intel, and the release ships no
                     # libimf.so; Make: link.dynamic.lnx.icx.
@@ -320,7 +313,7 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
                 bin_search_flag_cc + link_opts,
             ),
             "%{link_flags_dpcc}": get_starlark_list(
-                _add_gcc_toolchain_if_needed(repo_ctx, tools.dpcc) +
+                dpcc_probe.gcc_toolchain +
                 add_compiler_option_if_supported(
                     repo_ctx,
                     tools.dpcc,
@@ -334,32 +327,7 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
                 # The legacy offload driver runs three tools per input object, host-only DAAL
                 # objects included; the new one skips those.
                 _add_new_offload_driver_link(repo_ctx, tools.dpcc) +
-                add_linker_option_if_supported(
-                    repo_ctx,
-                    tools.dpcc,
-                    "-Wl,--as-needed",
-                    "--as-needed",
-                ) +
-                add_linker_option_if_supported(
-                    repo_ctx,
-                    tools.dpcc,
-                    "-Wl,-z,relro,-z,now",
-                    "-z",
-                ) +
-                add_linker_option_if_supported(
-                    # Matches the Make build's secure.opts.link.lnx; some linkers
-                    # still default to a writable and executable stack.
-                    repo_ctx,
-                    tools.dpcc,
-                    "-Wl,-z,noexecstack",
-                    "-z",
-                ) +
-                add_compiler_option_if_supported(
-                    # Have gcc return the exit code from ld.
-                    repo_ctx,
-                    tools.dpcc,
-                    "-pass-exit-codes",
-                ) +
+                dpcc_probe.secure_link +
                 bin_search_flag_dpcc + link_opts,
             ) if tools.is_dpc_found else "",
             "%{dynamic_link_libs}": get_starlark_list(dynamic_link_libs),
@@ -389,10 +357,10 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
             ),
             "%{no_canonical_system_headers_flags_cc}": get_starlark_list(
                 # icx links the OpenMP runtime when given -fno-canonical-system-headers.
-                (get_no_canonical_prefixes_opt(repo_ctx, tools.cc) if reqs.compiler_id not in ["icx", "icpx"] else []),
+                (cc_probe.no_canonical if reqs.compiler_id not in ["icx", "icpx"] else []),
             ),
             "%{no_canonical_system_headers_flags_dpcc}": get_starlark_list(
-                get_no_canonical_prefixes_opt(repo_ctx, tools.dpcc),
+                dpcc_probe.no_canonical,
             ) if tools.is_dpc_found else "",
             "%{deterministic_compile_flags}": get_starlark_list(
                 [
