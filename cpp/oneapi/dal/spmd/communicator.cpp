@@ -102,20 +102,26 @@ void communicator<MemoryAccessKind>::reset_error_flag() const {
     error_flag_ = 0;
 }
 
-#define INSTANTIATE(M, D)                                                                        \
-    template request communicator<M>::bcast<D>(const array<D>& ary, std::int64_t root) const;    \
-    template request communicator<M>::allgather<D>(const array<D>& send, const array<D>& recv)   \
-        const;                                                                                   \
-    template request communicator<M>::allgather<D>(const D& scalar, const array<D>& recv) const; \
-    template request communicator<M>::allgatherv<D>(const array<D>& send,                        \
-                                                    const array<D>& recv,                        \
-                                                    const std::int64_t* recv_counts,             \
-                                                    const std::int64_t* displs) const;           \
-    template request communicator<M>::allreduce<D>(const array<D>& ary, const reduce_op& op)     \
-        const;                                                                                   \
-    template request communicator<M>::sendrecv_replace<D>(const array<D>& ary,                   \
-                                                          std::int64_t destination_rank,         \
-                                                          std::int64_t) const;
+// NOTE: ONEDAL_EXPORT on the explicit instantiations: on Windows the class's dllexport does not
+//       reach member template instantiations, so onedal.dll would not export them
+#define INSTANTIATE(M, D)                                                                          \
+    template ONEDAL_EXPORT request communicator<M>::bcast<D>(const array<D>& ary,                  \
+                                                             std::int64_t root) const;             \
+    template ONEDAL_EXPORT request communicator<M>::allgather<D>(const array<D>& send,             \
+                                                                 const array<D>& recv) const;      \
+    template ONEDAL_EXPORT request communicator<M>::allgather<D>(const D& scalar,                  \
+                                                                 const array<D>& recv) const;      \
+    template ONEDAL_EXPORT request communicator<M>::allgatherv<D>(const array<D>& send,            \
+                                                                  const array<D>& recv,            \
+                                                                  const std::int64_t* recv_counts, \
+                                                                  const std::int64_t* displs)      \
+        const;                                                                                     \
+    template ONEDAL_EXPORT request communicator<M>::allreduce<D>(const array<D>& ary,              \
+                                                                 const reduce_op& op) const;       \
+    template ONEDAL_EXPORT request communicator<M>::sendrecv_replace<D>(                           \
+        const array<D>& ary,                                                                       \
+        std::int64_t destination_rank,                                                             \
+        std::int64_t) const;
 
 #define INSTANTIATE_MEMORY_ACCESS(M)                                                             \
     template void communicator<M>::set_active_exception(const std::exception_ptr& ex_ptr) const; \
