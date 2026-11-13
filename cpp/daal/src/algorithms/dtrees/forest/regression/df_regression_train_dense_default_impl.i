@@ -110,20 +110,28 @@ constexpr size_t simdBatchSize        = 1;
 constexpr size_t minObsVectorizedPath = std::numeric_limits<size_t>::max();
 #endif
 
-// Mean and variance (MSE) of n values read through value(i), in one pass; the vectorized form is
-// the parallel algorithm of https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
-template <CpuType cpu, typename intermSummFPType, typename ValueAt>
-void calcMeanAndVariance(size_t n, const ValueAt & value, intermSummFPType & mean, intermSummFPType & var)
+/// One-pass mean and variance (MSE); the vectorized form is the parallel algorithm of
+/// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+///
+/// @tparam ResponseFunc  Functor `intermSummFPType(size_t i)` returning the i-th response
+///
+/// @param[in]  n         Number of responses
+/// @param[in]  response  Response functor
+/// @param[out] mean      Mean of the responses
+/// @param[out] var       Variance of the responses, the sum of centered squares divided by `n`
+template <CpuType cpu, typename intermSummFPType, typename ResponseFunc>
+void calcMeanAndVariance(size_t n, const ResponseFunc & response, intermSummFPType & mean, intermSummFPType & var)
 {
     mean = 0;
     var  = 0;
     if (n == 0) return;
-    if (n < minObsVectorizedPath)
+    // The constant check removes the dead vector loop on sse2, where GCC 11 flags its index overflow.
+    if (simdBatchSize == 1 || n < minObsVectorizedPath)
     {
-        mean = value(0);
+        mean = response(0);
         for (size_t i = 1; i < n; ++i)
         {
-            const intermSummFPType y     = value(i);
+            const intermSummFPType y     = response(i);
             const intermSummFPType delta = y - mean;
             mean += delta / static_cast<intermSummFPType>(i + 1);
             var += delta * (y - mean);
@@ -153,7 +161,7 @@ void calcMeanAndVariance(size_t n, const ValueAt & value, intermSummFPType & mea
         PRAGMA_OMP_SIMD_ARGS(simdlen(simdBatchSize))
         for (size_t iSub = 0; iSub < simdBatchSize; iSub++)
         {
-            yBatch[iSub] = value(iStart + iSub);
+            yBatch[iSub] = response(iStart + iSub);
         }
 
         // Update vector of partial means and sum of squares using an incremental algorithm
@@ -186,7 +194,7 @@ void calcMeanAndVariance(size_t n, const ValueAt & value, intermSummFPType & mea
     // Process tail elements, if any
     for (size_t i = sizeSimdLoop; i < n; i++)
     {
-        const intermSummFPType y     = value(i);
+        const intermSummFPType y     = response(i);
         const intermSummFPType delta = y - mean;
         mean += delta / static_cast<intermSummFPType>(i + 1);
         var += delta * (y - mean);
@@ -194,15 +202,25 @@ void calcMeanAndVariance(size_t n, const ValueAt & value, intermSummFPType & mea
     var /= static_cast<intermSummFPType>(n);
 }
 
-// The weighted counterpart: `totalWeights` is the weight sum and the variance is weighted.
-template <CpuType cpu, typename intermSummFPType, typename ValueAt, typename WeightAt>
-void calcWeightedMeanAndVariance(size_t n, const ValueAt & value, const WeightAt & weight, intermSummFPType & mean, intermSummFPType & var,
+/// Weighted counterpart of calcMeanAndVariance.
+///
+/// @tparam ResponseFunc     Functor `intermSummFPType(size_t i)` returning the i-th response
+/// @tparam WeightFunc       Functor `intermSummFPType(size_t i)` returning the i-th weight
+///
+/// @param[in]  n            Number of responses
+/// @param[in]  response     Response functor
+/// @param[in]  weight       Weight functor
+/// @param[out] mean         Weighted mean of the responses
+/// @param[out] var          Weighted variance: weighted sum of centered squares over `totalWeights`
+/// @param[out] totalWeights Sum of the weights
+template <CpuType cpu, typename intermSummFPType, typename ResponseFunc, typename WeightFunc>
+void calcWeightedMeanAndVariance(size_t n, const ResponseFunc & response, const WeightFunc & weight, intermSummFPType & mean, intermSummFPType & var,
                                  intermSummFPType & totalWeights)
 {
     mean         = 0;
     var          = 0;
     totalWeights = 0;
-    if (n < minObsVectorizedPath)
+    if (simdBatchSize == 1 || n < minObsVectorizedPath)
     {
         // Zero weights would break the division; they do not change the result, so skip to the first nonzero one.
         size_t iStart;
@@ -211,7 +229,7 @@ void calcWeightedMeanAndVariance(size_t n, const ValueAt & value, const WeightAt
         for (size_t i = iStart; i < n; ++i)
         {
             const intermSummFPType w     = weight(i);
-            const intermSummFPType y     = value(i);
+            const intermSummFPType y     = response(i);
             const intermSummFPType delta = y - mean;
             totalWeights += w;
             mean += delta * (w / totalWeights);
@@ -241,7 +259,7 @@ void calcWeightedMeanAndVariance(size_t n, const ValueAt & value, const WeightAt
         PRAGMA_OMP_SIMD_ARGS(simdlen(simdBatchSize))
         for (size_t iSub = 0; iSub < simdBatchSize; iSub++)
         {
-            yBatch[iSub]       = value(iStart + iSub);
+            yBatch[iSub]       = response(iStart + iSub);
             weightsBatch[iSub] = weight(iStart + iSub);
         }
 
@@ -287,7 +305,7 @@ void calcWeightedMeanAndVariance(size_t n, const ValueAt & value, const WeightAt
     for (; i < n; i++)
     {
         const intermSummFPType w     = weight(i);
-        const intermSummFPType y     = value(i);
+        const intermSummFPType y     = response(i);
         const intermSummFPType delta = y - mean;
         totalWeights += w;
         mean += delta * (w / totalWeights);
