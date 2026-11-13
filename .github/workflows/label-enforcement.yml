@@ -17,6 +17,7 @@
 name: Enforce Labels
 on:
   pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
     branches: [ "main" ]
 
 permissions:
@@ -35,7 +36,7 @@ jobs:
     steps:
       - name: test
         run: |
-          LABELS=`gh api -H "Accept: application/vnd.github+json" /repos/uxlfoundation/oneDAL/issues/${{ github.event.pull_request.number }}/labels | jq '[.[].name]'`
+          LABELS=`gh api -H "Accept: application/vnd.github+json" /repos/uxlfoundation/oneDAL/issues/${{ github.event.pull_request.number }}/labels | jq -c '[.[].name]'`
           echo $LABELS
           if [[ $LABELS == "[]" ]] || [[ $LABELS == "[\"RFC\"]" ]]; then
             echo "::error::No label set on the pull request"
