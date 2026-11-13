@@ -4,51 +4,51 @@
 # overridden path has to be repeated in the override.
 
 # Documentation owners and reviewers
-/docs/         @Vika-F @maria-Petrova @david-cortes-intel @yuejiaointel
-*.md           @Vika-F @maria-Petrova @david-cortes-intel @syakov-intel
+/docs/         @Vika-F @maria-Petrova @david-cortes-intel @yuejiaointel #blue
+*.md           @Vika-F @maria-Petrova @david-cortes-intel @syakov-intel #blue
 
 # TTP files
-third-party*   @maria-Petrova @syakov-intel
+third-party*   @maria-Petrova @syakov-intel #green
 
 # Samples & examples
-samples/       @maria-Petrova @Alexandr-Solovev @Vika-F @ethanglaser @icfaust @david-cortes-intel
-examples/      @maria-Petrova @Alexandr-Solovev @Vika-F @ethanglaser @icfaust @david-cortes-intel
+samples/       @maria-Petrova @Alexandr-Solovev @Vika-F @ethanglaser @icfaust @david-cortes-intel #green
+examples/      @maria-Petrova @Alexandr-Solovev @Vika-F @ethanglaser @icfaust @david-cortes-intel #green
 
 # Infrastructure and tools
-.ci/           @napetrov @homksei @ahuber21 @ethanglaser @icfaust
-.github/       @napetrov @homksei @ahuber21 @ethanglaser @icfaust
-.bazelversion  @napetrov @homksei @ahuber21 @ethanglaser @icfaust
+.ci/           @napetrov @homksei @ahuber21 @ethanglaser @icfaust #yellow
+.github/       @napetrov @homksei @ahuber21 @ethanglaser @icfaust #yellow
+.bazelversion  @napetrov @homksei @ahuber21 @ethanglaser @icfaust #yellow
 
 # Build & dev infrastructure
-make*          @Alexandr-Solovev
-cmake/         @Alexandr-Solovev
-deploy/        @homksei @ahuber21 @ethanglaser
-dev/           @homksei @ahuber21 @ethanglaser
-dev/bazel/     @Alexandr-Solovev
-MODULE.bazel*  @Alexandr-Solovev @napetrov @homksei @ahuber21 @ethanglaser @icfaust
+make*          @Alexandr-Solovev #yellow
+cmake/         @Alexandr-Solovev #yellow
+deploy/        @homksei @ahuber21 @ethanglaser #yellow
+dev/           @homksei @ahuber21 @ethanglaser #yellow
+dev/bazel/     @Alexandr-Solovev #yellow
+MODULE.bazel*  @Alexandr-Solovev @napetrov @homksei @ahuber21 @ethanglaser @icfaust #yellow
 
 # C++ code
-cpp/           @Alexandr-Solovev @avolkov-intel @icfaust @ethanglaser @david-cortes-intel
+cpp/           @Alexandr-Solovev @avolkov-intel @icfaust @ethanglaser @david-cortes-intel #yellow
 
 # Tree based methods
-dtrees         @razdoburdin @ahuber21 @avolkov-intel @icfaust @david-cortes-intel
+dtrees         @razdoburdin @ahuber21 @avolkov-intel @icfaust @david-cortes-intel #yellow
 
 # Platform-specific code and build scripts.
 # Keep this block last so it is not shadowed by the broader rules above.
-cpp/**/*arm*                              @uxlfoundation/onedal-cpu-aarch64
-cpp/**/*aarch64*                          @uxlfoundation/onedal-cpu-aarch64
-cpp/**/*riscv64*                          @uxlfoundation/onedal-cpu-risc-v
-dev/make/function_definitions/arm*        @uxlfoundation/onedal-cpu-aarch64
-dev/make/function_definitions/lnxarm*     @uxlfoundation/onedal-cpu-aarch64
-dev/make/function_definitions/riscv64*    @uxlfoundation/onedal-cpu-risc-v
-dev/make/function_definitions/lnxriscv64* @uxlfoundation/onedal-cpu-risc-v
-.ci/env/*arm*                             @uxlfoundation/onedal-cpu-aarch64
-.ci/env/*riscv*                           @uxlfoundation/onedal-cpu-risc-v
-.github/workflows/ci-aarch64.yml          @uxlfoundation/onedal-cpu-aarch64
+cpp/**/*arm*                              @uxlfoundation/onedal-cpu-aarch64 #yellow
+cpp/**/*aarch64*                          @uxlfoundation/onedal-cpu-aarch64 #yellow
+cpp/**/*riscv64*                          @uxlfoundation/onedal-cpu-risc-v #yellow
+dev/make/function_definitions/arm*        @uxlfoundation/onedal-cpu-aarch64 #yellow
+dev/make/function_definitions/lnxarm*     @uxlfoundation/onedal-cpu-aarch64 #yellow
+dev/make/function_definitions/riscv64*    @uxlfoundation/onedal-cpu-risc-v #yellow
+dev/make/function_definitions/lnxriscv64* @uxlfoundation/onedal-cpu-risc-v #yellow
+.ci/env/*arm*                             @uxlfoundation/onedal-cpu-aarch64 #yellow
+.ci/env/*riscv*                           @uxlfoundation/onedal-cpu-risc-v #yellow
+.github/workflows/ci-aarch64.yml          @uxlfoundation/onedal-cpu-aarch64 #yellow
 
 # Governance and process
-/.github/CODEOWNERS @uxlfoundation/oneDAL-maintain
-/SECURITY.md @uxlfoundation/oneDAL-maintain
-/MAINTAINERS.md @uxlfoundation/oneDAL-maintain
-/CONTRIBUTING.md @uxlfoundation/oneDAL-maintain
-/CODE_OF_CONDUCT.md @uxlfoundation/oneDAL-maintain
+/.github/CODEOWNERS @uxlfoundation/oneDAL-maintain #red
+/SECURITY.md @uxlfoundation/oneDAL-maintain #red
+/MAINTAINERS.md @uxlfoundation/oneDAL-maintain #red
+/CONTRIBUTING.md @uxlfoundation/oneDAL-maintain #yellow
+/CODE_OF_CONDUCT.md @uxlfoundation/oneDAL-maintain #yellow

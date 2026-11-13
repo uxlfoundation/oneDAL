@@ -1,0 +1,182 @@
+#===============================================================================
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+name: Inform AI level
+
+on:
+  workflow_run:
+    workflows: CI
+    types:
+      - completed
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  assign_level:
+    runs-on: ubuntu-24.04
+    name: Assign AI policy
+    timeout-minutes: 5
+    if: github.event.workflow_run.event == 'pull_request'
+    env:
+      # Comment posted to the PR; the level is tracked in a hidden marker.
+      AI_LEVEL_MESSAGE: "Disclose AI use in the PR description. If applicable, include information on how AI was used along with harness and LLM characteristics. Comments to reviewers should be human-generated."
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Get Changed Files from PR
+        id: files
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const head_sha = context.payload.workflow_run.head_sha;
+
+            const prs = await github.paginate(github.rest.pulls.list, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100,
+            });
+
+            const pr = prs.find(p => p.head.sha === head_sha);
+            if (!pr) {
+              core.setFailed(`No open PR found for head SHA: ${head_sha}`);
+              return;
+            }
+
+            console.log(`Found PR #${pr.number}`);
+            core.setOutput('pr_number', pr.number);
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              per_page: 100,
+            });
+
+            core.setOutput('changed_files', files.map(f => f.filename).join('\n'));
+      - name: Match CODEOWNERS rules
+        id: level
+        env:
+          # Passed through env, not ${{ }} in the script, since file names come from the PR.
+          CHANGED_FILES: ${{ steps.files.outputs.changed_files }}
+        run: |
+          set -euo pipefail
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "No changed files"
+            exit 0
+          fi
+
+          # Each rule is checked on its own: in a combined ignore file git stops at
+          # the first excluded parent directory, so later CODEOWNERS overrides
+          # (e.g. dev/bazel/ under dev/) would never match.
+          codeowners=.github/CODEOWNERS
+          rule=$(mktemp)
+          declare -A owner_of
+          lineno=0
+          while IFS= read -r line || [ -n "$line" ]; do
+            lineno=$((lineno + 1))
+            read -r pattern owners <<< "$line"
+            case "$pattern" in ''|'#'*) continue ;; esac
+            printf '%s\n' "$pattern" > "$rule"
+            # check-ignore exits 1 when nothing matches; --no-index includes tracked files.
+            status=0
+            matches=$(printf '%s\n' "$CHANGED_FILES" | git -c core.excludesFile="$rule" check-ignore --no-index --stdin) || status=$?
+            if [ "$status" -gt 1 ]; then
+              exit "$status"
+            fi
+            # Last matching rule wins, as in CODEOWNERS.
+            while IFS= read -r file; do
+              if [ -n "$file" ]; then
+                owner_of["$file"]="$codeowners:$lineno $pattern $owners"
+              fi
+            done <<< "$matches"
+          done < "$codeowners"
+          rm -f "$rule"
+
+          # Each rule ends with a "#<color>" comment; the PR gets the highest color.
+          declare -A rank=([blue]=1 [green]=2 [yellow]=3 [red]=4)
+          level=none
+          while IFS= read -r file; do
+            if [ -z "$file" ]; then
+              continue
+            fi
+            match=${owner_of[$file]:-}
+            printf '%s\t%s\n' "$file" "${match:-(no owner)}"
+            if [ -z "$match" ]; then
+              # Files without an owner are treated as yellow.
+              color=yellow
+            else
+              color=${match##*#}
+            fi
+            if [ "$match" = "$color" ] || [ -z "${rank[$color]:-}" ]; then
+              echo "::warning file=$codeowners::No known color in rule '${match%% *}'"
+              continue
+            fi
+            if [ "$level" = none ] || [ "${rank[$color]}" -gt "${rank[$level]}" ]; then
+              level=$color
+            fi
+          done <<< "$CHANGED_FILES"
+
+          echo "AI level: $level"
+          echo "level=$level" >> "$GITHUB_OUTPUT"
+          echo "AI level: **$level**" >> "$GITHUB_STEP_SUMMARY"
+      - name: Post AI level to PR
+        if: steps.level.outputs.level != 'none' && steps.level.outputs.level != ''
+        uses: actions/github-script@v7
+        env:
+          LEVEL: ${{ steps.level.outputs.level }}
+          PR_NUMBER: ${{ steps.files.outputs.pr_number }}
+        with:
+          script: |
+            const rank = { blue: 1, green: 2, yellow: 3, red: 4 };
+            const level = process.env.LEVEL;
+            const issue_number = Number(process.env.PR_NUMBER);
+            const marker = /<!-- ai-level: (\w+) -->/;
+            const note = { blue: 'allowed with minimal human oversight', green: 'allowed with added testing', yellow: 'allowed with manual verification by the submitter', red: 'not allowed' };
+            const body = `<!-- ai-level: ${level} -->\n> [!NOTE]\n> level ${level}: AI usage ${note[level]}.\n\n${process.env.AI_LEVEL_MESSAGE}`;
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number,
+              per_page: 100,
+            });
+            const existing = comments.find(
+              c => c.user.type === 'Bot' && marker.test(c.body || ''));
+
+            if (!existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number,
+                body,
+              });
+              return;
+            }
+
+            const previous = existing.body.match(marker)[1];
+            if ((rank[level] || 0) <= (rank[previous] || 0)) {
+              console.log(`Level ${level} does not exceed previous ${previous}`);
+              return;
+            }
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: existing.id,
+              body,
+            });
