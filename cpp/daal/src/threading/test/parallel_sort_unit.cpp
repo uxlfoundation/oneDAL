@@ -18,7 +18,9 @@
 /// indices: the keys must end up non-decreasing, and the indices move with them.
 
 #include <algorithm>
+#include <atomic>
 #include <cstddef>
+#include <cstdint>
 #include <random>
 #include <tuple>
 #include <utility>
@@ -186,4 +188,35 @@ TEMPLATE_TEST("parallel_sort orders IdxValType with int index by value, then ind
         REQUIRE(a[i].index == expected[i].second);
     }
 }
+
+// Callers such as decision forest training keep per-thread state across the sort, so a thread waiting for
+// a nested sort must not pick up another task of the enclosing parallel loop.
+thread_local std::int64_t activeOuterTask = -1;
+
+TEST("parallel_sort inside a parallel loop does not run other loop tasks", "[unit][parallel_sort]")
+{
+    const std::int64_t nTasks = 512;
+    const std::size_t n       = 20000;
+    std::atomic<int> interleaved(0);
+
+    daal::threader_for(nTasks, 1, [&](std::int64_t task) {
+        activeOuterTask = task;
+        std::vector<int> data(n);
+        std::vector<double> keys(n);
+        std::vector<int> index(n);
+        for (std::size_t i = 0; i < n; ++i)
+        {
+            data[i]  = int(n - i);
+            keys[i]  = double((i * 7919) % n);
+            index[i] = int(i);
+        }
+        daal::parallel_sort(data.data(), data.data() + n);
+        daal::parallel_index_sort<double, int>(n, keys.data(), index.data());
+        if (activeOuterTask != task) ++interleaved;
+        activeOuterTask = -1;
+    });
+
+    REQUIRE(interleaved.load() == 0);
+}
+
 } // namespace daal::test

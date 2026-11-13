@@ -174,7 +174,8 @@ static void append(TContainer & cont, size_t & contSize, size_t size)
     cont[contSize++] = size;
 }
 
-//Returns an index of the first element in the range[ar, ar + n) that is not less than(i.e.greater or equal to) value.
+// Returns the first element in [first, last) whose value is greater than value.value.
+// Compares values only: IdxValType::operator< also orders equal values by index.
 template <typename T>
 const T * upper_bound(const T * first, const T * last, const T & value)
 {
@@ -184,7 +185,7 @@ const T * upper_bound(const T * first, const T * last, const T & value)
         auto it   = first;
         auto step = (n >> 1);
         it += step;
-        if (!(value < *it))
+        if (!(value.value < it->value))
         {
             first = ++it;
             n -= step + 1;

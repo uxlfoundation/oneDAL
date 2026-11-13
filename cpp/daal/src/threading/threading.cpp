@@ -328,7 +328,8 @@ DAAL_EXPORT void _daal_parallel_sort_template(F * begin_p, F * end_p)
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
-        tbb::parallel_sort(begin_p, end_p);
+        // Isolated so that a caller inside a parallel loop does not run other loop tasks while it waits.
+        tbb::this_task_arena::isolate([&]() { tbb::parallel_sort(begin_p, end_p); });
     }
     else
     {
@@ -511,7 +512,8 @@ void parallelIndexSort(size_t n, F * data, I *... index)
     const ZipIterator<F, I...> last = first + std::ptrdiff_t(n);
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
-        tbb::parallel_sort(first, last, ZipKeyLess());
+        // Isolated for the same reason as in _daal_parallel_sort_template.
+        tbb::this_task_arena::isolate([&]() { tbb::parallel_sort(first, last, ZipKeyLess()); });
     }
     else
     {
