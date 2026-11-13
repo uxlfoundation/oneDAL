@@ -1490,7 +1490,10 @@ public:
             }
         }
         if (res && nPredicted > 0) *res = _res / static_cast<intermSummFPType>(nPredicted);
-        if (resR2) *resR2 = 1 - _res / sumMeanDiff;
+        if (resR2)
+        {
+            *resR2 = (sumMeanDiff > 0) ? 1 - _res / sumMeanDiff : (_res > 0 ? 0 : 1);
+        }
         return Status();
     }
 
