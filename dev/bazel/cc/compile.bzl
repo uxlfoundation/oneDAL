@@ -214,17 +214,30 @@ def _longest_obj_path(ctx, name, sources, fpts, cpus):
                       len("/") + stem + len(".pic.o.params"))
     return longest
 
+_BASE32 = "0123456789abcdefghijklmnopqrstuv"
+
+def _short_hash(text):
+    """20 bits of `hash(text)` in 4 base-32 characters, lower case for case-insensitive file systems."""
+    h = hash(text)
+    out = ""
+    for _ in range(4):
+        out = _BASE32[h % 32] + out
+        h //= 32
+    return out
+
 def _short_name(ctx):
-    # Unique within the package unless two target names collide in 24 bits,
+    # Unique within the package unless two target names collide in 20 bits,
     # which Bazel reports as conflicting actions.
-    return "%x" % (hash(ctx.label.name) & 0xffffff)
+    return _short_hash(ctx.label.name)
 
 def _stage_sources(ctx, name, srcs):
     """Give each source a short stand-in, so its object gets a short name too.
 
     rules_cc names an object `<package>/_objs/<name>/<source basename>`, so
-    the basename is the lever. A stand-in includes the real source by its
-    exec-root path, resolved through `-iquote .` and the bin dir. Diagnostics,
+    the basename is the lever. Stand-ins are named after a hash of the source
+    path, so adding a source renames no other object. A stand-in includes the
+    real source by its exec-root path, resolved through `-iquote .` and the
+    bin dir. Diagnostics,
     __FILE__ and includes relative to the real file are unchanged, since the
     compiler resolves them against the including file.
 
@@ -234,11 +247,19 @@ def _stage_sources(ctx, name, srcs):
     @return       Dict from a source path to its stand-in.
     """
     staged = {}
+    stems = {}
     for f in srcs:
         if f.path in staged:
             continue
+        stem = _short_hash(f.path)
+        # A collision within the target takes the next free `_` suffix.
+        for _ in range(len(srcs)):
+            if stem not in stems:
+                break
+            stem += "_"
+        stems[stem] = True
         stub = ctx.actions.declare_file("_s/{}/{}.{}".format(
-            name, len(staged), f.extension))
+            name, stem, f.extension))
         ctx.actions.write(stub, '#include "{}"\n'.format(f.path))
         staged[f.path] = stub
     return staged
