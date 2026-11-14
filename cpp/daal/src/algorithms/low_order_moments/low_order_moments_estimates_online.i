@@ -475,7 +475,7 @@ Status compute_estimates(NumericTable * dataTable, PartialResult * partialResult
                             algorithmFPType mean1 = _cd.prevSums[i] * invPrevNVectors;
                             algorithmFPType mean2 = _sums[i] - _cd.prevSums[i];
 
-                            _sumSqCen[i] += coeff * (mean1 * mean1 + mean2 * mean2 - 2 * mean1 * mean2);
+                            _sumSqCen[i] += coeff * ((mean2 - mean1) * (mean2 - mean1));
                         }
                     }
                     else
@@ -489,7 +489,7 @@ Status compute_estimates(NumericTable * dataTable, PartialResult * partialResult
 
                             algorithmFPType ssqdm2 = _cd.variance[i] * nVectorsM1;
 
-                            _sumSqCen[i] += (ssqdm2 + coeff * (mean1 * mean1 + mean2 * mean2 - 2 * mean1 * mean2));
+                            _sumSqCen[i] += (ssqdm2 + coeff * ((mean2 - mean1) * (mean2 - mean1)));
                         }
                     }
                 } /* if (nObs != 0) */
