@@ -153,7 +153,7 @@ daal_module(
 )
 
 # Leaf module: the version header stays out of the compile inputs of the core
-# libraries, so only a stamped release build relinks them (dev/bazel/stamp.bzl).
+# libraries, so another --build_date relinks them without recompiling.
 daal_module(
     name = "version_info",
     srcs = ["src/services/library_version_info.cpp"],
@@ -360,38 +360,17 @@ daal_dynamic_lib(
 
 daal_module(
     name = "threading_static",
-    deps = select({
-        "@config//:test_thread_mode_par": [
-            "@onedal//cpp/daal:thread_static",
-        ]
-    }),
-)
-
-daal_module(
-    name = "threading_dynamic",
-    deps = select({
-        "@config//:test_thread_mode_par": [
-            "@onedal//cpp/daal:thread_dynamic",
-        ]
-    }),
+    deps = ["@onedal//cpp/daal:thread_static"],
 )
 
 daal_module(
     name = "threading_release_static",
-    deps = select({
-        "@config//:test_thread_mode_par": [
-            "@onedal_release//:thread_static",
-        ]
-    }),
+    deps = ["@onedal_release//:thread_static"],
 )
 
 daal_module(
     name = "threading_release_dynamic",
-    deps = select({
-        "@config//:test_thread_mode_par": [
-            "@onedal_release//:thread_dynamic",
-        ]
-    }),
+    deps = ["@onedal_release//:thread_dynamic"],
 )
 
 filegroup(

@@ -96,7 +96,7 @@ jobs:
             -v ${{ github.workspace }}/bazel-repo:/root/.cache/bazel-repo \
             onedal-dev sh -c "
               # Use external disk cache. GC caps it at 1.5 GB at bazel shutdown.
-              echo 'build --disk_cache=/root/.cache/bazel-disk --experimental_disk_cache_gc_max_size=1536M --experimental_disk_cache_gc_idle_delay=0s' >> ~/.bazelrc
+              echo 'build --disk_cache=/root/.cache/bazel-disk --experimental_disk_cache_gc_max_size=1536M --config=ci' >> user.bazelrc
               echo 'common --repository_cache=/root/.cache/bazel-repo' >> ~/.bazelrc
               # In CI we build for avx2 only (override default "all" ISA release build).
               # For a full release with all ISA variants, omit --cpu or use --cpu=all.

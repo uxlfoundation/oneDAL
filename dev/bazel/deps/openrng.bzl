@@ -16,11 +16,8 @@
 
 load("@onedal//dev/bazel:repos.bzl", "repos")
 
-# OpenRNG (https://git.gitlab.arm.com/libraries/openrng) is a VSL-ABI-compatible
-# RNG library used as an alternative to OpenBLAS's reference RNG on ARM (see
-# dev/make/deps.ref.mk RNG_OPENRNG / .ci/env/openrng.sh). Like OpenBLAS, it is
-# expected to be prebuilt and pointed to via OPENRNGROOT; Bazel does not build
-# it from source.
+# OpenRNG, a VSL-ABI-compatible RNG for the ref backend on ARM (Make: RNG_OPENRNG).
+# Prebuilt by .ci/env/openrng.sh and found through OPENRNGROOT.
 openrng_repo = repos.prebuilt_libs_repo_rule(
     root_env_var = "OPENRNGROOT",
     includes = [

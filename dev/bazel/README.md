@@ -162,13 +162,16 @@ To build with clang and LLVM libc++, pass
 `--cxxopt=-stdlib=libc++ --linkopt=-stdlib=libc++`. The prebuilt TBB is still
 linked against libstdc++, so it must be installed too.
 
-On Linux, `--release_dpc` defaults to whether `icpx` is in `PATH`. When it is
+On Linux, `--release_dpc` defaults to whether `icpx` is in `PATH`; on Windows,
+to whether the toolchain uses icx (clang-cl and `cl` have no DPC++ driver). When it is
 false, the DPC++ targets are skipped: `//:release` has no DPC++ libraries,
 `bazel test` reports the DPC++ tests as `SKIPPED`, and requesting a DPC++
 target by name fails with an `incompatible` error that names
-`dpc_needs_icpx_in_PATH`. `--release_dpc=true` builds them regardless, and their
-compile actions fail with `icpx is not found!` if the compiler is missing.
-`--config=dpc` (and `dpc-public`, `dpc-private`) sets `--release_dpc=true`, so
+`dpc_needs_icpx_in_PATH`. `--release_dpc=true` builds them regardless: they
+analyse without the compiler (so `--nobuild` checks work), and the build fails at
+their first compile with `needs the DPC++ compiler ... but the C++ toolchain was
+configured without it`.
+`--config=dpc` sets `--release_dpc=true`, so
 without icpx it fails that way instead of skipping every test.
 
 Since the default follows `PATH`, a release or packaging job that must ship the
@@ -283,19 +286,14 @@ The most used Bazel commands are `build`, `test` and `run`.
    It is highly encouraged to run newly added tests on the local machine with
    `-c dbg` option to test assertions.
 
-- `--config` Takes effect only for `run` or `test` commands. Specifies
-  interface that is used to build and run tests. \
+- `--config` Selects the tests to build and run by their tags. \
   Possible values:
   - `<not specified>` _(default)_ Build and run all tests.
-  - `host` Build and run tests for HOST part without dependencies on DPC++
-    runtime. Uses regular C++ compiler.
-  - `dpc` Build and run tests for DPC++ part. Uses Intel(R) DPC++ Compiler.
-  - `public` Build and run tests for public C++ and DPC++ parts.
-  - `host-public` Build and run tests only for public part of C++ interfaces.
-  - `dpc-public` Build and run tests only for public part of DPC++ interfaces.
-  - `private` Build and run tests for private C++ and DPC++ parts.
-  - `host-private` Build and run tests only for private C++ part.
-  - `dpc-private` Build and run tests only for private DPC++ part.
+  - `host` Tests of the C++ interface, built with the regular C++ compiler.
+  - `dpc` Tests of the DPC++ interface, built with the Intel(R) DPC++ compiler.
+
+  Every test also carries a `public` or `private` tag, so `--test_tag_filters`
+  narrows a run further.
 
    Example:
    ```sh
@@ -303,7 +301,7 @@ The most used Bazel commands are `build`, `test` and `run`.
    bazel test --config=host //cpp/oneapi/dal:tests
 
    # To run tests for internal DPC++ functionality
-   bazel test --config=dpc-private //cpp/oneapi/dal:tests
+   bazel test --release_dpc=true --test_tag_filters=dpc,-public //cpp/oneapi/dal:tests
    ```
 
 - `--device` Takes effect only for `run` or `test` commands and option
@@ -349,20 +347,13 @@ The most used Bazel commands are `build`, `test` and `run`.
    bazel test --test_external_datasets //cpp/oneapi/dal:tests
    ```
 
-- `--test_nightly` A switch that enables [nightly tests](#nightly-tests).
-  Disabled by default.
+- `--test_tier` Runs the longer test cases too: `nightly` adds the
+  [nightly tests](#nightly-tests), `weekly` adds the [weekly tests](#weekly-tests)
+  on top. Default: `default`, neither.
 
    Example:
    ```sh
-   bazel test --test_nightly //cpp/oneapi/dal:tests
-   ```
-
-- `--test_weekly` A switch that enables [weekly tests](#weekly-tests). Nightly
-  tests are included to weekly. Disabled by default.
-
-   Example:
-   ```sh
-   bazel test --test_weekly //cpp/oneapi/dal:tests
+   bazel test --test_tier=nightly //cpp/oneapi/dal:tests
    ```
 
 - `--test_link_mode` Specifies linking mode for tests. \
@@ -379,11 +370,6 @@ The most used Bazel commands are `build`, `test` and `run`.
    ```sh
    export DALROOT=`pwd`/__release_lnx/daal/latest
    bazel test --test_link_mode=release_dynamic //cpp/oneapi/dal:tests
-   ```
-
-   Example:
-   ```sh
-   bazel test --test_thread_mode=par //cpp/oneapi/dal:tests
    ```
 
 - `--test_disable_fp64` A switch that disables tests for double precision (`fp64`).
@@ -409,14 +395,18 @@ The most used Bazel commands are `build`, `test` and `run`.
   ```
   This automatically builds all required ISA variants (SSE2, AVX2, AVX-512) and includes DPC++ libraries when `icpx` is in `PATH`.
 
-  The build date (`__INTEL_DAAL_BUILD_DATE`, `BUILD` in the version header) is taken from the
-  workspace status when `--stamp` is on, which `--config=release-dpc` sets. Other builds keep the
-  placeholder `21990101`, so their outputs do not change from one day to the next.
+  The build date (`__INTEL_DAAL_BUILD_DATE`, `BUILD` in the version header) is the value of
+  `--build_date=YYYYMMDD`, which the release jobs pass; `--config=release` fails without it.
+  Other builds keep the placeholder `21990101`, so their outputs do not change from one day to
+  the next. A job that publishes the package adds `--config=release`:
+  ```sh
+  bazel build //:release --config=release-dpc --config=release --build_date=$(date -u +%Y%m%d)
+  ```
 
   The release tree is placed under `bazel-bin/release/daal/latest`, matching the layout of
   oneDAL release directories such as `__release_lnx/daal/latest`. The main outputs are in the
   same subdirectories: headers under `include`, libraries under `lib/<arch>`, environment
-  setup under `env/vars.sh`, and pkg-config metadata under `lib/pkgconfig/onedal.pc`. `<arch>` is
+  setup under `env/vars.sh`, and pkg-config metadata under `lib/pkgconfig/dal-*-threading-host.pc`. `<arch>` is
   `intel64`, or `arm`, `riscv64` and `ARM64` (Windows ARM64) on the other targets, as in Make.
 
   - To build for a specific CPU architecture only (useful for speeding up CI), use `--cpu`:
@@ -460,21 +450,15 @@ bazelisk.exe build //:release_all
 info and assertions. `//:release_all` pins the runtime internally, so passing
 `--config=mdd` alongside it has no effect.
 
-Two constraints worth knowing before reaching for the debug runtime:
-
-- It is implemented for the Intel oneAPI **icx** toolchain only. The `cl`
-  fallback (`ONEDAL_WIN_COMPILER=cl` or `CC=cl`, see [Compiler
-  choice](#compiler-choice)) delegates to rules_cc's MSVC auto-config, which
-  does not define the `msvc_runtime_debug` feature, so `--config=mdd` there
-  fails during analysis with an explanatory message rather than silently
-  building against the wrong CRT.
-- Always select it through `--config=mdd`. It sets two things that have to
-  agree — the `msvc_runtime_debug` toolchain feature, which selects `-MDd`,
-  and the `@config//:msvc_runtime` build setting, which dependency `select()`s
-  read. Passing either half alone (`--features=msvc_runtime_debug` or
-  `--msvc_runtime=debug`) is rejected during analysis, because it would
-  compile against one CRT while naming libraries and picking dependencies for
-  the other.
+`--config=mdd` is `--msvc_runtime=debug`: the toolchain config enables its
+`msvc_runtime_debug` feature (`-MDd`) from that one setting, which also names
+the libraries and drives the dependency `select()`s. The debug runtime is
+implemented for the icx and clang-cl toolchains only. The `cl` fallback
+(`ONEDAL_WIN_COMPILER=cl` or `CC=cl`, see [Compiler choice](#compiler-choice))
+delegates to rules_cc's MSVC auto-config, which has no such feature, so
+`--config=mdd` there fails during analysis with an explanatory message rather
+than silently building against the wrong CRT. The feature, if also set through
+`--features`, must agree with `--msvc_runtime`; a mismatch fails the same way.
 
 `//:release_all` takes the libraries under `lib/<arch>` and `redist/<arch>`
 (`<arch>` as above) from both builds; everything else — headers, datasets, examples, env scripts,
@@ -487,12 +471,11 @@ The debug-CRT build requires the `tbb12_debug` / `tbbmalloc_debug` libraries and
 MKL's `mkl_tbb_threadd` in the layouts being used; the oneAPI BaseKit ships all
 of them.
 
-CI builds `//:release` in both flavours on every pull request and checks the
-resulting names, but `//:release_all` is only analysed there
-(`--nobuild`): building it means building the whole Windows release twice,
-which does not fit alongside the two single-flavour builds in one hosted job.
-The `WindowsBazelReleaseAll` job builds it and verifies the merged tree, and it
-runs on manual or scheduled pipeline runs rather than per pull request.
+Pull-request CI builds the release CRT flavour and only analyses
+`//:release --config=mdd` and `//:release_all` (`--nobuild`): building them means
+building the whole Windows release twice, which does not fit in one hosted job.
+The `WindowsBazelReleaseAll` job builds the merged tree and verifies it on
+manual or scheduled pipeline runs.
 
 On non-Windows platforms both the `mdd` config and `//:release_all` are no-ops.
 Note that `//:release_all` then forwards the `//:release` tree unchanged instead
@@ -523,8 +506,10 @@ file. Each script contains detailed usage and maintenance comments.
 
 When package contents change, update the Bazel packaging rules or the common
 comparator rather than hiding differences in a platform wrapper. The same goes
-for the build itself: prefer a Bazel action to a helper script. The scripts that
-remain are listed in `dev/bazel/TODO.md` together with what each of them is
+for the build itself: prefer a Bazel action to a helper script. Windows import
+libraries are declared outputs of the DLL link (`/IMPLIB:`), CRLF staging is an
+`expand_template` and a missing `icpx` is reported during analysis; the one
+script that remains is listed in `dev/bazel/TODO.md` together with what it is
 waiting on.
 
 ### Run oneAPI examples
@@ -621,10 +606,10 @@ TEST("my test that uses external dataset", "[external-dataset]") {
 ```
 
 ### Nightly tests
-Nightly tests are disabled by default. The `--test_nightly` option enables tests
+Nightly tests are disabled by default. `--test_tier=nightly` enables tests
 marked with `[nightly]` tags.
 ```sh
-bazel test --test_nightly //cpp/oneapi/dal:tests
+bazel test --test_tier=nightly //cpp/oneapi/dal:tests
 ```
 
 Mark nightly test cases with `[nightly]` tag:
@@ -633,10 +618,10 @@ TEST("my test that takes long time", "[nightly]") { /* ... */ }
 ```
 
 ### Weekly tests
-Weekly tests are disabled by default. The `--test_weekly` option enables tests
+Weekly tests are disabled by default. `--test_tier=weekly` enables tests
 marked with `[weekly]` or `[nightly]` tags. **Weekly tests include nightly.**
 ```sh
-bazel test --test_weekly //cpp/oneapi/dal:tests
+bazel test --test_tier=weekly //cpp/oneapi/dal:tests
 ```
 
 Mark weekly test cases with `[weekly]` tag:
@@ -646,10 +631,10 @@ TEST("my test that takes very long time", "[weekly]") { /* ... */ }
 
 ### Tests for public interface
 Sometimes it is necessary to build and run only part of tests responsible for
-public interface testing, for example, to test backward compatibility. There is
-the `host-public` config designed for that use case.
+public interface testing, for example, to test backward compatibility. Filter
+the tests by their `public` tag:
 ```sh
-bazel test --config=host-public //cpp/oneapi/dal:tests
+bazel test --test_tag_filters=host,-private //cpp/oneapi/dal:tests
 ```
 
 Test is categorized to public or private using the `private` flag of the
@@ -813,9 +798,9 @@ Build the full release artifact with all ISA variants (sse2, avx2, avx512):
 bazel build //:release --cpu=all
 ```
 
-By default, `--cpu=auto` builds the baseline `sse2` variant (x86 only) plus the
-detected host ISA. Use `--cpu=all` for full release coverage, or set a specific ISA to
-restrict coverage (e.g., for faster CI):
+`//:release` builds every ISA unless `--cpu` names some. For other targets the default
+`--cpu=auto` builds the baseline `sse2` variant (x86 only) plus the detected host ISA;
+`--cpu=all` builds every ISA, and a specific ISA restricts the build (e.g., for faster CI):
 
 ```sh
 bazel build //:release --cpu=avx2
@@ -906,13 +891,12 @@ pkg-config files name `onedal_parameters` only in the separate layout, and the
 prebuilt-release repository rule decides which parameter libraries to expose by
 looking for them in the package rather than by reading its metadata.
 
-CI uses `dev/bazel/tests/parameters_layout_test.sh` for analysis-only checks of
-configured release outputs, host/DPC dependency separation, folded-target
-rejection, and Windows value validation. It does not build DPC binaries.
-`dev/release_tests/parameters_layout_consumer_test.sh` separately builds and
-runs host static and dynamic consumers through packaged CMake, pkg-config, and
-Bazel metadata for the folded layout. Both take `bazel` from `PATH`; set `BAZEL`
-to run them against a specific binary, such as a downloaded `bazelisk`.
+`bazel test //dev/bazel/tests:all` runs the analysis-time checks of
+`dev/bazel/tests/analysis.bzl`: which libraries each layout stages, that the host
+and DPC++ libraries embed only their own parameter modules, and that Windows
+rejects `yes`. `dev/release_tests/parameters_layout_consumer_test.sh` separately
+builds and runs host static and dynamic consumers through packaged CMake,
+pkg-config, and Bazel metadata for the folded layout.
 
 ## Make → Bazel Flag Reference
 
@@ -995,39 +979,32 @@ once a `.gcda` sits beside its `.gcno`. This is independent of Bazel's built-in
 `--collect_code_coverage`, which uses its own toolchain feature and is unchanged
 by this flag.
 
-`dev/bazel/tests/code_coverage_test.sh` is the smoke for both halves, selected
-by `--dpc`.
-
-The `LinuxBazelCoverage` CI job runs the default host mode on every pull request: it
-builds `//cpp/daal:core_static` and `//cpp/daal:thread_static` with
-`--code_coverage=true`, inspects `bazel aquery` output to confirm DAAL core
+`//dev/bazel/tests:coverage_tests` checks, at analysis time, that the DAAL core
 compile actions carry `-coverage`/`-DGCOV_BUILD` while the separately built
-threading module does not, and asserts the `.gcno` notes files survive into the
-output tree.
+threading module gets `-coverage` only; `:coverage_dpc_link_test` checks the
+`-Xscoverage` option on the released `//cpp/oneapi/dal:dynamic_dpc` link. Both
+need the icx toolchain, so they are tagged `manual`.
 
-`--dpc` verifies the DPC++ link-specific `-Xscoverage` option instead: it builds
-`//cpp/oneapi/dal/table:table_dpc` and, through analysis only, checks the
-released `//cpp/oneapi/dal:dynamic_dpc` link as well. The same job runs it
-only on a manually queued pipeline. There is deliberately no cron for it: an
-Azure schedule queues the whole pipeline, which would re-run every other job
-nightly for this one check.
+The `LinuxBazelCoverage` CI job runs the host checks on every pull request and
+then builds `//cpp/daal:core_static` with `--code_coverage=true` to see the
+`.gcno` notes files in the output tree. The DPC++ check runs only on a manually
+queued pipeline. There is deliberately no cron for it: an Azure schedule queues
+the whole pipeline, which would re-run every other job nightly for this one check.
 
 ## Cross-compiling to ARM/RISC-V
 
-AArch64 and RISC-V64 are only supported with the `ref` backend (`--backend_config=ref`),
-matching the Makefile's `PLAT=lnxarm`/`PLAT=lnxriscv64`. Both ship a single fixed
-ISA variant (SVE / RVGC) — there is no runtime CPU dispatch like on x86.
+AArch64 and RISC-V64 are only supported with the `ref` backend, which is the
+default `--backend_config` for them, matching the Makefile's `PLAT=lnxarm`/`PLAT=lnxriscv64`.
+Both ship a single fixed ISA variant (SVE / RVGC) — there is no runtime CPU dispatch like on x86.
 
 ```sh
 # AArch64
 CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ \
-  bazel build --platforms=@config//:linux_aarch64 --backend_config=ref \
-  //cpp/daal:core_dynamic
+  bazel build --platforms=@config//:linux_aarch64 //cpp/daal:core_dynamic
 
 # RISC-V64
 CC=riscv64-linux-gnu-gcc CXX=riscv64-linux-gnu-g++ \
-  bazel build --platforms=@config//:linux_riscv64 --backend_config=ref \
-  //cpp/daal:core_dynamic
+  bazel build --platforms=@config//:linux_riscv64 //cpp/daal:core_dynamic
 ```
 
 `OPENBLASROOT` must point at an OpenBLAS install built for the target arch (see
@@ -1067,7 +1044,7 @@ covers it. CI covers the native ARM64 path only.
 ```bat
 rem From a Developer Command Prompt for arm64 (clang-cl uses the MSVC headers,
 rem libraries and CRT that vcvarsall exports), with %ProgramFiles%\LLVM\bin on PATH
-bazel build --platforms=@config//:windows_arm64 --backend_config=ref ^
+bazel build --platforms=@config//:windows_arm64 ^
   //cpp/daal:core_dynamic //cpp/oneapi/dal:dynamic
 ```
 

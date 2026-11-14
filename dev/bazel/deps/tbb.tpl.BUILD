@@ -24,11 +24,7 @@ filegroup(
     ], allow_empty = True),
 )
 
-# Windows-only counterpart of `tbb_runtime`: there the released libraries link
-# against import libraries that the package carries next to the DLLs
-# (`makefile:278` stages them into `tbb/latest/lib/vc_mt`). On Linux the `.so` is
-# both the link and the runtime artifact and is already in `tbb_runtime`, so
-# this group is empty and the release skips it.
+# Empty on Linux, where the `.so` in `tbb_runtime` is also what consumers link against.
 filegroup(
     name = "tbb_import_libs",
     srcs = [],

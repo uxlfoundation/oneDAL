@@ -14,25 +14,18 @@
 # limitations under the License.
 #===============================================================================
 
-load("@onedal//dev/bazel:stamp.bzl", "BuildDateInfo", "expand_build_date")
 load("@onedal//dev/bazel:utils.bzl", "utils", "paths")
 load("@onedal//dev/bazel:cc.bzl", "ModuleInfo")
-load("@onedal//dev/bazel/config:config.bzl", "RELEASE_ARCH_ATTRS", "VersionInfo", "release_arch_dir")
+load("@onedal//dev/bazel/config:config.bzl", "TARGET_ATTRS", "VERSION_ATTRS", "get_version_info", "target")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 
-# Resolve @config//:cpu to its Bzlmod canonical label at load time.
-# Using a plain string "@config//:cpu" inside a transition fails under Bzlmod
-# because repo mapping is not applied in that context.
+# Transitions get no repo mapping, so they need the canonical label.
 _CPU_SETTING = str(Label("@config//:cpu"))
 
-# Windows library stems, in both MSVC-runtime flavours: a debug-CRT build
-# appends `d` to every library name (see `_msvc_runtime_suffix` in
-# dev/bazel/cc.bzl and `$d` in makefile:124). Listed explicitly rather than
-# stripping a trailing `d`, because `onedal_thread` already ends in one.
+# Both CRT flavours (the debug CRT appends `d`); listed because `onedal_thread` ends in `d`.
 _THREAD_STEMS = ["onedal_thread", "onedal_threadd"]
 
-# DLL stems that additionally ship an ABI-versioned import library
-# (`onedal_core_dll.4.lib`), matching `.release.a_win` in makefile:962-970.
+# DLLs that also ship an ABI-versioned import library (`onedal_core_dll.4.lib`), as in Make.
 _VERSIONED_IMPLIB_STEMS = [
     "onedal_core",
     "onedal",
@@ -43,13 +36,7 @@ _VERSIONED_IMPLIB_STEMS = [
 ]
 
 def _match_file_name(file, entries):
-    # Use short_path (workspace-relative, e.g. "cpp/oneapi/dal/foo.h" or
-    # "../mkl_repo~mkl/include/mkl.h") instead of file.path (which contains
-    # bazel-out/ prefixes and Bzlmod repo hashes like "+mkl_repo+mkl/").
-    # This makes external-repo detection stable across workspace and Bzlmod:
-    #   - workspace style:  short_path starts with "../<repo>/"
-    #   - Bzlmod style:     short_path starts with "../<repo>~<ver>/"
-    # Callers can use "../" as an exclude pattern to reject all external repos.
+    # short_path has no bazel-out/ prefix; external files start with "../", which callers can exclude.
     path = file.short_path
     for entry in entries:
         if entry in path:
@@ -73,98 +60,48 @@ def _collect_default_files(deps):
             files += dep[DefaultInfo].files.to_list()
     return utils.unique_files(files)
 
-def _make_implib_for_dll(ctx, dll_file, lib_dst_path):
-    """Derive a Windows DLL's import library at `lib_dst_path` from `dll_file`.
-
-    Runs `dev/bazel/toolchains/tools/dll_to_implib.bat` which dumps the
-    DLL's exports table and feeds it to `lib /def:` to produce a fresh
-    `.lib`. Mirrors the makefile's `-IMPLIB:<name>_dll.lib` linker flag,
-    which we cannot pass directly through Bazel's cc_common.link()
-    because there is no API to register the side-effect file as an
-    action output. Generating it from the DLL post-link is equivalent.
-    """
-    lib_file = ctx.actions.declare_file(lib_dst_path)
-    # `lib /def:` requires an .exp output, but it is an intermediate rather
-    # than a release artifact. Keep it outside the staged release tree.
-    exp_file = ctx.actions.declare_file(paths.join(
-        "_release_intermediates",
-        lib_file.basename[:-len(".lib")] + ".exp",
-    ))
-    script = ctx.file._dll_to_implib
-    ctx.actions.run(
-        executable = "cmd.exe",
-        inputs = [dll_file, script],
-        outputs = [lib_file, exp_file],
-        arguments = [
-            "/d", "/c",
-            "{} {} {} {}".format(
-                script.path.replace("/", "\\"),
-                dll_file.path.replace("/", "\\"),
-                lib_file.path.replace("/", "\\"),
-                exp_file.path.replace("/", "\\"),
-            ),
-        ],
-        use_default_shell_env = True,
-        mnemonic = "DllToImplib",
-        progress_message = "Generating import lib %s" % lib_file.short_path,
-    )
-    return lib_file
+# Libraries are copied by a process; the heap would hold a 200 MB archive otherwise.
+_BINARY_EXTENSIONS = ["a", "so", "lib", "dll", "exe", "pdb"]
 
 def _copy(ctx, src_file, dst_path):
-    # TODO: Use extra toolchain
     dst_file = ctx.actions.declare_file(dst_path)
-    if ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo]):
-        ctx.actions.run(
-            executable = "cmd.exe",
-            inputs = [ src_file ],
-            outputs = [ dst_file ],
-            use_default_shell_env = True,
-            arguments = [
-                "/d",
-                "/c",
-                'copy /Y "{}" "{}"'.format(
-                    src_file.path.replace("/", "\\"),
-                    dst_file.path.replace("/", "\\"),
-                ),
-            ],
-        )
+    # The copy runs on the exec host, so its OS picks the tool, not the target's.
+    exec_windows = ctx.configuration.host_path_separator == ";"
+    if exec_windows:
+        executable = "cmd.exe"
+        # `copy` reports "1 file(s) copied." on stdout, which Bazel would echo for every file.
+        arguments = ["/d", "/c", 'copy /Y "{}" "{}" >NUL'.format(
+            src_file.path.replace("/", "\\"),
+            dst_file.path.replace("/", "\\"),
+        )]
     else:
-        ctx.actions.run(
-            executable = "cp",
-            inputs = [ src_file ],
-            outputs = [ dst_file ],
-            use_default_shell_env = True,
-            arguments = [ src_file.path, dst_file.path ],
-        )
+        executable = "cp"
+        arguments = [src_file.path, dst_file.path]
+    ctx.actions.run(
+        executable = executable,
+        inputs = [src_file],
+        outputs = [dst_file],
+        arguments = arguments,
+        # cmd.exe needs SystemRoot; cp resolves from the default search path.
+        use_default_shell_env = exec_windows,
+        mnemonic = "CopyFile",
+        progress_message = "Copying %s" % dst_file.short_path,
+    )
     return dst_file
 
-def _copy_crlf(ctx, src_file, dst_path):
-    """Copy `src_file` to `dst_path` converting line endings to CRLF.
+def _stage(ctx, src_file, dst_path, crlf = False):
+    """Copy a text file into the release tree without spawning a process.
 
-    Make normalizes the files it stages through its `.release.x` recipe with
-    `sed -n -z -e 's/\\r*\\n/\\r\\n/g;p'` when `OS_is_win`, so text files such as
-    `config/config.txt` ship with CRLF even though they are stored with LF in
-    the repository. Plain `copy` leaves them as LF and the released file then
-    differs from the Make one on every line.
+    `crlf` converts to CRLF line endings, as Make's `.release.x` sed; Bazel applies the
+    substitutions in order, so a CRLF already in the file is not doubled. Libraries go through `_copy`.
     """
+    if src_file.extension in _BINARY_EXTENSIONS:
+        return _copy(ctx, src_file, dst_path)
     dst_file = ctx.actions.declare_file(dst_path)
-    script = ctx.file._to_crlf
-    ctx.actions.run(
-        executable = "cmd.exe",
-        inputs = [src_file, script],
-        outputs = [dst_file],
-        use_default_shell_env = True,
-        arguments = [
-            "/d",
-            "/c",
-            "{} {} {}".format(
-                script.path.replace("/", "\\"),
-                src_file.path.replace("/", "\\"),
-                dst_file.path.replace("/", "\\"),
-            ),
-        ],
-        mnemonic = "CopyCrlf",
-        progress_message = "Staging %s with CRLF line endings" % dst_file.short_path,
+    ctx.actions.expand_template(
+        template = src_file,
+        output = dst_file,
+        substitutions = {"\r\n": "\n", "\n": "\r\n"} if crlf else {},
     )
     return dst_file
 
@@ -173,24 +110,15 @@ def _try_relativize(path, start):
         return paths.relativize(path, start)
     return path
 
-def _copy_version_header(ctx, src_file, dst_path, version_info, is_windows, build_date):
-    # The intermediate stays out of the release prefix.
-    expanded = ctx.actions.declare_file(ctx.label.name + ".library_version_info.h.in")
+def _copy_version_header(ctx, src_file, dst_path, version_info, is_windows):
     dst_file = ctx.actions.declare_file(dst_path)
-
-    # Make rewrites these seven lines with `sed`, and on Windows every
-    # replacement carries a trailing `\r` (`sed.eol.win` in
-    # dev/make/common.mk:177, used by `update_headers_version` in
-    # makefile.ver:62-80). The rest of the header keeps the LF endings it has in
-    # the repository, so the released file is deliberately mixed: seven CRLF
-    # lines among LF ones. Reproduce that instead of writing the whole file with
-    # one ending, or the release comparison reports a 7-byte difference.
+    # On Windows Make's `sed` (sed.eol.win) ends only these seven lines with CRLF; match that.
     eol = "\r" if is_windows else ""
     ctx.actions.expand_template(
         template = src_file,
-        output = expanded,
+        output = dst_file,
         substitutions = {
-            "#define __INTEL_DAAL_BUILD_DATE 21990101": "#define __INTEL_DAAL_BUILD_DATE @ONEDAL_BUILD_DATE@{}".format(eol),
+            "#define __INTEL_DAAL_BUILD_DATE 21990101": "#define __INTEL_DAAL_BUILD_DATE {}{}".format(version_info.build, eol),
             "#define __INTEL_DAAL__        2199": "#define __INTEL_DAAL__ {}{}".format(version_info.major, eol),
             "#define __INTEL_DAAL_MINOR__  9": "#define __INTEL_DAAL_MINOR__ {}{}".format(version_info.minor, eol),
             "#define __INTEL_DAAL_UPDATE__ 9": "#define __INTEL_DAAL_UPDATE__ {}{}".format(version_info.update, eol),
@@ -199,15 +127,10 @@ def _copy_version_header(ctx, src_file, dst_path, version_info, is_windows, buil
             "#define __INTEL_DAAL_MINOR_BINARY__ 999": "#define __INTEL_DAAL_MINOR_BINARY__ {}{}".format(version_info.binary_minor, eol),
         },
     )
-    expand_build_date(ctx, expanded, dst_file, build_date)
     return dst_file
 
 def _strip_os_suffix(dst_path, os_suffix):
-    """Drop a trailing `_<os>` from `dst_path`'s basename, if present.
-
-    Mirrors Make's `$(subst _$(_OS),,$d)` when staging
-    `release.HEADERS.OSSPEC`: `include/daal_win.h` ships as `include/daal.h`.
-    """
+    """Drop a trailing `_<os>` from the basename, as Make's `$(subst _$(_OS),,$d)`."""
     base = paths.basename(dst_path)
     stem, _, extension = base.rpartition(".")
     if not stem or not stem.endswith(os_suffix):
@@ -217,36 +140,24 @@ def _strip_os_suffix(dst_path, os_suffix):
 
 def _copy_include(ctx, prefix, version_info):
     include_prefix = paths.join(prefix, "include")
-    build_date = ctx.attr._build_date[BuildDateInfo]
-    is_windows = ctx.target_platform_has_constraint(
-        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
-    )
-    # Make derives this from `$(_OS)`; only `win` currently has OS-specific
-    # public headers, but keep the other platforms symmetrical.
+    is_windows = target(ctx).is_windows
     os_suffix = "_win" if is_windows else "_lnx"
 
-    # Map each staged destination to the header that should provide it. An
-    # OS-specific header wins over the generic file of the same staged name,
-    # matching Make's `filter-out $(subst _$(_OS),,...)` against
-    # `release.HEADERS.COMMON`. Keeping one entry per destination also prevents
-    # declaring the same action output twice.
+    # One header per destination; an OS-specific header wins over the generic one, as in Make.
     staged_order = []
     staged = {}
     os_specific = {}
-    for include, prefix, skip_prefix in zip(ctx.attr.include, ctx.attr.include_prefix,
-                                            ctx.attr.include_skip_prefix):
+    for include, add_prefix, skip_prefix in zip(ctx.attr.include, ctx.attr.include_prefix,
+                                                ctx.attr.include_skip_prefix):
         headers = _collect_headers(include)
         for header in headers:
             if header.basename == "_dal_cpu_dispatcher_gen.hpp":
                 continue
             if skip_prefix:
-                # Use short_path for deterministic workspace-relative include layout.
-                # file.path contains bazel-out/<cfg>/... prefixes that prevent
-                # _try_relativize(skip_prefix) from matching and may leak bazel-out
-                # directories into release/include.
+                # file.path has a bazel-out/<cfg>/ prefix that skip_prefix would not match.
                 dst_path = _try_relativize(header.short_path, skip_prefix)
-            elif prefix:
-                dst_path = paths.join(prefix, header.basename)
+            elif add_prefix:
+                dst_path = paths.join(add_prefix, header.basename)
             dst_path = paths.join(include_prefix, dst_path)
             stripped = _strip_os_suffix(dst_path, os_suffix)
             is_os_specific = stripped != dst_path
@@ -263,10 +174,9 @@ def _copy_include(ctx, prefix, version_info):
     for dst_path in staged_order:
         header = staged[dst_path]
         if header.short_path == "cpp/daal/include/services/library_version_info.h":
-            dst_file = _copy_version_header(ctx, header, dst_path, version_info,
-                                            is_windows, build_date)
+            dst_file = _copy_version_header(ctx, header, dst_path, version_info, is_windows)
         else:
-            dst_file = _copy(ctx, header, dst_path)
+            dst_file = _stage(ctx, header, dst_path)
         dst_files.append(dst_file)
     return dst_files
 
@@ -274,70 +184,51 @@ def _symlink(ctx, link_name, target_name, prefix):
     """Create a relative symlink in the release directory.
 
     Args:
-        ctx: Rule context.
-        link_name: Basename of the symlink to create (e.g. "libonedal_core.so").
-        target_name: Basename of the symlink target (e.g. "libonedal_core.so.2").
-        prefix: Directory prefix inside the rule's output tree.
-
-    Returns:
-        The declared symlink File object.
+        ctx: rule context.
+        link_name: basename of the symlink, e.g. `libonedal_core.so`.
+        target_name: basename of the target in the same directory.
+        prefix: directory of the symlink in the rule's output tree.
     """
     link_file = ctx.actions.declare_symlink(paths.join(prefix, link_name))
     ctx.actions.symlink(
         output = link_file,
-        # Relative symlink — target lives in the same directory.
         target_path = target_name,
     )
     return link_file
 
+def _windows_dll_stem(name, version_info):
+    """`onedal_core` for `onedal_core.4`: released import library names carry no ABI version."""
+    suffix = "." + version_info.binary_major
+    return name[:-len(suffix)] if name.endswith(suffix) else name
+
 def _copy_lib(ctx, prefix, version_info):
-    """Copy libraries to release directory with versioning and symlinks for .so files.
+    """Copy the libraries into the release tree, with SONAME symlinks for each Linux `.so`.
 
-    For each shared library (.so) on Linux, this creates:
-      libonedal_core.so.{binary_major}.{binary_minor}   (real file)
-      libonedal_core.so.{binary_major}  -> libonedal_core.so.{binary_major}.{binary_minor}  (symlink)
-      libonedal_core.so                 -> libonedal_core.so.{binary_major}                 (symlink)
-
-    Static libraries (.a) and Windows DLLs (.dll) are copied as-is without versioning.
-
-    macOS .dylib versioning is not yet implemented; .dylib files are currently
-    copied as-is like static libraries.
+    A DLL's `<name>.<major>.if.lib` is staged under Make's `-IMPLIB:` name, `<name>_dll.lib`.
     """
-    is_windows = ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo])
-    arch_dir = release_arch_dir(ctx)
+    is_windows = target(ctx).is_windows
+    arch_dir = target(ctx).arch_dir
     lib_prefix = paths.join(prefix, "lib", arch_dir)
     redist_prefix = paths.join(prefix, "redist", arch_dir)
     libs = _collect_default_files(ctx.attr.lib)
     dst_files = []
 
-    # On Windows, when the dynamic library rule already emitted a real
-    # import library, use that via rename; otherwise derive it post-link
-    # from the .dll via dumpbin + lib /def.
-    #
-    # rules_cc may expose `<name>.if.lib`, while our cc_dynamic_lib rule
-    # publishes the same file as `<name>_dll.lib`. Both represent the DLL
-    # import library and must be consumed by the DLL branch below, otherwise
-    # the final loop would try to copy `<name>_dll.lib` into the same release
-    # output that the DLL branch is also generating.
-    import_lib_stems = {}
     if is_windows:
+        implib_stems = [
+            lib.basename[:-len(".if.lib")]
+            for lib in libs
+            if lib.basename.endswith(".if.lib")
+        ]
         for lib in libs:
-            if lib.basename.endswith(".if.lib"):
-                import_lib_stems[lib.basename[:-len(".if.lib")]] = lib
-            elif lib.basename.endswith("_dll.lib"):
-                import_lib_stems[lib.basename[:-len("_dll.lib")]] = lib
+            if lib.extension == "dll" and lib.basename[:-len(".dll")] not in implib_stems:
+                fail("{} has no import library: the Windows toolchain must emit {}.if.lib".format(
+                    lib.basename, lib.basename[:-len(".dll")]))
 
     for lib in libs:
-        # Determine if this is a shared library that needs versioning.
-        # Only Linux .so files are versioned; .dylib (macOS) is not yet supported
-        # and will be copied as-is like static libraries.
+        # macOS .dylib files are not versioned yet.
         is_shared_lib = lib.extension == "so"
 
-        if is_shared_lib and not version_info:
-            fail(("Shared library '{}' requires VersionInfo for SONAME versioning, " +
-                 "but no version_info was provided to _copy_lib.").format(lib.basename))
-
-        if is_shared_lib and version_info:
+        if is_shared_lib:
             binary_major = version_info.binary_major
             binary_minor = version_info.binary_minor
 
@@ -352,101 +243,34 @@ def _copy_lib(ctx, prefix, version_info):
 
             # 3. Unversioned symlink: libonedal_core.so -> libonedal_core.so.2
             dst_files.append(_symlink(ctx, lib.basename, major_link_name, lib_prefix))
+        elif is_windows and lib.extension == "dll":
+            # The Make layout keeps the DLLs under redist/<arch>, not lib/<arch>.
+            dst_files.append(_copy(ctx, lib, paths.join(redist_prefix, lib.basename)))
+        elif is_windows and lib.basename.endswith(".if.lib"):
+            stem = _windows_dll_stem(lib.basename[:-len(".if.lib")], version_info)
+            # The thread import library is not shipped in the Make package.
+            if stem in _THREAD_STEMS:
+                continue
+            dst_files.append(_copy(ctx, lib, paths.join(lib_prefix, "{}_dll.lib".format(stem))))
+            if stem in _VERSIONED_IMPLIB_STEMS:
+                dst_files.append(_copy(ctx, lib, paths.join(
+                    lib_prefix,
+                    "{}_dll.{}.lib".format(stem, version_info.binary_major),
+                )))
         else:
-            # Static libs (.a), DLLs (.dll), import libs (.lib).
-            # Windows release layout: place DAAL runtime DLLs under
-            # redist/<arch> (not lib/<arch>) and derive each DLL's
-            # import library `<name>_dll.lib` via dumpbin+lib /def — the
-            # makefile route (`-IMPLIB:<name>_dll.lib`) is unreachable
-            # through Bazel's cc_common.link() so we generate the import
-            # lib post-link, matching the Make release contents.
-            if is_windows and lib.extension == "dll":
-                dst_files.append(_copy(ctx, lib, paths.join(redist_prefix, lib.basename)))
-
-                # `onedal_core.4.dll` -> `onedal_core_dll.lib`
-                base_no_ver = lib.basename
-                if version_info:
-                    suffix = ".{}.dll".format(version_info.binary_major)
-                    if base_no_ver.endswith(suffix):
-                        base_no_ver = base_no_ver[:-len(suffix)] + ".dll"
-                stem = base_no_ver[:-len(".dll")]
-                # The thread import library is not shipped in the Make
-                # DAAL package, mirror that here.
-                if stem in _THREAD_STEMS:
-                    continue
-                implib_name = "{}_dll.lib".format(stem)
-                # Prefer the link-emitted .if.lib (rules_cc MSVC auto-
-                # config writes one alongside every DLL). Fall back to
-                # dumpbin + lib /def: when the toolchain did not emit
-                # one (icx custom config currently does not).
-                source_import_lib = import_lib_stems.get(stem)
-                if source_import_lib:
-                    implib = _copy(
-                        ctx, source_import_lib,
-                        paths.join(lib_prefix, implib_name),
-                    )
-                else:
-                    implib = _make_implib_for_dll(
-                        ctx, lib, paths.join(lib_prefix, implib_name),
-                    )
-                dst_files.append(implib)
-                if version_info and stem in _VERSIONED_IMPLIB_STEMS:
-                    versioned_implib_name = "{}_dll.{}.lib".format(
-                        stem,
-                        version_info.binary_major,
-                    )
-                    dst_files.append(_copy(
-                        ctx, implib,
-                        paths.join(lib_prefix, versioned_implib_name),
-                    ))
-                continue
-            # Link-emitted import libraries are consumed via the dll branch
-            # above (renamed to `_dll.lib`); skip them here so we do not
-            # declare the same output twice.
-            if is_windows and (lib.basename.endswith(".if.lib") or lib.basename.endswith("_dll.lib")):
-                continue
-            if is_windows and lib.extension == "exp":
-                continue
-
-            dst_path = paths.join(lib_prefix, lib.basename)
-            dst_files.append(_copy(ctx, lib, dst_path))
+            dst_files.append(_copy(ctx, lib, paths.join(lib_prefix, lib.basename)))
 
     return dst_files
 
-# Files the Make Windows package ships with CRLF, which Bazel therefore has to
-# convert as well or the released file differs on every line. Two independent
-# mechanisms produce them:
-#
-#   * Make's `.release.x` recipe pipes whatever it stages through
-#     `sed -n -z -e 's/\r*\n/\r\n/g;p'` when `OS_is_win` (makefile:1043). That
-#     covers `config/config.txt` (makefile:1049) and the dataset tree
-#     (makefile:1046); both are stored with LF in the repository
-#     (see `.gitattributes`).
-#   * cmake's `configure_file` normalises output to the *host's* newline rather
-#     than the input's, so the oneDALConfig files that the makefile stages via
-#     `cmake/scripts/generate_config.cmake` (makefile:1103) come out CRLF on
-#     Windows even though the templates are LF. Bazel writes them with
-#     `expand_template`, which keeps the template's LF.
-#
-# The reference direction is deliberate: Make's bytes are what has shipped in
-# every release, and `generate_config.cmake` is also called by
-# `deploy/nuget/prepare_dal_nuget.sh`, so teaching it `NEWLINE_STYLE LF` would
-# change the published NuGet packages to fix a comparison.
-#
-# `env/vars.bat` is deliberately absent: it is generated from a template already
-# checked in with CRLF, so both sides agree without help.
+# CRLF in the Make Windows package: Make's `.release.x` sed rewrites config.txt and data/, and
+# cmake's configure_file writes host newlines. vars.bat is CRLF in the repository already.
 _CRLF_EXTRA_FILES = [
     "config/config.txt",
     "lib/cmake/oneDAL/oneDALConfig.cmake",
     "lib/cmake/oneDAL/oneDALConfigVersion.cmake",
 ]
 
-# Make picks what to ship under `data/` with `expat` (makefile:395); mirror that
-# suffix list rather than converting whatever happens to live there.
-#
-# Examples and samples are *not* covered: they are staged through the earlier
-# `.release.x` and `.release.d` definitions (makefile:1026, :1053), neither of
-# which runs the line-ending sed, so they keep LF in both packages.
+# Make's `expat` list for data/. Examples and samples keep LF in both packages.
 _CRLF_DATA_SUFFIXES = [".cmake", ".cpp", ".csv", ".h", ".hpp", ".txt"]
 
 def _is_crlf_staged(dst_subpath):
@@ -461,83 +285,29 @@ def _is_crlf_staged(dst_subpath):
     return False
 
 def _copy_extra_files(ctx, prefix):
-    """Copy extra generated files (vars.sh, pkg-config, etc.) into the release tree.
-
-    Each entry in extra_files is a (label, dst_subpath) pair encoded as two
-    parallel lists: extra_files and extra_files_dst.
-
-    dst_subpath is the desired path *relative to the release root*
-    (e.g. "env/vars.sh", "lib/pkgconfig/onedal.pc").
-    """
-    if len(ctx.attr.extra_files) != len(ctx.attr.extra_files_dst):
-        fail("extra_files and extra_files_dst must have the same length: got {} vs {}".format(
-            len(ctx.attr.extra_files), len(ctx.attr.extra_files_dst)))
-
-    is_windows = ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo])
-
+    """Stage each `extra_files` target under its destination path in the release root."""
+    is_windows = target(ctx).is_windows
     dst_files = []
-    for i, dep in enumerate(ctx.attr.extra_files):
-        dst_subpath = ctx.attr.extra_files_win_dst[i] if is_windows and ctx.attr.extra_files_win_dst[i] != None else ctx.attr.extra_files_dst[i]
-        if not dst_subpath:
-            continue
+    for dst_subpath, dep in ctx.attr.extra_files.items():
         srcs = dep[DefaultInfo].files.to_list()
         if len(srcs) != 1:
             fail("extra_files entry '{}' must produce exactly one file, got {}".format(
                 dep.label, len(srcs)))
-        src = srcs[0]
-        dst_path = paths.join(prefix, dst_subpath)
-        # See `_is_crlf_staged`: some of these are CRLF in the Make Windows
-        # package, either because Make's staging recipe rewrites them or because
-        # cmake generated them on a Windows host. The pkg-config files are not,
-        # since Bazel and Make both write them with LF.
-        if is_windows and _is_crlf_staged(dst_subpath):
-            dst_files.append(_copy_crlf(ctx, src, dst_path))
-        else:
-            dst_files.append(_copy(ctx, src, dst_path))
+        dst_files.append(_stage(ctx, srcs[0], paths.join(prefix, dst_subpath),
+                                crlf = is_windows and _is_crlf_staged(dst_subpath)))
     return dst_files
 
 def _copy_dep_runtime(ctx, release_root):
-    """Stage third-party runtime libraries next to the `daal/latest` tree.
-
-    Make places the TBB redistributables the released libraries link against
-    into `<release root>/tbb/latest/lib` (`makefile:274-279` builds the
-    destination, `makefile:1101` performs the copy). Without them the
-    DT_NEEDED entries on libonedal_thread.so resolve to nothing and the
-    package is not self-contained.
-
-    Encoded as parallel lists, like `extra_files`: `dep_runtime` holds the
-    file-producing targets, `dep_runtime_dst` the destination directory of each
-    and `dep_runtime_win_dst` the Windows destination, which differs because
-    Make splits the two kinds of artifact there: the DLLs go to
-    `tbb/latest/bin/vc_mt` and the import libraries to `tbb/latest/lib/vc_mt`
-    (`makefile:276-278`), while on Linux the `.so` is both. An empty
-    destination skips the entry on that platform.
-
-    Note the root differs from `extra_files_dst`: these paths are relative
-    to the release root that *holds* `daal/latest`, since the point is to stage
-    a sibling component of it.
-    """
-    if len(ctx.attr.dep_runtime) != len(ctx.attr.dep_runtime_dst):
-        fail("dep_runtime and dep_runtime_dst must have the same length: got {} vs {}".format(
-            len(ctx.attr.dep_runtime), len(ctx.attr.dep_runtime_dst)))
-
-    is_windows = ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo])
-
+    """Stage third-party runtimes (TBB) next to `daal/latest`; paths are relative to its parent."""
     dst_files = []
-    for i, dep in enumerate(ctx.attr.dep_runtime):
-        dst_dir = ctx.attr.dep_runtime_win_dst[i] if is_windows else ctx.attr.dep_runtime_dst[i]
-        if not dst_dir:
-            continue
+    for dst_dir, dep in ctx.attr.dep_runtime.items():
         if dst_dir == "daal" or dst_dir.startswith("daal/"):
             fail(("dep_runtime destination '{}' of {} would write into the " +
                   "daal/latest tree, which the release rule stages itself").format(
                 dst_dir, dep.label))
         srcs = dep[DefaultInfo].files.to_list()
         if not srcs:
-            # Make refuses to build a release it cannot find the runtimes for
-            # (`makefile:258`). The Bazel repository rules glob them with
-            # `allow_empty = True`, so a layout change upstream would otherwise
-            # ship a release with an empty `tbb/latest/lib` and no complaint.
+            # Make fails here too; the repository rules glob with `allow_empty = True`.
             fail("dep_runtime target {} produced no files to stage into '{}'".format(
                 dep.label, dst_dir))
         for src in srcs:
@@ -547,25 +317,21 @@ def _copy_dep_runtime(ctx, release_root):
 
 def _copy_data(ctx, prefix):
     """Copy data files (datasets, examples, config) preserving directory structure."""
-    is_windows = ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo])
+    is_windows = target(ctx).is_windows
 
     dst_files = []
     for dep in ctx.attr.data:
         srcs = dep[DefaultInfo].files.to_list()
         for src in srcs:
-            # Skip external repo files (e.g., ../mkl_repo...)
             if src.short_path.startswith("../"):
                 continue
-            dst_path = paths.join(prefix, src.short_path)
-            if is_windows and _is_crlf_staged(src.short_path):
-                dst_files.append(_copy_crlf(ctx, src, dst_path))
-            else:
-                dst_files.append(_copy(ctx, src, dst_path))
+            dst_files.append(_stage(ctx, src, paths.join(prefix, src.short_path),
+                                    crlf = is_windows and _is_crlf_staged(src.short_path)))
     return dst_files
 
 def _copy_to_release_impl(ctx):
     prefix = ctx.attr.name + "/daal/latest"
-    version_info = ctx.attr._version_info[VersionInfo] if ctx.attr._version_info else None
+    version_info = get_version_info(ctx)
     files = []
     files += _copy_include(ctx, prefix, version_info)
     files += _copy_lib(ctx, prefix, version_info)
@@ -575,12 +341,7 @@ def _copy_to_release_impl(ctx):
     return [DefaultInfo(files=depset(files))]
 
 def _release_cpu_all_transition_impl(settings, attr):
-    """Transition @config//:cpu to 'all' when it is the default ('auto').
-    This ensures `bazel build //:release` compiles all ISA variants by default.
-    Explicit non-auto overrides (e.g. --cpu=avx2) are respected.
-    Note: Bazel cannot distinguish between an unset --cpu and explicit --cpu=auto;
-    both are overridden to 'all'.
-    """
+    """Build every ISA unless --cpu is set; an explicit --cpu=auto also becomes 'all'."""
     current = settings[_CPU_SETTING]
     if current == "auto":
         return {_CPU_SETTING: "all"}
@@ -600,56 +361,13 @@ _release = rule(
         "include_skip_prefix": attr.string_list(),
         "lib": attr.label_list(allow_files=True, cfg=_release_cpu_all_transition),
         "data": attr.label_list(allow_files=True, cfg=_release_cpu_all_transition),
-        "extra_files": attr.label_list(
-            allow_files = False,
-            doc = "Additional generated files to include in release. Must be rule targets (not bare file labels). Must be paired 1:1 with extra_files_dst.",
+        "extra_files": attr.string_keyed_label_dict(
+            doc = "Destination path under the release root -> the rule target producing that one file.",
         ),
-        "extra_files_dst": attr.string_list(
-            doc = "Destination paths for extra_files, relative to the release root.",
+        "dep_runtime": attr.string_keyed_label_dict(
+            doc = "Destination directory next to `daal/latest` -> the target whose files are staged there.",
         ),
-        "extra_files_win_dst": attr.string_list(
-            doc = "Windows-specific destination paths for extra_files; empty skips the file on Windows.",
-        ),
-        "dep_runtime": attr.label_list(
-            allow_files = False,
-            doc = "Third-party runtime libraries staged next to `daal/latest`. " +
-                  "Must be rule targets (not bare file labels), like extra_files. " +
-                  "Must be paired 1:1 with dep_runtime_dst.",
-        ),
-        "dep_runtime_dst": attr.string_list(
-            doc = "Destination directory of each dep_runtime entry, relative to the release root.",
-        ),
-        "dep_runtime_win_dst": attr.string_list(
-            doc = "Windows-specific destination directory of each dep_runtime " +
-                  "entry; empty skips the entry on Windows.",
-        ),
-        "_version_info": attr.label(
-            default = "@config//:version",
-            providers = [VersionInfo],
-        ),
-        "_build_date": attr.label(
-            default = "@onedal//dev/bazel:build_date",
-            providers = [BuildDateInfo],
-        ),
-        "_windows_constraint": attr.label(
-            default = "@platforms//os:windows",
-        ),
-        "_dll_to_implib": attr.label(
-            default = "@onedal//dev/bazel/toolchains/tools:dll_to_implib.bat",
-            allow_single_file = True,
-            doc = "Helper that derives a Windows DLL's import library by " +
-                  "running dumpbin+lib /def: post-link.",
-        ),
-        "_to_crlf": attr.label(
-            default = "@onedal//dev/bazel/toolchains/tools:copy_crlf.bat",
-            allow_single_file = True,
-            doc = "Helper that copies a text file converting line endings to " +
-                  "CRLF, matching the makefile's Windows release staging.",
-        ),
-        "_allowlist_function_transition": attr.label(
-            default = "@bazel_tools//tools/allowlists/function_transition_allowlist",
-        ),
-    } | RELEASE_ARCH_ATTRS,
+    } | TARGET_ATTRS | VERSION_ATTRS,
 )
 
 def _headers_filter_impl(ctx):
@@ -676,69 +394,34 @@ headers_filter = rule(
     },
 )
 
-_FEATURES_OPTION = "//command_line_option:features"
 _MSVC_RUNTIME_SETTING = str(Label("@config//:msvc_runtime"))
-_MSVC_RUNTIME_DEBUG_FEATURE = "msvc_runtime_debug"
 
-# Subdirectories of the release tree whose contents depend on the MSVC
-# runtime. Everything else (headers, datasets, examples, env scripts) is
-# runtime-independent and is taken from the release-runtime build only, so
-# the two trees can be merged without output collisions. Note this must stay
-# narrower than `lib/`: `lib/pkgconfig` and `lib/cmake` hold identically
-# named files in both flavours and are taken from the release build only.
+# The only CRT-dependent directories; the rest comes from the release-CRT build. Narrower than
+# `lib/`, whose pkgconfig and cmake files have the same names in both flavours.
 def _runtime_specific_dirs(arch_dir):
     return ["lib/{}/".format(arch_dir), "redist/{}/".format(arch_dir)]
 
-def _force_msvc_runtime(settings, debug):
-    """Pin the MSVC runtime configuration, ignoring any inherited setting.
-
-    Both the `--features` flag (which drives `-MD`/`-MDd` in the toolchain)
-    and the `@config//:msvc_runtime` build setting (which dependencies
-    `select()` on) are rewritten together, so a `--config=mdd` on the command
-    line cannot leave one half of the pair pointing the other way.
-    """
-    features = [
-        f
-        for f in settings[_FEATURES_OPTION]
-        if f != _MSVC_RUNTIME_DEBUG_FEATURE and f != "-" + _MSVC_RUNTIME_DEBUG_FEATURE
-    ]
-    if debug:
-        features = features + [_MSVC_RUNTIME_DEBUG_FEATURE]
-    return {
-        _FEATURES_OPTION: features,
-        _MSVC_RUNTIME_SETTING: "debug" if debug else "release",
-    }
-
+# Pin the MSVC runtime, ignoring any `--msvc_runtime` on the command line.
 def _force_msvc_runtime_release_impl(settings, attr):
-    return _force_msvc_runtime(settings, debug = False)
+    return {_MSVC_RUNTIME_SETTING: "release"}
 
 def _force_msvc_runtime_debug_impl(settings, attr):
-    return _force_msvc_runtime(settings, debug = True)
+    return {_MSVC_RUNTIME_SETTING: "debug"}
 
 _force_msvc_runtime_release_transition = transition(
     implementation = _force_msvc_runtime_release_impl,
-    inputs = [_FEATURES_OPTION],
-    outputs = [_FEATURES_OPTION, _MSVC_RUNTIME_SETTING],
+    inputs = [],
+    outputs = [_MSVC_RUNTIME_SETTING],
 )
 
 _force_msvc_runtime_debug_transition = transition(
     implementation = _force_msvc_runtime_debug_impl,
-    inputs = [_FEATURES_OPTION],
-    outputs = [_FEATURES_OPTION, _MSVC_RUNTIME_SETTING],
+    inputs = [],
+    outputs = [_MSVC_RUNTIME_SETTING],
 )
 
 def _relativize_release_file(file, dep):
-    """Return `file`'s path relative to `dep`'s release root, or None.
-
-    The release rule declares its outputs under `<target name>/daal/latest`
-    within its own package, so a generated file's `short_path` ends up as
-    `[<package>/]release/daal/latest/lib/intel64/onedal.lib`, and a sibling
-    runtime component staged by `dep_runtime` as
-    `[<package>/]release/tbb/latest/lib/libtbb.so.12`. Locate the release root
-    by its `<name>/<component>/latest` marker rather than assuming the target
-    sits in the root package, and return the component-relative remainder along
-    with the component directory, so both kinds of file round-trip.
-    """
+    """Split `file` into (`<component>/latest`, rest) under `dep`'s release root, or None."""
     path = file.short_path
     marker = dep.label.name + "/"
     start = 0
@@ -748,29 +431,17 @@ def _relativize_release_file(file, dep):
             break
         start = index + len(marker)
         parts = path[start:].split("/")
-        # `<component>/latest/<...>`: anything else is a package directory that
-        # happens to share the target's name.
+        # Otherwise a package directory that shares the target's name.
         if len(parts) >= 3 and parts[1] == "latest":
             return (paths.join(parts[0], "latest"), "/".join(parts[2:]))
     return None
 
 def _copy_from_release_tree(ctx, dep, prefix, only_dirs = None, staged = None):
-    """Copy `dep`'s release tree under `prefix`.
+    """Copy `dep`'s release tree under `prefix` (the `daal/latest` tree).
 
-    `prefix` names the `daal/latest` tree; sibling components staged next to it
-    keep their own `<component>/latest` path. `only_dirs` filters on the
-    component-relative path within `daal/latest`.
-
-    Sibling components are staged from both passes, unlike `daal/latest`, which
-    the filtered (second-flavour) pass narrows to the runtime-specific
-    directories. The Windows TBB repository selects a flavour under distinct
-    names (`tbb12.dll` versus `tbb12_debug.dll`,
-    `dev/bazel/deps/tbb_win.tpl.BUILD`), so a merged tree that kept only the
-    first pass would hold no runtime for its debug-CRT half. `staged` carries
-    the destinations already declared across passes, since Bazel rejects a
-    second `declare_file` for the same path: a file both flavours stage under
-    one name is copied once, and two different sources competing for one
-    destination fail rather than picking a winner.
+    `only_dirs` filters `daal/latest` only: sibling components such as TBB come from both
+    CRT flavours, whose runtimes have distinct names. `staged` holds the destinations
+    already declared, since Bazel rejects a second `declare_file` for one path.
     """
     dst_files = []
     release_root = paths.dirname(paths.dirname(prefix))
@@ -797,17 +468,11 @@ def _copy_from_release_tree(ctx, dep, prefix, only_dirs = None, staged = None):
                             dst, dep.label, previous, src.short_path))
                     continue
                 staged[dst] = src.short_path
-        dst_files.append(_copy(ctx, src, dst))
+        dst_files.append(_stage(ctx, src, dst))
     return dst_files
 
 def _get_single_dep(deps, attr_name):
-    """Return the one configured target of a transitioned label_list attribute.
-
-    `release_all` passes exactly one label per attribute; using label_list
-    (rather than a plain label) keeps the value shape identical to the
-    existing `_release_cpu_all_transition` attributes in this file, which are
-    also label_lists holding ordinary configured targets.
-    """
+    """Return the one configured target of a transitioned label_list attribute."""
     if len(deps) != 1:
         fail("Attribute '{}' must hold exactly one target, got {}".format(
             attr_name, len(deps)))
@@ -815,29 +480,17 @@ def _get_single_dep(deps, attr_name):
 
 def _release_all_impl(ctx):
     release_md = _get_single_dep(ctx.attr.release_md, "release_md")
-    is_windows = ctx.target_platform_has_constraint(
-        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
-    )
-    if not is_windows:
-        # The MSVC runtime distinction does not exist here, so there is
-        # nothing to merge. Forward the single release tree as-is rather than
-        # copying it: the Linux tree contains `.so` version symlinks, and
-        # copying would dereference them into duplicate real files.
+    if not target(ctx).is_windows:
+        # Forwarded rather than copied: copying would turn the `.so` symlinks into real files.
         return [DefaultInfo(files = release_md[DefaultInfo].files)]
     prefix = ctx.attr.name + "/daal/latest"
-    # Destinations of the sibling components staged by `dep_runtime`, shared
-    # across both passes so each is declared once (see _copy_from_release_tree).
     staged_components = {}
     files = _copy_from_release_tree(ctx, release_md, prefix, staged = staged_components)
-    # Only the libraries differ between the two runtimes, and they carry the
-    # `d` suffix, so both flavours coexist in one lib/redist directory. The
-    # pkg-config files describe the release runtime only; debug-runtime
-    # consumers get the right names from oneDALConfig.cmake, which appends
-    # its own DAL_DEBUG_SUFFIX. The staged runtimes of both flavours are kept:
-    # the debug TBB DLLs an `-MDd` consumer loads carry their own names.
+    # Only the `d`-suffixed libraries differ; pkg-config describes the release CRT, and
+    # oneDALConfig.cmake appends DAL_DEBUG_SUFFIX itself.
     files += _copy_from_release_tree(
         ctx, _get_single_dep(ctx.attr.release_mdd, "release_mdd"), prefix,
-        only_dirs = _runtime_specific_dirs(release_arch_dir(ctx)),
+        only_dirs = _runtime_specific_dirs(target(ctx).arch_dir),
         staged = staged_components,
     )
     return [DefaultInfo(files = depset(files))]
@@ -845,9 +498,6 @@ def _release_all_impl(ctx):
 _release_all = rule(
     implementation = _release_all_impl,
     attrs = {
-        # label_list rather than label: matches the existing transitioned
-        # attributes in this file and keeps the configured-target value shape
-        # unambiguous. Exactly one entry is expected (see _get_single_dep).
         "release_md": attr.label_list(
             mandatory = True,
             cfg = _force_msvc_runtime_release_transition,
@@ -860,30 +510,11 @@ _release_all = rule(
                   "Only its lib/<arch> and redist/<arch> contents are " +
                   "used; ignored entirely on non-Windows platforms.",
         ),
-        "_windows_constraint": attr.label(
-            default = "@platforms//os:windows",
-        ),
-        "_allowlist_function_transition": attr.label(
-            default = "@bazel_tools//tools/allowlists/function_transition_allowlist",
-        ),
-    } | RELEASE_ARCH_ATTRS,
+    } | TARGET_ATTRS,
 )
 
 def release_all(name, release_target):
-    """Assemble one release tree holding both Windows MSVC runtime flavours.
-
-    Builds `release_target` twice — once against the release CRT (`-MD`) and
-    once against the debug CRT (`-MDd`) — and merges the results. The debug
-    libraries carry a `d` suffix (`onedal_cored.lib`), mirroring the Makefile,
-    so both sets live side by side in `lib/<arch>` and `redist/<arch>`.
-
-    On non-Windows platforms the runtime distinction does not exist and the
-    output is equivalent to `release_target` alone.
-
-    Args:
-        name:           Target name (also the output directory prefix).
-        release_target: The `release()` target to build in both flavours.
-    """
+    """Build `release_target` with `-MD` and `-MDd` and merge both into one tree (Windows only)."""
     _release_all(
         name = name,
         release_md = [release_target],
@@ -893,34 +524,16 @@ def release_all(name, release_target):
 def release_include(hdrs, skip_prefix="", add_prefix=""):
     return (hdrs, add_prefix, skip_prefix)
 
-def release(name, include, lib, extra_files = [], data = [], dep_runtime = []):
+def release(name, include, lib, extra_files = {}, data = [], dep_runtime = {}):
     """Assemble the oneDAL release directory tree.
 
     Args:
-        name:        Target name (also used as the output directory prefix).
-        include:     List of release_include() tuples for headers.
-        lib:         List of library targets (static, shared).
-        extra_files: List of (label, dst_path) tuples for additional files.
-                     Use release_extra_file() helper to construct entries.
-                     Example:
-                       extra_files = [
-                           release_extra_file(":release_vars_sh", "env/vars.sh"),
-                           release_extra_file(":release_pkgconfig", "lib/pkgconfig/onedal.pc", windows_dst_path = ""),
-                       ]
-        data:        List of filegroup targets to copy preserving directory structure.
-                     Example:
-                       data = [
-                           "//data:datasets",
-                           "//deploy/local:config",
-                       ]
-        dep_runtime: List of (label, dst_dir, windows_dst_dir) tuples for
-                     third-party runtime libraries staged next to `daal/latest`,
-                     matching Make's `<release root>/tbb/latest` layout. Use the
-                     release_dep_runtime() helper to construct entries. Example:
-                       dep_runtime = [
-                           release_dep_runtime("@tbb//:tbb_runtime", "tbb/latest/lib",
-                                               windows_dst_dir = "tbb/latest/bin/vc_mt"),
-                       ]
+        name: target name and output directory prefix.
+        include: release_include() entries.
+        lib: library targets.
+        extra_files: destination path under the release root -> target producing that one file.
+        data: filegroups copied with their directory structure.
+        dep_runtime: directory next to `daal/latest` -> target whose files are staged there.
     """
     rule_include = []
     rule_include_prefix = []
@@ -930,20 +543,6 @@ def release(name, include, lib, extra_files = [], data = [], dep_runtime = []):
             rule_include.append(dep)
             rule_include_prefix.append(prefix)
             rule_include_skip_prefix.append(skip_prefix)
-
-    rule_extra_files = []
-    rule_extra_files_dst = []
-    rule_extra_files_win_dst = []
-    for extra_file in extra_files:
-        if len(extra_file) == 2:
-            label, dst = extra_file
-            win_dst = dst
-        else:
-            label, dst, win_dst = extra_file
-        rule_extra_files.append(label)
-        rule_extra_files_dst.append(dst)
-        rule_extra_files_win_dst.append(win_dst)
-
     _release(
         name = name,
         include = rule_include,
@@ -951,38 +550,6 @@ def release(name, include, lib, extra_files = [], data = [], dep_runtime = []):
         include_skip_prefix = rule_include_skip_prefix,
         lib = lib,
         data = data,
-        extra_files = rule_extra_files,
-        extra_files_dst = rule_extra_files_dst,
-        extra_files_win_dst = rule_extra_files_win_dst,
-        dep_runtime = [entry[0] for entry in dep_runtime],
-        dep_runtime_dst = [entry[1] for entry in dep_runtime],
-        dep_runtime_win_dst = [entry[2] if len(entry) == 3 else entry[1] for entry in dep_runtime],
+        extra_files = extra_files,
+        dep_runtime = dep_runtime,
     )
-
-def release_extra_file(label, dst_path, windows_dst_path = None):
-    """Helper to declare an extra file for release().
-
-    Args:
-        label:    Bazel label of the target producing the file.
-        dst_path: Destination path relative to the release root (e.g. "env/vars.sh").
-
-    Returns:
-        A tuple (label, dst_path) for use in release(extra_files=...).
-    """
-    return (label, dst_path, dst_path if windows_dst_path == None else windows_dst_path)
-
-def release_dep_runtime(label, dst_dir, windows_dst_dir = None):
-    """Helper to declare a staged runtime dependency for release().
-
-    Args:
-        label:           Bazel label of the target producing the files.
-        dst_dir:         Destination directory relative to the release root that
-                         holds `daal/latest` (e.g. "tbb/latest/lib").
-        windows_dst_dir: Windows destination directory; defaults to dst_dir.
-                         Pass "" to skip the entry on Windows.
-
-    Returns:
-        A tuple (label, dst_dir, windows_dst_dir) for use in
-        release(dep_runtime=...).
-    """
-    return (label, dst_dir, dst_dir if windows_dst_dir == None else windows_dst_dir)

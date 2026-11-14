@@ -24,10 +24,6 @@ load("@onedal//dev/bazel:cc.bzl",
 load("@onedal//dev/bazel/deps:mpi.bzl",
     "mpi_test",
 )
-
-load("@onedal//dev/bazel/deps:ccl.bzl",
-    "ccl_test",
-)
 load("@onedal//dev/bazel:release.bzl",
     "headers_filter",
 )
@@ -37,33 +33,37 @@ load("@onedal//dev/bazel:utils.bzl",
     "utils",
 )
 load("@onedal//dev/bazel/config:config.bzl",
-    "CpuInfo",
+    "CPU_ATTRS",
+    "ISA_TABLE",
+    "get_cpu_info",
 )
 
+_COMPILE_AS = ["c++", "dpc++"]
+
+def _check_compile_as(name, compile_as):
+    for value in compile_as:
+        if value not in _COMPILE_AS:
+            fail("'{}': compile_as holds '{}', expected values from {}".format(name, value, _COMPILE_AS))
+
 def dal_module(name, hdrs=[], srcs=[], dal_deps=[], extra_deps=[],
-               host_hdrs=[], host_srcs=[], host_deps=[], dpc_hdrs=[],
+               host_srcs=[], host_deps=[],
                dpc_srcs=[], dpc_deps=[], auto=False, auto_exclude=[],
-               compile_as=[ "c++", "dpc++" ], **kwargs):
-    # TODO: Check `compile_as` parameter
+               compile_as=_COMPILE_AS, **kwargs):
+    """A oneAPI module: `name` for C++ and `name_dpc` for DPC++, with `_dpc` deps on the DPC++ side.
+
+    `auto` globs the package's `.hpp` and `.cpp` files, test files excluded; `*_dpc.cpp` is DPC++ only.
+    """
+    _check_compile_as(name, compile_as)
+    auto_hdrs, host_auto_srcs, dpc_auto_srcs = [], [], []
     if auto:
-        hpp_filt = ["**/*.hpp"] + auto_exclude
-        cpp_filt = ["**/*.cpp"] + auto_exclude
-        dpc_filt = ["**/*_dpc.cpp"] + auto_exclude
-        test_filt = ["**/*_test*", "**/test/**"] + auto_exclude
-        hdrs_all = native.glob(hpp_filt, exclude=test_filt)
-        dpc_auto_hdrs = hdrs_all
-        dpc_auto_srcs = native.glob(cpp_filt, exclude=test_filt, allow_empty=True,)
-        host_auto_hdrs = hdrs_all
-        host_auto_srcs = native.glob(cpp_filt, exclude=test_filt + dpc_filt, allow_empty=True,)
-    else:
-        host_auto_hdrs = []
-        host_auto_srcs = []
-        dpc_auto_hdrs = []
-        dpc_auto_srcs = []
+        exclude = ["**/*_test*", "**/test/**"] + auto_exclude
+        auto_hdrs = native.glob(["**/*.hpp"], exclude = exclude)
+        dpc_auto_srcs = native.glob(["**/*.cpp"], exclude = exclude, allow_empty = True)
+        host_auto_srcs = native.glob(["**/*.cpp"], exclude = exclude + ["**/*_dpc.cpp"], allow_empty = True)
     if "c++" in compile_as:
         _dal_module(
             name = name,
-            hdrs = hdrs + host_auto_hdrs + host_hdrs,
+            hdrs = hdrs + auto_hdrs,
             srcs = srcs + host_auto_srcs + host_srcs,
             deps = dal_deps + host_deps + extra_deps,
             **kwargs,
@@ -71,7 +71,7 @@ def dal_module(name, hdrs=[], srcs=[], dal_deps=[], extra_deps=[],
     if "dpc++" in compile_as:
         _dal_module(
             name = name + "_dpc",
-            hdrs = hdrs + dpc_auto_hdrs + dpc_hdrs,
+            hdrs = hdrs + auto_hdrs,
             srcs = srcs + dpc_auto_srcs + dpc_srcs,
             deps = _get_dpc_deps(dal_deps) + dpc_deps + extra_deps,
             is_dpc = True,
@@ -119,12 +119,7 @@ def dal_public_includes(name, dal_deps=[], **kwargs):
             "_dal_cpu_dispatcher_gen.hpp",
             "backend/",
             "test/",
-            # Exclude all external-repository headers.  _match_file_name uses
-            # file.short_path, where every external dep starts with "../":
-            #   workspace style:  ../mkl_repo/include/mkl.h
-            #   Bzlmod style:     ../mkl_repo~2024.2/include/mkl.h
-            # The old "bazel-" pattern only caught workspace-style paths in
-            # file.path; it missed Bzlmod "+mkl_repo+mkl/" hashes entirely.
+            # External repositories.
             "../",
         ],
     )
@@ -179,9 +174,7 @@ def dal_dynamic_lib(name, lib_name, dal_deps=[], host_deps=[],
         features = features + [ "dpc++" ],
         lib_name = lib_name + "_dpc",
         lib_tags = dpc_lib_tags if dpc_lib_tags != None else lib_tags,
-        # dpc_host_deps is reserved for platform glue compiled as host code
-        # into a DPC library. Never forward ordinary host_deps here: doing so
-        # folds host parameter objects into the DPC library as duplicates.
+        # Only platform glue: ordinary host_deps would duplicate the host parameter objects.
         deps = _get_dpc_deps(dal_deps) + extra_deps + dpc_deps + dpc_host_deps,
         **dpc_kwargs
     )
@@ -195,25 +188,22 @@ def _not_on_windows():
     })
 
 def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
-             extra_deps=[], host_hdrs=[], host_srcs=[], host_deps=[],
-             dpc_hdrs=[], dpc_srcs=[], dpc_deps=[], compile_as=[ "c++", "dpc++" ],
+             extra_deps=[], host_srcs=[], host_deps=[],
+             dpc_srcs=[], dpc_deps=[], compile_as=_COMPILE_AS,
              framework="catch2", data=[], tags=[], private=False,
              mpi=False, ccl=False, mpi_ranks=0, args=[],
              use_onedal_release_libs=True, target_compatible_with=[], **kwargs):
-    # TODO: Check `compile_as` parameter
-    # TODO: Refactor this rule once decision on the tests structure is made
     if not framework in ["catch2", "none"]:
         fail("Unknown test framework '{}' in test rule '{}'".format(framework, name))
+    _check_compile_as(name, compile_as)
     is_catch2 = framework == "catch2"
     module_name = "_" + name
     dal_module(
         name = module_name,
         hdrs = hdrs,
         srcs = srcs,
-        host_hdrs = host_hdrs,
         host_srcs = host_srcs,
         host_deps = host_deps,
-        dpc_hdrs = dpc_hdrs,
         dpc_srcs = dpc_srcs,
         dpc_deps = dpc_deps,
         compile_as = compile_as,
@@ -239,9 +229,7 @@ def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
         _test_device_args() +
         args
     )
-    # Tests need to be marked as manual to prevent inclusion of all tests to
-    # `empty_test` suites, more detail:
-    # https://docs.bazel.build/versions/4.1.0/be/general.html#test_suite_args
+    # Manual, or a test_suite with empty `tests` would take all of them.
     common_tags = [ "manual" ]
 
     tests_for_test_suite = []
@@ -282,7 +270,7 @@ def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
     )
 
 def dal_test_suite(name, srcs=[], tests=[],
-                   compile_as=[ "c++", "dpc++" ], not_on_windows=[], **kwargs):
+                   compile_as=_COMPILE_AS, not_on_windows=[], **kwargs):
     """
     @param not_on_windows  Entries of `srcs` whose tests are skipped on Windows.
     """
@@ -296,9 +284,7 @@ def dal_test_suite(name, srcs=[], tests=[],
         if target.endswith("_dpc"):
             is_dpc_only = ("dpc++" in compile_as) and (not "c++" in compile_as)
             if is_dpc_only:
-                # We need to remove `_dpc` suffix here as `dal_test` rule
-                # adds `_dpc` suffix if `compile_as` attribute contains 'dpc++' target.
-                # Otherwise the generated test will have '_dpc_dpc' suffix.
+                # dal_test appends `_dpc` itself.
                 target = target.replace("_dpc", "")
             else:
                 utils.warn("Test name ends with '_dpc' suffix but compiled for both " +
@@ -341,7 +327,7 @@ def dal_collect_parameters(name, root, modules=[], target="parameters", dal_deps
     )
 
 def dal_example(name, dal_deps=[], use_onedal_release_libs=True, is_daal=False, **kwargs):
-    base_deps = [] if is_daal else [
+    base_deps = ["@onedal//cpp/daal:core"] if is_daal else [
         "@onedal//cpp/oneapi/dal:core",
         "@onedal//cpp/oneapi/dal/io",
     ]
@@ -394,10 +380,12 @@ def _test_link_mode_deps(dal_deps, use_onedal_release_libs=True):
     })
 
 def _test_deps_on_daal():
+    # Modules name the DAAL kernels they use, so a test from sources links only those; MSVC objects
+    # also reference LibraryVersionInfo through its exported virtual destructor.
     return _select({
         "@config//:test_link_mode_dev": [
-            "@onedal//cpp/daal:core_static",
             "@onedal//cpp/daal:threading_static",
+            "@onedal//cpp/daal:version_info",
         ],
         "@config//:test_link_mode_release_static": [
             "@onedal_release//:core_static",
@@ -411,9 +399,8 @@ def _test_deps_on_daal():
 
 def _test_runtime_data():
     return _select({
-        # The dev threading layer links TBB through import libraries on
-        # Windows; the loader finds tbb12.dll only next to the test exe,
-        # where _copy_windows_runtime_files puts the DLLs of `data`.
+        # On Windows the loader finds tbb12.dll only next to the test exe, where
+        # _copy_windows_runtime_files puts the DLLs of `data`.
         "@config//:test_link_mode_dev": [
             "@tbb//:tbb_runtime",
         ],
@@ -451,34 +438,21 @@ def _test_external_datasets_args(framework):
 def _test_filter_args(framework):
     if framework == "catch2":
         return _select({
-            "@config//:test_nightly_enabled": ["~[weekly]"],
-            "@config//:test_weekly_enabled": [],
-            "//conditions:default": [
-                "~[nightly]", "~[weekly]",
-            ],
+            "@config//:test_tier_nightly": ["~[weekly]"],
+            "@config//:test_tier_weekly": [],
+            "//conditions:default": ["~[nightly]", "~[weekly]"],
         })
     return []
 
 def _dal_generate_cpu_dispatcher_impl(ctx):
-    cpus = sets.make(ctx.attr._cpus[CpuInfo].enabled)
+    enabled = get_cpu_info(ctx).enabled
     content = (
         "// DO NOT EDIT: file is auto-generated on build time\n" +
         "// DO NOT PUT THIS FILE TO SVC: file is auto-generated on build time\n" +
-        "// CPU detection logic specified in dev/bazel/config.bzl file\n" +
+        "// CPU detection logic specified in dev/bazel/config/config.bzl file\n" +
         "\n" +
-        ("#define ONEDAL_CPU_DISPATCH_SSE2\n"       if sets.contains(cpus, "sse2")       else "") +
-        ("#define ONEDAL_CPU_DISPATCH_AVX2\n"       if sets.contains(cpus, "avx2")       else "") +
-        ("#define ONEDAL_CPU_DISPATCH_AVX512\n"     if sets.contains(cpus, "avx512")     else "") +
-        # Non-x86 ISAs need their dispatch macro too, otherwise
-        # ONEDAL_IF_CPU_DISPATCH_A8SVE / _RV64 in
-        # cpp/oneapi/dal/backend/dispatcher_cpu.hpp expand to nothing and
-        # dispatch_by_cpu() falls through: on ARM straight into
-        # `throw unsupported_device{ sve_not_supported() }`, so every oneAPI
-        # algorithm fails at runtime. Mirrors
-        # dev/make/function_definitions/{arm,riscv64}.mk, which emit the same
-        # defines into _dal_cpu_dispatcher_gen.hpp.
-        ("#define ONEDAL_CPU_DISPATCH_A8SVE\n"      if sets.contains(cpus, "sve")        else "") +
-        ("#define ONEDAL_CPU_DISPATCH_RV64\n"       if sets.contains(cpus, "rv64")       else "")
+        "".join(["#define ONEDAL_CPU_DISPATCH_{}\n".format(info.dispatch)
+                 for isa, info in ISA_TABLE.items() if isa in enabled])
     )
     kernel_defines = ctx.actions.declare_file(ctx.attr.out)
     ctx.actions.write(kernel_defines, content)
@@ -489,10 +463,7 @@ dal_generate_cpu_dispatcher = rule(
     output_to_genfiles = True,
     attrs = {
         "out": attr.string(mandatory=True),
-        "_cpus": attr.label(
-            default = "@config//:cpu",
-        ),
-    },
+    } | CPU_ATTRS,
 )
 
 def dal_global_header_test(name, algo_dir, algo_exclude=[], algo_preview=[], dal_deps=[]):
@@ -535,7 +506,6 @@ def _generate_global_header_test_cpp_impl(ctx):
     preview_algo_names = sets.make(ctx.attr.algo_preview)
     test_file = ctx.actions.declare_file("{}.cpp".format(ctx.label.name))
     content = "#include \"oneapi/dal.hpp\"\n"
-    # Add comments for people who may open this file to understand root cause of an error
     content += (
         "\n" +
         "// This is automatically generated file for testing `dal.hpp`.\n" +
@@ -549,9 +519,7 @@ def _generate_global_header_test_cpp_impl(ctx):
             content += "using namespace oneapi::dal::preview::{};\n".format(algo_name)
         else:
             content += "using namespace oneapi::dal::{};\n".format(algo_name)
-    # Linkers may complain about empty object files, so
-    # add dummy function. It's more safe to declare static function, but
-    # compiler warns about unused functions in this case
+    # Avoids an empty object file; a static function would warn as unused.
     content += "\nvoid __headers_test_dummy__() {}\n"
     ctx.actions.write(test_file, content)
     return [ DefaultInfo(files=depset([ test_file ])) ]
@@ -575,15 +543,9 @@ def _dal_module(name, lib_tag="dal", is_dpc=False, features=[],
         features = [ "pedantic", "c++17" ] + features + (
             ["dpc++"] if is_dpc else []
         ),
-        cpu_defines = {
-            "sse2":   [ "__CPU_TAG__=__CPU_TAG_SSE2__"   ],
-            "avx2":   [ "__CPU_TAG__=__CPU_TAG_AVX2__"   ],
-            "avx512": [ "__CPU_TAG__=__CPU_TAG_AVX512__" ],
-            # Matches cpp/oneapi/dal/backend/dispatcher.hpp's TARGET_ARM /
-            # TARGET_RISCV64 branches.
-            "sve":    [ "__CPU_TAG__=__CPU_TAG_ARMV8SVE__"   ],
-            "rv64":   [ "__CPU_TAG__=__CPU_TAG_RISCV64GC__" ],
-        },
+        # The tags of cpp/oneapi/dal/backend/dispatcher.hpp.
+        cpu_defines = {isa: ["__CPU_TAG__=__CPU_TAG_{}__".format(info.dal_tag)]
+                       for isa, info in ISA_TABLE.items()},
         copts = copts + select({
             # -EHsc on the oneAPI objects only, as Make's icx build; the vc build adds it via compile.bzl.
             # Tests and examples keep exception handling; Catch2 needs it for tests.
@@ -621,44 +583,25 @@ def _dal_module(name, lib_tag="dal", is_dpc=False, features=[],
         **kwargs,
     )
 
-def _dal_cc_test(name, mpi=False, ccl = False, mpi_ranks=0, **kwargs):
-    if mpi:
-        if mpi_ranks <= 0:
-            fail("Test is marked as MPI, you must provide `mpi_ranks` " +
-                 "attribute with the valid number of MPI ranks ")
-        cc_test(
-            name = "_mpi_" + name,
-            **kwargs,
-        )
-        mpi_test(
-            name = name,
-            src = "_mpi_" + name,
-            mpi_ranks = mpi_ranks,
-            mpiexec = "@mpi//:mpiexec",
-            fi = "@mpi//:fi",
-            libfabric = "@mpi//:libfabric_runtime",
-        )
-    elif ccl:
-        if mpi_ranks <= 0:
-            fail("Test is marked as CCL, you must provide `mpi_ranks` " +
-                 "attribute with the valid number of MPI ranks ")
-        cc_test(
-            name = "_ccl_" + name,
-            **kwargs,
-        )
-        ccl_test(
-            name = name,
-            src = "_ccl_" + name,
-            mpi_ranks = mpi_ranks,
-            mpiexec = "@mpi//:mpiexec",
-            fi = "@mpi//:fi",
-            libfabric = "@mpi//:libfabric_runtime",
-        )
-    else:
-        cc_test(
-            name = name,
-            **kwargs,
-        )
+def _dal_cc_test(name, mpi=False, ccl=False, mpi_ranks=0, **kwargs):
+    if not (mpi or ccl):
+        cc_test(name = name, **kwargs)
+        return
+    if mpi_ranks <= 0:
+        fail("'{}' is an MPI or CCL test, so it needs `mpi_ranks` > 0".format(name))
+    # The binary keeps its own target; mpiexec launches it with the requested ranks (CCL included).
+    binary = ("_ccl_" if ccl else "_mpi_") + name
+    cc_test(name = binary, **kwargs)
+    mpi_test(
+        name = name,
+        src = binary,
+        mpi_ranks = mpi_ranks,
+        mpiexec = "@mpi//:mpiexec",
+        fi = "@mpi//:fi",
+        libfabric = "@mpi//:libfabric_runtime",
+        tags = kwargs.get("tags", []),
+        target_compatible_with = kwargs.get("target_compatible_with", []),
+    )
 
 def _select(x):
     return [x]
@@ -708,12 +651,7 @@ def daal_example_suite(name, srcs, use_onedal_release_libs=False, **kwargs):
     )
 
 def daal_algo_example_suite(algos, dal_deps=[], **kwargs):
-    """Build DAAL example suites using classic DAAL kernel deps.
-
-    Unlike dal_algo_example_suite(), this function does NOT add oneAPI
-    (@onedal//cpp/oneapi/dal/algo/...) targets — DAAL examples use daal.h
-    and depend on DAAL kernels (@onedal//cpp/daal/src/algorithms/<algo>:kernel).
-    """
+    """Build DAAL example suites against the DAAL kernels, without the oneAPI algorithm targets."""
     for algo in algos:
         daal_example_suite(
             name = algo,

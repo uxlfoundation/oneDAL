@@ -39,17 +39,6 @@ _DATA_DEPS = [
 ]
 
 daal_example_suite(
-    name = "cholesky",
-    compile_as = [ "c++" ],
-    srcs = glob(["source/cholesky/*.cpp"]),
-    dal_deps = [
-        "@onedal//cpp/daal/src/algorithms/cholesky:kernel",
-    ],
-    data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
-)
-
-daal_example_suite(
     name = "datasource",
     compile_as = [ "c++" ],
     srcs = glob(["source/datasource/*.cpp"]),
@@ -152,39 +141,6 @@ daal_example_suite(
 )
 
 daal_example_suite(
-    name = "implicit_als",
-    compile_as = [ "c++" ],
-    srcs = glob(["source/implicit_als/*.cpp"]),
-    dal_deps = [
-        "@onedal//cpp/daal/src/algorithms/implicit_als:kernel",
-    ],
-    data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
-)
-
-daal_example_suite(
-    name = "k_nearest_neighbors",
-    compile_as = [ "c++" ],
-    srcs = glob(["source/k_nearest_neighbors/*.cpp"]),
-    dal_deps = [
-        "@onedal//cpp/daal/src/algorithms/k_nearest_neighbors:kernel",
-    ],
-    data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
-)
-
-daal_example_suite(
-    name = "kernel_function",
-    compile_as = [ "c++" ],
-    srcs = glob(["source/kernel_function/*.cpp"]),
-    dal_deps = [
-        "@onedal//cpp/daal/src/algorithms/kernel_function:kernel",
-    ],
-    data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
-)
-
-daal_example_suite(
     name = "lasso_regression",
     compile_as = [ "c++" ],
     srcs = glob(["source/lasso_regression/*.cpp"]),
@@ -270,39 +226,6 @@ daal_example_suite(
 )
 
 daal_example_suite(
-    name = "pivoted_qr",
-    compile_as = [ "c++" ],
-    srcs = glob(["source/pivoted_qr/*.cpp"]),
-    dal_deps = [
-        "@onedal//cpp/daal/src/algorithms/pivoted_qr:kernel",
-    ],
-    data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
-)
-
-daal_example_suite(
-    name = "qr",
-    compile_as = [ "c++" ],
-    srcs = glob(["source/qr/*.cpp"]),
-    dal_deps = [
-        "@onedal//cpp/daal/src/algorithms/qr:kernel",
-    ],
-    data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
-)
-
-daal_example_suite(
-    name = "ridge_regression",
-    compile_as = [ "c++" ],
-    srcs = glob(["source/ridge_regression/*.cpp"]),
-    dal_deps = [
-        "@onedal//cpp/daal/src/algorithms/ridge_regression:kernel",
-    ],
-    data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
-)
-
-daal_example_suite(
     name = "serialization_example",
     compile_as = [ "c++" ],
     srcs = glob(["source/serialization/*.cpp"]),
@@ -329,17 +252,6 @@ daal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-daal_example_suite(
-    name = "svd",
-    compile_as = [ "c++" ],
-    srcs = glob(["source/svd/*.cpp"]),
-    dal_deps = [
-        "@onedal//cpp/daal/src/algorithms/svd:kernel",
-    ],
-    data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
-)
-
 # TODO: investigate the issue with excluded example
 daal_example_suite(
     name = "svm",
@@ -357,11 +269,19 @@ daal_example_suite(
 
 daal_algo_example_suite(
     algos = [
+        "cholesky",
         "covariance",
         "dbscan",
+        "implicit_als",
+        "k_nearest_neighbors",
+        "kernel_function",
         "kmeans",
         "linear_regression",
         "pca",
+        "pivoted_qr",
+        "qr",
+        "ridge_regression",
+        "svd",
     ],
     compile_as = [ "c++" ],
     data = _DATA_DEPS,

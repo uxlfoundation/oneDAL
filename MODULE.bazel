@@ -43,11 +43,7 @@ http_archive(
     build_file = "//dev/bazel/deps:catch2.BUILD",
 )
 
-# Prebuilt binary dependencies. Each is fully described by its own
-# `dev/bazel/deps/<dep>.bzl` file -- download URLs and hashes, the environment
-# variable that points at a local installation, the expected file layout and the
-# BUILD template all live there, so that bumping a dependency touches one file
-# and never this one.
+# Prebuilt dependencies: URLs, hashes and the local-install lookup live in dev/bazel/deps/<dep>.bzl.
 opencl_repo = use_repo_rule("@onedal//dev/bazel/deps:opencl.bzl", "opencl_repo")
 opencl_repo(name = "opencl")
 

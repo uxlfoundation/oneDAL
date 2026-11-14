@@ -15,9 +15,10 @@
 #===============================================================================
 
 load("@onedal//dev/bazel:utils.bzl", "utils", "sets")
-load("@onedal//dev/bazel:version.bzl", "VERSION")
-load("@onedal//dev/bazel:stamp.bzl", "DEV_BUILD_DATE")
-load("@onedal//dev/bazel/toolchains:common.bzl", "detect_os", "detect_compiler", "detect_host_arch", "detect_target_arch", "is_dpc_compiler_found")
+load("@onedal//dev/bazel:version.bzl", "DEV_BUILD_DATE", "VERSION")
+load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
+load("@onedal//dev/bazel/toolchains:common.bzl", "arch_dir", "detect_os", "detect_compiler", "detect_host_arch", "detect_target_arch", "is_dpc_compiler_found")
+load("@onedal//dev/bazel/toolchains:cc_toolchain_win.bzl", "win_compiler_id")
 
 ConfigFlagInfo = provider(
     fields = [
@@ -81,29 +82,76 @@ unsupported_config = rule(
 )
 
 
+TargetInfo = provider(
+    doc = "The target platform, read once from its constraints by @config//:target.",
+    fields = {
+        "os": "`lnx`, `win` or `mac`.",
+        "arch": "`intel64`, `arm` or `riscv64`.",
+        "is_windows": "Whether the target OS is Windows.",
+        "is_linux": "Whether the target OS is Linux.",
+        "arch_dir": "The `lib/<arch>` directory of the release tree, Make's ARCH_DIR_ONEDAL.",
+        "msvc_runtime_debug": "Whether Windows targets use the debug CRT (`--msvc_runtime=debug`).",
+    },
+)
+
+def _target_info_impl(ctx):
+    def has(constraint):
+        return ctx.target_platform_has_constraint(constraint[platform_common.ConstraintValueInfo])
+
+    if has(ctx.attr._windows):
+        os = "win"
+    elif has(ctx.attr._osx):
+        os = "mac"
+    else:
+        os = "lnx"
+    if has(ctx.attr._aarch64):
+        arch = "arm"
+    elif has(ctx.attr._riscv64):
+        arch = "riscv64"
+    else:
+        arch = "intel64"
+    return [TargetInfo(
+        os = os,
+        arch = arch,
+        is_windows = os == "win",
+        is_linux = has(ctx.attr._linux),
+        arch_dir = arch_dir(os, arch),
+        msvc_runtime_debug = os == "win" and ctx.attr.msvc_runtime[ConfigFlagInfo].flag == "debug",
+    )]
+
+target_info = rule(
+    implementation = _target_info_impl,
+    attrs = {
+        "msvc_runtime": attr.label(mandatory = True, providers = [ConfigFlagInfo]),
+        "_windows": attr.label(default = "@platforms//os:windows"),
+        "_linux": attr.label(default = "@platforms//os:linux"),
+        "_osx": attr.label(default = "@platforms//os:osx"),
+        "_aarch64": attr.label(default = "@platforms//cpu:aarch64"),
+        "_riscv64": attr.label(default = "@platforms//cpu:riscv64"),
+    },
+)
+
+# Merge into a rule's attrs with `|`; `target(ctx)` then gives the TargetInfo.
+TARGET_ATTRS = {
+    "_target": attr.label(default = "@config//:target", providers = [TargetInfo]),
+}
+
+def target(ctx):
+    return ctx.attr._target[TargetInfo]
+
 def validate_build_parameters_lib(value, is_windows):
     if is_windows and value == "yes":
         fail("--build_parameters_lib=yes is not supported on Windows; use auto or no")
 
-
 def _build_parameters_lib_validation_impl(ctx):
-    value = ctx.attr.flag[ConfigFlagInfo].flag
-    is_windows = ctx.target_platform_has_constraint(
-        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
-    )
-    validate_build_parameters_lib(value, is_windows)
+    validate_build_parameters_lib(ctx.attr.flag[ConfigFlagInfo].flag, ctx.attr.target[TargetInfo].is_windows)
     return []
 
 build_parameters_lib_validation = rule(
     implementation = _build_parameters_lib_validation_impl,
     attrs = {
-        "flag": attr.label(
-            mandatory = True,
-            providers = [ConfigFlagInfo],
-        ),
-        "_windows_constraint": attr.label(
-            default = "@platforms//os:windows",
-        ),
+        "flag": attr.label(mandatory = True, providers = [ConfigFlagInfo]),
+        "target": attr.label(mandatory = True, providers = [TargetInfo]),
     },
 )
 
@@ -114,29 +162,30 @@ CpuInfo = provider(
     ],
 )
 
-_ISA_EXTENSIONS_X86 = ["sse2", "avx2", "avx512"]
-_ISA_EXTENSIONS_ARM = ["sve"]
-_ISA_EXTENSIONS_RISCV64 = ["rv64"]
-_ISA_EXTENSION_AUTO_DEFAULT = "avx2"
-
-_ARCH_TO_ISA_EXTENSIONS = {
-    "arm": _ISA_EXTENSIONS_ARM,
-    "riscv64": _ISA_EXTENSIONS_RISCV64,
+# Merge into a rule's attrs with `|`; `get_cpu_info(ctx)` then gives the CpuInfo of --cpu.
+CPU_ATTRS = {
+    "_cpus": attr.label(default = "@config//:cpu", providers = [CpuInfo]),
 }
 
+def get_cpu_info(ctx):
+    return ctx.attr._cpus[CpuInfo]
+
+# One row per ISA: its arch, the DAAL dispatch macro, the oneAPI CPU tag and the suffix of the
+# per-ISA source files (`_nrh`, `_hsw`, `_skx`); x86 is the only arch with several ISAs.
+ISA_TABLE = {
+    "sse2": struct(arch = "intel64", dispatch = "SSE2", dal_tag = "SSE2", suffix = "_nrh"),
+    "avx2": struct(arch = "intel64", dispatch = "AVX2", dal_tag = "AVX2", suffix = "_hsw"),
+    "avx512": struct(arch = "intel64", dispatch = "AVX512", dal_tag = "AVX512", suffix = "_skx"),
+    "sve": struct(arch = "arm", dispatch = "A8SVE", dal_tag = "ARMV8SVE", suffix = None),
+    "rv64": struct(arch = "riscv64", dispatch = "RV64", dal_tag = "RISCV64GC", suffix = None),
+}
+
+_ISA_EXTENSIONS_X86 = [isa for isa, info in ISA_TABLE.items() if info.arch == "intel64"]
+_ISA_EXTENSION_AUTO_DEFAULT = "avx2"
+
 def _get_allowed_isa_extensions(ctx):
-    # x86 has multiple ISA variants with runtime dispatch; ARM/RISC-V
-    # currently ship exactly one fixed variant (see cpp/daal/src/services/cpu_type.h),
-    # so their `allowed` list is a single value.
-    #
-    # `cpu_info` is a `build_setting` rule; Bazel trims `PlatformOptions`
-    # from build-setting configurations for cross-config cache sharing, so
-    # `ctx.target_platform_has_constraint` is not reliable here. The arch is
-    # instead resolved once at repository-rule time (see
-    # `_declare_onedal_config_impl`) from the same `CC`/`CXX` cross-compiler
-    # triple prefix that `dev/bazel/toolchains/cc_toolchain.bzl` uses, and
-    # threaded in through the `arch` attribute.
-    return _ARCH_TO_ISA_EXTENSIONS.get(ctx.attr.arch, _ISA_EXTENSIONS_X86)
+    # Build settings do not see the target platform, so the arch comes from the repository rule.
+    return [isa for isa, info in ISA_TABLE.items() if info.arch == ctx.attr.arch]
 
 def _check_cpu_extensions(extensions, allowed):
     allowed_set = sets.make(allowed)
@@ -149,21 +198,16 @@ def _check_cpu_extensions(extensions, allowed):
 def _cpu_info_impl(ctx):
     allowed = _get_allowed_isa_extensions(ctx)
     is_x86 = allowed == _ISA_EXTENSIONS_X86
-    # `all` and `modern` select the same set: they diverged only while `sse42`
-    # was built (`all` included it, `modern` did not), and that variant was
-    # removed in #3487, leaving x86 with sse2/avx2/avx512 either way.
     if ctx.build_setting_value in ["all", "modern"]:
         isa_extensions = allowed
     elif ctx.build_setting_value == "auto":
-        # `auto_cpu` reflects the exec host's CPU probe, which is only
-        # meaningful for a native x86 build. ARM/RISC-V always builds their
-        # single supported variant regardless of the exec host.
+        # The exec host probe means something for a native x86 build only.
         isa_extensions = [ ctx.attr.auto_cpu ] if is_x86 else allowed
     else:
         isa_extensions = ctx.build_setting_value.split(" ")
         isa_extensions = [x.strip() for x in isa_extensions]
     if is_x86:
-        # sse2 is the runtime-dispatch fallback variant on x86 and is always built.
+        # The runtime-dispatch fallback.
         isa_extensions = utils.unique(["sse2"] + isa_extensions)
     else:
         isa_extensions = utils.unique(isa_extensions)
@@ -178,36 +222,10 @@ cpu_info = rule(
     build_setting = config.string(flag = True),
     attrs = {
         "auto_cpu": attr.string(mandatory=True),
-        # oneDAL arch ID (arm/riscv64/intel64), matching
-        # dev/bazel/toolchains/common.bzl's detect_target_arch. Baked in at
-        # repository-rule time since this rule's own configuration cannot
-        # see `--platforms` (see _get_allowed_isa_extensions).
+        # From detect_target_arch, as this rule's configuration cannot see `--platforms`.
         "arch": attr.string(mandatory=True),
-        "verbose": attr.label(),
     },
 )
-
-# Attributes `release_arch_dir` reads. Merge into a rule's attrs with `|`.
-RELEASE_ARCH_ATTRS = {
-    "_aarch64_constraint": attr.label(default = "@platforms//cpu:aarch64"),
-    "_riscv64_constraint": attr.label(default = "@platforms//cpu:riscv64"),
-    "_windows_constraint": attr.label(default = "@platforms//os:windows"),
-}
-
-def release_arch_dir(ctx):
-    """Return the release-tree architecture directory, Make's `ARCH_DIR_ONEDAL`.
-
-    `lib/<dir>` holds the libraries and, on Windows, `redist/<dir>` the DLLs.
-    Values match `dev/make/function_definitions/<PLAT>.mk`: `intel64`, `arm`
-    for `lnxarm`, `riscv64` for `lnxriscv64` and `ARM64` for `winarm`. The
-    rule needs `RELEASE_ARCH_ATTRS`.
-    """
-    is_windows = ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo])
-    if ctx.target_platform_has_constraint(ctx.attr._aarch64_constraint[platform_common.ConstraintValueInfo]):
-        return "ARM64" if is_windows else "arm"
-    if ctx.target_platform_has_constraint(ctx.attr._riscv64_constraint[platform_common.ConstraintValueInfo]):
-        return "riscv64"
-    return "intel64"
 
 VersionInfo = provider(
     fields = [
@@ -217,21 +235,41 @@ VersionInfo = provider(
         "build",
         "buildrev",
         "status",
-        # Binary ABI version (distinct from product version).
-        # Used for SONAME and shared library symlinks.
-        # oneDAL binary ABI version.
+        # Binary ABI version, used for the SONAME.
         "binary_major",
         "binary_minor",
     ],
 )
 
+# Merge into a rule's attrs with `|`; `get_version_info(ctx)` then gives the VersionInfo.
+VERSION_ATTRS = {
+    "_version_info": attr.label(default = "@config//:version", providers = [VersionInfo]),
+}
+
+def get_version_info(ctx):
+    return ctx.attr._version_info[VersionInfo]
+
+def _is_calendar_date(yyyymmdd):
+    if len(yyyymmdd) != 8 or not yyyymmdd.isdigit():
+        return False
+    year, month, day = int(yyyymmdd[:4]), int(yyyymmdd[4:6]), int(yyyymmdd[6:])
+    leap = year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
+    days = [31, 29 if leap else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    return 1 <= month and month <= 12 and 1 <= day and day <= days[month - 1]
+
 def _version_info_impl(ctx):
+    date = ctx.attr.build_date[BuildSettingInfo].value
+    if not date and ctx.attr.require_build_date[BuildSettingInfo].value:
+        fail("--config=release needs --build_date=YYYYMMDD; without it the package carries the placeholder date")
+    build = date or DEV_BUILD_DATE
+    if not _is_calendar_date(build):
+        fail("--build_date must be a YYYYMMDD calendar date, got '{}'".format(build))
     return [
         VersionInfo(
             major        = ctx.attr.major,
             minor        = ctx.attr.minor,
             update       = ctx.attr.update,
-            build        = ctx.attr.build,
+            build        = build,
             buildrev     = ctx.attr.buildrev,
             status       = ctx.attr.status,
             binary_major = ctx.attr.binary_major,
@@ -245,10 +283,10 @@ version_info = rule(
         "major": attr.string(mandatory=True),
         "minor": attr.string(mandatory=True),
         "update": attr.string(mandatory=True),
-        "build": attr.string(mandatory=True),
+        "build_date": attr.label(mandatory=True, providers=[BuildSettingInfo]),
+        "require_build_date": attr.label(mandatory=True, providers=[BuildSettingInfo]),
         "buildrev": attr.string(mandatory=True),
         "status": attr.string(mandatory=True),
-        # ABI binary version used for SONAME and symlinks.
         "binary_major": attr.string(mandatory=True),
         "binary_minor": attr.string(mandatory=True),
     },
@@ -308,7 +346,7 @@ def _find_cxx_compiler(repo_ctx):
 
 def _detect_cpu_extension(repo_ctx):
     cpudetect_src = repo_ctx.path(repo_ctx.attr._cpudetect_src)
-    is_windows = "windows" in repo_ctx.os.name
+    is_windows = detect_os(repo_ctx) == "win"
     cpudetect_exe = repo_ctx.path("cpudetect.exe" if is_windows else "cpudetect")
     repo_ctx.report_progress("Compile cpu-detector")
     if is_windows:
@@ -339,10 +377,7 @@ def _detect_cpu_extension(repo_ctx):
 def _declare_onedal_config_impl(repo_ctx):
     os_id = detect_os(repo_ctx)
     target_arch = detect_target_arch(repo_ctx, detect_host_arch(repo_ctx, os_id))
-    # `cpudetect.cpp` probes the x86 ISA extensions of the exec host. On
-    # ARM/RISC-V there is a single fixed variant and `_cpu_info_impl` ignores
-    # `auto_cpu`, so running the probe there only risks a spurious warning
-    # (e.g. MSVC ARM64 `cl` cannot compile the `__cpuid` path).
+    # The probe is x86-only; elsewhere `auto_cpu` is ignored.
     auto_cpu = (_detect_cpu_extension(repo_ctx) if target_arch == "intel64"
                 else _ISA_EXTENSION_AUTO_DEFAULT)
 
@@ -352,11 +387,12 @@ def _declare_onedal_config_impl(repo_ctx):
         substitutions = {
             "%{auto_cpu}":              auto_cpu,
             "%{arch}":                  target_arch,
-            "%{dpc_compiler_found}":    str(is_dpc_compiler_found(repo_ctx, os_id)),
+            # On Windows only the icx toolchain has a DPC++ driver.
+            "%{dpc_compiler_found}":    str(win_compiler_id(repo_ctx, target_arch) == "icx"
+                                            if os_id == "win" else is_dpc_compiler_found(repo_ctx, os_id)),
             "%{version_major}":         VERSION.major,
             "%{version_minor}":         VERSION.minor,
             "%{version_update}":        VERSION.update,
-            "%{version_build}":         DEV_BUILD_DATE,
             "%{version_buildrev}":      "work",
             "%{version_status}":        VERSION.status,
             "%{version_binary_major}":  VERSION.binary_major,
@@ -371,6 +407,8 @@ declare_onedal_config = repository_rule(
         "CXX",
         # PATH, so that sourcing setvars.sh re-detects the DPC++ compiler.
         "PATH",
+        # The Windows compiler, which decides the --release_dpc default there.
+        "ONEDAL_WIN_COMPILER",
         # Windows host-arch detection (see toolchains/common.bzl).
         "PROCESSOR_ARCHITECTURE",
         "PROCESSOR_ARCHITEW6432",

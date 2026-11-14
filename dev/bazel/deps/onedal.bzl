@@ -37,11 +37,12 @@ onedal_repo = repos.prebuilt_libs_repo_rule(
         "lib/%{arch_dir}/libonedal.so",
         "lib/%{arch_dir}/libonedal.so.%{version_binary_major}",
         "lib/%{arch_dir}/libonedal.so.%{version_binary_major}.%{version_binary_minor}",
+    ],
+    # DPC libraries are absent from a `--release_dpc=false` tree, which CI tests against.
+    optional_libs = [
         "lib/%{arch_dir}/libonedal_dpc.so",
         "lib/%{arch_dir}/libonedal_dpc.so.%{version_binary_major}",
         "lib/%{arch_dir}/libonedal_dpc.so.%{version_binary_major}.%{version_binary_minor}",
-    ],
-    optional_libs = [
         "lib/%{arch_dir}/libonedal_parameters.a",
         "lib/%{arch_dir}/libonedal_parameters.so",
         "lib/%{arch_dir}/libonedal_parameters.so.%{version_binary_major}",
@@ -50,13 +51,8 @@ onedal_repo = repos.prebuilt_libs_repo_rule(
         "lib/%{arch_dir}/libonedal_parameters_dpc.so.%{version_binary_major}",
         "lib/%{arch_dir}/libonedal_parameters_dpc.so.%{version_binary_major}.%{version_binary_minor}",
     ],
-    # Globbed rather than listed one by one so that a release tree built with
-    # the debug MSVC runtime — where every library carries a `d` suffix
-    # (`onedal_cored.lib`), see dev/bazel/cc.bzl `_msvc_runtime_suffix` — is
-    # picked up as well, including a combined //:release_all tree holding both.
-    # `onedal_win.tpl.BUILD` names the individual files in its `select()`, so
-    # a flavour missing from the tree still fails with a clear missing-input
-    # error rather than being silently skipped.
+    # Globbed to cover the `d`-suffixed debug-CRT libraries too; onedal_win.tpl.BUILD names
+    # each file, so a missing flavour still fails.
     win_libs = [
         # Static libraries and dynamic import libraries.
         "lib/%{arch_dir}/onedal*.lib",
