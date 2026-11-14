@@ -84,6 +84,12 @@ struct kernels_fp {
                                                   const pr::ndview<Float, 2>& closest_distances,
                                                   pr::ndview<Float, 1>& objective_function,
                                                   const bk::event_vector& deps = {});
+    static sycl::event compute_exact_distances(sycl::queue& queue,
+                                               const pr::ndview<Float, 2>& data,
+                                               const pr::ndview<Float, 2>& centroids,
+                                               const pr::ndview<std::int32_t, 2>& responses,
+                                               pr::ndview<Float, 2>& distances,
+                                               const bk::event_vector& deps = {});
     static sycl::event compute_squares(sycl::queue& queue,
                                        const pr::ndview<Float, 2>& data,
                                        pr::ndview<Float, 1>& squares,

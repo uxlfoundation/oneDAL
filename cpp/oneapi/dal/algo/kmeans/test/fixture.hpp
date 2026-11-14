@@ -16,7 +16,9 @@
 
 #pragma once
 
+#include <algorithm>
 #include <limits>
+#include <vector>
 #include <cmath>
 
 #include "oneapi/dal/algo/kmeans/train.hpp"
@@ -25,6 +27,7 @@
 
 #include "oneapi/dal/table/homogen.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
+#include "oneapi/dal/test/engine/blobs.hpp"
 #include "oneapi/dal/test/engine/fixtures.hpp"
 #include "oneapi/dal/test/engine/csr_table_builder.hpp"
 #include "oneapi/dal/test/engine/math.hpp"
@@ -262,6 +265,134 @@ public:
 
         this->exact_checks(x, c_init, c_final, y, 3, 1, 0.0);
     }
+
+    void check_exact_objective_on_close_points() {
+        // Two pairs of points 2e-4 apart around -1 and +1: in float the expanded
+        // distance |x|^2 - 2 x.c + |c|^2 rounds their squared distances to zero.
+        const std::int64_t row_count = 4;
+        const std::int64_t cluster_count = 2;
+        float_t data[] = { -1.0001, -0.9999, 0.9999, 1.0001 };
+        const auto x = make_data_table(data, row_count, 1);
+
+        float_t initial_centroids[] = { -1, 1 };
+        const auto c_init = homogen_table::wrap(initial_centroids, cluster_count, 1);
+
+        const auto desc = get_descriptor(cluster_count, 10, 0.0);
+        const auto train_result = this->train(desc, x, c_init);
+        const auto centroids =
+            row_accessor<const float_t>(train_result.get_model().get_centroids()).pull({ 0, -1 });
+        const auto responses =
+            row_accessor<const std::int32_t>(train_result.get_responses()).pull({ 0, -1 });
+
+        double expected = 0;
+        for (std::int64_t i = 0; i < row_count; i++) {
+            const double diff = double(data[i]) - double(centroids[responses[i]]);
+            expected += diff * diff;
+        }
+        REQUIRE(expected > 0);
+
+        const double objective = train_result.get_objective_function_value();
+        CAPTURE(objective, expected);
+        REQUIRE(check_value_with_ref_tol(objective, expected, 1e-3));
+
+        INFO("run inference");
+        const auto infer_desc =
+            get_descriptor(cluster_count, 10, 0.0)
+                .set_result_options(kmeans::result_options::compute_exact_objective_function);
+        const auto infer_result = this->infer(infer_desc, train_result.get_model(), x);
+        CAPTURE(infer_result.get_objective_function_value());
+        REQUIRE(
+            check_value_with_ref_tol(infer_result.get_objective_function_value(), expected, 1e-3));
+    }
+
+    void check_exact_objective_with_nan_row() {
+        // A NaN row is closer to no centroid, so the assignment leaves it without a valid
+        // cluster index; the exact objective must not index the centroids with it.
+        const std::int64_t cluster_count = 2;
+        float_t train_data[] = { -1.0001, -0.9999, 0.9999, 1.0001 };
+        const auto x_train = make_data_table(train_data, 4, 1);
+        float_t initial_centroids[] = { -1, 1 };
+        const auto c_init = homogen_table::wrap(initial_centroids, cluster_count, 1);
+        const auto train_result =
+            this->train(get_descriptor(cluster_count, 10, 0.0), x_train, c_init);
+
+        float_t infer_data[] = { -1.0001, std::numeric_limits<float_t>::quiet_NaN(), 1.0001 };
+        const auto x_infer = make_data_table(infer_data, 3, 1);
+        const auto infer_desc =
+            get_descriptor(cluster_count, 10, 0.0)
+                .set_result_options(kmeans::result_options::compute_exact_objective_function);
+        const auto infer_result = this->infer(infer_desc, train_result.get_model(), x_infer);
+        CAPTURE(infer_result.get_objective_function_value());
+        REQUIRE(std::isnan(infer_result.get_objective_function_value()));
+    }
+
+#ifdef ONEDAL_DATA_PARALLEL
+    /// Train on the host and on the device of the test policy from the same initial centroids,
+    /// and check that the objective functions and centroids agree.
+    ///
+    /// @param[in] offset Value added to every coordinate of the blobs
+    /// @param[in] strict Also require identical responses
+    void check_host_and_device_agree(float_t offset, bool strict) {
+        constexpr std::int64_t per_cluster = 500;
+        constexpr std::int64_t cluster_count = 4;
+        constexpr std::int64_t column_count = 6;
+        constexpr std::int64_t row_count = per_cluster * cluster_count;
+        auto data = te::make_blobs<float_t>(per_cluster,
+                                            cluster_count,
+                                            column_count,
+                                            float_t(10),
+                                            float_t(4));
+        for (auto& value : data) {
+            value += offset;
+        }
+        const auto x = homogen_table::wrap(data.data(), row_count, column_count);
+
+        // the first row of each blob
+        std::vector<float_t> initial_centroids(cluster_count * column_count);
+        for (std::int64_t c = 0; c < cluster_count; c++) {
+            for (std::int64_t j = 0; j < column_count; j++) {
+                initial_centroids[c * column_count + j] = data[c * per_cluster * column_count + j];
+            }
+        }
+        const auto c_init =
+            homogen_table::wrap(initial_centroids.data(), cluster_count, column_count);
+
+        const auto desc = get_descriptor(cluster_count, 10, 0.0);
+        const auto host = dal::train(desc, x, c_init);
+        const auto device = dal::train(this->get_policy().get_queue(), desc, x, c_init);
+
+        // The device may take one more iteration: its convergence check uses the expanded
+        // distances, so the objective change after convergence is rounding noise, not zero.
+        CAPTURE(host.get_iteration_count(), device.get_iteration_count());
+
+        const double tol = std::is_same_v<float_t, float> ? 1e-4 : 1e-10;
+        CAPTURE(host.get_objective_function_value(), device.get_objective_function_value());
+        REQUIRE(check_value_with_ref_tol(device.get_objective_function_value(),
+                                         host.get_objective_function_value(),
+                                         tol));
+
+        const auto host_centroids =
+            row_accessor<const float_t>(host.get_model().get_centroids()).pull({ 0, -1 });
+        const auto device_centroids =
+            row_accessor<const float_t>(device.get_model().get_centroids()).pull({ 0, -1 });
+        for (std::int64_t i = 0; i < cluster_count * column_count; i++) {
+            CAPTURE(i, host_centroids[i], device_centroids[i]);
+            REQUIRE(std::abs(device_centroids[i] - host_centroids[i]) <=
+                    tol * std::max<double>(1.0, std::abs(host_centroids[i])));
+        }
+
+        if (strict) {
+            const auto host_responses =
+                row_accessor<const std::int32_t>(host.get_responses()).pull({ 0, -1 });
+            const auto device_responses =
+                row_accessor<const std::int32_t>(device.get_responses()).pull({ 0, -1 });
+            for (std::int64_t i = 0; i < row_count; i++) {
+                CAPTURE(i);
+                REQUIRE(host_responses[i] == device_responses[i]);
+            }
+        }
+    }
+#endif
 
     void check_empty_clusters_distinct_inits() {
         // Distinct initial centroids, unlike the repeated -10 of

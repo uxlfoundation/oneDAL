@@ -314,6 +314,47 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
 }
 
 TEMPLATE_LIST_TEST_M(kmeans_batch_test,
+                     "kmeans objective function is exact on close points",
+                     "[kmeans][batch]",
+                     kmeans_types) {
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->is_sparse_method());
+    this->check_exact_objective_on_close_points();
+}
+
+TEMPLATE_LIST_TEST_M(kmeans_batch_test,
+                     "kmeans exact objective function with a NaN row",
+                     "[kmeans][batch]",
+                     kmeans_types) {
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->is_sparse_method());
+    this->check_exact_objective_with_nan_row();
+}
+
+#ifdef ONEDAL_DATA_PARALLEL
+TEMPLATE_LIST_TEST_M(kmeans_batch_test,
+                     "kmeans gives the same result on the host and the device",
+                     "[kmeans][batch]",
+                     kmeans_types) {
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->is_sparse_method());
+    this->check_host_and_device_agree(0, true);
+}
+
+TEMPLATE_LIST_TEST_M(
+    kmeans_batch_test,
+    "kmeans gives the same objective on the host and the device far from the origin",
+    "[kmeans][batch]",
+    kmeans_types) {
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->is_sparse_method());
+    // The assignment rounds the expanded distances differently on the two devices, so the
+    // responses may differ at this offset.
+    this->check_host_and_device_agree(1e4, false);
+}
+#endif
+
+TEMPLATE_LIST_TEST_M(kmeans_batch_test,
                      "KMmeans sparse default cases",
                      "[kmeans][batch][external-dataset]",
                      kmeans_types_csr) {
