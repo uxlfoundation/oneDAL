@@ -79,9 +79,42 @@ struct kernels_fp {
                                  std::int64_t min_observations,
                                  const bk::event_vector& deps = {});
 
+    /// Neighbor weights and core flags of every row by GEMM tiles of `block_rows` rows, for the
+    /// squared euclidean distance on centered rows or the negated dot product on unit rows.
+    /// Pairs near the threshold are re-checked on the same rows of `exact`.
+    static void get_cores_gemm(sycl::queue& queue,
+                               const pr::ndview<Float, 2>& data,
+                               const pr::ndview<Float, 2>& exact,
+                               const pr::ndview<Float, 1>& norms,
+                               const pr::ndview<Float, 2>& weights,
+                               pr::ndview<std::int32_t, 1>& cores,
+                               pr::ndview<Float, 1>& neighbours,
+                               const neighborhood_metric<Float>& metric,
+                               std::int64_t min_observations,
+                               std::int64_t block_rows);
+
+    /// `update_points_queue` by GEMM between the queue and all rows, for the metrics of
+    /// `get_cores_gemm`; `queue_rows` holds the row index of each queue entry.
+    static void update_points_queue_gemm(sycl::queue& queue,
+                                         const pr::ndview<Float, 2>& data,
+                                         const pr::ndview<Float, 2>& exact,
+                                         const pr::ndview<Float, 1>& norms,
+                                         const pr::ndview<std::int32_t, 1>& cores,
+                                         const pr::ndview<Float, 2>& current_points_queue,
+                                         const pr::ndview<std::int32_t, 1>& queue_rows,
+                                         pr::ndview<std::int32_t, 1>& responses,
+                                         pr::ndview<std::int32_t, 1>& queue_size_arr,
+                                         pr::ndview<bool, 1>& indices_cores,
+                                         const neighborhood_metric<Float>& metric,
+                                         std::int32_t cluster_id,
+                                         std::int64_t block_rows,
+                                         const bk::event_vector& deps = {});
+
+    /// Smallest unassigned core row at or after `first`, or the row count if there is none.
     static std::int32_t start_next_cluster(sycl::queue& queue,
                                            const pr::ndview<std::int32_t, 1>& cores,
                                            pr::ndview<std::int32_t, 1>& responses,
+                                           std::int64_t first,
                                            const bk::event_vector& deps = {});
 
     static sycl::event update_points_queue(sycl::queue& queue,
@@ -99,6 +132,7 @@ struct kernels_fp {
                                                  const pr::ndview<Float, 2>& data,
                                                  const pr::ndview<bool, 1>& indices,
                                                  pr::ndview<Float, 2>& current_queue,
+                                                 const pr::ndview<std::int32_t, 1>& queue_rows,
                                                  pr::ndview<std::int32_t, 1>& queue_size_arr,
                                                  std::int64_t block_start,
                                                  const bk::event_vector& deps = {});
