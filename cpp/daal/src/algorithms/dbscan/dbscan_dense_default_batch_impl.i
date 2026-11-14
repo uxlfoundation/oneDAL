@@ -219,7 +219,17 @@ Status DBSCANBatchKernel<algorithmFPType, method, cpu>::computeNoMemSave(const N
     TArray<Neighborhood<algorithmFPType, cpu>, cpu> neighs(nRows);
     DAAL_CHECK_MALLOC(neighs.get());
 
-    NeighborhoodEngine<method, algorithmFPType, cpu> nEngine(ntData, ntData, ntWeights, epsilon, minkowskiPower, metric);
+    // Euclidean distances come from the norm expansion, which loses data far from the origin.
+    TArrayScalable<algorithmFPType, cpu> centeredValues;
+    NumericTablePtr centered;
+    const NumericTable * distData = ntData;
+    if (metric == algorithms::internal::PairwiseDistanceType::euclidean)
+    {
+        const services::Status centeringStatus = algorithms::internal::copyCentered<algorithmFPType, cpu>(*ntData, centeredValues, centered);
+        DAAL_CHECK_STATUS_VAR(centeringStatus);
+        distData = centered.get();
+    }
+    NeighborhoodEngine<method, algorithmFPType, cpu> nEngine(distData, distData, ntWeights, epsilon, minkowskiPower, metric);
     DAAL_CHECK_STATUS_VAR(nEngine.queryFull(neighs.get()));
 
     WriteRows<int, cpu> assignRows(ntAssignments, 0, nRows);
@@ -297,7 +307,17 @@ Status DBSCANBatchKernel<algorithmFPType, method, cpu>::computeMemSave(const Num
 
     const size_t nRows = ntData->getNumberOfRows();
 
-    NeighborhoodEngine<method, algorithmFPType, cpu> nEngine(ntData, ntData, ntWeights, epsilon, minkowskiPower, metric);
+    // Euclidean distances come from the norm expansion, which loses data far from the origin.
+    TArrayScalable<algorithmFPType, cpu> centeredValues;
+    NumericTablePtr centered;
+    const NumericTable * distData = ntData;
+    if (metric == algorithms::internal::PairwiseDistanceType::euclidean)
+    {
+        const services::Status centeringStatus = algorithms::internal::copyCentered<algorithmFPType, cpu>(*ntData, centeredValues, centered);
+        DAAL_CHECK_STATUS_VAR(centeringStatus);
+        distData = centered.get();
+    }
+    NeighborhoodEngine<method, algorithmFPType, cpu> nEngine(distData, distData, ntWeights, epsilon, minkowskiPower, metric);
 
     WriteRows<int, cpu> assignRows(ntAssignments, 0, nRows);
     DAAL_CHECK_BLOCK_STATUS(assignRows);

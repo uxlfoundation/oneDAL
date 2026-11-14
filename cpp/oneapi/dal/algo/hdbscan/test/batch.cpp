@@ -448,6 +448,57 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 }
 
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan: euclidean methods agree on data far from the origin",
+                     "[hdbscan][batch]",
+                     hdbscan_bf_types) {
+    using Float = std::tuple_element_t<0, TestType>;
+
+    // Norm-expanded squared distances lose the spread to cancellation here unless the data are centered.
+    constexpr std::int64_t per_cluster = 300;
+    constexpr std::int64_t cluster_count = 3;
+    constexpr std::int64_t column_count = 4;
+    constexpr std::int64_t row_count = per_cluster * cluster_count;
+    auto data = te::make_blobs<Float>(per_cluster,
+                                      cluster_count,
+                                      column_count,
+                                      /*separation=*/Float(6.0),
+                                      /*spread=*/Float(2.0));
+    for (auto& v : data) {
+        v += Float(1.0e4);
+    }
+    const auto x = homogen_table::wrap(data.data(), row_count, column_count);
+
+    const std::int64_t min_samples = GENERATE(2, 10);
+    CAPTURE(min_samples);
+    const auto options = result_options::responses | result_options::single_linkage_tree;
+    const auto kd =
+        this->compute(hdbscan::descriptor<Float, hdbscan::method::kd_tree>(10, min_samples)
+                          .set_result_options(options),
+                      x);
+    const auto kd_tree = this->get_single_linkage_tree(kd);
+    // The kd-tree takes every distance from coordinate differences, so it is the reference here; the
+    // tolerance covers float32 GEMM rounding on centered data, not the cancellation of the offset.
+    const Float tolerance = Float(1e-3) * kd_tree[4 * (row_count - 2) + 2];
+    const auto check_merges = [&](const auto& result) {
+        const auto tree = this->get_single_linkage_tree(result);
+        REQUIRE(tree.get_count() == kd_tree.get_count());
+        for (std::int64_t e = 0; e < row_count - 1; e++) {
+            CAPTURE(e, tree[4 * e + 2], kd_tree[4 * e + 2]);
+            REQUIRE(std::abs(tree[4 * e + 2] - kd_tree[4 * e + 2]) <= tolerance);
+        }
+        this->check_same_result(kd, result);
+    };
+    check_merges(
+        this->compute(hdbscan::descriptor<Float, hdbscan::method::ball_tree>(10, min_samples)
+                          .set_result_options(options),
+                      x));
+    check_merges(
+        this->compute(hdbscan::descriptor<Float, hdbscan::method::brute_force>(10, min_samples)
+                          .set_result_options(options),
+                      x));
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan: kd_tree matches brute_force on 1D data",
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
