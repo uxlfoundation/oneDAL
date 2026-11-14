@@ -61,4 +61,37 @@ TEMPLATE_LIST_TEST_M(lr_online_test, "RR common flow", "[rr][online]", lr_types)
     this->run_and_check_ridge_online(nBlocks);
 }
 
+// The penalty must not be added to the partial result's xtx, or every finalize adds alpha again.
+TEMPLATE_LIST_TEST_M(lr_online_test,
+                     "RR finalize twice on the same partial result",
+                     "[rr][online]",
+                     lr_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using float_t = std::tuple_element_t<0, TestType>;
+    this->generate(777);
+    const int64_t nBlocks = GENERATE(1, 3);
+
+    table x_train, y_train, x_test, y_test;
+    std::tie(x_train, y_train, x_test, y_test) = this->prepare_inputs();
+    auto x_blocks = te::split_table_by_rows<float_t>(this->get_policy(), x_train, nBlocks);
+    auto y_blocks = te::split_table_by_rows<float_t>(this->get_policy(), y_train, nBlocks);
+
+    const auto desc = this->get_descriptor(this->alpha_);
+    dal::linear_regression::partial_train_result<> partial_result;
+    for (std::int64_t i = 0; i < nBlocks; i++) {
+        partial_result = this->partial_train(desc, partial_result, x_blocks[i], y_blocks[i]);
+    }
+    const auto first = this->finalize_train(desc, partial_result);
+    const auto second = this->finalize_train(desc, partial_result);
+
+    const auto res_options = desc.get_result_options();
+    if (res_options.test(result_options::coefficients)) {
+        te::check_if_table_content_equal<float_t>(second.get_coefficients(),
+                                                  first.get_coefficients());
+    }
+    if (res_options.test(result_options::intercept)) {
+        te::check_if_table_content_equal<float_t>(second.get_intercept(), first.get_intercept());
+    }
+}
+
 } // namespace oneapi::dal::linear_regression::test

@@ -47,22 +47,20 @@ using descriptor_t = detail::descriptor_base<task::compute>;
 /// @param[in]  q             The SYCL queue
 /// @param[in]  sums          The allreuced input partial sums
 /// @param[in]  sums2         The allreuced partial sums squared
-/// @param[in]  sums2cent     The local partial sums squared centered. These sums are
-///                           centered across local node and will be recalculated for all ranks
 /// @param[in]  nobs          The total number of rows
 /// @param[in]  column_count  The total number of rows
 /// @param[in]  deps          Events indicating availability of the results for reading or writing
 ///
-/// @return A tuple of six elements, where the first element is the resulting means,
+/// @return A tuple of seven elements, where the first element is the resulting means,
 /// the second is the resulting variances, the third is the resulting raw moment,
-/// the fourth is the resulting variations, the fifth is the resulting stddev
-/// and the six element is a SYCL event indicating the availability
+/// the fourth is the resulting variations, the fifth is the resulting stddev,
+/// the sixth is the resulting sums squared centered
+/// and the seventh element is a SYCL event indicating the availability
 /// of the all arrays for reading and writing
 template <typename Float>
 auto compute_all_metrics(sycl::queue& q,
                          const pr::ndview<Float, 1>& sums,
                          const pr::ndview<Float, 1>& sums2,
-                         const pr::ndview<Float, 1>& sums2cent,
                          std::int64_t nobs,
                          std::size_t column_count,
                          const dal::backend::event_vector& deps = {}) {
@@ -72,6 +70,7 @@ auto compute_all_metrics(sycl::queue& q,
     auto result_raw_moment = pr::ndarray<Float, 1>::empty(q, column_count, alloc::device);
     auto result_variation = pr::ndarray<Float, 1>::empty(q, column_count, alloc::device);
     auto result_stddev = pr::ndarray<Float, 1>::empty(q, column_count, alloc::device);
+    auto result_sums2cent = pr::ndarray<Float, 1>::empty(q, column_count, alloc::device);
 
     auto result_means_ptr = result_means.get_mutable_data();
     auto result_variance_ptr = result_variance.get_mutable_data();
@@ -81,7 +80,7 @@ auto compute_all_metrics(sycl::queue& q,
 
     auto sums_data = sums.get_data();
     auto sums2_data = sums2.get_data();
-    auto sums2cent_data = sums2cent.get_mutable_data();
+    auto sums2cent_data = result_sums2cent.get_mutable_data();
 
     const Float inv_n = Float(1.0 / double(nobs));
 
@@ -117,6 +116,7 @@ auto compute_all_metrics(sycl::queue& q,
                            result_raw_moment,
                            result_variation,
                            result_stddev,
+                           result_sums2cent,
                            update_event);
 }
 
@@ -196,10 +196,6 @@ result_t finalize_compute_kernel_dense_impl<Float>::operator()(const descriptor_
         auto sums2_nd = pr::table2ndarray_1d<Float>(q,
                                                     input.get_partial_sum_squares(),
                                                     sycl::usm::alloc::device);
-
-        auto sums2cent_nd = pr::table2ndarray_1d<Float>(q,
-                                                        input.get_partial_sum_squares_centered(),
-                                                        sycl::usm::alloc::device);
         if (is_distributed) {
             auto sums_nd_copy =
                 pr::ndarray<Float, 1>::empty(q, { column_count }, sycl::usm::alloc::device);
@@ -222,15 +218,6 @@ result_t finalize_compute_kernel_dense_impl<Float>::operator()(const descriptor_
                 ONEDAL_PROFILER_TASK(allreduce_sums, q);
                 comm_.allreduce(sums2_nd.flatten(q, {}), spmd::reduce_op::sum).wait();
             }
-            auto sums2cent_nd_copy =
-                pr::ndarray<Float, 1>::empty(q, { column_count }, sycl::usm::alloc::device);
-            copy_event = copy(q, sums2cent_nd_copy, sums2cent_nd, {});
-            copy_event.wait_and_throw();
-            sums2cent_nd = sums2cent_nd_copy;
-            {
-                ONEDAL_PROFILER_TASK(allreduce_sums, q);
-                comm_.allreduce(sums2cent_nd.flatten(q, {}), spmd::reduce_op::sum).wait();
-            }
         }
 
         auto [result_means,
@@ -238,13 +225,9 @@ result_t finalize_compute_kernel_dense_impl<Float>::operator()(const descriptor_
               result_raw_moment,
               result_variation,
               result_stddev,
-              update_event] = compute_all_metrics<Float>(q,
-                                                         sums_nd,
-                                                         sums2_nd,
-                                                         sums2cent_nd,
-                                                         rows_count_global,
-                                                         column_count,
-                                                         {});
+              result_sums2cent,
+              update_event] =
+            compute_all_metrics<Float>(q, sums_nd, sums2_nd, rows_count_global, column_count, {});
 
         if (res_op.test(result_options::sum)) {
             ONEDAL_ASSERT(input.get_partial_sum().get_column_count() == column_count);
@@ -261,7 +244,9 @@ result_t finalize_compute_kernel_dense_impl<Float>::operator()(const descriptor_
             ONEDAL_ASSERT(input.get_partial_sum_squares_centered().get_column_count() ==
                           column_count);
             res.set_sum_squares_centered(
-                homogen_table::wrap(sums2cent_nd.flatten(q, { update_event }), 1, column_count));
+                homogen_table::wrap(result_sums2cent.flatten(q, { update_event }),
+                                    1,
+                                    column_count));
         }
 
         if (res_op.test(result_options::mean)) {
