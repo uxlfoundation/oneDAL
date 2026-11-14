@@ -16,14 +16,7 @@
 
 #include "oneapi/dal/algo/decision_forest/parameters/cpu/infer_parameters.hpp"
 #include "oneapi/dal/backend/dispatcher.hpp"
-
-#if defined(TARGET_X86_64)
-#define CPU_EXTENSION dal::detail::cpu_extension::avx512
-#elif defined(TARGET_ARM)
-#define CPU_EXTENSION dal::detail::cpu_extension::sve
-#elif defined(TARGET_RISCV64)
-#define CPU_EXTENSION dal::detail::cpu_extension::rv64
-#endif
+#include "oneapi/dal/detail/parameters/common.hpp"
 
 namespace oneapi::dal::decision_forest::parameters {
 
