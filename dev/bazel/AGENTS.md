@@ -108,7 +108,7 @@ External libraries are referenced by their repository labels, e.g. `@mkl//:mkl_c
 - Don't write globs that match several `.so` variants of one library; they produce duplicate link inputs.
 - Remove unused `load()` symbols.
 - Don't hardcode platform-specific paths; reference external libraries by their repository labels.
-- Product and library binary versions of the Bazel build live only in `dev/bazel/version.bzl`. Until Make is removed, `makefile.ver` carries the same values; bump both. The build date is `--build_date=YYYYMMDD`, which the release jobs pass.
+- Product and library binary versions of the Bazel build live only in `dev/bazel/version.bzl`. Until Make is removed, `makefile.ver` carries the same values; bump both. The build date is `--build_date=YYYYMMDD`, which the release jobs pass with `--config=release`; that config fails without it.
 - No shell, batch or PowerShell in build actions: use `expand_template`, `write`, `symlink` or `run` with arguments. The one exception, `toolchains/tools/dpc_link_win.ps1`, is tracked in `TODO.md`.
 - Checks of the configured graph are Starlark analysis tests in `dev/bazel/tests/analysis.bzl` (`bazel test //dev/bazel/tests:all`), not scripts that run `bazel` again.
 

@@ -25,7 +25,7 @@ string_flag(
     build_setting_default = "",
 )
 
-# Set by --config=release-dpc, so a package never ships the placeholder date.
+# Set by --config=release, so a published package never carries the placeholder date.
 bool_flag(
     name = "require_build_date",
     build_setting_default = False,

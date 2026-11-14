@@ -260,7 +260,7 @@ def _is_calendar_date(yyyymmdd):
 def _version_info_impl(ctx):
     date = ctx.attr.build_date[BuildSettingInfo].value
     if not date and ctx.attr.require_build_date[BuildSettingInfo].value:
-        fail("--config=release-dpc needs --build_date=YYYYMMDD; without it the package carries the placeholder date")
+        fail("--config=release needs --build_date=YYYYMMDD; without it the package carries the placeholder date")
     build = date or DEV_BUILD_DATE
     if not _is_calendar_date(build):
         fail("--build_date must be a YYYYMMDD calendar date, got '{}'".format(build))

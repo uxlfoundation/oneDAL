@@ -73,7 +73,10 @@ test:dpc-private --test_tag_filters="dpc,-public"
 
 # //:release builds every ISA unless --cpu is set and adds the DPC++ libraries when icpx is found.
 build:release-dpc \
-    --release_dpc=true \
+    --release_dpc=true
+
+# For jobs that publish a package: the version must carry --build_date, not the placeholder date.
+build:release \
     --@config//:require_build_date
 
 # Host ISA only, for local iteration. The platform suffix gives it its own

@@ -309,6 +309,6 @@ def _make_build_date_failure_test(message, settings):
     return analysistest.make(_impl, expect_failure = True, config_settings = settings)
 
 build_date_required_test = _make_build_date_failure_test(
-    "--config=release-dpc needs --build_date=YYYYMMDD", {_REQUIRE_BUILD_DATE: True})
+    "--config=release needs --build_date=YYYYMMDD", {_REQUIRE_BUILD_DATE: True})
 build_date_invalid_test = _make_build_date_failure_test(
     "must be a YYYYMMDD calendar date", {_BUILD_DATE: "20261313"})
