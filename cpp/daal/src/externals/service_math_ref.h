@@ -64,6 +64,8 @@ struct RefMath<double, cpu>
 
     static double sSqrt(double in) { return sqrt(in); }
 
+    static double sCbrt(double in) { return cbrt(in); }
+
     static double sPowx(double in, double in1) { return pow(in, in1); }
 
     static double sCeil(double in) { return ceil(in); }
@@ -132,6 +134,12 @@ struct RefMath<double, cpu>
     {
 #pragma omp simd
         for (SizeType i = 0; i < n; ++i) out[i] = sqrt(in[i]);
+    }
+
+    static void vCbrt(SizeType n, const double * in, double * out)
+    {
+#pragma omp simd
+        for (SizeType i = 0; i < n; ++i) out[i] = cbrt(in[i]);
     }
 
     static void vInvSqrt(SizeType n, const double * a, double * b)
@@ -231,6 +239,8 @@ struct RefMath<float, cpu>
 
     static float sSqrt(float in) { return sqrt(in); }
 
+    static float sCbrt(float in) { return cbrt(in); }
+
     static float sPowx(float in, float in1) { return pow(in, in1); }
 
     static float sCeil(float in) { return ceil(in); }
@@ -327,6 +337,12 @@ struct RefMath<float, cpu>
     {
 #pragma omp simd
         for (SizeType i = 0; i < n; ++i) out[i] = sqrt(in[i]);
+    }
+
+    static void vCbrt(SizeType n, const float * in, float * out)
+    {
+#pragma omp simd
+        for (SizeType i = 0; i < n; ++i) out[i] = cbrt(in[i]);
     }
 
     static void vInvSqrt(SizeType n, const float * a, float * b)
