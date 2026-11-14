@@ -22,7 +22,7 @@ bazel_dep(name = "rules_cc", version = "0.2.28")
 # rules_cc's MSVC toolchain config, which the cc toolchain extension generates, loads it.
 bazel_dep(name = "bazel_features", version = "1.55.0")
 bazel_dep(name = "rules_shell", version = "0.8.0")
-bazel_dep(name = "fmt", version = "12.2.0.bcr.1")
+bazel_dep(name = "fmt", version = "12.2.1")
 
 cc_configure = use_extension("@rules_cc//cc:extensions.bzl", "cc_configure_extension")
 use_repo(cc_configure, "local_config_cc", "local_config_cc_toolchains")
