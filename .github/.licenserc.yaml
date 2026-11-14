@@ -73,6 +73,9 @@ header:
     - 'third-party-programs.txt'
     - 'deploy/local/config.txt'
     - 'deploy/nuget/inteldal.nuspec.tpl'
+    # Lean toolchain metadata (no comment syntax)
+    - 'dev/formal/lean/lean-toolchain'
+    - 'dev/formal/lean/lake-manifest.json'
 
   comment: never
 
