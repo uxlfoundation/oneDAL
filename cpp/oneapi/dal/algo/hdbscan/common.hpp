@@ -322,7 +322,7 @@ public:
     }
 
     /// When false (default), the root cluster of the condensed tree is never selected.
-    /// When true, the root cluster may be selected if it meets `min_cluster_size`.
+    /// When true, EOM selection may pick the root whatever its size; leaf selection never does.
     bool get_allow_single_cluster() const {
         return base_t::get_allow_single_cluster();
     }
@@ -343,7 +343,7 @@ public:
         return *this;
     }
 
-    /// Maximum cluster size for EOM selection. 0 means no limit.
+    /// Maximum EOM cluster size, 0 for no limit; a root that never splits counts as size 0.
     /// @invariant :expr:`max_cluster_size >= 0`
     std::int64_t get_max_cluster_size() const {
         return base_t::get_max_cluster_size();
