@@ -41,6 +41,7 @@ namespace internal
 {
 #define __DBSCAN_PREFETCHED_NEIGHBORHOODS_COUNT 64
 #define __DBSCAN_MAXIMUM_NESTED_STACK_LEVEL     200
+#define __DBSCAN_EXPANSION_BLOCK_SIZE           32
 
 template <typename algorithmFPType, Method method, CpuType cpu>
 Status DBSCANBatchKernel<algorithmFPType, method, cpu>::processNeighborhood(size_t clusterId, int * const assignments,
@@ -68,7 +69,8 @@ Status DBSCANBatchKernel<algorithmFPType, method, cpu>::processNeighborhoodParal
     size_t clusterId, int * const assignments, const Neighborhood<algorithmFPType, cpu> & neigh, daal::tls<Queue<size_t, cpu> *> & tls,
     TArray<Neighborhood<algorithmFPType, cpu>, cpu> & neighs, algorithmFPType minObservations, int * const isCore, size_t nestedLevel)
 {
-    const size_t nBlocks   = threader_get_max_threads_number();
+    // Small neighborhoods get fewer tasks; a task per thread for every core point costs more than the work.
+    const size_t nBlocks = services::internal::min<cpu, size_t>(threader_get_max_threads_number(), neigh.size() / __DBSCAN_EXPANSION_BLOCK_SIZE + 1);
     const size_t blockSize = neigh.size() / nBlocks + !!(neigh.size() % nBlocks);
 
     SafeStatus safeStat;
