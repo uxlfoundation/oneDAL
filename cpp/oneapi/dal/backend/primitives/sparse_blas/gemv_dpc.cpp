@@ -31,6 +31,13 @@ sycl::event gemv(sycl::queue& queue,
     ONEDAL_ASSERT(x.has_data());
     ONEDAL_ASSERT(y.has_mutable_data());
 
+#ifdef ONEDAL_MATH_BACKEND_ONEMATH
+    // oneMath implements the newer sparse specification -- `spmv` over a
+    // descriptor with separate buffer-size, optimize and execute stages -- which
+    // is a different shape from the handle API used here, not a renaming. The
+    // port is deliberately left out of the change that added the backend.
+    throw unimplemented(dal::detail::error_messages::sparse_blas_not_available_in_math_backend());
+#else
     return mkl::sparse::gemv(queue,
                              transpose_to_mkl(transpose_a),
                              alpha,
@@ -39,6 +46,7 @@ sycl::event gemv(sycl::queue& queue,
                              beta,
                              y.get_mutable_data(),
                              dependencies);
+#endif // ONEDAL_MATH_BACKEND_ONEMATH
 }
 
 #define INSTANTIATE(F)                                                   \

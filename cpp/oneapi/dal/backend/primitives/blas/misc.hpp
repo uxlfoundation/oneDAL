@@ -18,13 +18,13 @@
 
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 
-#include <oneapi/mkl.hpp>
+#include "oneapi/dal/backend/math_backend.hpp"
 
 namespace oneapi::dal::backend::primitives {
 
-namespace mkl = oneapi::mkl;
-
 #ifdef ONEDAL_DATA_PARALLEL
+namespace mkl = oneapi::dal::backend::math;
+
 /// Convert oneDAL `ndorder` to oneMKL `layout`
 inline constexpr mkl::layout order_as_layout(ndorder order) {
     return (order == ndorder::c) ? mkl::layout::R /* row-major */

@@ -178,7 +178,16 @@ public:
     }
 };
 
+// Every test below draws on the device, and oneMath declares no `mt2203`,
+// `mt19937` or `mcg59` device engine, so under that backend those three throw
+// `unimplemented` out of `generate_rng`. Narrow the lists rather than skipping
+// the whole suite: `philox4x32x10` and `mrg32k3a` are still worth covering, and
+// they are the engines the algorithms actually default to.
+#ifdef ONEDAL_MATH_BACKEND_ONEMATH
+using rng_types = COMBINE_TYPES((float, double), (mrg32k3a, philox4x32x10));
+#else
 using rng_types = COMBINE_TYPES((float, double), (mt2203, mt19937, mcg59, mrg32k3a, philox4x32x10));
+#endif
 
 TEMPLATE_LIST_TEST_M(rng_test, "rng cpu vs gpu", "[rng]", rng_types) {
     SKIP_IF(this->get_policy().is_cpu());
@@ -203,7 +212,13 @@ TEMPLATE_LIST_TEST_M(rng_test, "rng cpu vs gpu", "[rng]", rng_types) {
     this->check_results(arr_gpu, arr_host);
 }
 
-TEMPLATE_LIST_TEST_M(rng_test, "mixed rng cpu skip", "[rng]", rng_types) {
+#ifdef ONEDAL_MATH_BACKEND_ONEMATH
+using rng_types_skip_ahead_support = COMBINE_TYPES((float, double), (mrg32k3a, philox4x32x10));
+#else
+using rng_types_skip_ahead_support = rng_types;
+#endif
+
+TEMPLATE_LIST_TEST_M(rng_test, "mixed rng cpu skip", "[rng]", rng_types_skip_ahead_support) {
     SKIP_IF(this->get_policy().is_cpu());
     SKIP_IF(this->not_float64_friendly());
     using Float = std::tuple_element_t<0, TestType>;
@@ -296,6 +311,25 @@ TEMPLATE_LIST_TEST_M(rng_test, "default engine and seed", "[rng]", rng_types_def
     uniform<Float>(q, count, arr_explicit.get_mutable_data(), explicit_, 0, 1).wait_and_throw();
     this->check_tail_matches(arr_defaulted, arr_explicit, 0);
 }
+
+#ifdef ONEDAL_MATH_BACKEND_ONEMATH
+using rng_types_no_device_engine = COMBINE_TYPES((float), (mt2203, mt19937, mcg59));
+
+TEMPLATE_LIST_TEST_M(rng_test,
+                     "device draw without a device engine leaves the host stream",
+                     "[rng]",
+                     rng_types_no_device_engine) {
+    SKIP_IF(this->get_policy().is_cpu());
+
+    constexpr std::int64_t count = 256;
+    auto failed = this->get_device_engine(default_seed);
+    auto fresh = this->get_device_engine(default_seed);
+    REQUIRE_THROWS_AS(this->draw_on_device(count, failed), unimplemented);
+    this->check_tail_matches(this->draw_on_host(count, fresh),
+                             this->draw_on_host(count, failed),
+                             0);
+}
+#endif
 
 TEMPLATE_LIST_TEST_M(rng_test, "skip ahead offsets host and device streams", "[rng]", rng_types) {
     SKIP_IF(this->get_policy().is_cpu());

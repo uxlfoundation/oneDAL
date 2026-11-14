@@ -18,7 +18,7 @@
 #include "oneapi/dal/backend/primitives/lapack/gesvd.hpp"
 #include "oneapi/dal/backend/primitives/blas/misc.hpp"
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
-#include <oneapi/mkl.hpp>
+#include "oneapi/dal/backend/math_backend.hpp"
 
 namespace oneapi::dal::backend::primitives {
 

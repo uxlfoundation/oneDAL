@@ -72,6 +72,8 @@ public:
     MSG(invalid_column_indices_block_size);
     MSG(method_not_implemented);
     MSG(negative_integral_value_conversion_to_unsigned);
+    MSG(rng_engine_not_available_in_math_backend);
+    MSG(sparse_blas_not_available_in_math_backend);
     MSG(only_homogen_table_is_supported);
     MSG(overflow_found_in_multiplication_of_two_values);
     MSG(overflow_found_in_sum_of_two_values);

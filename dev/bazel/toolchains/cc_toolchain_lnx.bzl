@@ -174,6 +174,22 @@ def _add_sycl_linkage(repo_ctx, cc):
     else:
         return []
 
+def _get_sycl_target_flags(repo_ctx):
+    """Retarget SYCL device code, for example to NVIDIA NVPTX.
+
+    oneDAL's device sources are target-agnostic -- they use no Intel SYCL
+    extensions and query sub-group sizes at run time -- so changing GPU vendor
+    is purely a toolchain concern: `-fsycl-targets` has to reach both the DPC++
+    compile and the DPC++ link action, and nothing else in the build changes.
+
+    Read from ONEDAL_SYCL_TARGETS rather than a `--@config//` build flag
+    because the DPC++ flag sets are baked into the toolchain when this
+    repository is configured, before any build flag is visible. Unset leaves
+    the compiler at its default target (Intel SPIR-V).
+    """
+    targets = repo_ctx.os.environ.get("ONEDAL_SYCL_TARGETS", "").strip()
+    return ["-fsycl-targets={}".format(targets)] if targets else []
+
 def _add_new_offload_driver_link(repo_ctx, dpcc):
     # Probe --offload-compress with a shared link, as Make's dpcpp.mk:84-92 does.
     # A compile-only probe misses an icpx 2025.3 link failure; the probe runs in a fresh temp dir.
@@ -190,6 +206,12 @@ def _add_new_offload_driver_link(repo_ctx, dpcc):
     if result.return_code != 0:
         return []
     flags = ["--offload-new-driver"]
+
+    # The GRF option below is for Intel SPIR-V images; skip it when
+    # ONEDAL_SYCL_TARGETS builds no spir64 image.
+    targets = repo_ctx.os.environ.get("ONEDAL_SYCL_TARGETS", "").strip()
+    if targets and "spir64" not in targets:
+        return flags
 
     # The legacy driver embeds -ftarget-register-alloc-mode=pvc:<opt> in the
     # device image, so the PVC-only JIT option is applied to PVC devices alone.
@@ -235,6 +257,9 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
 
     # DPC++ kernel code split option
     dpcc_code_split = "per_kernel"
+
+    # Extra SYCL target triples, e.g. `nvptx64-nvidia-cuda` for NVIDIA GPUs.
+    sycl_target_flags = _get_sycl_target_flags(repo_ctx)
 
     repo_ctx.template(
         "BUILD",
@@ -298,6 +323,7 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
                     tools.dpcc,
                     "-fsycl-device-code-split={}".format(dpcc_code_split),
                 ) +
+                sycl_target_flags +
                 add_compiler_option_if_supported(
                     repo_ctx,
                     tools.cc,
@@ -380,6 +406,7 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
                     tools.dpcc,
                     "-fsycl-device-code-split={}".format(dpcc_code_split),
                 ) +
+                sycl_target_flags +
                 # Device link with the new offloading driver. The legacy driver
                 # runs clang-offload-bundler, llvm-objcopy and
                 # spirv-to-ir-wrapper once for every input object, including the

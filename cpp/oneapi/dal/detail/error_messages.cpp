@@ -55,6 +55,14 @@ MSG(invalid_column_indices_block_size, "Invalid column indices block size")
 MSG(method_not_implemented, "Method is not implemented")
 MSG(negative_integral_value_conversion_to_unsigned,
     "Negative integral value conversion to unsigned")
+MSG(rng_engine_not_available_in_math_backend,
+    "The requested RNG engine is not provided by the math backend this build of "
+    "oneDAL was linked against. Consider philox4x32x10 or mrg32k3a, or rebuild "
+    "with the default oneMKL device backend.")
+MSG(sparse_blas_not_available_in_math_backend,
+    "Sparse BLAS is not provided by the math backend this build of oneDAL was "
+    "linked against, so sparse input cannot be processed on the device. Rebuild "
+    "with the default oneMKL device backend.")
 MSG(unsupported_feature_type, "Feature type is not supported")
 MSG(unknown_memcpy_error, "Unknown error during memory copying")
 MSG(unknown_usm_pointer_type, "USM pointer type is unknown in the current context")

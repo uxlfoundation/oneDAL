@@ -94,6 +94,10 @@ onedal_cc_toolchain = repository_rule(
         # anything else falls back to the rules_cc MSVC cl auto-config.
         # Targeting Windows ARM64 always uses clang-cl.
         "ONEDAL_WIN_COMPILER",
+        # Comma-separated SYCL target triples for the DPC++ compile and link
+        # actions, e.g. ONEDAL_SYCL_TARGETS=nvptx64-nvidia-cuda. Empty leaves
+        # the compiler at its default (Intel SPIR-V).
+        "ONEDAL_SYCL_TARGETS",
         # The Visual Studio rules_cc configures for cl: the one vcvarsall.bat
         # set up (VCINSTALLDIR), unless BAZEL_VC or BAZEL_VS names another.
         "BAZEL_VC",

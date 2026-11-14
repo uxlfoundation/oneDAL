@@ -23,6 +23,25 @@
 
 namespace oneapi::dal::test::engine {
 
+/// Whether the device math backend provides the sparse BLAS domain.
+///
+/// oneMath ships the newer sparse specification (`init_csr_matrix` plus
+/// descriptor-driven `spmv`/`spmm`) rather than the handle API oneDAL's sparse
+/// primitives are written against, so under that backend every device-side
+/// sparse path throws `unimplemented`. Tests that hand a `csr_table` to the
+/// device therefore have to be skipped rather than run to a certain failure.
+/// The define is set only for the device translation units, so the host
+/// versions of the same tests keep running.
+///
+/// @return True unless the library was built against oneMath.
+inline constexpr bool device_sparse_blas_supported() {
+#ifdef ONEDAL_MATH_BACKEND_ONEMATH
+    return false;
+#else
+    return true;
+#endif
+}
+
 class policy_fixture {
 public:
     auto& get_policy() {

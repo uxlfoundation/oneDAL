@@ -48,6 +48,7 @@ TEMPLATE_LIST_TEST_M(logloss_test, "test random input with L1", "[logloss]", log
 TEMPLATE_LIST_TEST_M(logloss_test, "sparse data test without L2", "[logloss]", logloss_types) {
     SKIP_IF(this->not_float64_friendly());
     SKIP_IF(this->get_policy().is_cpu());
+    SKIP_IF(!te::device_sparse_blas_supported());
     this->generate_sparse_input();
     this->run_sparse_test(0.0f, this->fit_intercept_);
 }
@@ -55,6 +56,7 @@ TEMPLATE_LIST_TEST_M(logloss_test, "sparse data test without L2", "[logloss]", l
 TEMPLATE_LIST_TEST_M(logloss_test, "sparse data test", "[logloss]", logloss_types) {
     SKIP_IF(this->not_float64_friendly());
     SKIP_IF(this->get_policy().is_cpu());
+    SKIP_IF(!te::device_sparse_blas_supported());
     this->generate_sparse_input();
     this->run_sparse_test(1.3f, this->fit_intercept_);
 }
