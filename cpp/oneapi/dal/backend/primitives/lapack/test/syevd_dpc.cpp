@@ -98,7 +98,7 @@ public:
             const auto eigenvectors =
                 la::matrix<Float>::wrap_nd(data_or_eigenvectors_nd.to_host(this->get_queue()));
             const auto eigenvalues =
-                la::matrix<Float>::wrap_nd(flipped_eigenvalues.to_host(this->get_queue()));
+                la::matrix<Float>::wrap_nd(flipped_eigenvalues.to_host(queue, { flip_event }));
             return std::make_tuple(eigenvectors, eigenvalues);
         }
     }
