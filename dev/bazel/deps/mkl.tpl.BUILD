@@ -11,6 +11,9 @@ cc_library(
     includes = [
         "include",
     ],
+    # Makes rules_cc pass `includes` as -isystem, as cc_module's `system_includes`
+    # does for oneDPL; conda's SYCL headers live here and must not fail -Werror.
+    features = ["system_include_paths"],
 )
 
 cc_library(
@@ -138,17 +141,27 @@ cc_library(
     # `mkl_runtime` filegroup, which globs lib/libmkl*.so*.
 )
 
+_MKL_SYCL_DOMAIN_LIBS = [
+    glob(["lib/libmkl_sycl_{}.so*".format(domain)], allow_empty = True)
+    for domain in ["blas", "lapack", "sparse", "rng"]
+]
+
+# The SYCL domains are optional for the host targets; a DPC++ target built
+# against an MKLROOT that lacks one fails here instead of linking without it.
+genrule(
+    name = "mkl_sycl_domains_missing",
+    outs = ["libmkl_sycl_domains_missing.so"],
+    cmd = "echo 'MKLROOT has no libmkl_sycl_{blas,lapack,sparse,rng}.so;" +
+          " the DPC++ targets need them (conda-forge: mkl-devel-dpcpp)' >&2; exit 1",
+)
+
 cc_library(
     name = "mkl_dpc_utils",
     linkopts = [
         "-fsycl-max-parallel-link-jobs=16",
     ],
-    srcs = glob([
-        "lib/libmkl_sycl_blas.so*",
-        "lib/libmkl_sycl_lapack.so*",
-        "lib/libmkl_sycl_sparse.so*",
-        "lib/libmkl_sycl_rng.so*",
-    ]),
+    srcs = [lib for libs in _MKL_SYCL_DOMAIN_LIBS for lib in libs] +
+           ([":mkl_sycl_domains_missing"] if [] in _MKL_SYCL_DOMAIN_LIBS else []),
     deps = [
         ":mkl_classic_dynamic",
         "@openmp//:openmp_binary",

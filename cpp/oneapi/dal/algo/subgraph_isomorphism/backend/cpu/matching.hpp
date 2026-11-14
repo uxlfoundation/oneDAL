@@ -403,7 +403,6 @@ void matching_engine<Cpu>::run_and_wait(global_stack<Cpu>& gstack,
         first_states_generator(hlocal_stack);
     }
     bool is_busy_engine = true;
-    std::int64_t current_match_count = 0;
     ONEDAL_ASSERT(pattern != nullptr);
     for (;;) {
         if (target_match_count > 0 &&
@@ -416,7 +415,6 @@ void matching_engine<Cpu>::run_and_wait(global_stack<Cpu>& gstack,
                 ;
             ONEDAL_ASSERT(hlocal_stack.states_in_stack() > 0);
             const auto delta = state_exploration();
-            current_match_count += delta;
             if (target_match_count > 0 && check_if_max_match_count_reached(cumulative_match_count,
                                                                            delta,
                                                                            target_match_count)) {

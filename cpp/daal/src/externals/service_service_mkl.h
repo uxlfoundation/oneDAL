@@ -28,6 +28,7 @@
 #include "src/services/service_topo.h"
 #include <mkl_types.h>
 #include <mkl_service.h>
+#include <cerrno>
 #include <string.h>
 #ifdef USE_STD_ALLOC
     #include <cstdlib>

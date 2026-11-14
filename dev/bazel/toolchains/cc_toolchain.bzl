@@ -76,6 +76,11 @@ def _configure_cc_toolchain(repo_ctx, reqs):
     return configure_cc_toolchain_os(repo_ctx, reqs)
 
 def _onedal_cc_toolchain_impl(repo_ctx):
+    # `environ` tracks only the variables; re-probe when a config file they name is edited in place.
+    for cfg_var in ["ICXCFG", "ICPXCFG"]:
+        cfg = repo_ctx.os.environ.get(cfg_var)
+        if cfg and repo_ctx.path(cfg).exists:
+            repo_ctx.watch(cfg)
     reqs = _detect_requirements(repo_ctx)
     _configure_cc_toolchain(repo_ctx, reqs)
 
@@ -89,6 +94,12 @@ onedal_cc_toolchain = repository_rule(
         "ONEDAL_DOWNLOAD_CC",
         "INCLUDE",
         "LIB",
+        # Intel compiler config files; they can change the sysroot and include paths.
+        "ICXCFG",
+        "ICPXCFG",
+        # Extra C++ compile and link flags, `:`-separated as in rules_cc.
+        "BAZEL_CXXOPTS",
+        "BAZEL_LINKOPTS",
         # Opt-in switch for the LLVM-driver Windows toolchains:
         # ONEDAL_WIN_COMPILER=icx selects icx/icpx, =clang selects clang-cl,
         # anything else falls back to the rules_cc MSVC cl auto-config.

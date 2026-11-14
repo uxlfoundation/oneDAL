@@ -59,11 +59,6 @@ mkl_repo = repos.prebuilt_libs_repo_rule(
         "lib/libmkl_core.so*",
         "lib/libmkl_intel_lp64.so*",
         "lib/libmkl_gnu_thread.so*",
-        "lib/libmkl_sycl_blas.so*",
-        "lib/libmkl_sycl_lapack.so*",
-        "lib/libmkl_sycl_sparse.so*",
-        "lib/libmkl_sycl_rng.so*",
-
     ],
     # VML kernels are `dlopen`-ed like the CPU dispatch kernels below and the
     # pinned package ships them (`libmkl_vml_def`, `_avx2`, `_avx512`, `_mc3`,
@@ -73,6 +68,12 @@ mkl_repo = repos.prebuilt_libs_repo_rule(
     # requiring a file no measurement implicates would be a guess.
     optional_libs = [
         "lib/libmkl_vml_*.so*",
+        # Only the DPC++ targets link the SYCL domains, so an MKLROOT without them
+        # (conda-forge `mkl-devel` without `mkl-devel-dpcpp`) still builds the host targets.
+        "lib/libmkl_sycl_blas.so*",
+        "lib/libmkl_sycl_lapack.so*",
+        "lib/libmkl_sycl_sparse.so*",
+        "lib/libmkl_sycl_rng.so*",
     ],
     # CPU dispatch kernels. `libmkl_core.so.3` holds only the dispatcher: the
     # actual kernels live in per-ISA shared objects that it `dlopen`s by SONAME

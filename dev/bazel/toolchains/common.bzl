@@ -57,21 +57,50 @@ def detect_compiler(repo_ctx, os_id):
     if not "CC" in repo_ctx.os.environ:
         return detect_default_compiler(repo_ctx, os_id)
     compiler_path = repo_ctx.os.environ["CC"]
-    # TODO: Use more relieble way to detect compiler
-    if "gcc" in compiler_path:
-        return "gcc"
-    elif "clang" in compiler_path:
-        return "clang"
-    elif "cl" in compiler_path:
+    name = compiler_path.replace("\\", "/").split("/")[-1].lower()
+    if os_id == "lnx":
+        # Ask the compiler first: a directory such as /home/claire would otherwise read as `cl`.
+        compiler_id = _detect_compiler_by_macros(repo_ctx, compiler_path)
+        if compiler_id == "icx" and "icpx" in name:
+            return "icpx"
+        if compiler_id:
+            return compiler_id
+    for compiler_id in ["gcc", "clang", "icpx", "icx"]:
+        if compiler_id in name:
+            return compiler_id
+    if name in ["cl", "cl.exe"]:
         return "cl"
-    elif "icx" in compiler_path:
-        return "icx"
-    elif "icpx" in compiler_path:
-        return "icpx"
     if os_id == "lnx":
         fail("CC={} is not a supported compiler; set CC to gcc, clang or icx ".format(compiler_path) +
              "(a versioned name such as gcc-14 or clang-19, or a full path, also works), " +
              "or unset it to pick the first of icx, gcc and clang found in PATH.")
+    return None
+
+def _detect_compiler_by_macros(repo_ctx, compiler_path):
+    """Identifies the compiler from the macros it predefines, whatever its name or directory.
+
+    Returns `None` when the compiler cannot be run or is none of gcc, clang and icx.
+    """
+    if not compiler_path:
+        return None
+    tool = repo_ctx.path(compiler_path) if compiler_path.startswith("/") else repo_ctx.which(compiler_path)
+    if not tool or not tool.exists:
+        return None
+    result = repo_ctx.execute([tool, "-dM", "-E", "-x", "c", "/dev/null"])
+    if result.return_code != 0:
+        return None
+    macros = result.stdout
+
+    # icx also defines __clang__ and __GNUC__, and clang defines __GNUC__.
+    # Classic icc defines __INTEL_COMPILER and __GNUC__ and is not supported.
+    if "#define __INTEL_COMPILER " in macros:
+        return None
+    if "__INTEL_LLVM_COMPILER" in macros:
+        return "icx"
+    if "__clang__" in macros:
+        return "clang"
+    if "__GNUC__" in macros:
+        return "gcc"
     return None
 
 def is_dpc_compiler_found(repo_ctx, os_id):

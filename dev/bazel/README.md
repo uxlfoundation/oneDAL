@@ -139,8 +139,9 @@ Bazel picks the compiler on Linux as follows:
    a name such as `gcc`, `clang`, `icx` or a versioned `clang-19`, which is
    looked up in `PATH`, or a full path. If it is not found, the build fails
    with `Cannot find <CC>; try to correct your $PATH`. Bazel tells gcc, clang
-   and icx apart by the `CC` name, so a name that contains none of them is
-   rejected.
+   and icx apart by the `CC` name. A name that says none of them, such as
+   conda-forge's `x86_64-conda-linux-gnu-cc`, is identified from the macros the
+   compiler predefines, and is rejected only if it is none of the three.
 2. Otherwise, with `--repo_env=ONEDAL_DOWNLOAD_CC=1` on an x86-64 host, Bazel
    downloads the conda-forge gcc pinned in `dev/bazel/deps/gcc.bzl`.
 3. Otherwise it uses the first of `icx`, `gcc` and `clang` found in `PATH`.
@@ -151,8 +152,8 @@ On Windows Bazel uses `icx` if it is in `PATH` and MSVC `cl` otherwise.
 `ONEDAL_WIN_COMPILER` (`icx`, `clang` for clang-cl, or `cl`) or `CC`
 overrides that.
 
-Changing `CC`, `PATH` or `ONEDAL_DOWNLOAD_CC` makes Bazel detect the compiler
-again on the next build.
+Changing `CC`, `PATH`, `ONEDAL_DOWNLOAD_CC`, `BAZEL_CXXOPTS` or
+`BAZEL_LINKOPTS` makes Bazel detect the compiler again on the next build.
 ```sh
 export CC=clang-19   # must already be installed and in PATH
 bazel <bazel-command> ... # Will use clang 19 for normal C++ code
@@ -161,6 +162,32 @@ bazel <bazel-command> ... # Will use clang 19 for normal C++ code
 To build with clang and LLVM libc++, pass
 `--cxxopt=-stdlib=libc++ --linkopt=-stdlib=libc++`. The prebuilt TBB is still
 linked against libstdc++, so it must be installed too.
+
+A compiler or C++ library outside the default paths, such as a libc++ built
+into its own prefix, cannot be passed through `--cxxopt`: Bazel rejects its
+headers with `The include path ... references a path outside of the execution
+root`. Set `BAZEL_CXXOPTS` and `BAZEL_LINKOPTS` instead, as for rules_cc's
+auto-configured toolchain. They hold `:`-separated flags that are added to
+every C++ compile and every link, and the toolchain treats the include
+directories they name as builtin:
+```sh
+export CC=clang
+export BAZEL_CXXOPTS="-nostdinc++:-isystem/opt/libcxx/include/c++/v1"
+export BAZEL_LINKOPTS="-stdlib=libc++:-L/opt/libcxx/lib:-Wl,-rpath,/opt/libcxx/lib"
+bazel test --config=host //cpp/oneapi/dal/algo/pca:tests
+```
+
+#### Conda-forge toolchains
+The compilers from conda-forge (`dpcpp_linux-64` for icx, `gxx_linux-64`,
+`clangxx_linux-64`) use their own sysroot under `$CONDA_PREFIX`. Activate the
+environment and run Bazel there; `CC` and `CXX` come from the activation.
+`MKLROOT`, `TBBROOT` and `DPL_ROOT` set to `$CONDA_PREFIX`, as in INSTALL.md,
+use the conda-forge MKL, TBB and oneDPL; unset, Bazel downloads its pinned
+wheels. The SYCL MKL domains (`mkl-devel-dpcpp`) are needed only for the DPC++
+targets, and must be built for the same `libsycl.so` major version as the
+compiler's runtime. For conda-forge clang with its libc++, set
+`BAZEL_CXXOPTS=-stdlib=libc++` and
+`BAZEL_LINKOPTS=-stdlib=libc++:-L$CONDA_PREFIX/lib:-Wl,-rpath,$CONDA_PREFIX/lib`.
 
 On Linux, `--release_dpc` defaults to whether `icpx` is in `PATH`. When it is
 false, the DPC++ targets are skipped: `//:release` has no DPC++ libraries,
@@ -786,7 +813,9 @@ GCC does not support MSan. The `msan` config enables
 Bazel applies the sanitizer flags to the oneDAL build, but it does not make the
 rest of the toolchain and dependencies (for example `libstdc++`) MSan-instrumented.
 Uninstrumented dependencies can produce false positives or incomplete reports;
-use an MSan-instrumented sysroot/runtime when investigating MSan findings.
+use an MSan-instrumented sysroot/runtime when investigating MSan findings. An
+instrumented libc++ in its own prefix is passed through `BAZEL_CXXOPTS` and
+`BAZEL_LINKOPTS` (see [Compiler choice](#compiler-choice)).
 
 ```sh
 bazel test //cpp/oneapi/dal:tests --config=msan
