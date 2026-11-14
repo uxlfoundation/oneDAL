@@ -172,18 +172,33 @@ private:
         return res;
     }
 
+    /// Copies row `index` of the computed statistics into a device table of its own.
+    ///
+    /// The result stays on the device like the dense GPU results; a copy rather than a view, so
+    /// that the table does not pin the whole scratch block.
+    ///
+    /// @param q               SYCL queue.
+    /// @param computed_result Input: statistics block written by the kernels.
+    /// @param index           Input: row of `computed_result` to extract, a `stat` value.
+    /// @param deps            Input: events after which `computed_result` can be read.
+    /// @return                The `1 x column_count` table and the copy event; `get_result`
+    ///                        waits for the event before the table is read.
     std::tuple<table, sycl::event> get_result_table(sycl::queue q,
                                                     const pr::ndarray<Float, 2> computed_result,
                                                     std::int32_t index,
                                                     const std::vector<sycl::event>& deps = {}) {
         ONEDAL_ASSERT(computed_result.has_data());
-        auto column_count = computed_result.get_dimension(1);
-        const auto arr = dal::array<Float>::empty(column_count);
-        const auto res_arr_ptr = arr.get_mutable_data();
-        const auto computed_res_ptr = computed_result.get_data() + index * column_count;
-        auto event =
-            dal::backend::copy_usm2host(q, res_arr_ptr, computed_res_ptr, column_count, deps);
-        return std::make_tuple(homogen_table::wrap(arr, 1, column_count), event);
+        const auto column_count = computed_result.get_dimension(1);
+        auto extracted = pr::ndarray<Float, 1>::empty(q, column_count, sycl::usm::alloc::device);
+        const auto* const computed_res_ptr = computed_result.get_data() + index * column_count;
+        auto event = dal::backend::copy(q,
+                                        extracted.get_mutable_data(),
+                                        computed_res_ptr,
+                                        column_count,
+                                        deps);
+        // No dependency for `flatten`: it would wait on `event` and serialize the extractions,
+        // while `get_result` waits for all of them once.
+        return std::make_tuple(homogen_table::wrap(extracted.flatten(q), 1, column_count), event);
     }
 
     std::int32_t get_result_option_index(result_option_id opt) {
