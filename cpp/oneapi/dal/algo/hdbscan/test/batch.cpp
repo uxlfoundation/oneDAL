@@ -738,12 +738,19 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     SKIP_IF(this->not_float64_friendly());
     using Float = std::tuple_element_t<0, TestType>;
 
-    // Two direction clusters plus two all-zero rows, which scikit-learn puts at cosine distance 1
+    // Two direction clusters plus two zero-norm rows, which scikit-learn puts at cosine distance 1
     // from everything. Reference: sklearn.cluster.HDBSCAN(3, 3, metric="cosine").
     constexpr std::int64_t row_count = 14;
-    constexpr double data[] = { 1.0,  0.05, 1.0,  0.1, 1.0, 0.0, 1.0, 0.08, 1.0,  0.03,
-                                1.0,  0.12, 0.05, 1.0, 0.1, 1.0, 0.0, 1.0,  0.08, 1.0,
-                                0.03, 1.0,  0.12, 1.0, 0.0, 0.0, 0.0, 0.0 };
+    double data[] = {
+        1.0, 0.05, 1.0, 0.1, 1.0,  0.0, 1.0,  0.08, 1.0,  0.03, 1.0, 0.12, 0.05, 1.0,
+        0.1, 1.0,  0.0, 1.0, 0.08, 1.0, 0.03, 1.0,  0.12, 1.0,  0.0, 0.0,  0.0,  0.0
+    };
+    // A row whose squared norm underflows to 0 is a zero row too, as in scikit-learn's normalize.
+    const bool underflow = GENERATE(false, true);
+    CAPTURE(underflow);
+    const double tiny = underflow ? (std::is_same_v<Float, float> ? 1e-25 : 1e-170) : 0.0;
+    data[24] = tiny;
+    data[27] = tiny;
     constexpr Float expected[] = { 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, -1, -1 };
     const auto x = make_table<Float>(data, row_count, 2);
 
