@@ -49,6 +49,64 @@ TEMPLATE_LIST_TEST_M(pca_batch_test, "pca common flow", "[pca][integration][batc
 }
 
 TEMPLATE_LIST_TEST_M(pca_batch_test,
+                     "pca with fewer components matches full decomposition",
+                     "[pca][integration][batch]",
+                     pca_types_cov) {
+    SKIP_IF(this->not_float64_friendly());
+
+    const std::int64_t column_count = 200;
+    const auto data = this->get_separated_spectrum_data(4 * column_count, column_count);
+    const auto make_descriptor = [&](std::int64_t component_count) {
+        return this->get_descriptor(component_count, true)
+            .set_normalization_mode(pca::normalization::mean_center);
+    };
+    const auto full = this->train(make_descriptor(0), data);
+
+    const std::int64_t component_count =
+        GENERATE_COPY(1, 2, 10, column_count / 4, column_count / 2, column_count - 1, column_count);
+    const auto truncated = this->train(make_descriptor(component_count), data);
+
+    this->check_truncated_matches_full(truncated, full, component_count, column_count);
+}
+
+TEMPLATE_LIST_TEST_M(pca_batch_test,
+                     "pca noise variance with a small residual variance",
+                     "[pca][integration][batch]",
+                     pca_types_cov) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    const std::int64_t row_count = 800;
+    const std::int64_t column_count = 200;
+    const std::int64_t leading_count = 10;
+    const double noise = 1e-3;
+    std::vector<double> variances(column_count, noise);
+    for (std::int64_t j = 0; j < leading_count; ++j) {
+        variances[j] = 1000.0 - 50.0 * double(j);
+    }
+    const auto data = this->get_spectrum_data(row_count, variances);
+
+    // Covariance eigenvalues of the generated data are `variances * row_count / (2 * (row_count - 1))`
+    const double scale = 0.5 * double(row_count) / double(row_count - 1);
+    double trace = 0.0;
+    for (const double v : variances) {
+        trace += v * scale;
+    }
+
+    // Takes the partial eigensolver path for `leading_count` and the full one for 100 components
+    const std::int64_t component_count = GENERATE_COPY(leading_count, std::int64_t(100));
+    const auto desc = this->get_descriptor(component_count, true)
+                          .set_normalization_mode(pca::normalization::mean_center);
+    const auto result = this->train(desc, data);
+
+    // The discarded sum cannot be more precise than the rounding of the eigenvalues
+    const double noise_count = double(column_count - component_count);
+    const double bound = 16.0 * std::numeric_limits<Float>::epsilon() * trace / noise_count;
+    CAPTURE(component_count, result.get_noise_variance(), noise * scale, bound);
+    REQUIRE(std::abs(result.get_noise_variance() - noise * scale) <= bound);
+}
+
+TEMPLATE_LIST_TEST_M(pca_batch_test,
                      "pca on gold data",
                      "[pca][integration][batch][gold]",
                      pca_types) {
