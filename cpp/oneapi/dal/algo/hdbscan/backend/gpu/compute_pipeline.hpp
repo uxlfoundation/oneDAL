@@ -84,6 +84,76 @@ inline compute_result<task::clustering> compute_with_block_tree(
     return make_results_from_mst<Float>(queue, desc, local_data, mst_from, mst_to, mst_weights);
 }
 
+/// Run euclidean HDBSCAN on the GPU without the `n x n` matrix: core distances and Boruvka rounds
+/// both over GEMM tiles of centered data.
+///
+/// @tparam Float Floating-point type
+///
+/// @param[in] queue             The SYCL queue
+/// @param[in] desc              Algorithm descriptor
+/// @param[in] local_data        Input data table of size `n x d`
+/// @param[in] alpha_scales_core Divide the core distances by alpha too
+///
+/// @return oneAPI `compute_result`
+template <typename Float>
+inline compute_result<task::clustering> compute_with_gemm_tiles(
+    sycl::queue& queue,
+    const detail::descriptor_base<task::clustering>& desc,
+    const table& local_data,
+    bool alpha_scales_core) {
+    ONEDAL_PROFILER_TASK(hdbscan.compute_gemm_tiles, queue);
+
+    const std::int64_t row_count = local_data.get_row_count();
+    const Float inv_alpha = static_cast<Float>(1.0 / desc.get_alpha());
+    ONEDAL_ASSERT(desc.get_metric() == distance_metric::euclidean);
+
+    array<std::int32_t> mst_from;
+    array<std::int32_t> mst_to;
+    array<Float> mst_weights;
+
+    if (row_count > 1) {
+        const auto data_nd = pr::table2ndarray<Float>(queue, local_data, sycl::usm::alloc::device);
+        const auto [centered, center_event] = make_centered<Float>(queue, data_nd, {});
+
+        // `distance_block_size` rows per search block and MST tile if set, else 2 GB of `block x n`
+        // distances; a tile never exceeds the device's largest allocation.
+        const std::int64_t tile_bytes =
+            std::min<std::int64_t>(std::int64_t(2048) * 1024 * 1024,
+                                   bk::device_max_mem_alloc_size(queue));
+        const std::int64_t max_rows =
+            std::max<std::int64_t>(1, tile_bytes / (row_count * std::int64_t(sizeof(Float))));
+        const std::int64_t block_rows = std::min(
+            { row_count,
+              max_rows,
+              (desc.get_distance_block_size() > 0) ? desc.get_distance_block_size() : max_rows });
+        auto [norms, norms_event] = pr::compute_squared_l2_norms(queue, centered);
+        norms_event.wait_and_throw();
+        const std::int64_t min_samples = std::min(desc.get_min_samples(), row_count);
+        auto core = pr::ndarray<Float, 1>::empty(queue, row_count, sycl::usm::alloc::device);
+        compute_core_distances_gemm_tiles<Float>(queue,
+                                                 centered,
+                                                 norms,
+                                                 core,
+                                                 min_samples,
+                                                 block_rows);
+        if (alpha_scales_core) {
+            Float* core_ptr = core.get_mutable_data();
+            queue
+                .submit([&](sycl::handler& h) {
+                    h.parallel_for(sycl::range<1>(row_count), [=](sycl::id<1> idx) {
+                        core_ptr[idx[0]] *= inv_alpha;
+                    });
+                })
+                .wait_and_throw();
+        }
+
+        std::tie(mst_from, mst_to, mst_weights) =
+            build_mst_gemm_tiles<Float>(queue, centered, norms, core, inv_alpha, block_rows);
+    }
+
+    return make_results_from_mst<Float>(queue, desc, local_data, mst_from, mst_to, mst_weights);
+}
+
 /// Run HDBSCAN on the GPU over the `n x n` MRD matrix: distance matrix, core distances by
 /// k-selection, Boruvka MST over the matrix, cluster extraction on host.
 ///
@@ -143,7 +213,7 @@ inline compute_result<task::clustering> compute_with_matrix(
 }
 
 /// Smallest column count at which the matrix path is used when the matrix fits: the box bounds
-/// prune little there, while the matrix comes from GEMM.
+/// prune little there.
 constexpr std::int64_t matrix_min_column_count = 16;
 
 /// Run HDBSCAN on the GPU through the matrix or the block tree, whichever is faster and fits.
@@ -178,6 +248,9 @@ inline compute_result<task::clustering> compute_gpu(
     }
     if (cosine || (fits && column_count >= matrix_min_column_count)) {
         return compute_with_matrix<Float>(queue, desc, local_data, alpha_scales_core);
+    }
+    if (desc.get_metric() == distance_metric::euclidean && column_count >= gemm_min_column_count) {
+        return compute_with_gemm_tiles<Float>(queue, desc, local_data, alpha_scales_core);
     }
     return compute_with_block_tree<Float>(queue, desc, local_data, alpha_scales_core);
 }
