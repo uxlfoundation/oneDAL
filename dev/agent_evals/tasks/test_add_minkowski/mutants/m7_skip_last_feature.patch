@@ -1,0 +1,13 @@
+diff --git a/cpp/daal/src/algorithms/service_kernel_math.h b/cpp/daal/src/algorithms/service_kernel_math.h
+index 23b10ba..0956534 100644
+--- a/cpp/daal/src/algorithms/service_kernel_math.h
++++ b/cpp/daal/src/algorithms/service_kernel_math.h
+@@ -564,7 +564,7 @@ inline FPType MinkowskiDistances<FPType, cpu>::computeDistance(const FPType * x,
+     }
+     else
+     {
+-        for (size_t i = 0; i < n; ++i)
++        for (size_t i = 0; i + 1 < n; ++i)
+         {
+             d += math.sPowx(math.sFabs(x[i] - y[i]), _p);
+         }

@@ -1,0 +1,686 @@
+diff --git a/cpp/daal/include/algorithms/covariance/covariance_types.h b/cpp/daal/include/algorithms/covariance/covariance_types.h
+index fe032b0..87edc28 100644
+--- a/cpp/daal/include/algorithms/covariance/covariance_types.h
++++ b/cpp/daal/include/algorithms/covariance/covariance_types.h
+@@ -262,7 +262,6 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
+     /** Default constructor */
+     Parameter();
+     bool assumeCentered = false;       /*!< Determines if mean centering is necessary or not*/
+-    bool bias           = false;       /*!< Determines if covariance estimation biased or not*/
+     OutputMatrixType outputMatrixType; /*!< Type of the computed matrix */
+ };
+ 
+diff --git a/cpp/daal/src/algorithms/covariance/covariance_impl.i b/cpp/daal/src/algorithms/covariance/covariance_impl.i
+index 22e66c2..ef76b12 100644
+--- a/cpp/daal/src/algorithms/covariance/covariance_impl.i
++++ b/cpp/daal/src/algorithms/covariance/covariance_impl.i
+@@ -878,10 +878,6 @@ services::Status finalizeCovariance(size_t nFeatures, algorithmFPType nObservati
+     }
+ 
+     algorithmFPType multiplier = invNObservationsM1;
+-    if (parameter->bias)
+-    {
+-        multiplier = invNObservations;
+-    }
+ 
+     /* Calculate resulting mean vector */
+     PRAGMA_OMP_SIMD
+diff --git a/cpp/oneapi/dal/algo/covariance/backend/cpu/compute_kernel_dense.cpp b/cpp/oneapi/dal/algo/covariance/backend/cpu/compute_kernel_dense.cpp
+index ddd6b34..44a5979 100644
+--- a/cpp/oneapi/dal/algo/covariance/backend/cpu/compute_kernel_dense.cpp
++++ b/cpp/oneapi/dal/algo/covariance/backend/cpu/compute_kernel_dense.cpp
+@@ -122,7 +122,6 @@ static compute_result<Task> call_daal_kernel(const context_cpu& ctx,
+ 
+     daal_covariance::Parameter daal_parameter;
+     daal_parameter.outputMatrixType = daal_covariance::covarianceMatrix;
+-    daal_parameter.bias = desc.get_bias();
+     daal_parameter.assumeCentered = desc.get_assume_centered();
+ 
+     const daal_hyperparameters_t& hp = convert_parameters<Float, Task>(params);
+diff --git a/cpp/oneapi/dal/algo/covariance/backend/cpu/finalize_compute_kernel_dense.cpp b/cpp/oneapi/dal/algo/covariance/backend/cpu/finalize_compute_kernel_dense.cpp
+index c528d21..a7b0142 100644
+--- a/cpp/oneapi/dal/algo/covariance/backend/cpu/finalize_compute_kernel_dense.cpp
++++ b/cpp/oneapi/dal/algo/covariance/backend/cpu/finalize_compute_kernel_dense.cpp
+@@ -58,7 +58,6 @@ static compute_result<Task> call_daal_kernel_finalize(const context_cpu& ctx,
+     bool is_mean_computed = false;
+ 
+     daal_covariance::Parameter daal_parameter;
+-    daal_parameter.bias = desc.get_bias();
+     daal_parameter.assumeCentered = desc.get_assume_centered();
+     daal_parameter.outputMatrixType = daal_covariance::covarianceMatrix;
+ 
+diff --git a/cpp/oneapi/dal/algo/covariance/backend/gpu/compute_kernel_dense_impl_dpc.cpp b/cpp/oneapi/dal/algo/covariance/backend/gpu/compute_kernel_dense_impl_dpc.cpp
+index 84b2c2a..371c9df 100644
+--- a/cpp/oneapi/dal/algo/covariance/backend/gpu/compute_kernel_dense_impl_dpc.cpp
++++ b/cpp/oneapi/dal/algo/covariance/backend/gpu/compute_kernel_dense_impl_dpc.cpp
+@@ -53,7 +53,7 @@ result_t compute_kernel_dense_impl<Float>::operator()(const descriptor_t& desc,
+                                          q_,
+                                          input.get_data().get_row_count(),
+                                          input.get_data().get_column_count(),
+-                                         desc.get_bias(),
++                                         false,
+                                          desc.get_assume_centered());
+ 
+     const auto data = input.get_data();
+@@ -64,7 +64,7 @@ result_t compute_kernel_dense_impl<Float>::operator()(const descriptor_t& desc,
+     const std::int64_t column_count = data.get_column_count();
+     ONEDAL_ASSERT(column_count > 0);
+ 
+-    auto bias = desc.get_bias();
++    const bool bias = false;
+     auto assume_centered = desc.get_assume_centered();
+ 
+     auto result = compute_result<task_t>{}.set_result_options(desc.get_result_options());
+diff --git a/cpp/oneapi/dal/algo/covariance/backend/gpu/finalize_compute_kernel_dense_impl_dpc.cpp b/cpp/oneapi/dal/algo/covariance/backend/gpu/finalize_compute_kernel_dense_impl_dpc.cpp
+index c3844b2..d133cd5 100644
+--- a/cpp/oneapi/dal/algo/covariance/backend/gpu/finalize_compute_kernel_dense_impl_dpc.cpp
++++ b/cpp/oneapi/dal/algo/covariance/backend/gpu/finalize_compute_kernel_dense_impl_dpc.cpp
+@@ -60,7 +60,7 @@ result_t finalize_compute_kernel_dense_impl<Float>::operator()(const descriptor_
+ 
+     dal::detail::check_mul_overflow(column_count, column_count);
+ 
+-    auto bias = desc.get_bias();
++    const bool bias = false;
+     auto assume_centered = desc.get_assume_centered();
+     auto result = compute_result<task_t>{}.set_result_options(desc.get_result_options());
+ 
+diff --git a/cpp/oneapi/dal/algo/covariance/common.cpp b/cpp/oneapi/dal/algo/covariance/common.cpp
+index ba18906..423586a 100644
+--- a/cpp/oneapi/dal/algo/covariance/common.cpp
++++ b/cpp/oneapi/dal/algo/covariance/common.cpp
+@@ -47,7 +47,6 @@ template <typename Task>
+ class descriptor_impl : public base {
+ public:
+     bool assume_centered = false;
+-    bool bias = false;
+     result_option_id result_options = get_default_result_options<Task>();
+ };
+ 
+@@ -59,11 +58,6 @@ bool descriptor_base<Task>::get_assume_centered() const {
+     return impl_->assume_centered;
+ }
+ 
+-template <typename Task>
+-bool descriptor_base<Task>::get_bias() const {
+-    return impl_->bias;
+-}
+-
+ template <typename Task>
+ result_option_id descriptor_base<Task>::get_result_options() const {
+     return impl_->result_options;
+@@ -74,11 +68,6 @@ void descriptor_base<Task>::set_assume_centered_impl(const bool& value) {
+     impl_->assume_centered = value;
+ }
+ 
+-template <typename Task>
+-void descriptor_base<Task>::set_bias_impl(const bool& value) {
+-    impl_->bias = value;
+-}
+-
+ template <typename Task>
+ void descriptor_base<Task>::set_result_options_impl(const result_option_id& value) {
+     using msg = dal::detail::error_messages;
+diff --git a/cpp/oneapi/dal/algo/covariance/common.hpp b/cpp/oneapi/dal/algo/covariance/common.hpp
+index 0abfd25..0fe9498 100644
+--- a/cpp/oneapi/dal/algo/covariance/common.hpp
++++ b/cpp/oneapi/dal/algo/covariance/common.hpp
+@@ -112,12 +112,10 @@ public:
+     descriptor_base();
+ 
+     bool get_assume_centered() const;
+-    bool get_bias() const;
+     result_option_id get_result_options() const;
+ 
+ protected:
+     void set_assume_centered_impl(const bool& value);
+-    void set_bias_impl(const bool& value);
+     void set_result_options_impl(const result_option_id& value);
+ 
+ private:
+@@ -174,16 +172,6 @@ public:
+         return *this;
+     }
+ 
+-    /// Choose if result biased or not
+-    bool get_bias() const {
+-        return base_t::get_bias();
+-    }
+-
+-    auto& set_bias(const bool& value) {
+-        base_t::set_bias_impl(value);
+-        return *this;
+-    }
+-
+     /// Choose which results should be computed and returned.
+     result_option_id get_result_options() const {
+         return base_t::get_result_options();
+diff --git a/cpp/oneapi/dal/algo/covariance/test/batch.cpp b/cpp/oneapi/dal/algo/covariance/test/batch.cpp
+index 3e47f1c..e15f8eb 100644
+--- a/cpp/oneapi/dal/algo/covariance/test/batch.cpp
++++ b/cpp/oneapi/dal/algo/covariance/test/batch.cpp
+@@ -53,8 +53,6 @@ TEMPLATE_LIST_TEST_M(covariance_batch_test,
+ 
+     const bool assume_centered = GENERATE(true, false);
+     INFO("assume_centered=" << assume_centered);
+-    const bool bias = GENERATE(true, false);
+-    INFO("bias=" << bias);
+     const cov::result_option_id result_option =
+         GENERATE(covariance::result_options::means,
+                  covariance::result_options::cov_matrix,
+@@ -69,8 +67,7 @@ TEMPLATE_LIST_TEST_M(covariance_batch_test,
+ 
+     auto cov_desc = covariance::descriptor<Float, Method, covariance::task::compute>()
+                         .set_result_options(result_option)
+-                        .set_assume_centered(assume_centered)
+-                        .set_bias(bias);
++                        .set_assume_centered(assume_centered);
+ 
+     const te::dataframe input =
+         GENERATE_DATAFRAME(te::dataframe_builder{ 100, 100 }.fill_normal(0, 1, 7777),
+@@ -95,8 +92,6 @@ TEMPLATE_LIST_TEST_M(covariance_batch_test,
+     using Method = std::tuple_element_t<1, TestType>;
+ 
+     INFO("Float=" << typeid(Float).name());
+-    const bool bias = GENERATE(true, false);
+-    INFO("bias=" << bias);
+ 
+     const bool non_batched = GENERATE(false, true);
+     INFO("non_batched=" << non_batched);
+@@ -106,8 +101,7 @@ TEMPLATE_LIST_TEST_M(covariance_batch_test,
+     INFO("result_option=" << result_option);
+ 
+     auto cov_desc = covariance::descriptor<Float, Method, covariance::task::compute>()
+-                        .set_result_options(result_option)
+-                        .set_bias(bias);
++                        .set_result_options(result_option);
+ 
+     const te::dataframe input = (sizeof(Float) == 8)
+                                     ? te::dataframe_builder{ 10000, 20 }
+diff --git a/cpp/oneapi/dal/algo/covariance/test/compute_parameters.cpp b/cpp/oneapi/dal/algo/covariance/test/compute_parameters.cpp
+index b023751..7bd1ed7 100644
+--- a/cpp/oneapi/dal/algo/covariance/test/compute_parameters.cpp
++++ b/cpp/oneapi/dal/algo/covariance/test/compute_parameters.cpp
+@@ -95,8 +95,6 @@ TEMPLATE_LIST_TEST_M(covariance_params_test,
+     using Method = std::tuple_element_t<1, TestType>;
+     const bool assume_centered = GENERATE(true, false);
+     INFO("assume_centered=" << assume_centered);
+-    const bool bias = GENERATE(true, false);
+-    INFO("bias=" << bias);
+     const cov::result_option_id result_option =
+         GENERATE(covariance::result_options::means,
+                  covariance::result_options::cov_matrix,
+@@ -108,8 +106,7 @@ TEMPLATE_LIST_TEST_M(covariance_params_test,
+ 
+     auto cov_desc = covariance::descriptor<Float, Method, covariance::task::compute>()
+                         .set_result_options(result_option)
+-                        .set_assume_centered(assume_centered)
+-                        .set_bias(bias);
++                        .set_assume_centered(assume_centered);
+ 
+     const te::dataframe input =
+         GENERATE_DATAFRAME(te::dataframe_builder{ 500, 40 }.fill_uniform(-100, 100, 7777),
+diff --git a/cpp/oneapi/dal/algo/covariance/test/fixture.hpp b/cpp/oneapi/dal/algo/covariance/test/fixture.hpp
+index e991fa9..90ed49f 100644
+--- a/cpp/oneapi/dal/algo/covariance/test/fixture.hpp
++++ b/cpp/oneapi/dal/algo/covariance/test/fixture.hpp
+@@ -130,9 +130,6 @@ public:
+         auto reference_cov =
+             la::matrix<double>::full({ column_count_data, column_count_data }, 0.0);
+         auto multiplier = 1 / static_cast<double>(row_count_data - 1);
+-        if (desc.get_bias()) {
+-            multiplier = 1 / static_cast<double>(row_count_data);
+-        }
+         for (std::int64_t i = 0; i < column_count_data; i++) {
+             for (std::int64_t j = 0; j < column_count_data; j++) {
+                 double elem = 0;
+diff --git a/cpp/oneapi/dal/algo/covariance/test/online.cpp b/cpp/oneapi/dal/algo/covariance/test/online.cpp
+index 637137e..bde3a82 100644
+--- a/cpp/oneapi/dal/algo/covariance/test/online.cpp
++++ b/cpp/oneapi/dal/algo/covariance/test/online.cpp
+@@ -65,8 +65,6 @@ TEMPLATE_LIST_TEST_M(covariance_online_test,
+ 
+     const bool assume_centered = GENERATE(true, false);
+     INFO("assume_centered=" << assume_centered);
+-    const bool bias = GENERATE(true, false);
+-    INFO("bias=" << bias);
+     const cov::result_option_id result_option =
+         GENERATE(covariance::result_options::means,
+                  covariance::result_options::cov_matrix,
+@@ -78,8 +76,7 @@ TEMPLATE_LIST_TEST_M(covariance_online_test,
+ 
+     auto cov_desc = covariance::descriptor<Float, Method, covariance::task::compute>()
+                         .set_result_options(result_option)
+-                        .set_assume_centered(assume_centered)
+-                        .set_bias(bias);
++                        .set_assume_centered(assume_centered);
+ 
+     const te::dataframe input =
+         GENERATE_DATAFRAME(te::dataframe_builder{ 100, 100 }.fill_normal(0, 1, 7777),
+diff --git a/cpp/oneapi/dal/algo/covariance/test/online_spmd.cpp b/cpp/oneapi/dal/algo/covariance/test/online_spmd.cpp
+index 51f1be8..9b377a9 100644
+--- a/cpp/oneapi/dal/algo/covariance/test/online_spmd.cpp
++++ b/cpp/oneapi/dal/algo/covariance/test/online_spmd.cpp
+@@ -113,8 +113,6 @@ TEMPLATE_LIST_TEST_M(covariance_online_spmd_test,
+ 
+     const bool assume_centered = GENERATE(true, false);
+     INFO("assume_centered=" << assume_centered);
+-    const bool bias = GENERATE(true, false);
+-    INFO("bias=" << bias);
+     const cov::result_option_id result_option =
+         GENERATE(covariance::result_options::means,
+                  covariance::result_options::cov_matrix,
+@@ -126,8 +124,7 @@ TEMPLATE_LIST_TEST_M(covariance_online_spmd_test,
+ 
+     auto cov_desc = covariance::descriptor<Float, Method, covariance::task::compute>()
+                         .set_result_options(result_option)
+-                        .set_assume_centered(assume_centered)
+-                        .set_bias(bias);
++                        .set_assume_centered(assume_centered);
+ 
+     const te::dataframe input =
+         GENERATE_DATAFRAME(te::dataframe_builder{ 100, 100 }.fill_normal(0, 1, 7777),
+diff --git a/cpp/oneapi/dal/algo/covariance/test/spmd.cpp b/cpp/oneapi/dal/algo/covariance/test/spmd.cpp
+index b76b783..88d81f9 100644
+--- a/cpp/oneapi/dal/algo/covariance/test/spmd.cpp
++++ b/cpp/oneapi/dal/algo/covariance/test/spmd.cpp
+@@ -95,8 +95,6 @@ TEMPLATE_LIST_TEST_M(covariance_spmd_test,
+ 
+     const bool assume_centered = GENERATE(true, false);
+     INFO("assume_centered=" << assume_centered);
+-    const bool bias = GENERATE(true, false);
+-    INFO("bias=" << bias);
+     const cov::result_option_id result_option =
+         GENERATE(covariance::result_options::means,
+                  covariance::result_options::cov_matrix,
+@@ -108,8 +106,7 @@ TEMPLATE_LIST_TEST_M(covariance_spmd_test,
+ 
+     auto cov_desc = covariance::descriptor<Float, Method, covariance::task::compute>()
+                         .set_result_options(result_option)
+-                        .set_assume_centered(assume_centered)
+-                        .set_bias(bias);
++                        .set_assume_centered(assume_centered);
+ 
+     const te::dataframe input =
+         GENERATE_DATAFRAME(te::dataframe_builder{ 100, 100 }.fill_normal(0, 1, 7777),
+diff --git a/examples/oneapi/cpp/source/covariance/cov_dense_biased_batch.cpp b/examples/oneapi/cpp/source/covariance/cov_dense_biased_batch.cpp
+deleted file mode 100644
+index acaa81f..0000000
+--- a/examples/oneapi/cpp/source/covariance/cov_dense_biased_batch.cpp
++++ /dev/null
+@@ -1,39 +0,0 @@
+-/*******************************************************************************
+-* Copyright 2023 Intel Corporation
+-*
+-* Licensed under the Apache License, Version 2.0 (the "License");
+-* you may not use this file except in compliance with the License.
+-* You may obtain a copy of the License at
+-*
+-*     http://www.apache.org/licenses/LICENSE-2.0
+-*
+-* Unless required by applicable law or agreed to in writing, software
+-* distributed under the License is distributed on an "AS IS" BASIS,
+-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-* See the License for the specific language governing permissions and
+-* limitations under the License.
+-*******************************************************************************/
+-
+-#include "oneapi/dal/algo/covariance.hpp"
+-#include "oneapi/dal/io/csv.hpp"
+-
+-#include "example_util/utils.hpp"
+-
+-namespace dal = oneapi::dal;
+-
+-int main(int argc, char const *argv[]) {
+-    const auto input_file_name = get_data_path("data/covcormoments_dense.csv");
+-
+-    const auto input = dal::read<dal::table>(dal::csv::data_source{ input_file_name });
+-    auto cov_desc = dal::covariance::descriptor{}
+-                        .set_result_options(dal::covariance::result_options::cov_matrix)
+-                        .set_bias(true)
+-                        .set_assume_centered(false);
+-
+-    auto result = dal::compute(cov_desc, input);
+-
+-    std::cout << "Maximum likelihood covariance estimation:\n"
+-              << result.get_cov_matrix() << std::endl;
+-
+-    return 0;
+-}
+diff --git a/examples/oneapi/cpp/source/covariance/cov_dense_biased_online.cpp b/examples/oneapi/cpp/source/covariance/cov_dense_biased_online.cpp
+deleted file mode 100644
+index 10857f0..0000000
+--- a/examples/oneapi/cpp/source/covariance/cov_dense_biased_online.cpp
++++ /dev/null
+@@ -1,43 +0,0 @@
+-/*******************************************************************************
+-* Copyright 2023 Intel Corporation
+-*
+-* Licensed under the Apache License, Version 2.0 (the "License");
+-* you may not use this file except in compliance with the License.
+-* You may obtain a copy of the License at
+-*
+-*     http://www.apache.org/licenses/LICENSE-2.0
+-*
+-* Unless required by applicable law or agreed to in writing, software
+-* distributed under the License is distributed on an "AS IS" BASIS,
+-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-* See the License for the specific language governing permissions and
+-* limitations under the License.
+-*******************************************************************************/
+-
+-#include "oneapi/dal/algo/covariance.hpp"
+-#include "oneapi/dal/io/csv.hpp"
+-
+-#include "example_util/utils.hpp"
+-
+-namespace dal = oneapi::dal;
+-int main(int argc, char const *argv[]) {
+-    const auto input_file_name = get_data_path("data/covcormoments_dense.csv");
+-    const std::int64_t nBlocks = 10;
+-
+-    const auto input = dal::read<dal::table>(dal::csv::data_source{ input_file_name });
+-    const auto cov_desc = dal::covariance::descriptor{}
+-                              .set_result_options(dal::covariance::result_options::cov_matrix |
+-                                                  dal::covariance::result_options::means)
+-                              .set_bias(true);
+-
+-    dal::covariance::partial_compute_result<> partial_result;
+-
+-    auto input_table = split_table_by_rows<double>(input, nBlocks);
+-    for (std::int64_t i = 0; i < nBlocks; i++) {
+-        partial_result = dal::partial_compute(cov_desc, partial_result, input_table[i]);
+-    }
+-    auto result = dal::finalize_compute(cov_desc, partial_result);
+-
+-    std::cout << "Maximum likelihood covariance estimation:\n"
+-              << result.get_cov_matrix() << std::endl;
+-}
+diff --git a/examples/oneapi/dpc/source/covariance/cov_dense_biased_batch.cpp b/examples/oneapi/dpc/source/covariance/cov_dense_biased_batch.cpp
+deleted file mode 100644
+index ec41f3d..0000000
+--- a/examples/oneapi/dpc/source/covariance/cov_dense_biased_batch.cpp
++++ /dev/null
+@@ -1,56 +0,0 @@
+-/*******************************************************************************
+-* Copyright 2023 Intel Corporation
+-*
+-* Licensed under the Apache License, Version 2.0 (the "License");
+-* you may not use this file except in compliance with the License.
+-* You may obtain a copy of the License at
+-*
+-*     http://www.apache.org/licenses/LICENSE-2.0
+-*
+-* Unless required by applicable law or agreed to in writing, software
+-* distributed under the License is distributed on an "AS IS" BASIS,
+-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-* See the License for the specific language governing permissions and
+-* limitations under the License.
+-*******************************************************************************/
+-
+-#include <sycl/sycl.hpp>
+-
+-#ifndef ONEDAL_DATA_PARALLEL
+-#define ONEDAL_DATA_PARALLEL
+-#endif
+-
+-#include "oneapi/dal/algo/covariance.hpp"
+-#include "oneapi/dal/io/csv.hpp"
+-
+-#include "example_util/utils.hpp"
+-
+-namespace dal = oneapi::dal;
+-
+-void run(sycl::queue &q) {
+-    const auto input_file_name = get_data_path("data/covcormoments_dense.csv");
+-
+-    const auto input = dal::read<dal::table>(q, dal::csv::data_source{ input_file_name });
+-    auto cov_desc = dal::covariance::descriptor{}
+-                        .set_result_options(dal::covariance::result_options::cov_matrix |
+-                                            dal::covariance::result_options::means)
+-                        .set_bias(true)
+-                        .set_assume_centered(false);
+-
+-    auto result = dal::compute(q, cov_desc, input);
+-
+-    std::cout << "Maximum likelihood covariance estimation:\n"
+-              << result.get_cov_matrix() << std::endl;
+-    std::cout << "Means:\n" << result.get_means() << std::endl;
+-}
+-
+-int main(int argc, char const *argv[]) {
+-    for (auto d : list_devices()) {
+-        std::cout << "Running on " << d.get_platform().get_info<sycl::info::platform::name>()
+-                  << ", " << d.get_info<sycl::info::device::name>() << "\n"
+-                  << std::endl;
+-        auto q = sycl::queue{ d };
+-        run(q);
+-    }
+-    return 0;
+-}
+diff --git a/examples/oneapi/dpc/source/covariance/cov_dense_biased_online.cpp b/examples/oneapi/dpc/source/covariance/cov_dense_biased_online.cpp
+deleted file mode 100644
+index ad8a914..0000000
+--- a/examples/oneapi/dpc/source/covariance/cov_dense_biased_online.cpp
++++ /dev/null
+@@ -1,61 +0,0 @@
+-/*******************************************************************************
+-* Copyright 2023 Intel Corporation
+-*
+-* Licensed under the Apache License, Version 2.0 (the "License");
+-* you may not use this file except in compliance with the License.
+-* You may obtain a copy of the License at
+-*
+-*     http://www.apache.org/licenses/LICENSE-2.0
+-*
+-* Unless required by applicable law or agreed to in writing, software
+-* distributed under the License is distributed on an "AS IS" BASIS,
+-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-* See the License for the specific language governing permissions and
+-* limitations under the License.
+-*******************************************************************************/
+-
+-#include <sycl/sycl.hpp>
+-
+-#ifndef ONEDAL_DATA_PARALLEL
+-#define ONEDAL_DATA_PARALLEL
+-#endif
+-
+-#include "oneapi/dal/algo/covariance.hpp"
+-#include "oneapi/dal/io/csv.hpp"
+-
+-#include "example_util/utils.hpp"
+-
+-namespace dal = oneapi::dal;
+-
+-void run(sycl::queue &q) {
+-    const auto input_file_name = get_data_path("data/covcormoments_dense.csv");
+-    const std::int64_t nBlocks = 10;
+-
+-    const auto input = dal::read<dal::table>(q, dal::csv::data_source{ input_file_name });
+-    const auto cov_desc = dal::covariance::descriptor{}
+-                              .set_result_options(dal::covariance::result_options::cov_matrix |
+-                                                  dal::covariance::result_options::means)
+-                              .set_bias(true);
+-
+-    dal::covariance::partial_compute_result<> partial_result;
+-
+-    auto input_table = split_table_by_rows<double>(input, nBlocks);
+-    for (std::int64_t i = 0; i < nBlocks; i++) {
+-        partial_result = dal::partial_compute(q, cov_desc, partial_result, input_table[i]);
+-    }
+-    auto result = dal::finalize_compute(q, cov_desc, partial_result);
+-
+-    std::cout << "Maximum likelihood covariance estimation:\n"
+-              << result.get_cov_matrix() << std::endl;
+-}
+-
+-int main(int argc, char const *argv[]) {
+-    for (auto d : list_devices()) {
+-        std::cout << "Running on " << d.get_platform().get_info<sycl::info::platform::name>()
+-                  << ", " << d.get_info<sycl::info::device::name>() << "\n"
+-                  << std::endl;
+-        auto q = sycl::queue{ d };
+-        run(q);
+-    }
+-    return 0;
+-}
+diff --git a/samples/oneapi/dpc/ccl/sources/cov_biased_distr_ccl.cpp b/samples/oneapi/dpc/ccl/sources/cov_biased_distr_ccl.cpp
+deleted file mode 100644
+index d78b89c..0000000
+--- a/samples/oneapi/dpc/ccl/sources/cov_biased_distr_ccl.cpp
++++ /dev/null
+@@ -1,74 +0,0 @@
+-/*******************************************************************************
+-* Copyright 2023 Intel Corporation
+-*
+-* Licensed under the Apache License, Version 2.0 (the "License");
+-* you may not use this file except in compliance with the License.
+-* You may obtain a copy of the License at
+-*
+-*     http://www.apache.org/licenses/LICENSE-2.0
+-*
+-* Unless required by applicable law or agreed to in writing, software
+-* distributed under the License is distributed on an "AS IS" BASIS,
+-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-* See the License for the specific language governing permissions and
+-* limitations under the License.
+-*******************************************************************************/
+-
+-#include <sycl/sycl.hpp>
+-#include <iomanip>
+-#include <iostream>
+-#include <mpi.h>
+-
+-#ifndef ONEDAL_DATA_PARALLEL
+-#define ONEDAL_DATA_PARALLEL
+-#endif
+-
+-#include "oneapi/dal/algo/covariance.hpp"
+-#include "oneapi/dal/spmd/ccl/communicator.hpp"
+-#include "oneapi/dal/io/csv.hpp"
+-
+-#include "utils.hpp"
+-
+-namespace dal = oneapi::dal;
+-
+-void run(sycl::queue& queue) {
+-    const auto data_file_name = get_data_path("data/covcormoments_dense.csv");
+-
+-    const auto data = dal::read<dal::table>(queue, dal::csv::data_source{ data_file_name });
+-
+-    const auto cov_desc = dal::covariance::descriptor{}
+-                              .set_result_options(dal::covariance::result_options::cov_matrix)
+-                              .set_bias(true);
+-
+-    auto comm = dal::preview::spmd::make_communicator<dal::preview::spmd::backend::ccl>(queue);
+-    auto rank_id = comm.get_rank();
+-    auto rank_count = comm.get_rank_count();
+-
+-    auto input_vec = split_table_by_rows<float>(queue, data, rank_count);
+-
+-    const auto result = dal::preview::compute(comm, cov_desc, input_vec[rank_id]);
+-    if (comm.get_rank() == 0) {
+-        std::cout << "Maximum likelihood covariance estimation:\n"
+-                  << result.get_cov_matrix() << std::endl;
+-    }
+-}
+-
+-int main(int argc, char const* argv[]) {
+-    ccl::init();
+-    int status = MPI_Init(nullptr, nullptr);
+-    if (status != MPI_SUCCESS) {
+-        throw std::runtime_error{ "Problem occurred during MPI init" };
+-    }
+-
+-    auto device = sycl::device(sycl::gpu_selector_v);
+-    std::cout << "Running on " << device.get_platform().get_info<sycl::info::platform::name>()
+-              << ", " << device.get_info<sycl::info::device::name>() << std::endl;
+-    sycl::queue q{ device };
+-    run(q);
+-
+-    status = MPI_Finalize();
+-    if (status != MPI_SUCCESS) {
+-        throw std::runtime_error{ "Problem occurred during MPI finalize" };
+-    }
+-    return 0;
+-}
+diff --git a/samples/oneapi/dpc/mpi/sources/cov_biased_distr_mpi.cpp b/samples/oneapi/dpc/mpi/sources/cov_biased_distr_mpi.cpp
+deleted file mode 100644
+index 52b67e2..0000000
+--- a/samples/oneapi/dpc/mpi/sources/cov_biased_distr_mpi.cpp
++++ /dev/null
+@@ -1,73 +0,0 @@
+-/*******************************************************************************
+-* Copyright 2023 Intel Corporation
+-*
+-* Licensed under the Apache License, Version 2.0 (the "License");
+-* you may not use this file except in compliance with the License.
+-* You may obtain a copy of the License at
+-*
+-*     http://www.apache.org/licenses/LICENSE-2.0
+-*
+-* Unless required by applicable law or agreed to in writing, software
+-* distributed under the License is distributed on an "AS IS" BASIS,
+-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-* See the License for the specific language governing permissions and
+-* limitations under the License.
+-*******************************************************************************/
+-
+-#include <sycl/sycl.hpp>
+-#include <iomanip>
+-#include <iostream>
+-#include <mpi.h>
+-
+-#ifndef ONEDAL_DATA_PARALLEL
+-#define ONEDAL_DATA_PARALLEL
+-#endif
+-
+-#include "oneapi/dal/algo/covariance.hpp"
+-#include "oneapi/dal/spmd/mpi/communicator.hpp"
+-#include "oneapi/dal/io/csv.hpp"
+-
+-#include "utils.hpp"
+-
+-namespace dal = oneapi::dal;
+-
+-void run(sycl::queue& queue) {
+-    const auto data_file_name = get_data_path("data/covcormoments_dense.csv");
+-
+-    const auto data = dal::read<dal::table>(queue, dal::csv::data_source{ data_file_name });
+-
+-    const auto cov_desc = dal::covariance::descriptor{}
+-                              .set_result_options(dal::covariance::result_options::cov_matrix)
+-                              .set_bias(true);
+-
+-    auto comm = dal::preview::spmd::make_communicator<dal::preview::spmd::backend::mpi>(queue);
+-    auto rank_id = comm.get_rank();
+-    auto rank_count = comm.get_rank_count();
+-
+-    auto input_vec = split_table_by_rows<float>(queue, data, rank_count);
+-
+-    const auto result = dal::preview::compute(comm, cov_desc, input_vec[rank_id]);
+-    if (comm.get_rank() == 0) {
+-        std::cout << "Maximum likelihood covariance estimation:\n"
+-                  << result.get_cov_matrix() << std::endl;
+-    }
+-}
+-
+-int main(int argc, char const* argv[]) {
+-    int status = MPI_Init(nullptr, nullptr);
+-    if (status != MPI_SUCCESS) {
+-        throw std::runtime_error{ "Problem occurred during MPI init" };
+-    }
+-
+-    auto device = sycl::device(sycl::gpu_selector_v);
+-    std::cout << "Running on " << device.get_platform().get_info<sycl::info::platform::name>()
+-              << ", " << device.get_info<sycl::info::device::name>() << std::endl;
+-    sycl::queue q{ device };
+-    run(q);
+-
+-    status = MPI_Finalize();
+-    if (status != MPI_SUCCESS) {
+-        throw std::runtime_error{ "Problem occurred during MPI finalize" };
+-    }
+-    return 0;
+-}
