@@ -86,8 +86,9 @@ template <typename Record, CpuType cpu>
 class Inputs : public TreeInputs<Record, cpu>
 {
 public:
-    Inputs(const ResponseSource<double, cpu> & src, const std::vector<std::vector<uint16_t> > & counts, uint64_t seed, size_t nTrees)
-        : trees(nTrees), _src(src), _counts(counts), _seed(seed)
+    Inputs(const ResponseSource<double, cpu> & src, const std::vector<std::vector<uint16_t> > & counts, uint64_t seed, size_t nTrees,
+           bool constantNodeDraws = false)
+        : trees(nTrees), _src(src), _counts(counts), _seed(seed), _constantNodeDraws(constantNodeDraws)
     {}
 
     services::Status prepareTree(size_t iTree, ResponseSet<Record, cpu> & records, uint64_t & treeSeed) override
@@ -104,9 +105,15 @@ public:
         return services::Status();
     }
 
-    /// One mt19937 stream for every node draw, under the lock, as the forest's node stream.
+    /// One mt19937 stream for every node draw, under the lock, as the forest's node stream; or 0 for every draw,
+    /// which makes each node's feature draws the features in index order whenever they are drawn.
     services::Status nodeUniform(double & u) override
     {
+        if (_constantNodeDraws)
+        {
+            u = 0;
+            return services::Status();
+        }
         std::lock_guard<std::mutex> lock(_mutex);
         if (!_nodeStream) _nodeStream.reset(new daal::internal::BaseRNGsInst<cpu>(unsigned(_seed), __DAAL_BRNG_MT19937));
         daal::internal::RNGsInst<double, cpu> rng;
@@ -120,6 +127,7 @@ private:
     const ResponseSource<double, cpu> & _src;
     const std::vector<std::vector<uint16_t> > & _counts;
     uint64_t _seed;
+    bool _constantNodeDraws;
     std::mutex _mutex;
     std::unique_ptr<daal::internal::BaseRNGsInst<cpu> > _nodeStream;
 };
@@ -135,7 +143,7 @@ bool counterDrawsSupported()
 /// with counter draws (the TreeParams default) skip themselves where counterDrawsSupported() is false.
 template <typename Record, CpuType cpu>
 std::vector<EmittedTree> train(const Dataset & d, const TreeParams & params, size_t nTrees, const std::vector<std::vector<uint16_t> > & counts,
-                               uint64_t seed = 777, const BinningParams * binning = nullptr)
+                               uint64_t seed = 777, const BinningParams * binning = nullptr, bool constantNodeDraws = false)
 {
     std::vector<double> xCopy = d.x;
     NumericTablePtr xt        = HomogenNumericTable<double>::create(xCopy.data(), d.p, d.nRows);
@@ -168,7 +176,7 @@ std::vector<EmittedTree> train(const Dataset & d, const TreeParams & params, siz
         REQUIRE(binned);
         data.bins = &bins;
     }
-    Inputs<Record, cpu> inputs(src, counts, seed, nTrees);
+    Inputs<Record, cpu> inputs(src, counts, seed, nTrees, constantNodeDraws);
     REQUIRE((trainTrees<double, Record, cpu>(data, params, nTrees, inputs)).ok());
     return std::move(inputs.trees);
 }
@@ -911,6 +919,45 @@ TEST("hist with one bin per value equals the exact phase on the same draws", "[u
             REQUIRE(borderSplits > 0);
         }
     });
+}
+
+TEST("other engines fuse partitions, and fused nodes scan the histograms of their parent's draws", "[unit]")
+{
+    constexpr size_t nTrees = 3;
+    const Dataset c         = classificationData(3000, 6, 3, 75);
+    const Dataset r         = regressionData(3000, 6, 76);
+    const auto counts       = bootstrapCounts(nTrees, 3000, 77);
+    BinningParams binning;
+    binning.maxBins = 32;
+    TreeParams params;
+    params.denseThreshold = 0; // the histogram phase at every node, so every split by bin fuses
+    ThreadCountGuard one(1);
+    for (size_t nClasses : { size_t(3), size_t(0) })
+    {
+        const Dataset & d = nClasses ? c : r;
+        params.nClasses   = nClasses;
+        // k < p: the stream order is fixed on one thread, so a stream fit repeats.
+        params.featuresPerNode = 3;
+        params.counterDraws    = false;
+        const auto a           = nClasses ? train<ClsCountRecord, baseCpu>(d, params, nTrees, counts, 777, &binning) :
+                                            train<RegCountRecord<double>, baseCpu>(d, params, nTrees, counts, 777, &binning);
+        const auto b           = nClasses ? train<ClsCountRecord, baseCpu>(d, params, nTrees, counts, 777, &binning) :
+                                            train<RegCountRecord<double>, baseCpu>(d, params, nTrees, counts, 777, &binning);
+        for (size_t t = 0; t < nTrees; ++t)
+        {
+            requireConsistent(d, a[t], counts[t]);
+            requireSameTables(a[t], b[t]);
+        }
+        // With every node draw 0, each node draws its features in index order whenever it draws them, so a fit with
+        // fusion equals one without only if each fused node scans the histograms of the lanes its parent drew.
+        TreeParams unfused    = params;
+        unfused.fusePartition = false;
+        const auto fused      = nClasses ? train<ClsCountRecord, baseCpu>(d, params, nTrees, counts, 777, &binning, true) :
+                                           train<RegCountRecord<double>, baseCpu>(d, params, nTrees, counts, 777, &binning, true);
+        const auto plain      = nClasses ? train<ClsCountRecord, baseCpu>(d, unfused, nTrees, counts, 777, &binning, true) :
+                                           train<RegCountRecord<double>, baseCpu>(d, unfused, nTrees, counts, 777, &binning, true);
+        for (size_t t = 0; t < nTrees; ++t) requireSameTables(fused[t], plain[t]);
+    }
 }
 
 TEST("chunked histograms and partitions do not depend on chunking or the thread count", "[unit]")

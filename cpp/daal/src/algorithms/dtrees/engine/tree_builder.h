@@ -74,8 +74,8 @@ struct TreeParams
     // defaults and their measurements are in EngineHyperparameters (df_hyperparameter_impl.h).
     size_t chunkRows = size_t(1) << 14;
     size_t maxChunks = 64;
-    // Partition passes build the children's histograms (needs counterDraws), and nodes pass their constant
-    // features to their children. Neither changes the trees; tests turn them off to show it.
+    // Partition passes build the children's histograms, and nodes pass their constant features to their
+    // children. With counter draws neither changes the trees; tests turn them off to show it.
     bool fusePartition  = true;
     bool carryConstants = true;
 };

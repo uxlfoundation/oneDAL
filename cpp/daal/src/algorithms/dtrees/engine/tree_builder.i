@@ -441,7 +441,7 @@ public:
         services::Status s;
         WorkItem * children[2]  = { &left, &right };
         const double weights[2] = { split.wLeft, item.weight - split.wLeft };
-        const bool fuse         = split.byBin && _params.fusePartition && _params.counterDraws;
+        const bool fuse         = split.byBin && _params.fusePartition;
         hist::Target<Record, cpu> targets[2];
         for (size_t c = 0; c < 2 && s; ++c)
         {
@@ -655,17 +655,36 @@ private:
         return n;
     }
 
-    /// A child's first histogram pass draws, as its histSearch will make them.
+    /// A child's first histogram pass draws: with counter draws as its histSearch will make them again, from
+    /// a stream for its histSearch to take (takeLanes).
     services::Status drawChildLanes(TreeContext & ctx, WorkItem & child) const
     {
         // No parallel call until the draws are made, so the thread's scratch is free (NodeScratch).
         Scratch * scratch = _scratch.local();
         DAAL_CHECK_MALLOC(scratch && scratch->ensureBase(_params.nClasses, _data.nFeatures));
         DAAL_CHECK_MALLOC(child.carry->lanes.reset(_k));
-        CounterNodeDraws<cpu> draws(ctx.rng, child.key);
         FeaturePermutation<cpu> permutation(uint32_t(_data.nFeatures), _k, scratch->permutation.get());
+        if (!_params.counterDraws)
+        {
+            StreamNodeDraws<cpu, TreeInputs<Record, cpu> > draws(_inputs);
+            child.carry->nLanes = drawLanes(permutation, draws, child.carry->bits.get(), _passLanes, child.carry->lanes.get());
+            return draws.status();
+        }
+        CounterNodeDraws<cpu> draws(ctx.rng, child.key);
         child.carry->nLanes = drawLanes(permutation, draws, child.carry->bits.get(), _passLanes, child.carry->lanes.get());
         return draws.status();
+    }
+
+    /// A stream fit's first pass at a fused node: the lanes its parent drew, which a stream cannot repeat,
+    /// taken from the permutation in draw order so later draws continue it.
+    static DAAL_FORCENOINLINE size_t takeLanes(FeaturePermutation<cpu> & permutation, const NodeCarry<Record, cpu> & carry, uint32_t * lanes)
+    {
+        for (size_t j = 0; j < carry.nLanes; ++j)
+        {
+            permutation.take(carry.lanes[j]);
+            lanes[j] = carry.lanes[j];
+        }
+        return carry.nLanes;
     }
 
     template <typename BinT>
@@ -823,14 +842,15 @@ private:
         while (visited < _k)
         {
             const size_t want   = _k - visited < _passLanes ? _k - visited : _passLanes;
-            const size_t nLanes = drawLanes(permutation, features, known, want, lanes);
+            const bool take     = carried && !_params.counterDraws;
+            const size_t nLanes = take ? takeLanes(permutation, *carry, lanes) : drawLanes(permutation, features, known, want, lanes);
             if (!nLanes) break;
             const hist::Planes<Record, cpu> * planes = &own;
             if (carried)
             {
-                // The parent drew these lanes from the same key and lists.
+                // With counter draws the parent drew these lanes from the same key and lists.
                 bool same = carry->nLanes == nLanes;
-                for (size_t j = 0; j < nLanes && same; ++j) same = carry->lanes[j] == lanes[j];
+                for (size_t j = 0; j < nLanes && same && !take; ++j) same = carry->lanes[j] == lanes[j];
                 if (!same)
                 {
                     status = services::Status(services::ErrorIncorrectInternalFunctionParameter);

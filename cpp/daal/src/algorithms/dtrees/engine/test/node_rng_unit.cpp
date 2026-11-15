@@ -14,7 +14,9 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include <algorithm>
 #include <cstdint>
+#include <random>
 #include <unordered_set>
 #include <vector>
 
@@ -135,6 +137,42 @@ TEST("draws from a stream that cannot be read end and report the error", "[unit]
     CounterNodeDraws<cpu> draws(rng, 1);
     REQUIRE(draws.below(3) < 3);
     REQUIRE(!draws.status().ok());
+}
+
+/// Uniform integers below a range from a seeded std::mt19937, as FeaturePermutation::next takes them.
+struct TestDraws
+{
+    std::mt19937 gen;
+    uint32_t below(uint32_t range) { return std::uniform_int_distribution<uint32_t>(0, range - 1)(gen); }
+};
+
+TEST("taken features and the draws after them are a permutation", "[unit]")
+{
+    // p = 50 is the dense form; p = 5000 with few expected draws the sparse one.
+    for (uint32_t p : { uint32_t(50), uint32_t(5000) })
+    {
+        std::vector<uint32_t> scratch(2 * p);
+        FeaturePermutation<cpu> permutation(p, 3, scratch.data());
+        TestDraws draws { std::mt19937(5) };
+        std::vector<uint32_t> order;
+        // Draws before and between the taken features, as a fused node's later passes follow its first.
+        order.push_back(permutation.next(draws));
+        for (uint32_t f : { p - 1, uint32_t(7), uint32_t(0), p / 2 })
+        {
+            if (std::find(order.begin(), order.end(), f) != order.end()) continue;
+            permutation.take(f);
+            order.push_back(f);
+        }
+        while (!permutation.exhausted()) order.push_back(permutation.next(draws));
+        REQUIRE(order.size() == p);
+        std::vector<char> seen(p, 0);
+        for (uint32_t f : order)
+        {
+            REQUIRE(f < p);
+            REQUIRE(!seen[f]);
+            seen[f] = 1;
+        }
+    }
 }
 
 } // namespace daal::algorithms::dtrees::engine::internal::test

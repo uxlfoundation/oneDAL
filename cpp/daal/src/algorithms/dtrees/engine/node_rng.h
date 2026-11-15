@@ -323,7 +323,38 @@ public:
         return v;
     }
 
+    /// Makes f, not yet drawn, the next draw, as if next() had picked it. A node takes the features its parent
+    /// drew for it from a stream, which cannot repeat them, and continues from there.
+    void take(uint32_t f)
+    {
+        const uint32_t j   = _drawn++;
+        const uint32_t pos = positionOf(f, j);
+        if (_dense)
+        {
+            _keys[pos] = _keys[j];
+            _keys[j]   = f;
+            return;
+        }
+        set(pos, lookup(j));
+    }
+
 private:
+    /// The position at or after j of an undrawn feature f.
+    uint32_t positionOf(uint32_t f, uint32_t j) const
+    {
+        if (_dense)
+        {
+            uint32_t i = j;
+            while (i < _p && _keys[i] != f) ++i;
+            DAAL_ASSERT(i < _p);
+            return i;
+        }
+        // Entries below j are drawn positions and may hold stale values.
+        for (size_t i = 0; i < _n; ++i)
+            if (_keys[i] >= j && _values[i] == f) return _keys[i];
+        return f;
+    }
+
     uint32_t lookup(uint32_t pos) const
     {
         for (size_t i = 0; i < _n; ++i)

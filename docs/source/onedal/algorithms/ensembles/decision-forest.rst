@@ -94,7 +94,8 @@ and :math:`n_f` is number of selected features.
 
 On CPU, the bin borders of a feature are computed from a uniform random sample of up to 4,194,304 rows, or from all
 rows of smaller tables, and a feature with at most ``max_bins`` distinct values gets one bin per value, so its
-splits are exact. Nodes with fewer than twice ``max_bins`` rows are split exactly, as in the *dense* method.
+splits are exact. Nodes with fewer than twice ``max_bins`` rows are split exactly, as in the *dense* method. With
+``max_bins`` above 65536, every node is split exactly, without bins.
 
 Reproducibility
 +++++++++++++++
