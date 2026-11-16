@@ -14,23 +14,8 @@
 # limitations under the License.
 #===============================================================================
 
-# Custom cc_toolchain_config for the clang-cl compiler family on Windows: Intel
-# oneAPI icx (x86_64) and upstream LLVM clang-cl (x86_64 and the ARM64 target of
-# Make's `PLAT=winarm`). Everything here is arch-independent -- `lld-link` and
-# `llvm-lib` infer the machine type from the object files, and the target triple
-# comes from the compile flags in dev/bazel/flags.bzl.
-#
-# icx.exe runs in its native clang-cl driver mode (MSVC-compatible syntax),
-# matching dev/make/compiler_definitions/icx.mkl.32e.mk. All flags below use
-# MSVC-style spellings (`/I`, `/imsvc`, `/Fo`, `-MD`, …) so
-# icx accepts them without a driver-mode flip. The major differences vs.
-# cc_toolchain_config_lnx.bzl:
-#
-#   * Flags use `/FLAG`/`-FLAG` clang-cl syntax, not gcc-style.
-#   * .obj / .lib / .dll output extensions (set via artifact_name_pattern).
-#   * No -fPIC — Windows is always position-independent.
-#   * Static archives produced via `lib.exe` (or equivalent), not `ar`.
-#   * Link driven through icx with `-link` forwarding to lld-link.exe.
+# Toolchain config for clang-cl on Windows (icx and LLVM clang-cl), in clang-cl flag spellings.
+# Arch-independent: the linker and archiver take the machine type from the objects.
 
 load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
 
@@ -43,73 +28,31 @@ load("@rules_cc//cc:cc_toolchain_config_lib.bzl",
     "variable_with_value",
     "with_feature_set",
     "action_config",
-    "tool",
     "artifact_name_pattern",
 )
-load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/toolchains:cc_toolchain_config_info.bzl", "CcToolchainConfigInfo")
+load("@onedal//dev/bazel/config:config.bzl", "ConfigFlagInfo")
 load("@onedal//dev/bazel/toolchains:cc_toolchain_config_common.bzl",
     "common",
     "all_compile_actions",
-    "all_cpp_compile_actions",
     "all_link_actions",
     "lto_index_actions",
     "COMMON_ATTRS",
 )
 
 def _impl(ctx):
-    cc_tool = tool(
-        path = ctx.attr.cc_path,
-        with_features = [with_feature_set(not_features = ["dpc++"])],
-    )
-    dpcc_tool = tool(
-        path = ctx.attr.dpcc_path,
-        with_features = [with_feature_set(features = ["dpc++"])],
-    )
-    cc_link_tool = tool(
-        path = ctx.attr.cc_link_path,
-        with_features = [with_feature_set(not_features = ["dpc++"])],
-    )
-    dpcc_link_tool = tool(
-        path = ctx.attr.dpcc_link_path,
-        with_features = [with_feature_set(features = ["dpc++"])],
-    )
+    compiler_tools = common.compiler_tools(ctx.attr.cc_path, ctx.attr.dpcc_path)
+    linker_tools = common.compiler_tools(ctx.attr.cc_link_path, ctx.attr.dpcc_link_path)
 
     # --- action configs -----------------------------------------------------
 
-    common_compile_implies = [
+    compile_actions = common.compile_action_configs(compiler_tools, [
         "default_compile_flags",
         "user_compile_flags",
         "unfiltered_compile_flags",
         "compiler_input_flags",
         "compiler_output_flags",
-    ]
-
-    assemble_action = action_config(
-        action_name = ACTION_NAMES.assemble,
-        implies = common_compile_implies,
-        tools = [cc_tool, dpcc_tool],
-    )
-    preprocess_assemble_action = action_config(
-        action_name = ACTION_NAMES.preprocess_assemble,
-        implies = common_compile_implies,
-        tools = [cc_tool, dpcc_tool],
-    )
-    c_compile_action = action_config(
-        action_name = ACTION_NAMES.c_compile,
-        implies = common_compile_implies,
-        tools = [cc_tool, dpcc_tool],
-    )
-    cpp_compile_action = action_config(
-        action_name = ACTION_NAMES.cpp_compile,
-        implies = common_compile_implies,
-        tools = [cc_tool, dpcc_tool],
-    )
-    cpp_header_parsing_action = action_config(
-        action_name = ACTION_NAMES.cpp_header_parsing,
-        implies = common_compile_implies,
-        tools = [cc_tool, dpcc_tool],
-    )
+    ])
 
     common_link_implies = [
         "default_link_flags",
@@ -123,26 +66,21 @@ def _impl(ctx):
     cpp_link_executable_action = action_config(
         action_name = ACTION_NAMES.cpp_link_executable,
         implies = common_link_implies + ["default_dynamic_libraries"],
-        tools = [cc_link_tool, dpcc_link_tool],
+        tools = linker_tools,
     )
     cpp_link_nodeps_dynamic_library_action = action_config(
         action_name = ACTION_NAMES.cpp_link_nodeps_dynamic_library,
         implies = common_link_implies + ["shared_flag"],
-        tools = [cc_link_tool, dpcc_link_tool],
+        tools = linker_tools,
     )
     cpp_link_dynamic_library_action = action_config(
         action_name = ACTION_NAMES.cpp_link_dynamic_library,
         implies = common_link_implies + ["shared_flag", "default_dynamic_libraries"],
-        tools = [cc_link_tool, dpcc_link_tool],
+        tools = linker_tools,
     )
     cpp_link_static_library_action = common.cpp_link_static_library_action(ctx.attr.ar_path)
 
-    action_configs = [
-        assemble_action,
-        preprocess_assemble_action,
-        c_compile_action,
-        cpp_compile_action,
-        cpp_header_parsing_action,
+    action_configs = compile_actions + [
         cpp_link_executable_action,
         cpp_link_nodeps_dynamic_library_action,
         cpp_link_dynamic_library_action,
@@ -151,34 +89,15 @@ def _impl(ctx):
 
     # --- features -----------------------------------------------------------
 
-    dpc_feature = feature(name = "dpc++")
-    cxx11_feature = feature(name = "c++11")
-    cxx14_feature = feature(name = "c++14")
-    cxx17_feature = feature(name = "c++17")
-    pedantic_feature = feature(name = "pedantic")
-    dbg_feature = feature(name = "dbg")
-    opt_feature = feature(name = "opt")
+    # Debug CRT (Make MSVC_RUNTIME_VERSION=debug), separate from `dbg` as it renames the libraries.
+    # It follows @config//:msvc_runtime, as do the library names and the dependency selects.
+    msvc_runtime_debug_feature = feature(
+        name = "msvc_runtime_debug",
+        enabled = ctx.attr._msvc_runtime[ConfigFlagInfo].flag == "debug",
+    )
 
-    # Debug MSVC runtime (`-MDd`), equivalent to the Makefile's
-    # `MSVC_RUNTIME_VERSION=debug`. Kept separate from the built-in `dbg`
-    # feature (Make `REQDBG`) on purpose: the CRT flavour is an ABI choice
-    # that also renames the produced libraries (`onedal_cored.lib`) and
-    # switches the linked `msvcrt`/`tbb` variants, whereas `dbg` only adds
-    # debug info and assertions. Enable via `--config=mdd`, which also flips
-    # the `@config//:msvc_runtime` build setting that `select()`s read.
-    msvc_runtime_debug_feature = feature(name = "msvc_runtime_debug")
-
-    # NOTE on CRT libraries: the Makefile spells the CRT import libraries out
-    # explicitly (`msvcrtd.lib msvcprtd.lib /nodefaultlib:libucrtd.lib
-    # ucrtd.lib`, makefile:330-332) because it compiles with `-Zl`
-    # (dev/make/compiler_definitions/icx.mkl.32e.mk:66), which strips the
-    # `/defaultlib` directives clang-cl would otherwise embed in each object.
-    # This toolchain does not pass `-Zl`, so those directives survive and
-    # `-MD`/`-MDd` alone pulls in the matching CRT. The one thing not carried
-    # over is Make's `/nodefaultlib:libucrtd.lib` guard, which overrides a
-    # static-UCRT directive coming from a third-party input on the
-    # onedal_thread link (makefile:868); add it here if such an input ever
-    # reappears.
+    # Without Make's `-Zl` the objects keep their /defaultlib directives, so -MD/-MDd alone picks
+    # the CRT and the CRT import libraries need not be listed.
     runtime_library_feature = feature(
         name = "runtime_library",
         enabled = True,
@@ -193,18 +112,8 @@ def _impl(ctx):
                 flag_groups = [flag_group(flags = ["-MD"])],
                 with_features = [with_feature_set(not_features = ["msvc_runtime_debug"])],
             ),
-            # icx refuses `#pragma omp simd` together with a debug CRT
-            # (-Wdebug-option-simd, fatal under -WX) because the debug
-            # iterators cannot be vectorized. Enable OpenMP SIMD for the
-            # release runtime only, as `COMPILER.win.icx` does in
-            # dev/make/compiler_definitions/icx.mkl.32e.mk:77. Applied to
-            # every compile action so the release build keeps the exact flag
-            # set it had when this came from `win_icx_common_flags`.
-            #
-            # The attribute is empty for clang-cl, which rejects the Intel
-            # `-Qopenmp-simd` spelling, as Make's `COMPILER.win.clang`
-            # (clang.ref.arm.mk) does; the guard below is needed because
-            # `flag_group` refuses an empty `flags` list.
+            # icx rejects OpenMP SIMD with the debug CRT (-Wdebug-option-simd); Make: COMPILER.win.icx.
+            # Empty for clang-cl, and flag_group refuses an empty `flags` list.
             flag_set(
                 actions = all_compile_actions,
                 flag_groups = ([flag_group(flags = ctx.attr.openmp_simd_flags)]
@@ -213,9 +122,7 @@ def _impl(ctx):
                     not_features = ["msvc_runtime_debug"],
                 )],
             ),
-            # The DPC++ driver additionally disables debug info generation for
-            # the debug CRT, mirroring `-MDd /debug:none` in
-            # dev/make/compiler_definitions/dpcpp.mk:78.
+            # Make: `-MDd /debug:none` in dpcpp.mk.
             flag_set(
                 actions = all_compile_actions,
                 flag_groups = [flag_group(flags = ["/debug:none"])],
@@ -226,19 +133,8 @@ def _impl(ctx):
         ],
     )
 
-    # The icx driver does not add the SYCL runtime import library for Bazel's
-    # DLL link path when most device objects are supplied through a
-    # /WHOLEARCHIVE static library. Link it explicitly so generated
-    # registration thunks resolve __sycl_{,un}register_lib on Windows. The
-    # debug CRT needs the debug import library, mirroring `sycl$d.lib` in
-    # makefile:811.
-    #
-    # This is a feature of its own rather than part of `runtime_library` so it
-    # can be registered next to `default_link_flags` in the feature list
-    # below, which is where the flag sat when it came from `link_flags_dpcc`
-    # (dev/bazel/toolchains/cc_toolchain_win.bzl). Feature order determines
-    # flag order on the driver command line, and this keeps the DPC++ link
-    # line byte-identical to before apart from the library name itself.
+    # icx omits the SYCL import library when the device objects come in a /WHOLEARCHIVE
+    # library, leaving __sycl_register_lib unresolved. Make: sycl$d.lib.
     sycl_runtime_library_feature = feature(
         name = "sycl_runtime_library",
         enabled = True,
@@ -260,18 +156,35 @@ def _impl(ctx):
             ),
         ],
     )
-    # Windows PE/COFF objects have no PIC/non-PIC distinction, so we do not
-    # register a `supports_pic` feature. Matches rules_cc's MSVC auto-config
-    # and keeps `cc_common.compile` from emitting both variants (which the
-    # cc_module rule in dev/bazel/cc.bzl explicitly rejects).
+    # No `supports_pic`: PE/COFF has no PIC variant, and cc_module rejects two object variants.
     supports_dynamic_linker_feature = common.supports_dynamic_linker_feature()
     do_not_link_dynamic_dependencies_feature = common.do_not_link_dynamic_dependencies_feature()
-    no_legacy_features_feature = feature(name = "no_legacy_features", enabled = True)
+    no_legacy_features_feature = common.no_legacy_features_feature()
 
-    # Inject Windows shell env vars into every compile and link action so
-    # icx (via `INCLUDE`) and lld-link (via `LIB`) find MSVC, Windows SDK,
-    # and oneAPI headers/libs without relying on the user's inherited
-    # shell — the Makefile relies on these same vars set by setvars.bat.
+    # With these two features cc_common.link declares the DLL's import library, as for rules_cc's MSVC.
+    # has_configured_linker_path keeps the action config's linker instead of Bazel's wrapper script.
+    targets_windows_feature = feature(name = "targets_windows", enabled = True)
+    supports_interface_shared_libraries_feature = feature(
+        name = "supports_interface_shared_libraries",
+        enabled = True,
+    )
+    has_configured_linker_path_feature = feature(
+        name = "has_configured_linker_path",
+        enabled = True,
+    )
+    interface_library_output_flags_feature = feature(
+        name = "interface_library_output_flags",
+        enabled = True,
+        flag_sets = [flag_set(
+            actions = all_link_actions + lto_index_actions,
+            flag_groups = [flag_group(
+                flags = ["/IMPLIB:%{interface_library_output_path}"],
+                expand_if_available = "interface_library_output_path",
+            )],
+        )],
+    )
+
+    # INCLUDE and LIB from the configure-time shell, so actions find the MSVC, SDK and oneAPI files.
     msvc_env_entries = []
     if ctx.attr.env_include:
         msvc_env_entries.append(env_entry(key = "INCLUDE", value = ctx.attr.env_include))
@@ -315,75 +228,7 @@ def _impl(ctx):
 
     linker_param_file_feature = common.linker_param_file_feature()
 
-    default_compile_flags_feature = feature(
-        name = "default_compile_flags",
-        enabled = True,
-        flag_sets = [
-            flag_set(
-                actions = all_compile_actions,
-                flag_groups = ([flag_group(flags = ctx.attr.compile_flags_cc)]
-                               if ctx.attr.compile_flags_cc else []),
-                with_features = [with_feature_set(not_features = ["dpc++"])],
-            ),
-            flag_set(
-                actions = all_compile_actions,
-                flag_groups = ([flag_group(flags = ctx.attr.compile_flags_dpcc)]
-                               if ctx.attr.compile_flags_dpcc else []),
-                with_features = [with_feature_set(features = ["dpc++"])],
-            ),
-            flag_set(
-                actions = all_compile_actions,
-                flag_groups = ([flag_group(flags = ctx.attr.dbg_compile_flags)]
-                               if ctx.attr.dbg_compile_flags else []),
-                with_features = [with_feature_set(features = ["dbg"])],
-            ),
-            flag_set(
-                actions = all_compile_actions,
-                flag_groups = ([flag_group(flags = ctx.attr.opt_compile_flags)]
-                               if ctx.attr.opt_compile_flags else []),
-                with_features = [with_feature_set(features = ["opt"])],
-            ),
-            flag_set(
-                actions = all_compile_actions,
-                flag_groups = [flag_group(
-                    flags = [ctx.attr.cxx_std_flag_prefix + "c++11"],
-                )],
-                with_features = [with_feature_set(features = ["c++11"])],
-            ),
-            flag_set(
-                actions = all_compile_actions,
-                flag_groups = [flag_group(
-                    flags = [ctx.attr.cxx_std_flag_prefix + "c++14"],
-                )],
-                with_features = [with_feature_set(features = ["c++14"])],
-            ),
-            flag_set(
-                actions = all_compile_actions,
-                flag_groups = [flag_group(
-                    flags = [ctx.attr.cxx_std_flag_prefix + "c++17"],
-                )],
-                with_features = [with_feature_set(features = ["c++17"])],
-            ),
-            flag_set(
-                actions = all_compile_actions,
-                flag_groups = ([flag_group(flags = ctx.attr.compile_flags_pedantic_cc)]
-                               if ctx.attr.compile_flags_pedantic_cc else []),
-                with_features = [with_feature_set(features = ["pedantic"],
-                                                  not_features = ["dpc++"])],
-            ),
-            flag_set(
-                actions = all_compile_actions,
-                flag_groups = ([flag_group(flags = ctx.attr.compile_flags_pedantic_dpcc)]
-                               if ctx.attr.compile_flags_pedantic_dpcc else []),
-                with_features = [with_feature_set(features = ["dpc++", "pedantic"])],
-            ),
-            flag_set(
-                actions = all_cpp_compile_actions + [ACTION_NAMES.lto_backend],
-                flag_groups = ([flag_group(flags = ctx.attr.cxx_flags)]
-                               if ctx.attr.cxx_flags else []),
-            ),
-        ],
-    )
+    default_compile_flags_feature = common.default_compile_flags_feature(ctx.attr)
 
     default_link_flags_feature = common.default_link_flags_feature(
         ctx.attr.link_flags_cc,
@@ -399,9 +244,7 @@ def _impl(ctx):
         ctx.attr.dynamic_link_libs,
     )
 
-    # DPC++ links go through the icx clang-cl driver so it can add SYCL device
-    # runtime libraries. Keep objects/libraries before `/link`, then put only
-    # linker-native MSVC options after it.
+    # DPC++ links go through icx so it adds the SYCL device libraries.
     dpc_linker_mode_feature = feature(
         name = "dpc_linker_mode",
         enabled = True,
@@ -422,9 +265,7 @@ def _impl(ctx):
         )],
     )
 
-    # Windows DLLs live alongside their import .lib. clang-cl forwards
-    # library search paths to lld-link when they start with `-libpath:`
-    # (lowercase, no slash prefix that confuses its input-file detector).
+    # clang-cl forwards `-libpath:` to lld-link; a `/` prefix would be taken for an input file.
     library_search_directories_feature = feature(
         name = "library_search_directories",
         flag_sets = [flag_set(
@@ -457,7 +298,6 @@ def _impl(ctx):
         )],
     )
 
-    # Force-include a header (`-include foo.h` in gcc; `/FI foo.h` in clang-cl).
     includes_feature = feature(
         name = "includes",
         enabled = True,
@@ -479,10 +319,7 @@ def _impl(ctx):
         )],
     )
 
-    # clang-cl accepts `-I<dir>` / `/I <dir>` for user includes and `/imsvc <dir>`
-    # for system-include paths (the clang-cl equivalent of `-isystem`). Quote
-    # includes have no distinct syntax in MSVC-driver mode, so they collapse
-    # into plain `/I`.
+    # clang-cl has no quote-include flag, so quote includes become `/I`.
     include_paths_feature = feature(
         name = "include_paths",
         enabled = True,
@@ -513,10 +350,6 @@ def _impl(ctx):
         )],
     )
 
-    # Libraries-to-link uses clang-style -l wiring; lld-link accepts it when
-    # invoked via the icx/icpx driver. Note: we do NOT emit -Wl,--start-lib /
-    # --whole-archive because those are ld/GNU-only. Static libraries end up
-    # as plain positional .lib paths, which MSVC-style linkers handle.
     libraries_to_link_feature = feature(
         name = "libraries_to_link",
         flag_sets = [
@@ -563,8 +396,7 @@ def _impl(ctx):
                                 value = "interface_library",
                             ),
                         ),
-                        # MSVC-style: dynamic libraries link via their import
-                        # .lib name as a positional argument (no `-l`).
+                        # Dynamic libraries link through their import .lib.
                         flag_group(
                             flags = ["%{libraries_to_link.name}.lib"],
                             expand_if_equal = variable_with_value(
@@ -582,9 +414,6 @@ def _impl(ctx):
         ],
     )
 
-    # On Windows the archiver is `lib.exe`; it accepts `/OUT:<output>` and
-    # takes object files as positional args. We invoke it through lld-link
-    # --lib-compat syntax (llvm-lib / lib.exe both understand /OUT:).
     archiver_flags_feature = feature(
         name = "archiver_flags",
         flag_sets = [
@@ -622,9 +451,7 @@ def _impl(ctx):
         ],
     )
 
-    # icx in clang-cl mode emits dependency info via clang-style flags passed
-    # through `/clang:` so they don't collide with MSVC's `-MD` (which in
-    # clang-cl means "link against msvcrt", not "generate .d file").
+    # Passed through `/clang:`, because `-MD` in clang-cl selects the CRT.
     dependency_file_feature = feature(
         name = "dependency_file",
         enabled = True,
@@ -671,10 +498,7 @@ def _impl(ctx):
         ],
     )
 
-    # Non-DPC links use lld-link.exe directly (see _find_tools_icx in
-    # cc_toolchain_win.bzl), so they can take linker-native `/DLL` directly.
-    # DPC++ links go through the icx driver; `-LD` and `-o<dll>` must remain
-    # driver-level flags before `/link`, matching dev/make/common.mk.
+    # Non-DPC links run lld-link and take `/DLL`; DPC++ links pass `-LD` to the icx driver, as Make.
     shared_flag_feature = feature(
         name = "shared_flag",
         flag_sets = [
@@ -706,28 +530,19 @@ def _impl(ctx):
     features = [
         no_legacy_features_feature,
         msvc_env_feature,
-        dpc_feature,
-        cxx11_feature,
-        cxx14_feature,
-        cxx17_feature,
-        pedantic_feature,
-        dbg_feature,
-        opt_feature,
+    ]
+    features.extend(common.marker_features(ctx.attr.dpcc_path))
+    features.extend([
         msvc_runtime_debug_feature,
         runtime_library_feature,
         supports_dynamic_linker_feature,
+        targets_windows_feature,
+        supports_interface_shared_libraries_feature,
+        has_configured_linker_path_feature,
         do_not_link_dynamic_dependencies_feature,
         default_compile_flags_feature,
-    ]
-
-    for cpu_id, flag_list in ctx.attr.cpu_flags_cc.items():
-        cpu_opt_feature = common.cpu_opt_feature(
-            cpu_id,
-            flag_list,
-            ctx.attr.cpu_flags_dpcc[cpu_id],
-        )
-        features.append(cpu_opt_feature)
-
+    ])
+    features.extend(common.cpu_opt_features(ctx.attr.cpu_flags_cc, ctx.attr.cpu_flags_dpcc))
     features.extend([
         user_compile_flags_feature,
         preprocessor_defines_feature,
@@ -738,30 +553,17 @@ def _impl(ctx):
         compiler_input_flags_feature,
         compiler_output_flags_feature,
         default_link_flags_feature,
-        # `sycl.lib` / `sycld.lib` has to stay on this side of the `/link`
-        # separator emitted below, because it is where `link_flags_dpcc` used to
-        # put it and because a bare `.lib` on a clang-cl command line is a
-        # *driver input file*, not a linker-only option. Bazel emits the object
-        # files and archives through `libraries_to_link`, which is registered
-        # after `dpc_linker_mode` and therefore lands on lld-link's side, so on
-        # a DPC++ link this library is the only input the icx driver itself
-        # sees. Move it past `/link` and the driver has nothing left to do:
-        #
-        #     icx: error: no input files
-        #
-        # which is how `Linking cpp/oneapi/dal/onedal_dpc.4.dll` fails.
+        # Before `/link`: on a DPC++ link this is the only input the icx driver sees,
+        # which otherwise fails with "no input files".
         sycl_runtime_library_feature,
-        # `dpc_linker_mode` emits the single `/link` separator on DPC++ links.
-        # Everything the icx driver itself has to see (`-fsycl`, `-LD`,
-        # `-o<out>`) stays in front of it; everything meant for lld-link
-        # (`-libpath:`, input libraries, `/DEF:`, `/WHOLEARCHIVE:`) has to come
-        # after, otherwise clang-cl swallows it and warns
-        # "unknown argument ignored in clang-cl: '-libpath:...'".
-        # Non-DPC links invoke lld-link.exe directly and emit no `/link`, so
-        # the order is irrelevant for them.
+        # The icx driver flags go before the `/link` from dpc_linker_mode and the
+        # lld-link inputs after it; clang-cl ignores lld-link options.
         shared_flag_feature,
         output_execpath_flags_feature,
         dpc_linker_mode_feature,
+        # `/IMPLIB:` is a linker option, so it sits after `/link` on a DPC++
+        # link and overrides the `-implib:` the icx driver derives from `-o`.
+        interface_library_output_flags_feature,
         library_search_directories_feature,
         libraries_to_link_feature,
         user_link_flags_feature,
@@ -794,54 +596,37 @@ def _impl(ctx):
         artifact_name_pattern(
             category_name = "interface_library",
             prefix = "",
-            # Bazel only accepts `.ifso`, `.tbd`, `.if.lib`, or `.lib`.
-            # The release-staging rule renames these to the conventional
-            # `_dll.lib` Windows-Make naming (see release.bzl).
+            # Bazel accepts only `.ifso`, `.tbd`, `.if.lib` or `.lib`; the release rule renames to `_dll.lib`.
             extension = ".if.lib",
         ),
     ]
 
-    return cc_common.create_cc_toolchain_config_info(
-        ctx = ctx,
-        features = features,
-        action_configs = action_configs,
+    return common.create_config_info(
+        ctx,
+        features,
+        action_configs,
         artifact_name_patterns = artifact_name_patterns,
-        cxx_builtin_include_directories = ctx.attr.cxx_builtin_include_directories,
-        toolchain_identifier = ctx.attr.toolchain_identifier,
-        host_system_name = ctx.attr.host_system_name,
-        target_system_name = ctx.attr.target_system_name,
-        target_cpu = ctx.attr.cpu,
-        target_libc = ctx.attr.target_libc,
-        compiler = ctx.attr.compiler,
-        abi_version = ctx.attr.abi_version,
-        abi_libc_version = ctx.attr.abi_libc_version,
     )
 
 cc_toolchain_config = rule(
     implementation = _impl,
-    # Platform-specific attributes; the rest are declared by
-    # COMMON_ATTRS.
     attrs = dict(
         COMMON_ATTRS,
-        # A standalone linker, `lld-link` or `link`, rather than the compiler
-        # driver the compile actions use. Linux links through the driver, so
-        # these are Windows only.
+        # A standalone linker (`lld-link` or `link`); Linux links through the compiler driver.
         cc_link_path = attr.string(mandatory = True),
         dpcc_link_path = attr.string(mandatory = True),
-        # `/Qstd:` is the Intel spelling; upstream clang-cl only knows `/std:`
-        # and warns on the unknown argument, which `-Werror` in the clang flag
-        # set (dev/bazel/flags.bzl) would turn into a build failure.
+        # `/Qstd:` is Intel-only; clang-cl warns on it, which -Werror makes fatal.
         cxx_std_flag_prefix = attr.string(default = "/Qstd:"),
-        # OpenMP SIMD selector for the release MSVC runtime, emitted by the
-        # `runtime_library` feature: `-Qopenmp-simd` for icx, empty for
-        # upstream clang-cl, which does not know that spelling.
+        # `-Qopenmp-simd` for icx, empty for clang-cl; release CRT only.
         openmp_simd_flags = attr.string_list(),
-        # `INCLUDE` / `LIB` / `PATH` values captured at repo-configure time
-        # so bazel-sandboxed compile and link actions can find MSVC + Windows
-        # SDK + oneAPI headers/libs without the shell env being inherited.
+        # Captured at configure time, so actions find the MSVC, SDK and oneAPI files without the shell env.
         env_include = attr.string(default = ""),
         env_lib = attr.string(default = ""),
         env_path = attr.string(default = ""),
+        _msvc_runtime = attr.label(
+            default = "@config//:msvc_runtime",
+            providers = [ConfigFlagInfo],
+        ),
     ),
     provides = [CcToolchainConfigInfo],
 )

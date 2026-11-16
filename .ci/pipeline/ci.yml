@@ -307,9 +307,9 @@ jobs:
 
   - script: |
       echo "Bazel cache restore result: ${BAZEL_CACHE_HIT:-unset}"
-      # Create `.bazelrc` and set cache directory
+      # user.bazelrc, not ~/.bazelrc: other Bazel workspaces on the agent must not see --config=ci.
       # Minimal CPU instruction set in Azure is AVX2
-      echo "build --disk_cache=$(BAZEL_CACHE_DIR) --experimental_disk_cache_gc_max_size=8G --experimental_disk_cache_gc_idle_delay=0s --cpu=avx2" > ~/.bazelrc
+      echo "build --disk_cache=$(BAZEL_CACHE_DIR) --experimental_disk_cache_gc_max_size=8G --config=ci --cpu=avx2" > user.bazelrc
 
       # Display oneDAL build configuration
       bazel build @config//:dump
@@ -329,15 +329,14 @@ jobs:
       echo "Checking Bazel config: release-dpc"
       bazel build --nobuild :release --config=release-dpc --cpu=all
 
+      echo "Checking Bazel config: release"
+      bazel build --nobuild :release --config=release-dpc --config=release --cpu=all --build_date="$(date -u +%Y%m%d)"
+
       echo "Checking Bazel config: stdalloc"
       bazel build --nobuild :release --stdalloc=true --release_dpc=false
 
-      # Analysis-only: validates configured release outputs, host/DPC dependency
-      # separation, folded-target rejection, and the Windows unsupported value.
-      dev/bazel/tests/parameters_layout_test.sh
-
-      # Analysis-only: the DPC++ library compiles LP64, the DPC MKL test helper keeps ILP64.
-      dev/bazel/tests/dpc_mkl_defines_test.sh
+      # Analysis-time checks of the configured graph (dev/bazel/tests/analysis.bzl).
+      bazel test //dev/bazel/tests:all
 
       echo "Checking Bazel config: dev"
       bazel build --nobuild //cpp/oneapi/dal:tests --config=dev
@@ -480,11 +479,9 @@ jobs:
     displayName: 'Check staged runtime dependencies'
 
   - script: |
-      # Checks the `.so` -> `.so.<major>` -> `.so.<major>.<minor>` chain and the
-      # SONAMEs, `env/vars.sh`, the pkg-config files, the modulefile, and that no
-      # external headers leaked into `include/`.
-      dev/bazel/tests/release_structure_test.sh "$(DALROOT)"
-    displayName: 'Check release structure'
+      # The tree layout is checked by //dev/bazel/tests:release_layout_test; this reads the files.
+      dev/release_tests/package_metadata_test.sh "$(DALROOT)"
+    displayName: 'Check release metadata'
 
   - task: PublishPipelineArtifact@1
     inputs:
@@ -499,20 +496,15 @@ jobs:
 
   - script: |
       bazel test //examples/daal/cpp:all \
-                 --test_link_mode=dev \
-                 --test_thread_mode=par
     displayName: 'daal-cpp-examples-thread-dev'
 
   - script: |
       bazel test //examples/oneapi/cpp:all \
-                 --test_link_mode=dev \
-                 --test_thread_mode=par
     displayName: 'cpp-examples-thread-dev'
 
   - script: |
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=release_static \
-                 --test_thread_mode=par \
                  --test_env DALROOT
     displayName: 'daal-cpp-examples-thread-release-static'
 
@@ -520,7 +512,6 @@ jobs:
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=release_static \
                  --config=host \
-                 --test_thread_mode=par \
                  --test_env DALROOT
     displayName: 'cpp-examples-thread-release-static'
 
@@ -538,7 +529,6 @@ jobs:
       export LD_LIBRARY_PATH="$(RELEASEROOT)/tbb/latest/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=release_dynamic \
-                 --test_thread_mode=par \
                  --test_env DALROOT \
                  --test_env LD_LIBRARY_PATH
     displayName: 'daal-cpp-examples-thread-release-dynamic'
@@ -550,7 +540,6 @@ jobs:
       export LD_LIBRARY_PATH="$(RELEASEROOT)/tbb/latest/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=release_dynamic \
-                 --test_thread_mode=par \
                  --test_env DALROOT \
                  --test_env LD_LIBRARY_PATH
     displayName: 'cpp-examples-thread-release-dynamic'
@@ -567,8 +556,6 @@ jobs:
       du -sh "${BAZEL_CACHE_DIR:-}" 2>/dev/null || true
       bazel test //cpp/oneapi/dal:tests \
                  --config=host \
-                 --test_link_mode=dev \
-                 --test_thread_mode=par \
                  --verbose_failures
     displayName: 'cpp-tests-thread-dev'
 
@@ -602,9 +589,8 @@ jobs:
     displayName: 'Check ISA coverage'
 
   - script: |
-      # The disk cache GC flags in ~/.bazelrc trim the cache to its size cap once
-      # the server is idle; `shutdown` waits for that collection, so Cache@2 saves
-      # the most recently used entries.
+      # The disk cache GC (user.bazelrc) runs once the server is idle; `shutdown` waits for it,
+      # so Cache@2 saves the trimmed cache.
       bazel shutdown
       echo "Bazel cache size is $(du -sm "${BAZEL_CACHE_DIR}" | cut -f1)Mb"
     displayName: 'bazel-cache-limit'
@@ -664,7 +650,7 @@ jobs:
       export CC=riscv64-linux-gnu-gcc
       export CXX=riscv64-linux-gnu-g++
       export OPENBLASROOT=$(OPENBLAS_CACHE_DIR)
-      bazel build --platforms=@config//:linux_riscv64 --backend_config=ref \
+      bazel build --platforms=@config//:linux_riscv64 \
         //cpp/daal:core_dynamic //cpp/oneapi/dal:dynamic
     displayName: 'bazel build (riscv64 cross)'
   - script: |
@@ -693,13 +679,16 @@ jobs:
       set -eo pipefail
       source /opt/intel/oneapi/setvars.sh
       export CC=icx
-      dev/bazel/tests/code_coverage_test.sh --cpu=avx2
+      bazel test //dev/bazel/tests:coverage_tests
+      # Unsandboxed: the .gcno notes are undeclared side outputs of the compiles.
+      bazel build --code_coverage=true --cpu=avx2 --spawn_strategy=local //cpp/daal:core_static
+      test -n "$(find -L "$(bazel info output_path)" -name '*.gcno' -print -quit)"
     displayName: 'Bazel CPU code-coverage smoke build'
   - script: |
       set -eo pipefail
       source /opt/intel/oneapi/setvars.sh
       export CC=icx
-      dev/bazel/tests/code_coverage_test.sh --dpc --cpu=avx2
+      bazel test //dev/bazel/tests:coverage_dpc_link_test
     # The DPC++ build is checked only in manually queued pipelines.
     condition: and(succeeded(), eq(variables['Build.Reason'], 'Manual'))
     displayName: 'Bazel DPC++ code-coverage smoke build'
@@ -770,7 +759,7 @@ jobs:
       if not exist "$(BAZEL_OUTPUT_USER_ROOT)" mkdir "$(BAZEL_OUTPUT_USER_ROOT)"
       set "BAZEL_CACHE_DIR_FWD=$(BAZEL_CACHE_DIR)"
       set "BAZEL_CACHE_DIR_FWD=%BAZEL_CACHE_DIR_FWD:\=/%"
-      echo build --disk_cache=%BAZEL_CACHE_DIR_FWD% --experimental_disk_cache_gc_max_size=8G --experimental_disk_cache_gc_idle_delay=0s --cpu=avx2> "%USERPROFILE%\.bazelrc"
+      echo build --disk_cache=%BAZEL_CACHE_DIR_FWD% --experimental_disk_cache_gc_max_size=8G --config=ci --cpu=avx2> user.bazelrc
       echo ##vso[task.setvariable variable=BAZEL_SH]C:\Program Files\Git\bin\bash.exe
       echo ##vso[task.setvariable variable=BAZEL_JOBS]%NUMBER_OF_PROCESSORS%
     displayName: 'bazel-configure'
@@ -833,15 +822,8 @@ jobs:
         echo OK: tbb\latest\lib\vc_mt\%%f
       )
     displayName: 'Check staged runtime dependencies'
-  # Analysis-only check of both MSVC-runtime configurations. The pull-request
-  # run does not build the debug runtime (`-MDd`); Intel's internal nightly CI
-  # does through its Make build, and `WindowsBazelReleaseAll` below does on
-  # manual and scheduled runs. The debug runtime is driven by two settings
-  # that have to agree — the `msvc_runtime_debug` toolchain feature and the
-  # `@config//:msvc_runtime` build setting — and a mismatch is reported during
-  # analysis (see `_msvc_runtime_is_debug` in dev/bazel/cc.bzl). `--nobuild`
-  # surfaces that in seconds rather than after a full icx compile, and also
-  # proves the //:release_all transitions are well-formed.
+  # PR runs do not build the debug CRT, so check in seconds that it and the //:release_all
+  # transitions analyze; WindowsBazelReleaseAll builds them on scheduled runs.
   - script: |
       call %TEMP%\oneapi\setvars.bat --force
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release --config=mdd --nobuild --verbose_failures || exit /b 1
@@ -862,7 +844,7 @@ jobs:
       set TEST_PATH=$(DALROOT)\redist\intel64;$(DALROOT)\lib\intel64;%OUTPUT_BASE%\external\+mkl_repo+mkl\bin;%OUTPUT_BASE%\external\+tbb_repo+tbb\bin;%PATH%
       set PATH=%TEST_PATH%
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
-      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" test //examples/daal/cpp:all --test_link_mode=release_dynamic --test_thread_mode=par --test_env=DALROOT "--test_env=PATH=%TEST_PATH%" --verbose_failures --jobs=$(BAZEL_JOBS)
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" test //examples/daal/cpp:all --test_link_mode=release_dynamic --test_env=DALROOT "--test_env=PATH=%TEST_PATH%" --verbose_failures --jobs=$(BAZEL_JOBS)
     displayName: 'daal-cpp-examples-thread-release-dynamic'
   - script: |
       call %TEMP%\oneapi\setvars.bat --force
@@ -873,13 +855,12 @@ jobs:
       set TEST_PATH=$(DALROOT)\redist\intel64;$(DALROOT)\lib\intel64;%OUTPUT_BASE%\external\+mkl_repo+mkl\bin;%OUTPUT_BASE%\external\+tbb_repo+tbb\bin;%PATH%
       set PATH=%TEST_PATH%
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
-      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" test //examples/oneapi/cpp:all --config=host --test_link_mode=release_dynamic --test_thread_mode=par --test_env=DALROOT "--test_env=PATH=%TEST_PATH%" --verbose_failures --jobs=$(BAZEL_JOBS)
+      "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" test //examples/oneapi/cpp:all --config=host --test_link_mode=release_dynamic --test_env=DALROOT "--test_env=PATH=%TEST_PATH%" --verbose_failures --jobs=$(BAZEL_JOBS)
     displayName: 'cpp-examples-thread-release-dynamic'
   - powershell: |
       $ErrorActionPreference = "Stop"
-      # The disk cache GC flags in .bazelrc trim the cache to its size cap once the
-      # server is idle; `shutdown` waits for that collection, so Cache@2 saves the
-      # most recently used entries.
+      # The disk cache GC (user.bazelrc) runs once the server is idle; `shutdown` waits for it,
+      # so Cache@2 saves the trimmed cache.
       & "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
       $cacheBytes = (Get-ChildItem "$(BAZEL_CACHE_DIR)" -Recurse -Force -ErrorAction SilentlyContinue |
           Measure-Object -Property Length -Sum).Sum
@@ -929,7 +910,7 @@ jobs:
       if not exist "$(BAZEL_OUTPUT_USER_ROOT)" mkdir "$(BAZEL_OUTPUT_USER_ROOT)"
       set "BAZEL_CACHE_DIR_FWD=$(BAZEL_CACHE_DIR)"
       set "BAZEL_CACHE_DIR_FWD=%BAZEL_CACHE_DIR_FWD:\=/%"
-      echo build --disk_cache=%BAZEL_CACHE_DIR_FWD% --experimental_disk_cache_gc_max_size=8G --experimental_disk_cache_gc_idle_delay=0s --cpu=avx2> "%USERPROFILE%\.bazelrc"
+      echo build --disk_cache=%BAZEL_CACHE_DIR_FWD% --experimental_disk_cache_gc_max_size=8G --config=ci --cpu=avx2> user.bazelrc
       echo ##vso[task.setvariable variable=BAZEL_SH]C:\Program Files\Git\bin\bash.exe
       echo ##vso[task.setvariable variable=BAZEL_JOBS]%NUMBER_OF_PROCESSORS%
     displayName: 'bazel-configure'

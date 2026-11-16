@@ -49,7 +49,6 @@ dal_module(
     ],
     dpc_deps = [
         "@mkl//:mkl_dpc",
-        "@dpl//:headers",
     ],
 )
 
@@ -291,6 +290,7 @@ dal_test_suite(
     ccl = True,
     mpi_ranks = 2,
     framework = "catch2",
+    compile_as = [ "dpc++" ],
     srcs = glob([
         "test/ccl_*.cpp"
     ]),

@@ -2,8 +2,6 @@ load("@onedal//dev/bazel:release.bzl",
     "release",
     "release_all",
     "release_include",
-    "release_extra_file",
-    "release_dep_runtime",
 )
 load("@onedal//dev/bazel/config:selects.bzl",
     "parameters_lib_enabled",
@@ -18,17 +16,11 @@ load("@onedal//dev/bazel:scripts.bzl",
     "generate_vars_sh",
 )
 
+package(default_visibility = ["//visibility:public"])
+
 config_setting(
     name = "windows",
     constraint_values = ["@platforms//os:windows"],
-)
-
-config_setting(
-    name = "release_dpc_windows",
-    constraint_values = ["@platforms//os:windows"],
-    flag_values = {
-        "@config//:release_dpc": "True",
-    },
 )
 
 generate_vars_sh(
@@ -39,12 +31,6 @@ generate_vars_sh(
 generate_modulefile(
     name = "release_modulefile_dal",
     out = "modulefiles/dal",
-)
-
-generate_pkgconfig(
-    name = "release_pkgconfig",
-    out = "lib/pkgconfig/onedal.pc",
-    parameters_lib = parameters_lib_separate_value(),
 )
 
 generate_pkgconfig(
@@ -145,6 +131,15 @@ filegroup(
     ]),
 )
 
+# Staged on every OS; the per-OS files are added in the select below.
+_RELEASE_EXTRA_FILES = {
+    "lib/pkgconfig/dal-dynamic-threading-host.pc": ":release_pkgconfig_dynamic_threading_host",
+    "lib/pkgconfig/dal-static-threading-host.pc": ":release_pkgconfig_static_threading_host",
+    "config/config.txt": "//deploy/local:config_file",
+    "lib/cmake/oneDAL/oneDALConfig.cmake": ":release_cmake_config",
+    "lib/cmake/oneDAL/oneDALConfigVersion.cmake": ":release_cmake_config_version",
+}
+
 release(
     name = "release",
     include = [
@@ -178,9 +173,6 @@ release(
         "@onedal//cpp/oneapi/dal:static_parameters",
         "@onedal//cpp/oneapi/dal:dynamic_parameters",
     ]) + select({
-        ":release_dpc_windows": [
-            "@onedal//cpp/oneapi/dal:dynamic_dpc",
-        ],
         "@config//:release_dpc_enabled": [
             "@onedal//cpp/oneapi/dal:dynamic_dpc",
         ],
@@ -201,45 +193,38 @@ release(
         ],
         "//conditions:default": [],
     }),
-    extra_files = [
-        release_extra_file(":release_vars_sh", "env/vars.sh", windows_dst_path = "env/vars.bat"),
-        release_extra_file(":release_pkgconfig", "", windows_dst_path = ""),
-        release_extra_file(":release_pkgconfig_dynamic_threading_host", "lib/pkgconfig/dal-dynamic-threading-host.pc"),
-        release_extra_file(":release_pkgconfig_static_threading_host", "lib/pkgconfig/dal-static-threading-host.pc"),
-        release_extra_file("//deploy/local:config_file", "config/config.txt"),
-        release_extra_file(":release_modulefile_dal", "modulefiles/dal", windows_dst_path = ""),
-        release_extra_file(":release_mpi_daal_lst_linux", "samples/daal/cpp/mpi/daal.lst", windows_dst_path = ""),
-        release_extra_file(":release_mpi_makefile_linux", "samples/daal/cpp/mpi/makefile", windows_dst_path = ""),
-        release_extra_file(":release_cmake_config", "lib/cmake/oneDAL/oneDALConfig.cmake"),
-        release_extra_file(":release_cmake_config_version", "lib/cmake/oneDAL/oneDALConfigVersion.cmake"),
-        release_extra_file(":release_nuspec_devel", "nuspec/inteldal.devel.linux.nuspec", windows_dst_path = "nuspec/inteldal.devel.win-x64.nuspec"),
-        release_extra_file(":release_nuspec_redist", "nuspec/inteldal.redist.linux.nuspec", windows_dst_path = "nuspec/inteldal.redist.win-x64.nuspec"),
-        release_extra_file(":release_nuspec_static", "nuspec/inteldal.static.linux.nuspec", windows_dst_path = "nuspec/inteldal.static.win-x64.nuspec"),
-    ],
-    # libonedal_thread.so records DT_NEEDED entries for TBB, so the TBB
-    # redistributables have to travel with the package, exactly as Make stages
-    # them (`makefile:274-279`, `makefile:1101`). Windows splits them the way
-    # Make does: the DLLs the released libraries load at runtime go under
-    # `bin/vc_mt`, the import libraries a consumer links against under
-    # `lib/vc_mt`. On Linux the `.so` files serve both roles and
-    # `tbb_import_libs` is empty.
-    dep_runtime = [
-        release_dep_runtime("@tbb//:tbb_runtime", "tbb/latest/lib",
-                            windows_dst_dir = "tbb/latest/bin/vc_mt"),
-        release_dep_runtime("@tbb//:tbb_import_libs", "",
-                            windows_dst_dir = "tbb/latest/lib/vc_mt"),
-    ],
+    extra_files = select({
+        ":windows": _RELEASE_EXTRA_FILES | {
+            "env/vars.bat": ":release_vars_sh",
+            "nuspec/inteldal.devel.win-x64.nuspec": ":release_nuspec_devel",
+            "nuspec/inteldal.redist.win-x64.nuspec": ":release_nuspec_redist",
+            "nuspec/inteldal.static.win-x64.nuspec": ":release_nuspec_static",
+        },
+        "//conditions:default": _RELEASE_EXTRA_FILES | {
+            "env/vars.sh": ":release_vars_sh",
+            "modulefiles/dal": ":release_modulefile_dal",
+            "samples/daal/cpp/mpi/daal.lst": ":release_mpi_daal_lst_linux",
+            "samples/daal/cpp/mpi/makefile": ":release_mpi_makefile_linux",
+            "nuspec/inteldal.devel.linux.nuspec": ":release_nuspec_devel",
+            "nuspec/inteldal.redist.linux.nuspec": ":release_nuspec_redist",
+            "nuspec/inteldal.static.linux.nuspec": ":release_nuspec_static",
+        },
+    }),
+    # libonedal_thread needs TBB at runtime, so TBB ships with the package as in Make.
+    # On Windows the DLLs go under bin/vc_mt and the import libraries under lib/vc_mt.
+    dep_runtime = select({
+        ":windows": {
+            "tbb/latest/bin/vc_mt": "@tbb//:tbb_runtime",
+            "tbb/latest/lib/vc_mt": "@tbb//:tbb_import_libs",
+        },
+        "//conditions:default": {
+            "tbb/latest/lib": "@tbb//:tbb_runtime",
+        },
+    }),
 )
 
-# Single release tree holding both Windows MSVC runtime flavours: the
-# release-CRT libraries (`onedal_core.lib`) next to the debug-CRT ones
-# (`onedal_cored.lib`). Equivalent to running the Make build twice, with
-# MSVC_RUNTIME_VERSION=release and =debug, into one RELEASEDIR.
-#
-#   bazel build //:release_all
-#
-# For a single flavour use //:release (default, `-MD`) or
-# //:release --config=mdd. On Linux/macOS this equals //:release.
+# Both Windows CRT flavours in one tree, as two Make runs (MSVC_RUNTIME_VERSION=release
+# and =debug) into one RELEASEDIR would give. Elsewhere it equals //:release.
 release_all(
     name = "release_all",
     release_target = ":release",
