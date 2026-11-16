@@ -496,6 +496,29 @@ TEST("sampling advances the stream by one draw per row, and exact mode does not 
     }
 }
 
+TEST("an empty binning sample rebins every feature from its full column", "[unit]")
+{
+    SKIP_IF(!canSample());
+    constexpr size_t nRows = 40000;
+    std::mt19937_64 gen(4);
+    std::normal_distribution<double> normal;
+    std::vector<double> data(2 * nRows);
+    for (size_t r = 0; r < nRows; ++r)
+    {
+        data[2 * r]     = normal(gen);
+        data[2 * r + 1] = double(r % 5);
+    }
+    NumericTablePtr x = makeTable(data, 2);
+    BinningParams params;
+    params.sampleRows = 0;
+    Built<baseCpu> b;
+    build(*x, params, 8, b);
+    REQUIRE(b.status.ok());
+    REQUIRE(b.bins.nBins(0) > 1);
+    REQUIRE(b.bins.nBins(1) == 5);
+    requireConsistent(b.bins, data);
+}
+
 TEST("a NaN outside the sample rebins a feature that uses all maxBins data bins", "[unit]")
 {
     SKIP_IF(!canSample());

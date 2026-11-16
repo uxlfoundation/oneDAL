@@ -58,7 +58,7 @@ struct TreeNode
     uint32_t nSamples;       // sum of the records' bootstrap counts
     uint32_t depth;          // a chain of single-row splits can exceed 2^16 levels
     uint8_t categorical;
-    uint8_t defaultLeft; // side with more weight, for missing values at prediction
+    uint8_t defaultLeft; // 1: NaN goes left, the side training and prediction route it to
 };
 
 // Nodes per pool chunk: 2^16 nodes of 56 bytes, 3.5 MB, so a small tree takes one chunk.

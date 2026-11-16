@@ -783,6 +783,30 @@ TEST("node sample counts are bootstrap draws without weights and distinct rows w
         }
 }
 
+TEST("every split stores defaultLeft = 1, the NaN routing of training and prediction", "[unit]")
+{
+    const Dataset c = makeData(3000, 6, 3, 27);
+    cls::training::Parameter pc(3);
+    pc.nTrees                                  = 4;
+    const Fit<cls::training::ResultPtr> fits[] = { fitCls<cls::training::hist>(c, pc), fitCls<cls::training::defaultDense>(c, pc) };
+    size_t rightHeavier                        = 0;
+    for (const auto & fit : fits)
+        for (size_t t = 0; t < fit.model->size(); ++t)
+        {
+            const DecisionTreeNode * nodes = nodesOf(*fit.model, t);
+            const int * cnt                = fit.model->getNodeSampleCount(t);
+            for (size_t i = 0; i < fit.model->at(t)->getNumberOfRows(); ++i)
+            {
+                if (nodes[i].featureIndex < 0) continue;
+                REQUIRE(nodes[i].defaultLeft == 1);
+                const size_t l = nodes[i].leftIndexOrClass;
+                rightHeavier += cnt[l + 1] > cnt[l];
+            }
+        }
+    // Splits whose right side is heavier, where a weight rule would store 0.
+    REQUIRE(rightHeavier > 0);
+}
+
 TEST("a fractional denseThreshold is read, and a negative or NaN one is rejected", "[unit]")
 {
     namespace hpc = cls::training::internal;
@@ -798,6 +822,16 @@ TEST("a fractional denseThreshold is read, and a negative or NaN one is rejected
     REQUIRE(out.denseThreshold == 0.25);
     REQUIRE(!read(-0.5, out).ok());
     REQUIRE(!read(std::nan(""), out).ok());
+}
+
+TEST("MDA_Scaled is the mean over its standard error, the mean at zero variance, and 0 for one tree", "[unit]")
+{
+    using training::internal::trainer::scaledMda;
+    // m2 = 4 over 2 trees: standard error sqrt(4 / 2 / 2) = 1.
+    REQUIRE(scaledMda<cpu>(3.0, 4.0, 2) == 3.0);
+    REQUIRE(scaledMda<cpu>(0.25, 0.0, 5) == 0.25);
+    REQUIRE(scaledMda<cpu>(0.25, 0.0, 1) == 0.0);
+    REQUIRE(scaledMda<cpu>(0.25, 0.0, 0) == 0.0);
 }
 
 } // namespace daal::algorithms::decision_forest::test

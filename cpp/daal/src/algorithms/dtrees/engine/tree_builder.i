@@ -478,8 +478,8 @@ public:
         node.categorical      = split.categorical;
         node.weightedDecrease = item.improvement;
         node.left             = pair;
-        // Missing values follow the side with more weight (design 4.16).
-        node.defaultLeft = split.wLeft >= item.weight - split.wLeft;
+        // NaN goes left in training and DF prediction; 1 records that as GBT prediction reads it.
+        node.defaultLeft = 1;
         return services::Status();
     }
 
@@ -549,7 +549,8 @@ private:
     services::Status partition(const Record * in, Record * out, size_t n, size_t nLeft, size_t nChunks, const Route & route) const
     {
         const size_t distance = _prefetch.rows(n, 1);
-        auto scatter          = [&](size_t begin, size_t end, size_t iLeft, size_t iRight) {
+        // nLeft is the split search's count under the same routing; only a too-large nLeft runs past out + n.
+        auto scatter = [&](size_t begin, size_t end, size_t iLeft, size_t iRight) {
             prefetchedLoop<cpu>(
                 end - begin, distance, [&](size_t i) { DAAL_PREFETCH_READ_T0(route.address(in[begin + i].row)); },
                 [&](size_t i) {
@@ -557,7 +558,10 @@ private:
                     if (route.left(r.row))
                         out[iLeft++] = r;
                     else
+                    {
+                        DAAL_ASSERT(iRight < n);
                         out[iRight++] = r;
+                    }
                 });
             return iLeft;
         };

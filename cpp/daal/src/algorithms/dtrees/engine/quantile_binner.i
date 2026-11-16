@@ -699,7 +699,13 @@ services::Status QuantileBinner<algorithmFPType, cpu>::build(const data_manageme
     };
 
     const size_t groupSize = binGroupFeatures<cpu>(sample.k, bytesPerValue, nThreads);
-    for (size_t f = 0; f < p; ++f) hasMissing[f] = false;
+    // An empty sample sets no bins, which assign() takes as a miss and rebins from the full column.
+    for (size_t f = 0; f < p; ++f)
+    {
+        hasMissing[f] = false;
+        nBins[f]      = 0;
+        exact[f]      = false;
+    }
     for (size_t f0 = 0; f0 < p; f0 += groupSize)
     {
         s = binFeatures(sample, f0, f0 + groupSize < p ? groupSize : p - f0, nullptr);

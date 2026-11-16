@@ -201,7 +201,7 @@ private:
         DAAL_CHECK_MALLOC(stats.get());
         const algorithmFPType * y = _y.data();
         const algorithmFPType * w = _weighted ? _w.data() : nullptr;
-        daal::threader_for(nBlocks, nBlocks, [&](size_t iBlock) {
+        daal::threader_for(nBlocks, 1, [&](size_t iBlock) {
             const size_t begin = iBlock * tableBlockRows;
             const size_t end   = begin + tableBlockRows < _nRows ? begin + tableBlockRows : _nRows;
             double sy = 0, sw = 0;

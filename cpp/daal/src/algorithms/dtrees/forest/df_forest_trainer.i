@@ -328,6 +328,16 @@ size_t leafOf(const dtrees::internal::DecisionTreeNode * nodes, const bool * cat
     return r;
 }
 
+/// MDA_Scaled of one feature from its mean and sum of squared deviations over nTrees trees, as legacy: the mean
+/// over its standard error, the mean when the variance is 0, and 0 for fewer than two trees.
+template <CpuType cpu>
+double scaledMda(double mean, double m2, size_t nTrees)
+{
+    if (nTrees < 2) return 0;
+    const double se2 = m2 / double(nTrees) / double(nTrees);
+    return se2 > 0 ? mean / daal::internal::MathInst<double, cpu>::sSqrt(se2) : mean;
+}
+
 /**
  *  \brief OOB error and MDA importance, after all trees are built, one tree at a time in tree order
  *
@@ -524,20 +534,10 @@ public:
         return services::Status();
     }
 
-    /// MDA_Raw: the mean over trees; MDA_Scaled: the mean divided by its standard error over trees, as legacy.
+    /// MDA_Raw: the mean over the trees with OOB rows; MDA_Scaled: scaledMda over the same trees.
     void mda(bool scaled, algorithmFPType * out) const
     {
-        const double t = double(_mdaTrees);
-        for (size_t j = 0; j < _p; ++j)
-        {
-            if (!scaled)
-            {
-                out[j] = algorithmFPType(_mdaMean[j]);
-                continue;
-            }
-            const double se2 = _mdaTrees > 1 ? _mdaM2[j] / t / t : 0;
-            out[j]           = se2 > 0 ? algorithmFPType(_mdaMean[j] / daal::internal::MathInst<double, cpu>::sSqrt(se2)) : 0;
-        }
+        for (size_t j = 0; j < _p; ++j) out[j] = algorithmFPType(scaled ? scaledMda<cpu>(_mdaMean[j], _mdaM2[j], _mdaTrees) : _mdaMean[j]);
     }
 
 private:

@@ -399,11 +399,13 @@ services::Status fusedPartition(const Record * in, Record * out, size_t n, size_
 
     if (nChunks <= 1)
     {
+        // nLeft is the split search's count under the same routing; only a too-large nLeft runs past out + n.
         size_t iLeft = 0, iRight = nLeft;
         prefetchedLoop<cpu>(n, distance, prefetch, [&](size_t i) {
-            const Record & r            = in[i];
-            const BinT * b              = bins.template row<BinT>(r.row);
-            const size_t s              = left(b) ? 0 : 1;
+            const Record & r = in[i];
+            const BinT * b   = bins.template row<BinT>(r.row);
+            const size_t s   = left(b) ? 0 : 1;
+            DAAL_ASSERT(!s || iRight < n);
             out[s ? iRight++ : iLeft++] = r;
             if (targets[s].planes) addRow<Record, BinT, cpu>(r, b, targets[s].features, targets[s].nLanes, *targets[s].planes);
         });
