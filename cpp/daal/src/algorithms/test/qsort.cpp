@@ -39,4 +39,22 @@ TEST("Indexed qSort", "[unit]")
     for (size_t i = 1; i < n; ++i) bad += x[i - 1] > x[i];
     REQUIRE(bad == 0);
 }
+
+TEST("Indexed qSort of up to two elements", "[unit]")
+{
+    std::vector<float> x { 2.f, 1.f };
+    std::vector<int> idx { 10, 20 };
+    qSort<float, int, daal::internal::sse2>(2, x.data(), idx.data());
+    REQUIRE(x == std::vector<float> { 1.f, 2.f });
+    REQUIRE(idx == std::vector<int> { 20, 10 });
+
+    qSort<float, int, daal::internal::sse2>(2, x.data(), idx.data());
+    REQUIRE(x == std::vector<float> { 1.f, 2.f });
+    REQUIRE(idx == std::vector<int> { 20, 10 });
+
+    qSort<float, int, daal::internal::sse2>(1, x.data() + 1, idx.data() + 1);
+    qSort<float, int, daal::internal::sse2>(0, x.data(), idx.data());
+    REQUIRE(x == std::vector<float> { 1.f, 2.f });
+    REQUIRE(idx == std::vector<int> { 20, 10 });
+}
 } // namespace daal::algorithms::internal

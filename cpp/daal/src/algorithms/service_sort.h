@@ -55,7 +55,7 @@ void qSort(size_t n, algorithmDataType * x)
 }
 
 /**
- * \brief Sorts array x of daal::IdxValType elements by value, then by index
+ * \brief Sorts array x of daal::IdxValType elements by value; the order of equal values is unspecified
  *
  * \param n[in]     Length of input array
  * \param x[in,out] Array to sort
@@ -63,7 +63,7 @@ void qSort(size_t n, algorithmDataType * x)
 template <typename T, CpuType cpu>
 void qSortByKey(size_t n, T * x)
 {
-    daal::parallel_sort(x, x + n);
+    daal::parallel_sort_by_value(x, x + n);
 }
 
 /**
@@ -77,6 +77,16 @@ void qSortByKey(size_t n, T * x)
 template <typename algorithmDataType, typename algorithmIndexType, CpuType cpu>
 void qSort(size_t n, algorithmDataType * x, algorithmIndexType * index)
 {
+    // Avoid the threading layer call for 2-element arrays.
+    if (n <= 2)
+    {
+        if (n == 2 && x[1] < x[0])
+        {
+            daal::services::internal::swap<cpu, algorithmDataType>(x[0], x[1]);
+            daal::services::internal::swap<cpu, algorithmIndexType>(index[0], index[1]);
+        }
+        return;
+    }
     daal::parallel_index_sort(n, x, index);
 }
 

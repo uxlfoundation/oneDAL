@@ -14,8 +14,8 @@
 * limitations under the License.
 *******************************************************************************/
 
-/// Unit tests for `daal::parallel_index_sort` and for `daal::parallel_sort` on `daal::IdxValType` with int
-/// indices: the keys must end up non-decreasing, and the indices move with them.
+/// Unit tests for `daal::parallel_index_sort` and `daal::parallel_sort_by_value`: the keys must end up
+/// non-decreasing, and the indices move with them.
 
 #include <algorithm>
 #include <atomic>
@@ -160,16 +160,16 @@ TEMPLATE_TEST("parallel_index_sort keeps data and two index arrays together", "[
     checkTwoIndexSort<TestType>(n, nCols, 777u + unsigned(n));
 }
 
-TEMPLATE_TEST("parallel_sort orders IdxValType with int index by value, then index", "[unit][parallel_sort]", float, double)
+TEMPLATE_TEST("parallel_sort_by_value orders IdxValType with int index by value", "[unit][parallel_sort]", float, double)
 {
-    const std::size_t n  = GENERATE(0, 1, 2, 7, 100, 10000, 100000);
+    const std::size_t n  = GENERATE(0, 1, 2, 7, 100, 499, 500, 10000, 100000);
     const int valueRange = GENERATE(0, 1, 10);
 
     std::mt19937 gen(777u + unsigned(n));
     std::uniform_real_distribution<TestType> realDist(-1, 1);
     std::uniform_int_distribution<int> intDist(0, valueRange > 0 ? valueRange - 1 : 0);
     std::vector<daal::IdxValType<TestType, int> > a(n);
-    std::vector<std::pair<TestType, int> > expected(n);
+    std::vector<std::pair<TestType, int> > expected(n), actual(n);
     for (std::size_t i = 0; i < n; ++i)
     {
         a[i].value  = valueRange > 0 ? TestType(intDist(gen)) : realDist(gen);
@@ -177,16 +177,18 @@ TEMPLATE_TEST("parallel_sort orders IdxValType with int index by value, then ind
         expected[i] = { a[i].value, a[i].index };
     }
 
-    daal::parallel_sort(a.data(), a.data() + n);
+    daal::parallel_sort_by_value(a.data(), a.data() + n);
 
-    // Ties are broken by index, so the result equals the lexicographically sorted pairs.
-    std::sort(expected.begin(), expected.end());
     for (std::size_t i = 0; i < n; ++i)
     {
         INFO("n = " << n << ", position " << i);
-        REQUIRE(a[i].value == expected[i].first);
-        REQUIRE(a[i].index == expected[i].second);
+        if (i > 0) REQUIRE(a[i - 1].value <= a[i].value);
+        actual[i] = { a[i].value, a[i].index };
     }
+    // Equal values may come in any order, so compare the pairs as multisets.
+    std::sort(expected.begin(), expected.end());
+    std::sort(actual.begin(), actual.end());
+    REQUIRE(actual == expected);
 }
 
 // Callers such as decision forest training keep per-thread state across the sort, so a thread waiting for

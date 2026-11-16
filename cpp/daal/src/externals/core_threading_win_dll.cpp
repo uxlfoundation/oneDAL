@@ -161,8 +161,8 @@ typedef void (*_daal_parallel_sort_uint64_t)(size_t *, size_t *);
 typedef void (*_daal_parallel_sort_pair_int32_uint64_t)(daal::IdxValType<int> *, daal::IdxValType<int> *);
 typedef void (*_daal_parallel_sort_pair_fp32_uint64_t)(daal::IdxValType<float> *, daal::IdxValType<float> *);
 typedef void (*_daal_parallel_sort_pair_fp64_uint64_t)(daal::IdxValType<double> *, daal::IdxValType<double> *);
-typedef void (*_daal_parallel_sort_pair_fp32_int32_t)(daal::IdxValType<float, int> *, daal::IdxValType<float, int> *);
-typedef void (*_daal_parallel_sort_pair_fp64_int32_t)(daal::IdxValType<double, int> *, daal::IdxValType<double, int> *);
+typedef void (*_daal_parallel_sort_pair_by_value_fp32_int32_t)(daal::IdxValType<float, int> *, daal::IdxValType<float, int> *);
+typedef void (*_daal_parallel_sort_pair_by_value_fp64_int32_t)(daal::IdxValType<double, int> *, daal::IdxValType<double, int> *);
 typedef void (*_daal_parallel_sort_fp32_t)(float *, float *);
 typedef void (*_daal_parallel_sort_fp64_t)(double *, double *);
 typedef void (*_daal_parallel_index_sort_fp32_int32_t)(size_t, float *, int *);
@@ -284,20 +284,20 @@ DAAL_EXPORT void _daal_parallel_sort_pair_fp64_uint64(daal::IdxValType<double> *
     _daal_parallel_sort_pair_fp64_uint64_ptr(begin_ptr, end_ptr);
 }
 
-DAAL_EXPORT void _daal_parallel_sort_pair_fp32_int32(daal::IdxValType<float, int> * begin_ptr, daal::IdxValType<float, int> * end_ptr)
+DAAL_EXPORT void _daal_parallel_sort_pair_by_value_fp32_int32(daal::IdxValType<float, int> * begin_ptr, daal::IdxValType<float, int> * end_ptr)
 {
     load_daal_thr_dll();
-    static _daal_parallel_sort_pair_fp32_int32_t _daal_parallel_sort_pair_fp32_int32_ptr =
-        (_daal_parallel_sort_pair_fp32_int32_t)load_daal_thr_func("_daal_parallel_sort_pair_fp32_int32");
-    _daal_parallel_sort_pair_fp32_int32_ptr(begin_ptr, end_ptr);
+    static _daal_parallel_sort_pair_by_value_fp32_int32_t _daal_parallel_sort_pair_by_value_fp32_int32_ptr =
+        (_daal_parallel_sort_pair_by_value_fp32_int32_t)load_daal_thr_func("_daal_parallel_sort_pair_by_value_fp32_int32");
+    _daal_parallel_sort_pair_by_value_fp32_int32_ptr(begin_ptr, end_ptr);
 }
 
-DAAL_EXPORT void _daal_parallel_sort_pair_fp64_int32(daal::IdxValType<double, int> * begin_ptr, daal::IdxValType<double, int> * end_ptr)
+DAAL_EXPORT void _daal_parallel_sort_pair_by_value_fp64_int32(daal::IdxValType<double, int> * begin_ptr, daal::IdxValType<double, int> * end_ptr)
 {
     load_daal_thr_dll();
-    static _daal_parallel_sort_pair_fp64_int32_t _daal_parallel_sort_pair_fp64_int32_ptr =
-        (_daal_parallel_sort_pair_fp64_int32_t)load_daal_thr_func("_daal_parallel_sort_pair_fp64_int32");
-    _daal_parallel_sort_pair_fp64_int32_ptr(begin_ptr, end_ptr);
+    static _daal_parallel_sort_pair_by_value_fp64_int32_t _daal_parallel_sort_pair_by_value_fp64_int32_ptr =
+        (_daal_parallel_sort_pair_by_value_fp64_int32_t)load_daal_thr_func("_daal_parallel_sort_pair_by_value_fp64_int32");
+    _daal_parallel_sort_pair_by_value_fp64_int32_ptr(begin_ptr, end_ptr);
 }
 
 DAAL_EXPORT void _daal_parallel_sort_fp32(float * begin_ptr, float * end_ptr)

@@ -29,6 +29,7 @@
 
 #include <algorithm> // std::min, std::sort
 #include <cstddef>
+#include <functional> // std::less
 #include <iterator>
 #include <tuple>
 #include <utility>
@@ -323,17 +324,23 @@ DAAL_EXPORT void _daal_static_threader_for(int64_t n, const void * a, daal::func
     }
 }
 
-template <typename F>
-DAAL_EXPORT void _daal_parallel_sort_template(F * begin_p, F * end_p)
+namespace
 {
-    if (daal::threader_env()->getNumberOfThreads() > 1)
+// tbb::parallel_sort sorts shorter ranges serially; below it, skip the isolate call that dominates tiny sorts.
+constexpr std::ptrdiff_t parallelSortMinSize = 500;
+} // namespace
+
+template <typename F, typename Compare = std::less<F> >
+DAAL_EXPORT void _daal_parallel_sort_template(F * begin_p, F * end_p, Compare comp = Compare())
+{
+    if (daal::threader_env()->getNumberOfThreads() > 1 && end_p - begin_p >= parallelSortMinSize)
     {
         // Isolated so that a caller inside a parallel loop does not run other loop tasks while it waits.
-        tbb::this_task_arena::isolate([&]() { tbb::parallel_sort(begin_p, end_p); });
+        tbb::this_task_arena::isolate([&]() { tbb::parallel_sort(begin_p, end_p, comp); });
     }
     else
     {
-        std::sort(begin_p, end_p);
+        std::sort(begin_p, end_p, comp);
     }
 }
 
@@ -360,10 +367,32 @@ DAAL_PARALLEL_SORT_IMPL(double, fp64)
 DAAL_PARALLEL_PAIR_SORT_IMPL(int, size_t, int32_uint64)
 DAAL_PARALLEL_PAIR_SORT_IMPL(float, size_t, fp32_uint64)
 DAAL_PARALLEL_PAIR_SORT_IMPL(double, size_t, fp64_uint64)
-DAAL_PARALLEL_PAIR_SORT_IMPL(float, int, fp32_int32)
-DAAL_PARALLEL_PAIR_SORT_IMPL(double, int, fp64_int32)
 
 #undef DAAL_PARALLEL_PAIR_SORT_IMPL
+
+namespace
+{
+struct ValueLess
+{
+    template <typename T>
+    bool operator()(const T & a, const T & b) const
+    {
+        return a.value < b.value;
+    }
+};
+} // namespace
+
+#define DAAL_PARALLEL_PAIR_SORT_BY_VALUE_IMPL(FPTYPE, INDEXTYPE, NAMESUFFIX)                                       \
+    DAAL_EXPORT void _daal_parallel_sort_pair_by_value_##NAMESUFFIX(daal::IdxValType<FPTYPE, INDEXTYPE> * begin_p, \
+                                                                    daal::IdxValType<FPTYPE, INDEXTYPE> * end_p)   \
+    {                                                                                                              \
+        _daal_parallel_sort_template(begin_p, end_p, ValueLess());                                                 \
+    }
+
+DAAL_PARALLEL_PAIR_SORT_BY_VALUE_IMPL(float, int, fp32_int32)
+DAAL_PARALLEL_PAIR_SORT_BY_VALUE_IMPL(double, int, fp64_int32)
+
+#undef DAAL_PARALLEL_PAIR_SORT_BY_VALUE_IMPL
 
 namespace
 {
@@ -510,7 +539,7 @@ void parallelIndexSort(size_t n, F * data, I *... index)
 {
     const ZipIterator<F, I...> first(data, index...);
     const ZipIterator<F, I...> last = first + std::ptrdiff_t(n);
-    if (daal::threader_env()->getNumberOfThreads() > 1)
+    if (daal::threader_env()->getNumberOfThreads() > 1 && std::ptrdiff_t(n) >= parallelSortMinSize)
     {
         // Isolated for the same reason as in _daal_parallel_sort_template.
         tbb::this_task_arena::isolate([&]() { tbb::parallel_sort(first, last, ZipKeyLess()); });
