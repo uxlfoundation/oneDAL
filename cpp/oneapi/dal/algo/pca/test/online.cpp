@@ -15,6 +15,7 @@
 *******************************************************************************/
 
 #include "oneapi/dal/algo/pca/test/fixture.hpp"
+#include "oneapi/dal/test/engine/tables.hpp"
 
 namespace oneapi::dal::pca::test {
 
@@ -23,6 +24,7 @@ namespace la = te::linalg;
 namespace pca = oneapi::dal::pca;
 using pca_types_cov = COMBINE_TYPES((float, double), (pca::method::cov));
 using pca_types_svd = COMBINE_TYPES((float, double), (pca::method::svd));
+using pca_types = COMBINE_TYPES((float, double), (pca::method::cov, pca::method::svd));
 
 template <typename TestType>
 class pca_online_test : public pca_test<TestType, pca_online_test<TestType>> {};
@@ -153,6 +155,46 @@ TEMPLATE_LIST_TEST_M(pca_online_test,
     const auto data_table_id = this->get_homogen_table_id();
 
     this->online_general_checks(data, component_count, data_table_id, nBlocks);
+}
+
+// finalize_train must leave the partial result as it was, so it can be finalized again
+// or extended with more blocks.
+TEMPLATE_LIST_TEST_M(pca_online_test,
+                     "pca finalize twice on the same partial result",
+                     "[pca][integration][online]",
+                     pca_types) {
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->not_available_on_device());
+    const int64_t nBlocks = GENERATE(1, 3);
+
+    const auto desc = this->get_descriptor(0, true);
+    const te::dataframe input = te::dataframe_builder{ 6, 3 }.fill_normal(0, 1, 7777).build();
+    const table data = input.get_table(this->get_policy(), this->get_homogen_table_id());
+
+    dal::pca::partial_train_result<> partial;
+    for (const auto& block : te::split_table_by_rows<float_t>(this->get_policy(), data, nBlocks)) {
+        partial = this->partial_train(desc, partial, block);
+    }
+    std::vector<table> partial_tables = { partial.get_partial_n_rows(),
+                                          partial.get_partial_crossproduct(),
+                                          partial.get_partial_sum() };
+    for (std::int64_t i = 0; i < partial.get_auxiliary_table_count(); ++i) {
+        partial_tables.push_back(partial.get_auxiliary_table(i));
+    }
+    std::vector<std::vector<float_t>> before;
+    for (const auto& t : partial_tables) {
+        before.push_back(te::copy_table_values<float_t>(t));
+    }
+
+    const auto first = this->finalize_train(desc, partial);
+    for (std::size_t i = 0; i < partial_tables.size(); ++i) {
+        CAPTURE(i);
+        REQUIRE(te::copy_table_values<float_t>(partial_tables[i]) == before[i]);
+    }
+
+    const auto second = this->finalize_train(desc, partial);
+    te::check_if_table_content_equal<float_t>(second.get_eigenvectors(), first.get_eigenvectors());
+    te::check_if_table_content_equal<float_t>(second.get_eigenvalues(), first.get_eigenvalues());
 }
 
 } // namespace oneapi::dal::pca::test

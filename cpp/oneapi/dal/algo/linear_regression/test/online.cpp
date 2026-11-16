@@ -61,35 +61,40 @@ TEMPLATE_LIST_TEST_M(lr_online_test, "RR common flow", "[rr][online]", lr_types)
     this->run_and_check_ridge_online(nBlocks);
 }
 
-// The penalty must not be added to the partial result's xtx, or every finalize adds alpha again.
+// finalize_train must leave the partial result as it was, so it can be finalized again
+// or extended with more blocks; ridge used to add alpha to the partial xtx on GPU.
 TEMPLATE_LIST_TEST_M(lr_online_test,
-                     "RR finalize twice on the same partial result",
-                     "[rr][online]",
+                     "LR and RR finalize twice on the same partial result",
+                     "[lr][rr][online]",
                      lr_types) {
     SKIP_IF(this->not_float64_friendly());
     using float_t = std::tuple_element_t<0, TestType>;
-    this->generate(777);
+    this->intercept_ = GENERATE(false, true);
+    const double alpha = GENERATE(0.0, 1.5);
     const int64_t nBlocks = GENERATE(1, 3);
 
-    table x_train, y_train, x_test, y_test;
-    std::tie(x_train, y_train, x_test, y_test) = this->prepare_inputs();
-    auto x_blocks = te::split_table_by_rows<float_t>(this->get_policy(), x_train, nBlocks);
-    auto y_blocks = te::split_table_by_rows<float_t>(this->get_policy(), y_train, nBlocks);
+    const te::dataframe x_data = te::dataframe_builder{ 6, 2 }.fill_uniform(-5, 5, 7777).build();
+    const te::dataframe y_data = te::dataframe_builder{ 6, 1 }.fill_uniform(-5, 5, 8888).build();
+    const auto x = x_data.get_table(this->get_policy(), this->get_homogen_table_id());
+    const auto y = y_data.get_table(this->get_policy(), this->get_homogen_table_id());
+    const auto x_blocks = te::split_table_by_rows<float_t>(this->get_policy(), x, nBlocks);
+    const auto y_blocks = te::split_table_by_rows<float_t>(this->get_policy(), y, nBlocks);
 
-    const auto desc = this->get_descriptor(this->alpha_);
-    dal::linear_regression::partial_train_result<> partial_result;
+    const auto desc = this->get_descriptor(alpha);
+    dal::linear_regression::partial_train_result<> partial;
     for (std::int64_t i = 0; i < nBlocks; i++) {
-        partial_result = this->partial_train(desc, partial_result, x_blocks[i], y_blocks[i]);
+        partial = this->partial_train(desc, partial, x_blocks[i], y_blocks[i]);
     }
-    const auto first = this->finalize_train(desc, partial_result);
-    const auto second = this->finalize_train(desc, partial_result);
+    const auto xtx = te::copy_table_values<float_t>(partial.get_partial_xtx());
+    const auto xty = te::copy_table_values<float_t>(partial.get_partial_xty());
 
-    const auto res_options = desc.get_result_options();
-    if (res_options.test(result_options::coefficients)) {
-        te::check_if_table_content_equal<float_t>(second.get_coefficients(),
-                                                  first.get_coefficients());
-    }
-    if (res_options.test(result_options::intercept)) {
+    const auto first = this->finalize_train(desc, partial);
+    REQUIRE(te::copy_table_values<float_t>(partial.get_partial_xtx()) == xtx);
+    REQUIRE(te::copy_table_values<float_t>(partial.get_partial_xty()) == xty);
+
+    const auto second = this->finalize_train(desc, partial);
+    te::check_if_table_content_equal<float_t>(second.get_coefficients(), first.get_coefficients());
+    if (this->intercept_) {
         te::check_if_table_content_equal<float_t>(second.get_intercept(), first.get_intercept());
     }
 }
