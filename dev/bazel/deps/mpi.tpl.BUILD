@@ -45,11 +45,14 @@ filegroup(
     ],
 )
 
+# Linux only: the Windows libfabric wheel ships no provider libraries beside
+# libfabric.dll, and the MPI tests run on Linux. On Linux the repository rule
+# fails when no provider exists.
 filegroup(
     name = "fi",
     srcs = glob([
         "libfabric/lib/prov/*.so",
-    ]),
+    ], allow_empty = True),
 )
 
 cc_library(

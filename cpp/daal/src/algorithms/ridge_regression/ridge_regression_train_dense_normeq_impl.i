@@ -25,6 +25,7 @@
 #define __RIDGE_REGRESSION_TRAIN_DENSE_NORMEQ_IMPL_I__
 
 #include "src/algorithms/ridge_regression/ridge_regression_train_kernel.h"
+#include "src/algorithms/service_kernel_math.h"
 
 namespace daal
 {
@@ -43,8 +44,21 @@ Status BatchKernel<algorithmFPType, training::normEqDense, cpu>::compute(const N
                                                                          NumericTable & xty, NumericTable & beta, bool interceptFlag,
                                                                          const NumericTable & ridge) const
 {
-    Status st = UpdateKernelType::compute(x, y, xtx, xty, true, interceptFlag);
-    if (st) st = FinalizeKernelType::compute(xtx, xty, xtx, xty, beta, interceptFlag, KernelHelper<algorithmFPType, cpu>(ridge));
+    const size_t nFeatures = x.getNumberOfColumns();
+    const size_t nRows     = x.getNumberOfRows();
+    Status st;
+    KernelHelper<algorithmFPType, cpu> ridgeHelper(ridge);
+    if (nRows >= nFeatures)
+    {
+        // Use normal equations method
+        st = UpdateKernelType::compute(x, y, xtx, xty, true, interceptFlag);
+        if (st) st = FinalizeKernelType::compute(xtx, xty, xtx, xty, beta, interceptFlag, ridgeHelper);
+    }
+    else
+    {
+        // Use dual problem solver
+        st = DualKernelType::compute(x, y, beta, xtx, xty, interceptFlag, ridgeHelper);
+    }
     return st;
 }
 

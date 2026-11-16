@@ -19,6 +19,7 @@ load("@onedal//dev/bazel:cc.bzl",
     "cc_static_lib",
     "cc_dynamic_lib",
 )
+load("@onedal//dev/bazel:stamp.bzl", "BuildDateInfo", "expand_build_date")
 load("@onedal//dev/bazel:utils.bzl",
     "sets",
     "paths",
@@ -69,9 +70,14 @@ def daal_module(name, features=[], lib_tag="daal",
             "//conditions:default": [],
         })),
         define_gcov_build = define_gcov_build,
-        local_defines = select({
-            "@config//:assert_enabled": local_defines + ["__DAAL_IMPLEMENTATION", "DEBUG_ASSERT=1"],
-            "//conditions:default": local_defines + ["__DAAL_IMPLEMENTATION"],
+        # __DAAL_IMPLEMENTATION makes DAAL_EXPORT dllexport on Windows.
+        # Export-free static archives omit it, as Make's static objects do.
+        local_defines = local_defines + select({
+            "@config//:static_export_free_enabled": [],
+            "//conditions:default": ["__DAAL_IMPLEMENTATION"],
+        }) + select({
+            "@config//:assert_enabled": ["DEBUG_ASSERT=1"],
+            "//conditions:default": [],
         }) + (select({
             "@config//:stdalloc_enabled": ["USE_STD_ALLOC"],
             "//conditions:default": [],
@@ -117,6 +123,12 @@ _MKL_EXCLUDE_LIBS_FLAGS = select({
 
 def daal_dynamic_lib(name, lib_tags=["daal", "mkl_embed"], **kwargs):
     linkopts = kwargs.pop("linkopts", [])
+    # Core and threading DLLs share services/dll.rc (makefile:586, 918).
+    kwargs.setdefault("rc_file", "@onedal//cpp/daal:src/services/dll.rc")
+    kwargs.setdefault("rc_headers", [
+        "@onedal//cpp/daal:src/services/daal_version.h",
+        "@onedal//cpp/daal:version",
+    ])
     cc_dynamic_lib(
         name = name,
         lib_tags = lib_tags,
@@ -136,7 +148,7 @@ def daal_algorithms(name, algorithms=[]):
 
 def _daal_generate_version_impl(ctx):
     vi = ctx.attr._version_info[VersionInfo]
-    version = ctx.actions.declare_file(ctx.attr.out)
+    template = ctx.actions.declare_file(ctx.attr.out + ".tmpl")
     content = (
         "// DO NOT EDIT: file is auto-generated on build time\n" +
         "// DO NOT PUT THIS FILE TO SVC: file is auto-generated on build time\n" +
@@ -145,11 +157,14 @@ def _daal_generate_version_impl(ctx):
         "#define MAJORVERSION {}\n".format(vi.major) +
         "#define MINORVERSION {}\n".format(vi.minor) +
         "#define UPDATEVERSION {}\n".format(vi.update) +
-        "#define BUILD \"{}\"\n".format(vi.build) +
+        # The date is filled in from the build_date target (dev/bazel/stamp.bzl).
+        "#define BUILD \"@ONEDAL_BUILD_DATE@\"\n" +
         "#define BUILD_REV \"{}\"\n".format(vi.buildrev) +
         "#define PRODUCT_STATUS '{}'\n".format(vi.status)
     )
-    ctx.actions.write(version, content)
+    ctx.actions.write(template, content)
+    version = ctx.actions.declare_file(ctx.attr.out)
+    expand_build_date(ctx, template, version, ctx.attr._build_date[BuildDateInfo])
     return [ DefaultInfo(files=depset([ version ])) ]
 
 daal_generate_version = rule(
@@ -159,6 +174,10 @@ daal_generate_version = rule(
         "out": attr.string(mandatory=True),
         "_version_info": attr.label(
             default = "@config//:version",
+        ),
+        "_build_date": attr.label(
+            default = "@onedal//dev/bazel:build_date",
+            providers = [BuildDateInfo],
         ),
     },
 )

@@ -622,7 +622,7 @@ size_t KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
         int maskInt = _mm256_movemask_ps(mask);
         if (maskInt)
         {
-            k = k + _bit_scan_forward(_mm256_movemask_ps(mask));
+            k = k + __builtin_ctz(maskInt);
             break;
         }
     }
@@ -648,7 +648,7 @@ size_t KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
             int maskInt     = _mm256_movemask_ps(mask);
             if (maskInt)
             {
-                return j + _bit_scan_forward(_mm256_movemask_ps(mask));
+                return j + __builtin_ctz(maskInt);
             }
         }
     }

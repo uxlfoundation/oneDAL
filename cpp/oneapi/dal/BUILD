@@ -113,6 +113,9 @@ dal_static_lib(
 dal_dynamic_lib(
     name = "dynamic",
     lib_name = "onedal",
+    # Make passes --offload-compress to the DPC link of this library
+    # (makefile:821, LOPT). Host links do not get it.
+    dpc_linkopts = ["--offload-compress"],
     # Mirror what Make puts on onedal.dll's Windows link line: the DAAL
     # implementation arrives through onedal_core's import library (`host_deps`
     # below), while the static MKL archives are linked in directly.
@@ -151,25 +154,11 @@ dal_dynamic_lib(
         "@platforms//os:windows": ["dal", "mkl_embed"],
         "//conditions:default": ["dal", "mkl_embed"],
     }) + parameters_lib_disabled(["parameters"]),
-    # `BUILD_PARAMETERS_LIB` defaults to `no` on Windows, so Make folds the DPC
-    # parameter objects straight into onedal_dpc.dll
-    # (`ONEAPI.objs_y.dpc.lib += $(PARAMETERS.objs_y.dpc.filtered)`). Those
-    # contexts are tagged "parameters", so the tag has to be accepted here or
-    # the objects never reach the link and their dllexport'ed
-    # `train_parameters_cpu` members are missing from the DLL's exports.
-    # Linking `static_parameters_dpc` instead does not work: an archive is
-    # searched only for unresolved references, while the export table is built
-    # from the whole-archived object bundle.
-    #
-    # Linux must *not* accept the tag. There `BUILD_PARAMETERS_LIB` is `yes`, so
-    # Make emits the parameters as their own shared object
-    # (`parameters_y := $(plib)onedal_parameters...`, makefile:343) and
-    # libonedal_dpc.so never contains those objects. Adding the tag here would
-    # fold them into onedal_dpc, duplicating the definitions and diverging from
-    # the Make release the comparator checks against.
+    # Windows accepts the "parameters" tag: Make folds those objects into onedal_dpc.dll; a static archive would not export them.
+    # Linux drops it and the daal/mkl_embed tags: Make links dynamic MKL and keeps parameters in their own .so.
     dpc_lib_tags = select({
         "@platforms//os:windows": ["dal", "parameters"],
-        "//conditions:default": ["dal", "daal", "mkl_embed"],
+        "//conditions:default": ["dal"],
     }) + parameters_lib_disabled(["parameters"]),
     dal_deps = [
         ":core",
@@ -208,6 +197,9 @@ dal_dynamic_lib(
 dal_dynamic_lib(
     name = "dynamic_parameters",
     lib_name = "onedal_parameters",
+    # Make passes --offload-compress to the DPC link of this library
+    # (makefile:821, LOPT). Host links do not get it.
+    dpc_linkopts = ["--offload-compress"],
     # On Windows, DAAL/MKL stay behind onedal_core's import library; only
     # parameter and oneAPI objects belong in this DLL. Keep Linux unchanged.
     lib_tags = select({

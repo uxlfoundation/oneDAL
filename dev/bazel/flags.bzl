@@ -14,10 +14,10 @@
 # limitations under the License.
 #===============================================================================
 
+# Per-compiler -fwrapv and -fno-delete-null-pointer-checks, as in Make: gcc both, icpx -fwrapv, icx/clang neither.
+# icx stops vectorizing some loops (e.g. argmax) with -fwrapv, so it does not get it.
 lnx_cc_common_flags = [
-    "-fwrapv",
     "-fstack-protector-strong",
-    "-fno-delete-null-pointer-checks",
     "-Werror",
     "-Wno-empty-body",
     "-Wformat",
@@ -55,19 +55,8 @@ lnx_cc_flags = {
 win_icx_common_flags = [
     "-nologo",
     "-WX",
-    # C++ exception handling. The Makefile passes `-EHsc` for every oneAPI
-    # object on Windows (makefile:152, used at makefile:692/704/717); without
-    # it clang-cl defaults to exceptions disabled and any `throw` in
-    # cpp/oneapi/dal/detail/common.hpp is a hard error. This used to be
-    # supplied implicitly as a side effect of `-Qopenmp-simd` (which turns on
-    # -fexceptions in clang), so it only surfaced once that flag became
-    # release-runtime-only. Pass it explicitly instead of relying on that.
-    "-EHsc",
-    # `-Zl.icx` / `-Zl.dpcpp` disable every Intel-specific runtime library on
-    # Windows too, so the released `.lib` files never reference `__svml_*`.
-    # (`-Zl` itself, the other half of the makefile's variable, is deliberately
-    # not mirrored: it strips the CRT default-library directives that this
-    # toolchain's DLL links still rely on.)
+    # No -EHsc on threading and DAAL core objects, as in Make; dal_module adds it for oneAPI modules.
+    # -Qno-intel-lib (as -Zl.icx / -Zl.dpcpp) keeps __svml_* out of the .lib; -Zl itself would strip CRT directives.
     "-Qno-intel-lib",
     "-Wno-deprecated-declarations",
     "-Wno-ignored-attributes",
@@ -103,19 +92,8 @@ win_clang_common_flags = [
     "-Wno-empty-body",
     "-Wreturn-type",
     "-Wno-deprecated-declarations",
-    # C++ exception handling. The makefile adds `-EHsc` by `OS_is_win` alone,
-    # not by the compiler, so the clang-cl toolchain needs it as much as the icx
-    # one: without it clang-cl rejects every `throw` in
-    # cpp/oneapi/dal/detail/common.hpp.
-    "-EHsc",
-    # Make's `-fms-runtime-lib=dll[_dbg]` (COMPILER.win.clang, selected by
-    # MSVC_RT_is_release) has no counterpart here on purpose: the toolchain
-    # config already emits `-MD`/`-MDd` from the `msvc_runtime_debug` feature
-    # (`--config=mdd`), and stating the CRT twice would let the two disagree.
-    #
-    # clang-cl reports every vectorization pragma it cannot honor from `-O1` up,
-    # which `-Werror` above would turn into a build failure. Matches
-    # `warn.opts.clang` in dev/make/compiler_definitions/clang.mk.
+    # No -EHsc here, as for icx: Make's clang has none; dal_module adds it for oneAPI objects.
+    # clang-cl pass-failed warnings at -O1 would fail -Werror; -Wno-pass-failed matches warn.opts.clang.
     "-Wno-pass-failed",
 ]
 
@@ -175,6 +153,8 @@ def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
             ]
         if compiler_id == "icpx":
             flags = flags + [
+                # COMPILER.lnx.dpcpp in dev/make/compiler_definitions/dpcpp.mk.
+                "-fwrapv",
                 # `-Zl.dpcpp` in dev/make/compiler_definitions/dpcpp.mk:70.
                 "-no-intel-lib",
                 "-fsycl",
@@ -202,10 +182,12 @@ def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
                 "-Wno-pass-failed",
             ]
         if compiler_id == "gcc":
-            # Matches COMPILER.all.gnu in dev/make/compiler_definitions/gnu.32e.mk,
-            # which pairs it with `-fwrapv`. Clang treats it as implied by
-            # `-fwrapv` above and reports it unused, which `-Werror` makes fatal.
-            flags = flags + ["-fno-strict-overflow"]
+            # Matches COMPILER.all.gnu in dev/make/compiler_definitions/gnu.32e.mk.
+            flags = flags + [
+                "-fwrapv",
+                "-fno-strict-overflow",
+                "-fno-delete-null-pointer-checks",
+            ]
         if arch_id in ["arm", "riscv64"]:
             # ARM/RISC-V ship a single fixed ISA variant (see cpu_type.h),
             # unlike x86's runtime-dispatched sse2/avx2/avx512 objects, so

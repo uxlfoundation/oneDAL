@@ -130,8 +130,12 @@ cc_library(
         "lib/libmkl_def.so*",
         "lib/libmkl_avx*.so*",
         "lib/libmkl_mc*.so*",
-        "lib/libmkl_vml_*.so*",
     ], allow_empty = True),
+    # libmkl_vml_*.so is deliberately not listed. Make's DPC link
+    # (`dpc_link_deps`, dev/make/deps.mkl.mk) never names VML, so a DPC library
+    # that pulls it in gets an extra DT_NEEDED on libmkl_vml_avx10.so.3 (and
+    # libimf through it). The VML libraries still ship in the release through the
+    # `mkl_runtime` filegroup, which globs lib/libmkl*.so*.
 )
 
 cc_library(

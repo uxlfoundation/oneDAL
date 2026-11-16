@@ -222,6 +222,12 @@ protected:
     template <typename Archive, bool onDeserialize>
     services::Status serialImpl(Archive * arch)
     {
+        int daalVersion = INTEL_DAAL_VERSION;
+        if constexpr (onDeserialize)
+        {
+            daalVersion = COMPUTE_DAAL_VERSION(arch->getMajorVersion(), arch->getMinorVersion(), arch->getUpdateVersion());
+        }
+
         arch->set(_nNodes);
         arch->set(_maxLvl);
 
@@ -230,6 +236,12 @@ protected:
         arch->setSharedPtrObj(_nodeCoverValues);
         arch->setSharedPtrObj(_defaultLeft);
         arch->setSharedPtrObj(_leftChildIndexes);
+
+        // Older archives do not store the number of dense layers, their trees were built with defaultNumDenseLayers
+        if (daalVersion >= COMPUTE_DAAL_VERSION(2026, 3, 0))
+            arch->set(_numDenseLayers);
+        else
+            _numDenseLayers = defaultNumDenseLayers;
 
         return services::Status();
     }

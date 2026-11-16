@@ -231,20 +231,23 @@ def _configure_cc_toolchain_win_cl(repo_ctx):
         prefix = "msvc/" if path.startswith("builtin_include_directory_paths") else ""
         repo_ctx.file(prefix + path, *args, **kwargs)
 
-    def template(path, *args, **kwargs):
-        repo_ctx.template("msvc/" + path, *args, **kwargs)
-
-    # rules_cc's toolchain .bzl files load @bazel_features, which only rules_cc's
-    # own repository mapping resolves, so they are loaded through @rules_cc
-    # instead of being copied here.
-    def symlink(target, link_name):
-        symbol = _RULES_CC_TOOLCHAIN_CONFIGS.get(link_name)
+    # rules_cc's toolchain .bzl files load repositories (@bazel_features) that only rules_cc's
+    # mapping resolves, so they load through @rules_cc; rules_cc 0.2.28 copies them with `template`.
+    def forward_config(name):
+        symbol = _RULES_CC_TOOLCHAIN_CONFIGS.get(name)
         if symbol:
-            repo_ctx.file("msvc/" + link_name, (
+            repo_ctx.file("msvc/" + name, (
                 'load("@rules_cc//cc/private/toolchain:{file}", _impl = "{symbol}")\n' +
                 "{symbol} = _impl\n"
-            ).format(file = link_name, symbol = symbol))
-        else:
+            ).format(file = name, symbol = symbol))
+        return symbol != None
+
+    def template(path, *args, **kwargs):
+        if not forward_config(path):
+            repo_ctx.template("msvc/" + path, *args, **kwargs)
+
+    def symlink(target, link_name):
+        if not forward_config(link_name):
             repo_ctx.symlink(target, "msvc/" + link_name)
 
     configure_windows_toolchain(struct(
@@ -285,7 +288,9 @@ def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
         p = path.strip().replace("\\", "/")
         if p and p not in builtin_include_directories:
             builtin_include_directories.append(p)
-        if p:
+        # setvars.bat can list include dirs that do not exist (tcm 1.6 in Basekit 2026.2),
+        # and realpath fails on those.
+        if p and repo_ctx.path(p).exists:
             real = str(repo_ctx.path(p).realpath).replace("\\", "/")
             if real and real not in builtin_include_directories:
                 builtin_include_directories.append(real)

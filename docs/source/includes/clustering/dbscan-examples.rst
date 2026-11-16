@@ -19,11 +19,17 @@
     Batch Processing:
 
     - :ref:`dpc_dbscan_brute_force_batch.cpp`
-    - :ref:`dpc_dbscan_brute_force_metrics_batch.cpp`
+    - :ref:`dpc_dbscan_brute_force_manhattan_batch.cpp`
+    - :ref:`dpc_dbscan_brute_force_minkowski_batch.cpp`
+    - :ref:`dpc_dbscan_brute_force_chebyshev_batch.cpp`
+    - :ref:`dpc_dbscan_brute_force_cosine_batch.cpp`
 
   .. group-tab:: oneAPI C++
 
     Batch Processing:
 
     - :ref:`cpp_dbscan_brute_force_batch.cpp`
-    - :ref:`cpp_dbscan_brute_force_metrics_batch.cpp`
+    - :ref:`cpp_dbscan_brute_force_manhattan_batch.cpp`
+    - :ref:`cpp_dbscan_brute_force_minkowski_batch.cpp`
+    - :ref:`cpp_dbscan_brute_force_chebyshev_batch.cpp`
+    - :ref:`cpp_dbscan_brute_force_cosine_batch.cpp`
