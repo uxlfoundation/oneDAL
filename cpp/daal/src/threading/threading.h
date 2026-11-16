@@ -33,12 +33,12 @@ namespace daal
 template <typename FPType, typename IndexType = size_t>
 struct IdxValType
 {
-    FPType value;
+    FPType key;
     IndexType index;
 
-    bool operator<(const IdxValType & o) const { return o.value == value ? index < o.index : value < o.value; }
-    bool operator>(const IdxValType & o) const { return o.value == value ? index > o.index : value > o.value; }
-    bool operator<=(const IdxValType & o) const { return value < o.value || (value == o.value && index == o.index); }
+    bool operator<(const IdxValType & o) const { return o.key == key ? index < o.index : key < o.key; }
+    bool operator>(const IdxValType & o) const { return o.key == key ? index > o.index : key > o.key; }
+    bool operator<=(const IdxValType & o) const { return key < o.key || (key == o.key && index == o.index); }
 };
 
 typedef void (*functype)(int64_t i, const void * a);
@@ -168,12 +168,12 @@ extern "C"
     DAAL_PARALLEL_PAIR_SORT_DECL(double, size_t, fp64_uint64)
 #undef DAAL_PARALLEL_PAIR_SORT_DECL
 
-#define DAAL_PARALLEL_PAIR_SORT_BY_VALUE_DECL(FPTYPE, INDEXTYPE, NAMESUFFIX)                                         \
-    DAAL_EXPORT void _daal_parallel_sort_pair_by_value_##NAMESUFFIX(daal::IdxValType<FPTYPE, INDEXTYPE> * begin_ptr, \
-                                                                    daal::IdxValType<FPTYPE, INDEXTYPE> * end_ptr);
-    DAAL_PARALLEL_PAIR_SORT_BY_VALUE_DECL(float, int, fp32_int32)
-    DAAL_PARALLEL_PAIR_SORT_BY_VALUE_DECL(double, int, fp64_int32)
-#undef DAAL_PARALLEL_PAIR_SORT_BY_VALUE_DECL
+#define DAAL_PARALLEL_PAIR_SORT_BY_KEY_DECL(FPTYPE, INDEXTYPE, NAMESUFFIX)                                         \
+    DAAL_EXPORT void _daal_parallel_sort_pair_by_key_##NAMESUFFIX(daal::IdxValType<FPTYPE, INDEXTYPE> * begin_ptr, \
+                                                                  daal::IdxValType<FPTYPE, INDEXTYPE> * end_ptr);
+    DAAL_PARALLEL_PAIR_SORT_BY_KEY_DECL(float, int, fp32_int32)
+    DAAL_PARALLEL_PAIR_SORT_BY_KEY_DECL(double, int, fp64_int32)
+#undef DAAL_PARALLEL_PAIR_SORT_BY_KEY_DECL
 
 #define DAAL_PARALLEL_INDEX_SORT_DECL(DATATYPE, INDEXTYPE, NAMESUFFIX) \
     DAAL_EXPORT void _daal_parallel_index_sort_##NAMESUFFIX(size_t n, DATATYPE * data_ptr, INDEXTYPE * index_ptr);
@@ -241,20 +241,20 @@ inline void parallel_sort<double, size_t>(daal::IdxValType<double, size_t> * beg
     _daal_parallel_sort_pair_fp64_uint64(beginPtr, endPtr);
 }
 
-// Sorts by value only; the order of elements with equal values is unspecified.
+// Sorts by key only; the order of elements with equal keys is unspecified.
 template <typename FPType, typename IndexType>
-void parallel_sort_by_value(daal::IdxValType<FPType, IndexType> * beginPtr, daal::IdxValType<FPType, IndexType> * endPtr);
+void parallel_sort_by_key(daal::IdxValType<FPType, IndexType> * beginPtr, daal::IdxValType<FPType, IndexType> * endPtr);
 
 template <>
-inline void parallel_sort_by_value<float, int>(daal::IdxValType<float, int> * beginPtr, daal::IdxValType<float, int> * endPtr)
+inline void parallel_sort_by_key<float, int>(daal::IdxValType<float, int> * beginPtr, daal::IdxValType<float, int> * endPtr)
 {
-    _daal_parallel_sort_pair_by_value_fp32_int32(beginPtr, endPtr);
+    _daal_parallel_sort_pair_by_key_fp32_int32(beginPtr, endPtr);
 }
 
 template <>
-inline void parallel_sort_by_value<double, int>(daal::IdxValType<double, int> * beginPtr, daal::IdxValType<double, int> * endPtr)
+inline void parallel_sort_by_key<double, int>(daal::IdxValType<double, int> * beginPtr, daal::IdxValType<double, int> * endPtr)
 {
-    _daal_parallel_sort_pair_by_value_fp64_int32(beginPtr, endPtr);
+    _daal_parallel_sort_pair_by_key_fp64_int32(beginPtr, endPtr);
 }
 
 // Sorts dataPtr[0..n) in place and permutes indexPtr the same way.

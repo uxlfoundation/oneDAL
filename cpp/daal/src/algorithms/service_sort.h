@@ -55,7 +55,7 @@ void qSort(size_t n, algorithmDataType * x)
 }
 
 /**
- * \brief Sorts array x of daal::IdxValType elements by value; the order of equal values is unspecified
+ * \brief Sorts array x of daal::IdxValType elements by key; the order of equal keys is unspecified
  *
  * \param n[in]     Length of input array
  * \param x[in,out] Array to sort
@@ -63,7 +63,7 @@ void qSort(size_t n, algorithmDataType * x)
 template <typename T, CpuType cpu>
 void qSortByKey(size_t n, T * x)
 {
-    daal::parallel_sort_by_value(x, x + n);
+    daal::parallel_sort_by_key(x, x + n);
 }
 
 /**

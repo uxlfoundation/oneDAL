@@ -14,7 +14,7 @@
 * limitations under the License.
 *******************************************************************************/
 
-/// Unit tests for `daal::parallel_index_sort` and `daal::parallel_sort_by_value`: the keys must end up
+/// Unit tests for `daal::parallel_index_sort` and `daal::parallel_sort_by_key`: the keys must end up
 /// non-decreasing, and the indices move with them.
 
 #include <algorithm>
@@ -160,7 +160,7 @@ TEMPLATE_TEST("parallel_index_sort keeps data and two index arrays together", "[
     checkTwoIndexSort<TestType>(n, nCols, 777u + unsigned(n));
 }
 
-TEMPLATE_TEST("parallel_sort_by_value orders IdxValType with int index by value", "[unit][parallel_sort]", float, double)
+TEMPLATE_TEST("parallel_sort_by_key orders IdxValType with int index by key", "[unit][parallel_sort]", float, double)
 {
     const std::size_t n  = GENERATE(0, 1, 2, 7, 100, 499, 500, 10000, 100000);
     const int valueRange = GENERATE(0, 1, 10);
@@ -172,20 +172,20 @@ TEMPLATE_TEST("parallel_sort_by_value orders IdxValType with int index by value"
     std::vector<std::pair<TestType, int> > expected(n), actual(n);
     for (std::size_t i = 0; i < n; ++i)
     {
-        a[i].value  = valueRange > 0 ? TestType(intDist(gen)) : realDist(gen);
+        a[i].key    = valueRange > 0 ? TestType(intDist(gen)) : realDist(gen);
         a[i].index  = int(i);
-        expected[i] = { a[i].value, a[i].index };
+        expected[i] = { a[i].key, a[i].index };
     }
 
-    daal::parallel_sort_by_value(a.data(), a.data() + n);
+    daal::parallel_sort_by_key(a.data(), a.data() + n);
 
     for (std::size_t i = 0; i < n; ++i)
     {
         INFO("n = " << n << ", position " << i);
-        if (i > 0) REQUIRE(a[i - 1].value <= a[i].value);
-        actual[i] = { a[i].value, a[i].index };
+        if (i > 0) REQUIRE(a[i - 1].key <= a[i].key);
+        actual[i] = { a[i].key, a[i].index };
     }
-    // Equal values may come in any order, so compare the pairs as multisets.
+    // Equal keys may come in any order, so compare the pairs as multisets.
     std::sort(expected.begin(), expected.end());
     std::sort(actual.begin(), actual.end());
     REQUIRE(actual == expected);

@@ -372,27 +372,27 @@ DAAL_PARALLEL_PAIR_SORT_IMPL(double, size_t, fp64_uint64)
 
 namespace
 {
-struct ValueLess
+struct KeyLess
 {
     template <typename T>
     bool operator()(const T & a, const T & b) const
     {
-        return a.value < b.value;
+        return a.key < b.key;
     }
 };
 } // namespace
 
-#define DAAL_PARALLEL_PAIR_SORT_BY_VALUE_IMPL(FPTYPE, INDEXTYPE, NAMESUFFIX)                                       \
-    DAAL_EXPORT void _daal_parallel_sort_pair_by_value_##NAMESUFFIX(daal::IdxValType<FPTYPE, INDEXTYPE> * begin_p, \
-                                                                    daal::IdxValType<FPTYPE, INDEXTYPE> * end_p)   \
-    {                                                                                                              \
-        _daal_parallel_sort_template(begin_p, end_p, ValueLess());                                                 \
+#define DAAL_PARALLEL_PAIR_SORT_BY_KEY_IMPL(FPTYPE, INDEXTYPE, NAMESUFFIX)                                       \
+    DAAL_EXPORT void _daal_parallel_sort_pair_by_key_##NAMESUFFIX(daal::IdxValType<FPTYPE, INDEXTYPE> * begin_p, \
+                                                                  daal::IdxValType<FPTYPE, INDEXTYPE> * end_p)   \
+    {                                                                                                            \
+        _daal_parallel_sort_template(begin_p, end_p, KeyLess());                                                 \
     }
 
-DAAL_PARALLEL_PAIR_SORT_BY_VALUE_IMPL(float, int, fp32_int32)
-DAAL_PARALLEL_PAIR_SORT_BY_VALUE_IMPL(double, int, fp64_int32)
+DAAL_PARALLEL_PAIR_SORT_BY_KEY_IMPL(float, int, fp32_int32)
+DAAL_PARALLEL_PAIR_SORT_BY_KEY_IMPL(double, int, fp64_int32)
 
-#undef DAAL_PARALLEL_PAIR_SORT_BY_VALUE_IMPL
+#undef DAAL_PARALLEL_PAIR_SORT_BY_KEY_IMPL
 
 namespace
 {

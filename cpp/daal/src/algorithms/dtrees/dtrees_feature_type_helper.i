@@ -60,7 +60,7 @@ struct ColIndexTask
         Status s = this->getSorted(nt, iCol, nRows);
         if (!s) return s;
         const FeatureIdx * index = _index.get();
-        if (index[0].value == index[nRows - 1].value)
+        if (index[0].key == index[nRows - 1].key)
         {
             entry.numIndices = 1;
             for (size_t i = 0; i < nRows; ++i) aRes[i] = 0;
@@ -69,24 +69,24 @@ struct ColIndexTask
             {
                 s |= entry.allocBorders();
                 DAAL_CHECK(s, s);
-                entry.min           = index[0].value;
-                entry.binBorders[0] = index[nRows - 1].value;
+                entry.min           = index[0].key;
+                entry.binBorders[0] = index[nRows - 1].key;
             }
 
             return s;
         }
         IndexType iUnique    = 0;
         aRes[index[0].index] = iUnique;
-        algorithmFPType prev = index[0].value;
+        algorithmFPType prev = index[0].key;
         for (size_t i = 1; i < nRows; ++i)
         {
             const IndexType idx = index[i].index;
-            if (index[i].value == prev)
+            if (index[i].key == prev)
                 aRes[idx] = iUnique;
             else
             {
                 aRes[idx] = ++iUnique;
-                prev      = index[i].value;
+                prev      = index[i].key;
             }
         }
         ++iUnique;
@@ -98,15 +98,15 @@ struct ColIndexTask
             s |= entry.allocBorders();
 
             IndexType iUnique    = 0;
-            algorithmFPType prev = index[0].value;
+            algorithmFPType prev = index[0].key;
             entry.min            = prev;
             entry.binBorders[0]  = prev;
 
             for (size_t i = 1; i < nRows; ++i)
             {
-                if (index[i].value != prev)
+                if (index[i].key != prev)
                 {
-                    prev                        = index[i].value;
+                    prev                        = index[i].key;
                     entry.binBorders[++iUnique] = prev;
                 }
             }
@@ -126,7 +126,7 @@ protected:
         FeatureIdx * index = _index.get();
         for (size_t i = 0; i < nRows; ++i)
         {
-            index[i].value = pBlock[i];
+            index[i].key   = pBlock[i];
             index[i].index = i;
         }
         daal::algorithms::internal::qSortByKey<FeatureIdx, cpu>(nRows, index);
@@ -174,8 +174,8 @@ static void append(TContainer & cont, size_t & contSize, size_t size)
     cont[contSize++] = size;
 }
 
-// Returns the first element in [first, last) whose value is greater than value.value.
-// Compares values only: IdxValType::operator< also orders equal values by index.
+// Returns the first element in [first, last) whose key is greater than value.key.
+// Compares keys only: IdxValType::operator< also orders equal keys by index.
 template <typename T>
 const T * upper_bound(const T * first, const T * last, const T & value)
 {
@@ -185,7 +185,7 @@ const T * upper_bound(const T * first, const T * last, const T & value)
         auto it   = first;
         auto step = (n >> 1);
         it += step;
-        if (!(value.value < it->value))
+        if (!(value.key < it->key))
         {
             first = ++it;
             n -= step + 1;
@@ -202,7 +202,7 @@ services::Status ColIndexTaskBins<IndexType, algorithmFPType, cpu>::assignIndexA
 {
     const typename super::FeatureIdx * index = this->_index.get();
 
-    entry.min = index[0].value;
+    entry.min = index[0].key;
 
     if (nBins == 1)
     {
@@ -211,7 +211,7 @@ services::Status ColIndexTaskBins<IndexType, algorithmFPType, cpu>::assignIndexA
         DAAL_CHECK(s, s);
         services::internal::service_memset_seq<IndexType, cpu>(aRes, 0, nRows);
 
-        entry.binBorders[0] = index[nRows - 1].value;
+        entry.binBorders[0] = index[nRows - 1].key;
         _bins[0]            = nRows;
         return Status();
     }
@@ -223,7 +223,7 @@ services::Status ColIndexTaskBins<IndexType, algorithmFPType, cpu>::assignIndexA
     for (size_t iBin = 0; iBin < nBins; ++iBin)
     {
         for (size_t n = i + _bins[iBin]; i < n; ++i) aRes[index[i].index] = iBin;
-        entry.binBorders[iBin] = index[i - 1].value;
+        entry.binBorders[iBin] = index[i - 1].key;
     }
     if (this->maxNumDiffValues < entry.numIndices) this->maxNumDiffValues = entry.numIndices;
     return s;
@@ -242,7 +242,7 @@ services::Status ColIndexTaskBins<IndexType, algorithmFPType, cpu>::makeIndex(Nu
 
     /* special case: all values are the same -> constant-valued feature */
     const typename super::FeatureIdx * index = this->_index.get();
-    if (index[0].value == index[nRows - 1].value)
+    if (index[0].key == index[nRows - 1].key)
     {
         return makeIndexConstant(entry, aRes, nRows);
     }
@@ -288,7 +288,7 @@ services::Status ColIndexTaskBins<IndexType, algorithmFPType, cpu>::makeIndexQua
         size_t iRight                         = i + newBinSize - 1; //intersperse remainder amongst bins
         const typename super::FeatureIdx & ri = index[iRight];
 
-        if (ri.value != index[iRight + 1].value)
+        if (ri.key != index[iRight + 1].key)
         {
             // value changed from one bin to the next, append and continue
             append(_bins, nBins, newBinSize);
@@ -298,11 +298,11 @@ services::Status ColIndexTaskBins<IndexType, algorithmFPType, cpu>::makeIndexQua
 
         /* when arriving here, the feature value has not changed and
          * we have to move iRight to the right until we find a new value
-         * r will be located at the first value that is different from ri.value
+         * r will be located at the first value that is different from ri.key
          */
         ++iRight;
         size_t r = iRight + binSize;
-        while (r < nRows && index[r].value == ri.value)
+        while (r < nRows && index[r].key == ri.key)
         {
             r += binSize;
         }
@@ -319,7 +319,7 @@ services::Status ColIndexTaskBins<IndexType, algorithmFPType, cpu>::makeIndexQua
         {
             // the new bin is too wide, try insert an additional bin to the left
             size_t iClosestSmallerValue = i + binSize - 1;
-            while (iClosestSmallerValue > i && index[iClosestSmallerValue].value == ri.value)
+            while (iClosestSmallerValue > i && index[iClosestSmallerValue].key == ri.key)
             {
                 --iClosestSmallerValue;
             }
@@ -379,7 +379,7 @@ services::Status ColIndexTaskBins<IndexType, algorithmFPType, cpu>::makeIndexQua
     for(size_t i = 1; i < nBins; ++i)
     {
         iBorder += _bins[i - 1];
-        DAAL_ASSERT(index[iBorder - 1].value != index[iBorder].value);
+        DAAL_ASSERT(index[iBorder - 1].key != index[iBorder].key);
     }
     #endif
 #endif
@@ -395,15 +395,15 @@ services::Status ColIndexTaskBins<IndexType, algorithmFPType, cpu>::makeIndexAve
     size_t nBins = 0;
     size_t i     = 0;
     DAAL_ASSERT(_prm.maxBins > 0);
-    algorithmFPType binSize = (index[nRows - 1].value - index[0].value) / _prm.maxBins;
-    algorithmFPType value   = index[0].value;
+    algorithmFPType binSize = (index[nRows - 1].key - index[0].key) / _prm.maxBins;
+    algorithmFPType value   = index[0].key;
 
     while (i < nRows)
     {
         // next bin border to the right of current index
         size_t iRight = i + 1;
 
-        while ((iRight < nRows) && (index[iRight].value < (value + binSize)))
+        while ((iRight < nRows) && (index[iRight].key < (value + binSize)))
         {
             ++iRight;
         }
@@ -415,7 +415,7 @@ services::Status ColIndexTaskBins<IndexType, algorithmFPType, cpu>::makeIndexAve
         append(_bins, nBins, newBinSize);
 
         i     = iRight;
-        value = index[i].value;
+        value = index[i].key;
     }
 
     // assert we picked up all data records
@@ -437,7 +437,7 @@ services::Status ColIndexTaskBins<IndexType, algorithmFPType, cpu>::makeIndexCon
     entry.numIndices = 1;
     Status s         = entry.allocBorders();
     DAAL_CHECK(s, s);
-    entry.binBorders[0] = index[nRows - 1].value;
+    entry.binBorders[0] = index[nRows - 1].key;
     return s;
 }
 
