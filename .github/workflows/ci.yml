@@ -308,7 +308,6 @@ jobs:
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: ubuntu-26.04
     # A bare image: no compiler, binutils or libc headers, so Bazel downloads gcc.
-    # --init reaps the Bazel server; under the runner's `tail` PID 1, `bazel shutdown` waits on a zombie.
     container:
       image: ubuntu:26.04
       options: --init
