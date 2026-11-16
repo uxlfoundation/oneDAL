@@ -22,7 +22,7 @@ load("@onedal//dev/bazel:repos.bzl", "repos")
 
 # Bumped by Renovate (conda datasource); the builds and hashes below are
 # re-pinned by dev/bazel/deps/relock_conda.py (see dev/bazel/README.md).
-_GCC_VERSION = "14.3.0"
+_GCC_VERSION = "16.2.0"
 _TRIPLE = "x86_64-conda-linux-gnu"
 _URL = "https://anaconda.org/conda-forge/{name}/{version}/download/{subdir}/{name}-{version}-{build}.conda"
 
