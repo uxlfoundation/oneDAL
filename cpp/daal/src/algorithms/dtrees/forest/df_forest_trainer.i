@@ -595,7 +595,6 @@ services::Status trainForest(const data_management::NumericTable & x, const data
     const size_t p      = x.getNumberOfColumns();
     const size_t nTrees = par.nTrees;
     DAAL_CHECK(nRows && p && nTrees, services::ErrorIncorrectParameter);
-    DAAL_CHECK_STATUS_VAR(eng::checkRowCount<cpu>(nRows));
     DAAL_CHECK(nClasses <= trainer::maxClasses, services::ErrorIncorrectNumberOfClasses);
     DAAL_CHECK(par.engine, services::ErrorEngineNotSupported);
     DAAL_CHECK_MALLOC(model.resize(nTrees));
@@ -676,7 +675,6 @@ services::Status trainForest(const data_management::NumericTable & x, const data
     tp.minLeafRecords      = minLeafRows;
     tp.minSplitRecords     = par.minObservationsInSplitNode > 2 ? par.minObservationsInSplitNode : 2;
     tp.minSplitRecords     = tp.minSplitRecords > 2 * tp.minLeafRecords ? tp.minSplitRecords : 2 * tp.minLeafRecords;
-    tp.sizesInDraws        = true; // legacy's count; distinct rows (sklearn) is a follow-up (design 8)
     tp.minLeafWeight       = par.minWeightFractionInLeafNode * totalWeight;
     tp.minWeightedDecrease = par.minImpurityDecreaseInSplitNode * totalWeight - eps * totalWeight;
     tp.impurityThreshold   = par.impurityThreshold > eps ? par.impurityThreshold : eps;

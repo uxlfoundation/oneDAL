@@ -294,16 +294,16 @@ public:
      *  \brief Fills buffer 0 from per-row bootstrap counts, counts[r] draws of row r
      *
      *  counts == nullptr means every row once. Rows with no draws or a zero weight get no record.
-     *  totalWeight is the sum of the records' counts or weights.
+     *  totalWeight is the sum of the records' counts or weights. source has at most maxTrainingRows rows, as
+     *  trainTrees checks (checkRowCount).
      */
     template <typename algorithmFPType>
     services::Status fill(const uint16_t * counts, const ResponseSource<algorithmFPType, cpu> & source, double & totalWeight)
     {
         const size_t nRows = source.nRows();
-        DAAL_CHECK_STATUS_VAR(checkRowCount<cpu>(nRows));
-        Record * dst = _buffers[0].get();
-        size_t n     = 0;
-        double total = 0;
+        Record * dst       = _buffers[0].get();
+        size_t n           = 0;
+        double total       = 0;
         for (size_t r = 0; r < nRows; ++r)
         {
             const uint32_t count = counts ? counts[r] : 1;

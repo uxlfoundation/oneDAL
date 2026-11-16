@@ -879,18 +879,44 @@ BinningParams exactBinning()
     return b;
 }
 
+/// d with three more features: constant everywhere, constant where feature 0 is below 0, and two-valued.
+Dataset withConstantFeatures(Dataset d)
+{
+    const size_t p = d.p + 3;
+    std::vector<double> x(d.nRows * p);
+    for (size_t i = 0; i < d.nRows; ++i)
+    {
+        const double * row = d.x.data() + i * d.p;
+        std::copy(row, row + d.p, x.data() + i * p);
+        x[i * p + d.p]     = 3;
+        x[i * p + d.p + 1] = row[0] < 0 ? 1 : double(i % 13);
+        x[i * p + d.p + 2] = double(i % 2);
+    }
+    d.x = std::move(x);
+    d.p = p;
+    if (!d.categorical.empty()) d.categorical.resize(p, false);
+    return d;
+}
+
 TEST("hist with one bin per value equals the exact phase on the same draws", "[unit]")
 {
     SKIP_IF(!counterDrawsSupported());
-    constexpr size_t nTrees     = 6;
-    const Dataset c             = lowCardinalityData(4000, 3, 91);
-    const Dataset r             = lowCardinalityData(4000, 0, 92);
+    constexpr size_t nTrees = 6;
+    // With constant features too, so the histogram phase fills its constant lists, which the exact phase never
+    // keeps: equal trees show the lists change nothing.
+    const Dataset plainC        = lowCardinalityData(4000, 3, 91);
+    const Dataset plainR        = lowCardinalityData(4000, 0, 92);
+    const Dataset constantC     = withConstantFeatures(plainC);
+    const Dataset constantR     = withConstantFeatures(plainR);
     const auto counts           = bootstrapCounts(nTrees, 4000, 93);
     const BinningParams binning = exactBinning();
     forEachCpu([&](auto cpu) {
         constexpr CpuType ct = decltype(cpu)::value;
-        for (bool random : { false, true })
+        for (int variant = 0; variant < 4; ++variant)
         {
+            const bool random = variant & 1;
+            const Dataset & c = variant & 2 ? constantC : plainC;
+            const Dataset & r = variant & 2 ? constantR : plainR;
             TreeParams params;
             params.featuresPerNode = 3;
             params.randomSplitter  = random;
@@ -1061,26 +1087,7 @@ TEST("the random splitter on bins takes each border uniformly and never leaves a
     REQUIRE(chiSquare(hits) < chiSquare7Dof999);
 }
 
-/// d with three more features: constant everywhere, constant where feature 0 is below 0, and two-valued.
-Dataset withConstantFeatures(Dataset d)
-{
-    const size_t p = d.p + 3;
-    std::vector<double> x(d.nRows * p);
-    for (size_t i = 0; i < d.nRows; ++i)
-    {
-        const double * row = d.x.data() + i * d.p;
-        std::copy(row, row + d.p, x.data() + i * p);
-        x[i * p + d.p]     = 3;
-        x[i * p + d.p + 1] = row[0] < 0 ? 1 : double(i % 13);
-        x[i * p + d.p + 2] = double(i % 2);
-    }
-    d.x = std::move(x);
-    d.p = p;
-    if (!d.categorical.empty()) d.categorical.resize(p, false);
-    return d;
-}
-
-TEST("fused partitions and constant lists do not change the trees", "[unit]")
+TEST("fused partitions do not change the trees", "[unit]")
 {
     SKIP_IF(!counterDrawsSupported());
     constexpr size_t nTrees = 4;
@@ -1103,10 +1110,9 @@ TEST("fused partitions and constant lists do not change the trees", "[unit]")
             params.maxBins         = 32;
             params.chunkRows       = 1000;
             std::vector<EmittedTree> refC, refL, refR;
-            for (int mode = 0; mode < 4; ++mode)
+            for (int mode = 0; mode < 2; ++mode)
             {
-                params.fusePartition  = mode & 1;
-                params.carryConstants = mode & 2;
+                params.fusePartition = mode == 1;
                 // Integer statistics make chunked sums exact; the continuous regression runs in one chunk.
                 params.nClasses  = 3;
                 params.chunkRows = 1000;

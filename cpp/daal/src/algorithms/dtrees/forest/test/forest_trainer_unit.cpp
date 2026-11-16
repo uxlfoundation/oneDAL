@@ -662,15 +662,18 @@ TEST("a constant user weight changes neither the trees nor the minimum impurity 
     const Dataset c = makeData(3000, 6, 3, 22);
     const Dataset r = makeData(3000, 6, 0, 23);
     const std::vector<double> w(3000, 7.);
+    // Minimum sizes count distinct in-bag rows with and without weights, so they fit both alike too; the split
+    // minimum is above twice the leaf one so that each binds.
     cls::training::Parameter pc(3);
     pc.nTrees                         = 4;
     pc.minImpurityDecreaseInSplitNode = 1e-3;
+    pc.minObservationsInLeafNode      = 3;
+    pc.minObservationsInSplitNode     = 20;
     reg::training::Parameter pr;
     pr.nTrees                         = 4;
     pr.minImpurityDecreaseInSplitNode = 1e-3;
-    // Leaf sizes count bootstrap draws without weights and rows with them (TreeParams::sizesInDraws), so only
-    // a minimum of 1 fits both alike.
-    pr.minObservationsInLeafNode = 1;
+    pr.minObservationsInLeafNode      = 3;
+    pr.minObservationsInSplitNode     = 20;
     for (bool hist : { true, false })
     {
         CAPTURE(hist);
@@ -682,7 +685,7 @@ TEST("a constant user weight changes neither the trees nor the minimum impurity 
         };
         const auto c1 = fitC(pc, {});
         const auto r1 = fitR(pr, {});
-        // Node sample counts differ: weighted records count distinct rows, unweighted ones bootstrap draws.
+        // Node sample counts differ: weighted records keep no bootstrap count, so they count distinct rows.
         REQUIRE(sameModels(*c1.model, *fitC(pc, w).model));
         REQUIRE(sameModels(*r1.model, *fitR(pr, w).model));
         cls::training::Parameter pc7       = pc;
@@ -752,8 +755,8 @@ TEST("float regression splits responses whose variance is below float epsilon", 
 
 TEST("node sample counts are bootstrap draws without weights and distinct rows with them", "[unit]")
 {
-    // Pins the current semantics (design 8, step 6 notes): weighted records keep no bootstrap count. The
-    // distinct-rows follow-up makes unweighted fits count rows too, and changes the first check.
+    // Unweighted counts are bootstrap draws, which sklearnex reports as weighted_n_node_samples; weighted
+    // records keep no bootstrap count. Minimum sizes count distinct rows either way.
     const size_t n  = 3000;
     const Dataset c = makeData(n, 6, 3, 25);
     const Dataset r = makeData(n, 6, 0, 26);

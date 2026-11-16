@@ -51,16 +51,12 @@ using daal::internal::CpuType;
 /// Tree-growing parameters, resolved once per fit from the public Parameter.
 struct TreeParams
 {
-    size_t nClasses        = 0; // 0 for regression
-    size_t featuresPerNode = 0; // k features drawn per node; 0 or more than the features: all
-    size_t maxDepth        = 0; // 0: unlimited
-    size_t maxLeafNodes    = 0; // 0: depth-first; otherwise best-first with at most this many leaves
-    size_t minLeafRecords  = 1; // records (in-bag rows) on each side of a split
-    size_t minSplitRecords = 2; // records a node needs to be split
-    // minLeafRecords and minSplitRecords count bootstrap draws, duplicates included, as legacy, instead of
-    // records (sklearn). Count record layouts only: the weighted layouts keep no count, so they count records
-    // (distinct in-bag rows) whatever this says, as do their node sample counts (design 8, step 6 notes).
-    bool sizesInDraws          = false;
+    size_t nClasses            = 0; // 0 for regression
+    size_t featuresPerNode     = 0; // k features drawn per node; 0 or more than the features: all
+    size_t maxDepth            = 0; // 0: unlimited
+    size_t maxLeafNodes        = 0; // 0: depth-first; otherwise best-first with at most this many leaves
+    size_t minLeafRecords      = 1; // records (in-bag rows) on each side of a split
+    size_t minSplitRecords     = 2; // records a node needs to be split
     double minLeafWeight       = 0; // weight on each side of a split
     double minWeightedDecrease = 0; // a split's weighted impurity decrease must reach this
     double impurityThreshold   = 0; // nodes with impurity below this are leaves
@@ -74,10 +70,9 @@ struct TreeParams
     // defaults and their measurements are in EngineHyperparameters (df_hyperparameter_impl.h).
     size_t chunkRows = size_t(1) << 14;
     size_t maxChunks = 64;
-    // Partition passes build the children's histograms, and nodes pass their constant features to their
-    // children. With counter draws neither changes the trees; tests turn them off to show it.
-    bool fusePartition  = true;
-    bool carryConstants = true;
+    // Partition passes build the children's histograms. With counter draws it does not change the trees; tests
+    // turn it off to show it.
+    bool fusePartition = true;
 };
 
 /// The training data, read-only for the whole fit.

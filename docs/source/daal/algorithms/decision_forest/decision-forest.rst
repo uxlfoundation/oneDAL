@@ -271,6 +271,9 @@ workflow described in :ref:`classification_usage_model`.
 Training
 --------
 
+The training table can have at most :math:`2^{31} - 1` rows; a larger table fails with
+``ErrorIncorrectNumberOfObservations``.
+
 At the training stage, decision forest regression has the following parameters:
 
 .. tabularcolumns::  |\Y{0.2}|\Y{0.2}|\Y{0.6}|
@@ -356,10 +359,12 @@ At the training stage, decision forest regression has the following parameters:
      - Minimum amount of impurity decrease required to split a node; it can be any non-negative number.
    * - ``minObservationsInLeafNode``
      - :math:`1` for classification, :math:`5` for regression
-     - Minimum number of observations in the leaf node.
+     - Minimum number of observations in the leaf node. Observations are distinct training rows: a row that
+       bootstrap draws more than once counts once.
    * - ``minObservationsInSplitNode``
      - :math:`2`
-     - Minimum number of samples required to split an internal node; it can be any non-negative number.
+     - Minimum number of observations required to split an internal node, counted as for
+       ``minObservationsInLeafNode``; it can be any non-negative number.
    * - ``minWeightFractionInLeafNode``
      - :math:`0.0`
      - Minimum weighted fraction of the sum total of weights of all the input observations required to be at a leaf node,

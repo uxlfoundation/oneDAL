@@ -146,6 +146,19 @@ all underlying algorithmic computational kernels, as these kernels are used inte
 use :ref:`engine_type <api_df>` parameter of the oneDAL Decision Forest algorithm instead of the deprecated
 DAAL ``engines::mt19937::Batch`` class.
 
+Decision Forest Training Parameters on CPU
+******************************************
+
+**Deprecation:** The ``min_part_coefficient``, ``min_size_coefficient`` and ``small_classes_threshold`` parameters
+of ``oneapi::dal::decision_forest::detail::train_parameters`` have no effect on CPU training and are deprecated. A
+future release removes them.
+
+**Reasons for deprecation:** The CPU training implementation no longer has the code they tuned. The two coefficients
+set how often training checked for cancellation by a host application, which was removed, and
+``small_classes_threshold`` selected a separate split search for at most eight classes.
+
+**Alternatives:** None needed: remove the calls that set them.
+
 ABI Compatibility
 *****************
 

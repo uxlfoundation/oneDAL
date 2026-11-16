@@ -372,7 +372,7 @@ public:
         node.feature    = -1;
         node.impurity   = pure ? 0 : cost.impurity();
         node.nRecords   = item.n;
-        node.nSamples   = uint32_t(nSamples);
+        node.nSamples   = uint32_t(nSamples); // sklearnex maps it to weighted_n_node_samples, the bootstrap draws
         node.depth      = item.depth;
         node.start      = item.start;
 
@@ -590,23 +590,15 @@ private:
     bool useHist(size_t n) const { return _data.bins && double(n) >= _params.denseThreshold * double(_params.maxBins); }
     bool isCategorical(size_t f) const { return _data.categorical && _data.categorical[f]; }
 
-    /// The size a node's minimum sizes apply to: its records, or with sizesInDraws its bootstrap draws, which on
-    /// the count layouts are its weight. The weighted layouts fold the counts into the weight and use records.
-    size_t sizeOf(size_t nRecords, double w) const
-    {
-        constexpr bool countLayout = std::is_same<Record, ClsCountRecord>::value || std::is_same<Record, RegCountRecord<algorithmFPType> >::value;
-        return _params.sizesInDraws && countLayout ? size_t(w + 0.5) : nRecords;
-    }
-
-    /// A node too small, light or deep to split.
+    /// A node of n records too small, light or deep to split. Sizes count records, the distinct in-bag rows, as
+    /// sklearn does; bootstrap counts only weigh them.
     bool leafBySize(size_t n, double w, size_t depth) const
     {
-        const size_t size = sizeOf(n, w);
-        return size < _params.minSplitRecords || size < 2 * _params.minLeafRecords || w < 2 * _params.minLeafWeight
+        return n < _params.minSplitRecords || n < 2 * _params.minLeafRecords || w < 2 * _params.minLeafWeight
                || (_params.maxDepth && depth >= _params.maxDepth);
     }
 
-    /// A carry with the parent's lists, or the root lists for the root and with carryConstants off.
+    /// A carry with the parent's lists, or the root lists for the root.
     NodeCarry<Record, cpu> * newCarry(TreeContext & ctx, const NodeCarry<Record, cpu> * parent) const
     {
         NodeCarry<Record, cpu> * c = ctx.carries.create();
@@ -616,7 +608,7 @@ private:
             ctx.carries.destroy(c);
             return nullptr;
         }
-        const uint64_t * from = parent && _params.carryConstants ? parent->bits.get() : _rootBits.get();
+        const uint64_t * from = parent ? parent->bits.get() : _rootBits.get();
         for (size_t i = 0; i < 2 * _words; ++i) c->bits[i] = from[i];
         return c;
     }
@@ -627,7 +619,7 @@ private:
     /// Adds f to the node's lists: constant by bins, and by value if found by value or if its bins are values.
     void markConstant(NodeCarry<Record, cpu> * c, uint32_t f, bool byValue) const
     {
-        if (!c || !_params.carryConstants) return;
+        if (!c) return;
         setBit<cpu>(c->bits.get(), f);
         if (byValue || (_data.bins && _data.bins->exactBins(f))) setBit<cpu>(c->bits.get() + _words, f);
     }
@@ -763,10 +755,7 @@ private:
     bool admissible(size_t nLeft, size_t n, double wLeft, double w) const
     {
         const double wRight = w - wLeft;
-        const size_t left   = sizeOf(nLeft, wLeft);
-        const size_t total  = sizeOf(n, w);
-        const size_t right  = total > left ? total - left : 0;
-        return nLeft > 0 && nLeft < n && left >= _params.minLeafRecords && right >= _params.minLeafRecords && wLeft >= _params.minLeafWeight
+        return nLeft > 0 && nLeft < n && nLeft >= _params.minLeafRecords && n - nLeft >= _params.minLeafRecords && wLeft >= _params.minLeafWeight
                && wRight >= _params.minLeafWeight && wLeft > 0 && wRight > 0;
     }
 
