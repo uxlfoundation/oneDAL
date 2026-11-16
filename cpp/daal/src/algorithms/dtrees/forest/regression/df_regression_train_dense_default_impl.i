@@ -125,8 +125,7 @@ void calcMeanAndVariance(size_t n, const ResponseFunc & response, intermSummFPTy
     mean = 0;
     var  = 0;
     if (n == 0) return;
-    // The constant check removes the dead vector loop on sse2, where GCC 11 flags its index overflow.
-    if (simdBatchSize == 1 || n < minObsVectorizedPath)
+    if (n < minObsVectorizedPath)
     {
         mean = response(0);
         for (size_t i = 1; i < n; ++i)
@@ -150,10 +149,9 @@ void calcMeanAndVariance(size_t n, const ResponseFunc & response, intermSummFPTy
     for (size_t iMain = 0; iMain < itersSimdLoop; iMain++)
     {
         const size_t iStart = iMain * simdBatchSize;
-#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ >= 13
-        // Without this hint GCC warns about undefined behavior when loops exceed 2^63; LLVM-based
-        // compilers reject the attribute, so it is conditional.
-        __attribute__((__assume__(iStart < std::numeric_limits<std::ptrdiff_t>::max())));
+#if defined(__GNUC__) && !defined(__clang__)
+        // Without this hint GCC warns about undefined behavior when loops exceed 2^63.
+        if (iStart >= static_cast<size_t>(std::numeric_limits<std::ptrdiff_t>::max())) __builtin_unreachable();
 #endif
         const intermSummFPType mult = 1.0 / static_cast<intermSummFPType>(iMain + 1);
 
@@ -220,7 +218,7 @@ void calcWeightedMeanAndVariance(size_t n, const ResponseFunc & response, const 
     mean         = 0;
     var          = 0;
     totalWeights = 0;
-    if (simdBatchSize == 1 || n < minObsVectorizedPath)
+    if (n < minObsVectorizedPath)
     {
         // Zero weights would break the division; they do not change the result, so skip to the first nonzero one.
         size_t iStart;
@@ -251,8 +249,8 @@ void calcWeightedMeanAndVariance(size_t n, const ResponseFunc & response, const 
     for (size_t iMain = 0; iMain < itersSimdLoop; iMain++)
     {
         const size_t iStart = iMain * simdBatchSize;
-#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ >= 13
-        __attribute__((__assume__(iStart < std::numeric_limits<std::ptrdiff_t>::max())));
+#if defined(__GNUC__) && !defined(__clang__)
+        if (iStart >= static_cast<size_t>(std::numeric_limits<std::ptrdiff_t>::max())) __builtin_unreachable();
 #endif
 
         // Pack the data into contiguous blocks
@@ -1486,29 +1484,24 @@ public:
         intermSummFPType sumSquaredError    = 0;
         RegErr<intermSummFPType, cpu> * ptr = (RegErr<intermSummFPType, cpu> *)this->oobBuf;
 
-        calcMeanAndVariance<cpu>(nSamples, [py](size_t i) { return static_cast<intermSummFPType>(py[i]); }, yMean, yVariance);
+        if (resR2) calcMeanAndVariance<cpu>(nSamples, [py](size_t i) { return static_cast<intermSummFPType>(py[i]); }, yMean, yVariance);
 
         for (size_t i = 0; i < nSamples; ++i)
         {
-            if (ptr[i].count)
-            {
-                ptr[i].value /= static_cast<intermSummFPType>(ptr[i].count);
-                const intermSummFPType oobForObs = (ptr[i].value - py[i]) * (ptr[i].value - py[i]);
+            const bool predicted = ptr[i].count;
+            if (predicted) ptr[i].value /= static_cast<intermSummFPType>(ptr[i].count);
+            // scikit-learn scores a row without OOB predictions as predicting 0.
+            const intermSummFPType prediction   = predicted ? ptr[i].value : intermSummFPType(0);
+            const intermSummFPType squaredError = (prediction - py[i]) * (prediction - py[i]);
 
-                if (resPerObs) resPerObs[i] = oobForObs;
-                _res += oobForObs;
+            if (resPerObs) resPerObs[i] = predicted ? squaredError : intermSummFPType(-1);
+            if (resPrediction) resPrediction[i] = prediction;
+            if (predicted)
+            {
+                _res += squaredError;
                 ++nPredicted;
-
-                if (resPrediction) resPrediction[i] = ptr[i].value;
-                sumSquaredError += oobForObs;
             }
-            else
-            {
-                if (resPerObs) resPerObs[i] = intermSummFPType(-1); //was not in OOB set of any tree and hence not predicted
-                if (resPrediction) resPrediction[i] = intermSummFPType(0);
-                // scikit-learn scores the raw responses; such a row predicts 0 there, so it adds y^2.
-                sumSquaredError += intermSummFPType(py[i]) * py[i];
-            }
+            sumSquaredError += squaredError;
         }
         if (res && nPredicted > 0) *res = _res / static_cast<intermSummFPType>(nPredicted);
         // As scikit-learn's oob_score_: r2_score over all rows, a row without OOB predictions predicting 0,
