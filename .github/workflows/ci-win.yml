@@ -66,7 +66,7 @@ env:
   TBB_VERSION: v2023.2.0
   OPENBLAS_VERSION: v0.3.34
   LLVM_VERSION: 22.1.8
-  CMAKE_VERSION: 4.4.5
+  CMAKE_VERSION: 4.5.0
   NINJA_VERSION: 1.13.2
 
 # A PR push cancels the older run of that PR. A push to main waits behind the
