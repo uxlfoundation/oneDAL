@@ -57,6 +57,8 @@ on:
       - main
       - 'feature/**'
       - 'rls/*'
+  # TEMP(runner shortage): run by hand on a branch while the jobs are skipped on pull requests.
+  workflow_dispatch:
   
 permissions:
   contents: read
@@ -66,7 +68,7 @@ env:
   TBB_VERSION: v2023.2.0
   OPENBLAS_VERSION: v0.3.34
   LLVM_VERSION: 22.1.8
-  CMAKE_VERSION: 4.4.5
+  CMAKE_VERSION: 4.5.0
   NINJA_VERSION: 1.13.2
 
 # A PR push cancels the older run of that PR. A push to main waits behind the
@@ -77,10 +79,9 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # Drafts skip `build-and-test`, `bazel-msvc` and `make-msvc` until marked ready;
-  # `bazel-build` runs on drafts too, as before #3989.
   build-and-test:
-    if: '!github.event.pull_request.draft'
+    # TEMP(runner shortage): not on pull requests.
+    if: github.event_name != 'pull_request'
     strategy:
       fail-fast: false
       matrix:
@@ -221,7 +222,8 @@ jobs:
 
   bazel-build:
     name: WindowsBazel_OpenBLAS(SVE)-GitHub hosted
-    if: github.repository == 'uxlfoundation/oneDAL'
+    # TEMP(runner shortage): not on pull requests.
+    if: github.repository == 'uxlfoundation/oneDAL' && github.event_name != 'pull_request'
     runs-on: windows-11-vs2026-arm
     timeout-minutes: 180
     # Part of the OpenBLAS cache key, as in `build-and-test`.
@@ -443,7 +445,8 @@ jobs:
   # dev/bazel/toolchains/cc_toolchain_win.bzl). MKL and TBB come from the
   # `@mkl`/`@tbb` downloads, so the stock runner needs no Intel compiler.
   bazel-msvc:
-    if: '!github.event.pull_request.draft'
+    # TEMP(runner shortage): not on pull requests.
+    if: github.event_name != 'pull_request'
     name: WindowsBazel_MKL(AVX2)-MSVC-GitHub hosted
     runs-on: windows-2025
     timeout-minutes: 120
@@ -490,7 +493,8 @@ jobs:
   # GitHub Actions twin of Azure's `WindowsMakeVC`. `VS_VER` stays unset, so build.bat and
   # test.bat take the Visual Studio that the toolkit's setvars-vcvarsall.bat finds.
   make-msvc:
-    if: '!github.event.pull_request.draft'
+    # TEMP(runner shortage): not on pull requests.
+    if: github.event_name != 'pull_request'
     name: WindowsMakeVC_MKL(AVX2)-GitHub hosted
     runs-on: windows-2025
     timeout-minutes: 180
