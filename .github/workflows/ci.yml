@@ -308,7 +308,9 @@ jobs:
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: ubuntu-26.04
     # A bare image: no compiler, binutils or libc headers, so Bazel downloads gcc.
-    container: ubuntu:26.04
+    container:
+      image: ubuntu:26.04
+      options: --init
     name: LinuxBazelNoCompiler
     timeout-minutes: 180
     steps:
