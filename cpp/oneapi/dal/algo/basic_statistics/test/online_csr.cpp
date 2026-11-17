@@ -34,7 +34,6 @@ TEMPLATE_LIST_TEST_M(basic_statistics_online_csr_test,
         GENERATE_COPY(te::csr_table_builder(20, 10, nnz_fraction, this->data_indexing_),
                       te::csr_table_builder(100, 20, nnz_fraction, this->data_indexing_),
                       te::csr_table_builder(100, 100, nnz_fraction, this->data_indexing_));
-    SKIP_IF(this->not_cpu_friendly(data));
 
     const bs::result_option_id res_min_max = result_options::min | result_options::max;
     const bs::result_option_id res_mean_varc = result_options::mean | result_options::variance;
@@ -101,7 +100,6 @@ TEMPLATE_LIST_TEST_M(basic_statistics_online_csr_test,
     const auto data =
         GENERATE_COPY(te::csr_table_builder(20, 10, nnz_fraction, this->data_indexing_),
                       te::csr_table_builder(100, 20, nnz_fraction, this->data_indexing_));
-    SKIP_IF(this->not_cpu_friendly(data));
 
     const bs::result_option_id res_min_max = result_options::min | result_options::max;
     const bs::result_option_id res_mean_varc = result_options::mean | result_options::variance;
@@ -130,7 +128,6 @@ TEMPLATE_LIST_TEST_M(basic_statistics_online_csr_test,
     const auto data =
         GENERATE_COPY(te::csr_table_builder(20, 10, nnz_fraction, this->data_indexing_),
                       te::csr_table_builder(100, 20, nnz_fraction, this->data_indexing_));
-    SKIP_IF(this->not_cpu_friendly(data));
 
     const bs::result_option_id compute_mode = result_options::min | result_options::max;
     const std::int64_t n_blocks = GENERATE(1, 3);

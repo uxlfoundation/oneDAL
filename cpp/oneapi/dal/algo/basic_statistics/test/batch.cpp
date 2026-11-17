@@ -77,7 +77,6 @@ TEMPLATE_LIST_TEST_M(basic_statistics_batch_test,
                       te::csr_table_builder(100, 100, nnz_fraction, this->data_indexing_),
                       te::csr_table_builder(1000, 1000, nnz_fraction, this->data_indexing_),
                       te::csr_table_builder(15000, 1000, nnz_fraction, this->data_indexing_));
-    SKIP_IF(this->not_cpu_friendly(data));
     const bs::result_option_id res_min_max = result_options::min | result_options::max;
     const bs::result_option_id res_mean_varc = result_options::mean | result_options::variance;
     const bs::result_option_id res_all =
@@ -85,6 +84,80 @@ TEMPLATE_LIST_TEST_M(basic_statistics_batch_test,
     const bs::result_option_id compute_mode = GENERATE_COPY(res_min_max, res_mean_varc, res_all);
 
     this->csr_general_checks(data, compute_mode);
+}
+
+// Column 0 holds 1e4 plus small deviations in every row; column 1 is empty, column 2 holds
+// one value per eight rows, so the implicit zeros enter its mean, extremes and variance.
+TEMPLATE_LIST_TEST_M(basic_statistics_batch_test,
+                     "basic_statistics CSR moments far from zero and with implicit zeros",
+                     "[basic_statistics][integration][batch]",
+                     basic_statistics_sparse_types) {
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->get_policy().is_gpu());
+    using float_t = std::tuple_element_t<0, TestType>;
+    constexpr std::int64_t row_count = 4096;
+    constexpr std::int64_t column_count = 3;
+
+    std::vector<float_t> values;
+    std::vector<std::int64_t> column_indices;
+    std::vector<std::int64_t> row_offsets{ 0 };
+    std::vector<long double> column0, column2(row_count, 0.0L);
+    for (std::int64_t i = 0; i < row_count; ++i) {
+        const float_t x0 = float_t(1e4) + float_t((i * 37) % 101) * float_t(1e-2);
+        values.push_back(x0);
+        column_indices.push_back(0);
+        column0.push_back(x0);
+        if (i % 8 == 0) {
+            const float_t x2 = float_t((i * 13) % 17) - float_t(8);
+            values.push_back(x2);
+            column_indices.push_back(2);
+            column2[i] = x2;
+        }
+        row_offsets.push_back(std::int64_t(values.size()));
+    }
+    const auto data = csr_table::wrap(values.data(),
+                                      column_indices.data(),
+                                      row_offsets.data(),
+                                      row_count,
+                                      column_count,
+                                      sparse_indexing::zero_based);
+
+    const auto desc =
+        bs::descriptor<float_t, basic_statistics::method::sparse>{}.set_result_options(
+            bs::result_option_id(dal::result_option_id_base(mask_full)));
+    const auto result = this->compute(desc, data);
+
+    const auto moments = [](const std::vector<long double>& x) {
+        long double mean = 0, ssc = 0;
+        for (auto v : x)
+            mean += v;
+        mean /= x.size();
+        for (auto v : x)
+            ssc += (v - mean) * (v - mean);
+        return std::pair<long double, long double>{ mean, ssc };
+    };
+    const auto [mean0, ssc0] = moments(column0);
+    const auto [mean2, ssc2] = moments(column2);
+    const std::vector<double> ref_mean{ double(mean0), 0.0, double(mean2) };
+    const std::vector<double> ref_ssc{ double(ssc0), 0.0, double(ssc2) };
+    const std::vector<double> ref_min{ 1e4, 0.0, -8.0 };
+
+    const auto mean = row_accessor<const float_t>(result.get_mean()).pull();
+    const auto ssc = row_accessor<const float_t>(result.get_sum_squares_centered()).pull();
+    const auto variance = row_accessor<const float_t>(result.get_variance()).pull();
+    const auto min = row_accessor<const float_t>(result.get_min()).pull();
+    const auto max = row_accessor<const float_t>(result.get_max()).pull();
+    const double tol = std::is_same_v<float_t, float> ? 1e-5 : 1e-12;
+    for (std::int64_t j = 0; j < column_count; ++j) {
+        CAPTURE(j, mean[j], ref_mean[j], ssc[j], ref_ssc[j], variance[j], min[j], max[j]);
+        REQUIRE(std::abs(mean[j] - ref_mean[j]) <= tol * std::max(1.0, std::abs(ref_mean[j])));
+        REQUIRE(std::abs(ssc[j] - ref_ssc[j]) <= tol * std::max(1.0, ref_ssc[j]));
+        REQUIRE(std::abs(variance[j] - ref_ssc[j] / (row_count - 1)) <=
+                tol * std::max(1.0, ref_ssc[j] / (row_count - 1)));
+        REQUIRE(min[j] == float_t(ref_min[j]));
+    }
+    REQUIRE(max[1] == float_t(0));
+    REQUIRE(max[2] == float_t(8));
 }
 
 } // namespace oneapi::dal::basic_statistics::test
