@@ -60,8 +60,10 @@ The bins are continuous intervals between the selected splits.
 On CPU, the bin borders of a feature are computed from a uniform random sample of up to 4,194,304 training rows,
 or from all rows of smaller tables. A feature with at most ``maxBins`` distinct values gets one bin per value, so
 its splits are exact. Nodes with fewer than twice ``maxBins`` observations are split exactly, as in the
-``defaultDense`` method, rather than from bins. Every node is split exactly, without bins, when ``maxBins`` is above
-65536 or a categorical feature has more than 65535 categories.
+``defaultDense`` method, rather than from bins. When every feature that is not constant has one bin per value, as
+for integer, one-hot, genotype or pixel data, bins give the exact splits at any node size, so the bound is twice the
+mean number of bins of those features instead, which makes small nodes faster to split. Every node is split exactly,
+without bins, when ``maxBins`` is above 65536 or a categorical feature has more than 65535 categories.
 
 Split Criteria
 ++++++++++++++

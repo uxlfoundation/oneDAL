@@ -51,7 +51,7 @@ struct EngineHyperparameters
     // chunkRows: smaller chunks pay only for wide rows (thousands of features) with fewer trees than threads; for
     // narrower rows or more trees, a chunk's planes and their reduction cost more than its rows save. Kept independent
     // of the thread count, as regression sums depend on the chunk count.
-    double denseThreshold    = 2; // a multiple of maxBins, as a histogram's cost per feature grows with its bins
+    double denseThreshold    = 2; // a multiple of denseBins, as a histogram's cost per feature grows with its bins
     DAAL_INT64 chunkRows     = 1 << 14;
     DAAL_INT64 maxChunks     = 64;
     DAAL_INT64 treesInFlight = 0; // 0: no limit

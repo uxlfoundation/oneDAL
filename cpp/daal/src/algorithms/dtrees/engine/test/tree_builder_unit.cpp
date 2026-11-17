@@ -898,6 +898,32 @@ Dataset withConstantFeatures(Dataset d)
     return d;
 }
 
+TEST("denseBins is the mean bin count of non-constant exact-bin features, else maxBins", "[unit]")
+{
+    constexpr size_t nRows = 200, p = 4;
+    const BinningParams binning = exactBinning();
+    // Features: 3 values, constant, 5 values, then 2 values with NaN (a NaN bin) or the row index (quantile bins).
+    auto binsOf = [&](bool quantile) {
+        std::vector<double> x(nRows * p);
+        for (size_t i = 0; i < nRows; ++i)
+        {
+            x[i * p]     = double(i % 3);
+            x[i * p + 1] = 7;
+            x[i * p + 2] = double(i % 5);
+            x[i * p + 3] = quantile ? double(i) : i % 10 ? double(i % 2) : std::numeric_limits<double>::quiet_NaN();
+        }
+        NumericTablePtr t = HomogenNumericTable<double>::create(x.data(), p, nRows);
+        auto bins         = std::make_unique<BinMatrix<baseCpu> >();
+        bool binned       = false;
+        daal::internal::BaseRNGsInst<baseCpu> engine(5u, __DAAL_BRNG_PHILOX4X32X10);
+        REQUIRE((QuantileBinner<double, baseCpu>::build(*t, binning, engine.getState(), *bins, binned)).ok());
+        REQUIRE(binned);
+        return bins;
+    };
+    REQUIRE(denseBins<baseCpu>(*binsOf(false), binning.maxBins) == (3. + 5. + 3.) / 3.);
+    REQUIRE(denseBins<baseCpu>(*binsOf(true), binning.maxBins) == double(binning.maxBins));
+}
+
 TEST("hist with one bin per value equals the exact phase on the same draws", "[unit]")
 {
     SKIP_IF(!counterDrawsSupported());
@@ -983,6 +1009,51 @@ TEST("other engines fuse partitions, and fused nodes scan the histograms of thei
         const auto plain      = nClasses ? train<ClsCountRecord, baseCpu>(d, unfused, nTrees, counts, 777, &binning, true) :
                                            train<RegCountRecord<double>, baseCpu>(d, unfused, nTrees, counts, 777, &binning, true);
         for (size_t t = 0; t < nTrees; ++t) requireSameTables(fused[t], plain[t]);
+    }
+}
+
+TEST("node statistics from the partition equal the node's own pass", "[unit]")
+{
+    SKIP_IF(!counterDrawsSupported());
+    constexpr size_t nTrees = 3, nRows = 3000;
+    const Dataset c  = classificationData(nRows, 6, 3, 121);
+    const Dataset cw = classificationData(nRows, 6, 3, 122, true);
+    Dataset r        = regressionData(nRows, 6, 123);
+    Dataset rw       = regressionData(nRows, 6, 124, true);
+    // Few response values, so regression nodes become pure and the purity test is exercised.
+    for (auto * d : { &r, &rw })
+        for (auto & y : d->y) y = std::round(y);
+    const auto counts = bootstrapCounts(nTrees, nRows, 125);
+    BinningParams binning;
+    binning.maxBins = 32;
+    for (int variant = 0; variant < 4; ++variant)
+    {
+        CAPTURE(variant);
+        TreeParams on;
+        on.featuresPerNode = 3;
+        on.randomSplitter  = variant & 1;
+        // variant 2, 3: chunked nodes, whose sums merge by chunk; counts merge exactly.
+        on.chunkRows                 = variant & 2 ? 200 : on.chunkRows;
+        TreeParams off               = on;
+        off.partitionStats           = false;
+        const BinningParams * binned = variant == 1 ? nullptr : &binning;
+        auto same                    = [&](auto record, const Dataset & d, size_t nClasses, bool exactSums) {
+            using Record = decltype(record);
+            on.nClasses  = nClasses;
+            off.nClasses = nClasses;
+            const auto a = train<Record, baseCpu>(d, on, nTrees, counts, 777, binned);
+            const auto b = train<Record, baseCpu>(d, off, nTrees, counts, 777, binned);
+            for (size_t t = 0; t < nTrees; ++t)
+            {
+                requireConsistent(d, a[t], counts[t]);
+                if (exactSums) requireSameTables(a[t], b[t]);
+            }
+        };
+        const bool oneChunk = !(variant & 2);
+        same(ClsCountRecord {}, c, 3, true);
+        same(ClsWeightRecord<double> {}, cw, 3, oneChunk);
+        same(RegCountRecord<double> {}, r, 0, oneChunk);
+        same(RegWeightRecord<double> {}, rw, 0, oneChunk);
     }
 }
 

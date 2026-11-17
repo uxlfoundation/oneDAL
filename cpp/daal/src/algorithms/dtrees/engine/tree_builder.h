@@ -63,7 +63,7 @@ struct TreeParams
     bool randomSplitter        = false;
     bool counterDraws          = true; // philox4x32x10 node draws by counter; otherwise TreeInputs::nodeUniform
     size_t treesInFlight       = 0;
-    // hist: nodes of fewer than denseThreshold * maxBins records take the exact phase (design 4.7).
+    // hist: nodes of fewer than denseThreshold * denseBins records take the exact phase (design 4.7).
     double denseThreshold = 2;
     size_t maxBins        = 256;
     // Large histogram-phase nodes run in chunks of chunkRows records, at most maxChunks (design 4.6); the forest's
@@ -73,7 +73,27 @@ struct TreeParams
     // Partition passes build the children's histograms. With counter draws it does not change the trees; tests
     // turn it off to show it.
     bool fusePartition = true;
+    // Partitions sum the children's node statistics (RecordStats), so a child skips its pass over its records;
+    // tests turn it off to compare with that pass.
+    bool partitionStats = true;
 };
+
+/// Bins per feature that denseThreshold multiplies (design 4.7). With exact bins on every non-constant feature a
+/// histogram split is the exact split, so only cost decides: their mean bin count, NaN bin included. Else maxBins.
+template <CpuType cpu>
+inline double denseBins(const BinMatrix<cpu> & bins, size_t maxBins)
+{
+    double sum = 0;
+    size_t n   = 0;
+    for (size_t f = 0; f < bins.nFeatures(); ++f)
+    {
+        if (bins.isConstant(f)) continue;
+        if (!bins.exactBins(f)) return double(maxBins);
+        sum += double(bins.nBins(f) + size_t(bins.hasMissing(f)));
+        ++n;
+    }
+    return n ? sum / double(n) : double(maxBins);
+}
 
 /// The training data, read-only for the whole fit.
 template <typename algorithmFPType, CpuType cpu>

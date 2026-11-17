@@ -365,12 +365,13 @@ struct Target
  *
  *  One chunk routes, scatters and adds in one pass. Several chunks route and add in parallel, keeping the
  *  side of each row and partial planes per chunk and child, reduced in chunk order; a second pass
- *  scatters from the per-chunk offsets. Results do not depend on the thread count.
+ *  scatters from the per-chunk offsets. Results do not depend on the thread count. stats, if given, holds
+ *  2 * nChunks RecordStats, left and right per chunk, that take each child's records in order.
  */
 template <typename Record, typename BinT, typename Left, CpuType cpu>
 services::Status fusedPartition(const Record * in, Record * out, size_t n, size_t nLeft, const BinMatrix<cpu> & bins, uint32_t splitFeature,
                                 const Left & left, const Target<Record, cpu> (&targets)[2], size_t nClasses, size_t nChunks,
-                                const PrefetchBudget<cpu> & budget)
+                                const PrefetchBudget<cpu> & budget, RecordStats<Record, cpu> * stats = nullptr)
 {
     // Lines to prefetch: the split feature's and the children's features'.
     size_t nFeatures = 1 + targets[0].nLanes + targets[1].nLanes;
@@ -407,6 +408,7 @@ services::Status fusedPartition(const Record * in, Record * out, size_t n, size_
             const size_t s   = left(b) ? 0 : 1;
             DAAL_ASSERT(!s || iRight < n);
             out[s ? iRight++ : iLeft++] = r;
+            if (stats) stats[s].add(r);
             if (targets[s].planes) addRow<Record, BinT, cpu>(r, b, targets[s].features, targets[s].nLanes, *targets[s].planes);
         });
         if (iLeft != nLeft) return services::Status(services::ErrorIncorrectInternalFunctionParameter);
@@ -436,6 +438,7 @@ services::Status fusedPartition(const Record * in, Record * out, size_t n, size_
                 const size_t s   = left(b) ? 0 : 1;
                 side[begin + i]  = uint8_t(s);
                 count += 1 - s;
+                if (stats) stats[2 * c + s].add(r);
                 if (targets[s].planes) addRow<Record, BinT, cpu>(r, b, targets[s].features, targets[s].nLanes, planesOf(s, c));
             });
         lefts[c + 1] = count;
