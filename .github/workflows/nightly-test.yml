@@ -302,6 +302,8 @@ jobs:
           call .\oneapi\setvars.bat
           call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
           bazel build //:release --config=release-dpc --cpu=avx2 --build_date=%BUILD_DATE%
+          rem cmd reports only the last command's exit code: keep the release failure fatal.
+          if errorlevel 1 exit /b 1
           rem The release holds DLLs only; this links DPC++ executables (objects archived, no helper script).
           bazel build --config=release-dpc --cpu=avx2 //cpp/oneapi/dal/algo/pca:online_spmd_tests
       - name: Compare make and Bazel releases

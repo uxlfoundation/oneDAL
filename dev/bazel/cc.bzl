@@ -413,7 +413,9 @@ def _convert_resource_to_object(ctx, feature_config, res, out_name):
 
     Only the x64 DPC++ link needs it: icx takes a `.res` only ahead of `/link`, and after `/link`
     the DLL link fails with LNK2001 `_DllMainCRTStartup`. `cvtres` runs with the link action's
-    environment (the MSVC PATH captured at configure time), so it needs no inherited shell.
+    environment (the MSVC PATH captured at configure time, which overrides the inherited PATH).
+    The action inherits the default shell environment, as the resource compile above does,
+    because `cmd.exe` needs SystemRoot; TODO.md lists it with the other inherited-environment sites.
     """
     out = ctx.actions.declare_file(out_name)
     ctx.actions.run(
@@ -427,6 +429,7 @@ def _convert_resource_to_object(ctx, feature_config, res, out_name):
             action_name = "c++-link-dynamic-library",
             variables = cc_common.empty_variables(),
         ),
+        use_default_shell_env = True,
         mnemonic = "WindowsResourceObject",
         progress_message = "Converting resource script %s to an object" % res.short_path,
     )
