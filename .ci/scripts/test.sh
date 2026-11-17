@@ -34,6 +34,7 @@ function show_help_text {
 --platform:Explicitly pass the platform. This is the same as is passed to the top-level oneDAL build script
 --cross-compile:Indicates whether cross-compilation is being performed
 --jobs:The number of parallel threads to use for test building
+--examples:Comma-separated name patterns; only the matching examples are built and run
 '
 }
 
@@ -82,6 +83,10 @@ while [[ $# -gt 0 ]]; do
         ;;
         --jobs)
         jobs="$2"
+        shift
+        ;;
+        --examples)
+        examples_list="$2"
         shift
         ;;
         --help)
@@ -260,6 +265,10 @@ for link_mode in "${link_modes[@]}"; do
             -DONEDAL_LINK="${link_mode}"
             -DREF_BACKEND="${ref_backend}"
             -DOPENRNG_BACKEND="${openrng_backend}")
+
+        if [ "${TEST_KIND}" == "examples" ] && [ -n "${examples_list}" ] ; then
+            cmake_options+=(-DEXAMPLES_LIST="${examples_list}")
+        fi
 
         if [ "${cross_compile}" == "yes" ] ; then
             # Set the cmake toolchain file to set up the cross-compilation

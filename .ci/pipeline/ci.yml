@@ -172,6 +172,10 @@ jobs:
     TBB_VERSION : 'v2023.2.0'
     TBB_CACHE_DIR : $(Pipeline.Workspace)/tbb-riscv64-clang
     SYSROOT_CACHE_DIR: $(Pipeline.Workspace)/sysroot-riscv64
+    # Under qemu every example costs minutes, so one dense batch example per algorithm family;
+    # the names are CMake regexes, anchored so that dbscan_* does not also pick hdbscan_*.
+    RV64_DAAL_EXAMPLES: '^kmeans_dense_batch$,^pca_cor_dense_batch$,^svm_two_class_thunder_dense_batch$,^df_cls_hist_dense_batch$,^df_reg_hist_dense_batch$,^gbt_cls_dense_batch$,^lin_reg_norm_eq_dense_batch$,^log_reg_dense_batch$,^cov_dense_batch$,^low_order_moms_dense_batch$,^dbscan_dense_batch$,^kdtree_knn_dense_batch$,^bf_knn_dense_batch$,^qr_dense_batch$,^svd_dense_batch$,^cholesky_dense_batch$,^em_gmm_dense_batch$,^impl_als_dense_batch$,^lbfgs_dense_batch$,^datastructures_homogen$,^serialization$,^library_version_info$'
+    RV64_ONEAPI_EXAMPLES: '^kmeans_lloyd_dense_batch$,^pca_cor_dense_batch$,^svm_two_class_thunder_dense_batch$,^df_cls_dense_batch$,^df_reg_dense_batch$,^linear_regression_dense_batch$,^logloss_dense_batch$,^cov_dense_batch$,^basic_statistics_dense_batch$,^dbscan_brute_force_batch$,^knn_cls_brute_force_dense_batch$,^knn_cls_kd_tree_dense_batch$,^hdbscan_brute_force_batch$,^rbf_kernel_dense_batch$,^louvain_batch$,^connected_components_batch$,^homogen_table$,^csr_table$'
   pool:
     vmImage: 'ubuntu-24.04'
   steps:
@@ -236,7 +240,7 @@ jobs:
       export TBBROOT=$(TBB_CACHE_DIR)
       export ARCH_ONEDAL=riscv64
       export ONEDAL_SYSROOT=$(SYSROOT_CACHE_DIR)
-      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler clang --interface daal/cpp --build-system cmake --platform lnxriscv64 --cross-compile --backend ref
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler clang --interface daal/cpp --build-system cmake --platform lnxriscv64 --cross-compile --backend ref --examples "$(RV64_DAAL_EXAMPLES)"
     displayName: 'daal/cpp examples'
   - script: |
       export QEMU_LD_PREFIX=$(SYSROOT_CACHE_DIR)
@@ -244,7 +248,7 @@ jobs:
       export TBBROOT=$(TBB_CACHE_DIR)
       export ARCH_ONEDAL=riscv64
       export ONEDAL_SYSROOT=$(SYSROOT_CACHE_DIR)
-      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler clang --interface oneapi/cpp --build-system cmake --platform lnxriscv64 --cross-compile --backend ref
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler clang --interface oneapi/cpp --build-system cmake --platform lnxriscv64 --cross-compile --backend ref --examples "$(RV64_ONEAPI_EXAMPLES)"
     displayName: 'oneapi/cpp examples'
   - task: PublishPipelineArtifact@1
     inputs:
@@ -261,6 +265,7 @@ jobs:
   variables:
     platform.type : 'lnx32e'
     BAZEL_CACHE_DIR: $(Pipeline.Workspace)/.bazel-cache
+    BAZEL_REPO_CACHE_DIR: $(Pipeline.Workspace)/.bazel-repo
     BAZEL_VERSION: $(Pipeline.Workspace)/bazelisk-linux-amd64
   steps:
   - script: |
@@ -304,12 +309,19 @@ jobs:
       # Diagnostic, as on WindowsBazel: true = exact key hit, inexact = restore-key fallback.
       cacheHitVar: BAZEL_CACHE_HIT
     displayName: 'bazel-cache'
+  - task: Cache@2
+    inputs:
+      # Downloaded repositories (MKL/TBB wheels, the conda gcc); content-addressed, so one entry per pin set.
+      key: '"bazel-repo" | "$(Agent.OS)" | .bazelversion | MODULE.bazel | dev/bazel/deps/*.bzl'
+      path: $(BAZEL_REPO_CACHE_DIR)
+    displayName: 'bazel-repo-cache'
 
   - script: |
       echo "Bazel cache restore result: ${BAZEL_CACHE_HIT:-unset}"
       # user.bazelrc, not ~/.bazelrc: other Bazel workspaces on the agent must not see --config=ci.
       # Minimal CPU instruction set in Azure is AVX2
-      echo "build --disk_cache=$(BAZEL_CACHE_DIR) --experimental_disk_cache_gc_max_size=8G --config=ci --cpu=avx2" > user.bazelrc
+      echo "common --repository_cache=$(BAZEL_REPO_CACHE_DIR)" > user.bazelrc
+      echo "build --disk_cache=$(BAZEL_CACHE_DIR) --experimental_disk_cache_gc_max_size=8G --config=ci --cpu=avx2" >> user.bazelrc
 
       # Display oneDAL build configuration
       bazel build @config//:dump
@@ -603,6 +615,7 @@ jobs:
     OPENBLAS_VERSION : 'v0.3.34'
     OPENBLAS_CACHE_DIR : $(Pipeline.Workspace)/openblas-riscv64-clang
     SYSROOT_CACHE_DIR: $(Pipeline.Workspace)/sysroot-riscv64
+    BAZEL_REPO_CACHE_DIR: $(Pipeline.Workspace)/.bazel-repo
   pool:
     vmImage: 'ubuntu-24.04'
   steps:
@@ -620,6 +633,12 @@ jobs:
       source .ci/env/bazelisk.sh
       echo "##vso[task.setvariable variable=BAZEL_VERSION]${BAZEL_VERSION}"
     displayName: 'install-bazel'
+  - task: Cache@2
+    inputs:
+      # Downloaded repositories (MKL/TBB wheels, the conda gcc); content-addressed, so one entry per pin set.
+      key: '"bazel-repo" | "$(Agent.OS)" | .bazelversion | MODULE.bazel | dev/bazel/deps/*.bzl'
+      path: $(BAZEL_REPO_CACHE_DIR)
+    displayName: 'bazel-repo-cache'
   - script: |
       .ci/scripts/describe_system.sh
     displayName: 'System info'
@@ -650,6 +669,7 @@ jobs:
       export CC=riscv64-linux-gnu-gcc
       export CXX=riscv64-linux-gnu-g++
       export OPENBLASROOT=$(OPENBLAS_CACHE_DIR)
+      echo "common --repository_cache=$(BAZEL_REPO_CACHE_DIR)" > user.bazelrc
       bazel build --platforms=@config//:linux_riscv64 \
         //cpp/daal:core_dynamic //cpp/oneapi/dal:dynamic
     displayName: 'bazel build (riscv64 cross)'
@@ -665,6 +685,8 @@ jobs:
   ${{ if eq(variables['Build.Reason'], 'PullRequest') }}:
     dependsOn: [FormatterChecks, LinuxBazel]
   timeoutInMinutes: 0
+  variables:
+    BAZEL_REPO_CACHE_DIR: $(Pipeline.Workspace)/.bazel-repo
   pool:
     vmImage: '$(VM_IMAGE)'
   steps:
@@ -675,13 +697,21 @@ jobs:
       source .ci/env/bazelisk.sh
       echo "##vso[task.setvariable variable=BAZEL_VERSION]${BAZEL_VERSION}"
     displayName: 'install-bazel'
+  - task: Cache@2
+    inputs:
+      # Downloaded repositories (MKL/TBB wheels, the conda gcc); content-addressed, so one entry per pin set.
+      key: '"bazel-repo" | "$(Agent.OS)" | .bazelversion | MODULE.bazel | dev/bazel/deps/*.bzl'
+      path: $(BAZEL_REPO_CACHE_DIR)
+    displayName: 'bazel-repo-cache'
   - script: |
       set -eo pipefail
+      echo "common --repository_cache=$(BAZEL_REPO_CACHE_DIR)" > user.bazelrc
       source /opt/intel/oneapi/setvars.sh
       export CC=icx
       bazel test //dev/bazel/tests:coverage_tests
-      # Unsandboxed: the .gcno notes are undeclared side outputs of the compiles.
-      bazel build --code_coverage=true --cpu=avx2 --spawn_strategy=local //cpp/daal:core_static
+      # Unsandboxed: the .gcno notes are undeclared side outputs of the compiles. The threading
+      # library is enough to prove the flags reach the compiler; core_static took 37 min.
+      bazel build --code_coverage=true --cpu=avx2 --spawn_strategy=local //cpp/daal:thread_static
       test -n "$(find -L "$(bazel info output_path)" -name '*.gcno' -print -quit)"
     displayName: 'Bazel CPU code-coverage smoke build'
   - script: |
@@ -722,9 +752,9 @@ jobs:
   variables:
     release.dir: '__release_win_bazel_icx'
     platform.type : 'win32e'
-    BAZELISK_VERSION: 'v1.28.1'
-    BAZELISK_EXE: '$(Build.Repository.LocalPath)\bazelisk.exe'
+    BAZELISK_EXE: '$(Build.Repository.LocalPath)\bazel\bin\bazel.exe'
     BAZEL_CACHE_DIR: '$(Pipeline.Workspace)\.bazel-cache'
+    BAZEL_REPO_CACHE_DIR: '$(Pipeline.Workspace)\.bazel-repo'
     BAZEL_OUTPUT_USER_ROOT: 'C:\b'
   pool:
     vmImage: '$(WIN_VM_IMAGE)'
@@ -732,9 +762,7 @@ jobs:
   - script: .ci/scripts/install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS)
     displayName: 'Install oneAPI Base Toolkit'
   - powershell: |
-      $ErrorActionPreference = "Stop"
-      $url = "https://github.com/bazelbuild/bazelisk/releases/download/$(BAZELISK_VERSION)/bazelisk-windows-amd64.exe"
-      Invoke-WebRequest -Uri $url -OutFile "$(BAZELISK_EXE)"
+      .ci/env/bazelisk.ps1
       & "$(BAZELISK_EXE)" version
     displayName: 'install-bazel'
   - script: |
@@ -746,20 +774,29 @@ jobs:
       # Commit ID is added to a cache key. Caches are immutable by design,
       # so we always need to change a key to upload the last version
       # of the Bazel cache. Cache lookup is based on `restoreKeys` option.
-      key: '"$(BAZELISK_VERSION)" | "$(Agent.OS)" | "v1" | "$(Build.SourceVersion)"'
+      key: '"bazel" | .bazelversion | "$(Agent.OS)" | "v1" | "$(Build.SourceVersion)"'
       restoreKeys: |
-        "$(BAZELISK_VERSION)" | "$(Agent.OS)" | "v1"
+        "bazel" | .bazelversion | "$(Agent.OS)" | "v1"
       path: $(BAZEL_CACHE_DIR)
       # Diagnostic: true = exact key hit, inexact = restore-key fallback, anything else = miss.
       cacheHitVar: BAZEL_CACHE_HIT
     displayName: 'bazel-cache'
+  - task: Cache@2
+    inputs:
+      # Downloaded repositories (MKL/TBB wheels, the conda gcc); content-addressed, so one entry per pin set.
+      key: '"bazel-repo" | "$(Agent.OS)" | .bazelversion | MODULE.bazel | dev/bazel/deps/*.bzl'
+      path: $(BAZEL_REPO_CACHE_DIR)
+    displayName: 'bazel-repo-cache'
   - script: |
       echo Bazel cache restore result: "$(BAZEL_CACHE_HIT)"
       if not exist "$(BAZEL_CACHE_DIR)" mkdir "$(BAZEL_CACHE_DIR)"
       if not exist "$(BAZEL_OUTPUT_USER_ROOT)" mkdir "$(BAZEL_OUTPUT_USER_ROOT)"
       set "BAZEL_CACHE_DIR_FWD=$(BAZEL_CACHE_DIR)"
       set "BAZEL_CACHE_DIR_FWD=%BAZEL_CACHE_DIR_FWD:\=/%"
-      echo build --disk_cache=%BAZEL_CACHE_DIR_FWD% --experimental_disk_cache_gc_max_size=8G --config=ci --cpu=avx2> user.bazelrc
+      set "BAZEL_REPO_CACHE_DIR_FWD=$(BAZEL_REPO_CACHE_DIR)"
+      set "BAZEL_REPO_CACHE_DIR_FWD=%BAZEL_REPO_CACHE_DIR_FWD:\=/%"
+      echo common --repository_cache=%BAZEL_REPO_CACHE_DIR_FWD%> user.bazelrc
+      echo build --disk_cache=%BAZEL_CACHE_DIR_FWD% --experimental_disk_cache_gc_max_size=8G --config=ci --cpu=avx2>> user.bazelrc
       echo ##vso[task.setvariable variable=BAZEL_SH]C:\Program Files\Git\bin\bash.exe
       echo ##vso[task.setvariable variable=BAZEL_JOBS]%NUMBER_OF_PROCESSORS%
     displayName: 'bazel-configure'
@@ -883,9 +920,9 @@ jobs:
   timeoutInMinutes: 0
   variables:
     platform.type : 'win32e'
-    BAZELISK_VERSION: 'v1.28.1'
-    BAZELISK_EXE: '$(Build.Repository.LocalPath)\bazelisk.exe'
+    BAZELISK_EXE: '$(Build.Repository.LocalPath)\bazel\bin\bazel.exe'
     BAZEL_CACHE_DIR: '$(Pipeline.Workspace)\.bazel-cache'
+    BAZEL_REPO_CACHE_DIR: '$(Pipeline.Workspace)\.bazel-repo'
     BAZEL_OUTPUT_USER_ROOT: 'C:\b'
   pool:
     vmImage: '$(WIN_VM_IMAGE)'
@@ -893,24 +930,31 @@ jobs:
   - script: .ci/scripts/install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS)
     displayName: 'Install oneAPI Base Toolkit'
   - powershell: |
-      $ErrorActionPreference = "Stop"
-      $url = "https://github.com/bazelbuild/bazelisk/releases/download/$(BAZELISK_VERSION)/bazelisk-windows-amd64.exe"
-      Invoke-WebRequest -Uri $url -OutFile "$(BAZELISK_EXE)"
+      .ci/env/bazelisk.ps1
       & "$(BAZELISK_EXE)" version
     displayName: 'install-bazel'
   - task: Cache@2
     inputs:
-      key: '"$(BAZELISK_VERSION)" | "$(Agent.OS)" | "v1" | "$(Build.SourceVersion)"'
+      key: '"bazel" | .bazelversion | "$(Agent.OS)" | "v1" | "$(Build.SourceVersion)"'
       restoreKeys: |
-        "$(BAZELISK_VERSION)" | "$(Agent.OS)" | "v1"
+        "bazel" | .bazelversion | "$(Agent.OS)" | "v1"
       path: $(BAZEL_CACHE_DIR)
     displayName: 'bazel-cache'
+  - task: Cache@2
+    inputs:
+      # Downloaded repositories (MKL/TBB wheels, the conda gcc); content-addressed, so one entry per pin set.
+      key: '"bazel-repo" | "$(Agent.OS)" | .bazelversion | MODULE.bazel | dev/bazel/deps/*.bzl'
+      path: $(BAZEL_REPO_CACHE_DIR)
+    displayName: 'bazel-repo-cache'
   - script: |
       if not exist "$(BAZEL_CACHE_DIR)" mkdir "$(BAZEL_CACHE_DIR)"
       if not exist "$(BAZEL_OUTPUT_USER_ROOT)" mkdir "$(BAZEL_OUTPUT_USER_ROOT)"
       set "BAZEL_CACHE_DIR_FWD=$(BAZEL_CACHE_DIR)"
       set "BAZEL_CACHE_DIR_FWD=%BAZEL_CACHE_DIR_FWD:\=/%"
-      echo build --disk_cache=%BAZEL_CACHE_DIR_FWD% --experimental_disk_cache_gc_max_size=8G --config=ci --cpu=avx2> user.bazelrc
+      set "BAZEL_REPO_CACHE_DIR_FWD=$(BAZEL_REPO_CACHE_DIR)"
+      set "BAZEL_REPO_CACHE_DIR_FWD=%BAZEL_REPO_CACHE_DIR_FWD:\=/%"
+      echo common --repository_cache=%BAZEL_REPO_CACHE_DIR_FWD%> user.bazelrc
+      echo build --disk_cache=%BAZEL_CACHE_DIR_FWD% --experimental_disk_cache_gc_max_size=8G --config=ci --cpu=avx2>> user.bazelrc
       echo ##vso[task.setvariable variable=BAZEL_SH]C:\Program Files\Git\bin\bash.exe
       echo ##vso[task.setvariable variable=BAZEL_JOBS]%NUMBER_OF_PROCESSORS%
     displayName: 'bazel-configure'
@@ -994,9 +1038,11 @@ jobs:
     displayName: Install oneAPI Base Toolkit
   - script: |
       set PATH=C:\msys64\usr\bin;%PATH%
-      pip install cpufeature
+      pip install --retries 10 cpufeature
       pacman -S -y --noconfirm zip tree
     displayName: 'pacman'
+    # The MSYS2 mirrors answer 500 now and then; the failure cost a whole build (66042).
+    retryCountOnTaskFailure: 3
   - script: |
       call %TEMP%\oneapi\setvars.bat --force
       bash .ci/scripts/describe_system.sh
