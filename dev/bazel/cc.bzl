@@ -41,6 +41,8 @@ load(
     "target",
     "validate_build_parameters_lib",
 )
+load("@onedal//dev/bazel/toolchains:rc_toolchain.bzl", "RC_TOOLCHAIN_TYPE")
+load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
 load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
@@ -393,32 +395,41 @@ def cc_static_lib(name, **kwargs):
         **kwargs
     )
 
-def _compile_windows_resource(ctx, cc_toolchain, feature_config, rc_file, rc_headers, defines, out_name):
+def _compile_windows_resource(ctx, rc_toolchain, feature_configuration, rc_file, rc_headers, defines, out_name):
     """Compile a Windows resource script as Make's `RC.COMPILE` does.
 
-    clang uses `llvm-rc`, icx and MSVC `rc.exe`, found through the toolchain's PATH (the
-    action env is otherwise Bazel's fixed one). Each header's directory is an include path.
+    The resource compiler is the toolchain's (`rc_toolchain.bzl`: `llvm-rc` for clang-cl, `rc.exe`
+    otherwise), run directly with the toolchain's env. Each header's directory is an include path.
     """
+    if rc_toolchain == None or not rc_toolchain.rc_path:
+        fail("'{}' links a Windows version resource, but the toolchain has no resource compiler".format(
+            ctx.label,
+        ))
     out = ctx.actions.declare_file(out_name)
-    rc_tool = "llvm-rc" if cc_toolchain.compiler.split("-")[0] == "clang" else "rc.exe"
     include_dirs = []
     for header in rc_headers:
         if header.dirname not in include_dirs:
             include_dirs.append(header.dirname)
+
+    # INCLUDE for the SDK headers (windows.h, winver.h), as for the compile actions. The toolchain
+    # sets it only when Bazel's configure-time shell had it; without it rc.exe cannot find them.
+    env = cc_common.get_environment_variables(
+        feature_configuration = feature_configuration,
+        action_name = ACTION_NAMES.cpp_compile,
+        variables = cc_common.empty_variables(),
+    )
+    if not env.get("INCLUDE"):
+        fail(("'{}' links a Windows version resource, but INCLUDE was empty at configure time, " +
+              "so the resource compiler cannot find the Windows SDK headers. Configure from a shell " +
+              "with the MSVC and SDK environment.").format(ctx.label))
     ctx.actions.run(
-        executable = "cmd.exe",
-        inputs = [rc_file] + rc_headers,
+        executable = rc_toolchain.rc_path,
+        inputs = [rc_file] + rc_headers + rc_toolchain.files,
         outputs = [out],
-        arguments = ["/d", "/c", rc_tool] +
-                    ["-D" + define for define in defines] +
+        arguments = ["-D" + define for define in defines] +
                     ["-I" + d.replace("/", "\\") for d in include_dirs] +
                     ["-fo" + out.path.replace("/", "\\"), rc_file.path.replace("/", "\\")],
-        use_default_shell_env = True,
-        env = cc_common.get_environment_variables(
-            feature_configuration = feature_config,
-            action_name = "c-compile",
-            variables = cc_common.empty_variables(),
-        ),
+        env = env,
         mnemonic = "WindowsResource",
         progress_message = "Compiling resource script %s" % rc_file.short_path,
     )
@@ -458,7 +469,7 @@ def _cc_dynamic_lib_impl(ctx):
     if is_windows and ctx.file.rc_file:
         res_files.append(_compile_windows_resource(
             ctx,
-            toolchain,
+            ctx.toolchains[RC_TOOLCHAIN_TYPE],
             feature_config,
             ctx.file.rc_file,
             ctx.files.rc_headers,
@@ -511,7 +522,11 @@ cc_dynamic_lib = rule(
         ),
         "rc_defines": attr.string_list(),
     } | TARGET_ATTRS | VERSION_ATTRS | _CODE_COVERAGE_ATTRS | _PARAMETERS_LIB_ATTRS,
-    toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
+    # The resource compiler is optional: only Windows registers it, and only a target with rc_file needs it.
+    toolchains = [
+        "@bazel_tools//tools/cpp:toolchain_type",
+        config_common.toolchain_type(RC_TOOLCHAIN_TYPE, mandatory = False),
+    ],
     fragments = ["cpp"],
 )
 

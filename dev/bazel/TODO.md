@@ -109,14 +109,14 @@
   only stages it. The wrapper's comment gives LNK2001 `_DllMainCRTStartup` as
   the reason for the `.res` before `/link`.
 
-- [ ] **No inherited shell environment.** Two actions still run with
-  `use_default_shell_env = True`: the Windows `cmd.exe` copy in `release.bzl`
-  and the resource compile in `cc.bzl` (`rc.exe`/`llvm-rc` resolved from `PATH`,
-  not from the toolchain). Taking the rc tool from the toolchain config, as the
-  archiver is via `cc_common.get_tool_for_action`, removes the second. The
-  Windows archive merge in `cc/link.bzl` now takes the toolchain's env.
-  `dev/bazel/tests/check_starlark_policy.py` (pre-commit hook `starlark-policy`) lists the two
-  sites as exceptions and fails on a new one. Buildifier 8.2.1 formats the tree
+- [ ] **No inherited shell environment.** One action still runs with
+  `use_default_shell_env = True`: the Windows `cmd.exe` copy in `release.bzl`.
+  The resource compile in `cc.bzl` runs the resource compiler the Windows
+  toolchain registers under `rc_toolchain_type` (`llvm-rc` for clang-cl,
+  `rc.exe` for icx and MSVC, found at configure time) with the toolchain's env.
+  The Windows archive merge in `cc/link.bzl` takes the toolchain's env too.
+  `dev/bazel/tests/check_starlark_policy.py` (pre-commit hook `starlark-policy`) lists the
+  remaining site as an exception and fails on a new one. Buildifier 8.2.1 formats the tree
   and runs as the pre-commit hook `buildifier` in check mode, with lint off.
   Still open in the same CI policy step: a stored aquery diff of `//:release`
   across the release matrix.
