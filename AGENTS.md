@@ -58,9 +58,9 @@ See `INSTALL.md` for other platforms and build variants.
 | Check | System | Config |
 | --- | --- | --- |
 | clang-format, editorconfig-checker | Azure DevOps | `.ci/pipeline/ci.yml` (`FormatterChecks`) |
-| Make (GNU/MKL, LLVM/OpenBLAS rv64, VC, Intel), Bazel, release compare, sklearnex | Azure DevOps | `.ci/pipeline/ci.yml` |
+| Make (GNU/MKL, LLVM/OpenBLAS rv64, VC), Bazel, Linux release compare, sklearnex | Azure DevOps | `.ci/pipeline/ci.yml` |
 | Make + DPC++ (icx), ABI check, Make GNU/MKL conda | GitHub Actions | `.github/workflows/ci.yml` |
-| Windows (incl. arm64) | GitHub Actions | `.github/workflows/ci-win.yml` |
+| Windows (Make VC and Bazel MSVC x86_64, arm64) | GitHub Actions | `.github/workflows/ci-win.yml` |
 | aarch64 | GitHub Actions | `.github/workflows/ci-aarch64.yml` |
 | License headers | GitHub Actions | `.github/workflows/skywalking-eyes.yml` |
 | Comment blocks of at most two lines | GitHub Actions | `.github/workflows/comment-blocks.yml` |

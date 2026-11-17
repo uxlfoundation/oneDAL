@@ -152,13 +152,8 @@ daal_module(
     ],
 )
 
-# `daal_version_gen.h` carries the build date and changes every day. Bazel
-# makes a module's headers, private ones included, declared inputs of every
-# downstream compile action, and those inputs are part of the cache key.
-# Only `library_version_info.cpp` includes the header, so it lives in this
-# leaf module, and `export_hdrs = False` keeps it out of the compile inputs of
-# everything that links the core libraries (oneDAL tests included). The daily
-# change then invalidates one compile action.
+# Leaf module: the version header stays out of the compile inputs of the core
+# libraries, so another --build_date relinks them without recompiling.
 daal_module(
     name = "version_info",
     srcs = ["src/services/library_version_info.cpp"],
@@ -356,6 +351,8 @@ daal_dynamic_lib(
     name = "thread_dynamic",
     lib_name = "onedal_thread",
     linker_scripts = [":thread_dynamic.lds"],
+    # Make's dll_tbb.res (makefile:919).
+    rc_defines = ["_DAAL_THR_TBB"],
     deps = [
         ":threading_tbb",
     ],
@@ -363,38 +360,17 @@ daal_dynamic_lib(
 
 daal_module(
     name = "threading_static",
-    deps = select({
-        "@config//:test_thread_mode_par": [
-            "@onedal//cpp/daal:thread_static",
-        ]
-    }),
-)
-
-daal_module(
-    name = "threading_dynamic",
-    deps = select({
-        "@config//:test_thread_mode_par": [
-            "@onedal//cpp/daal:thread_dynamic",
-        ]
-    }),
+    deps = ["@onedal//cpp/daal:thread_static"],
 )
 
 daal_module(
     name = "threading_release_static",
-    deps = select({
-        "@config//:test_thread_mode_par": [
-            "@onedal_release//:thread_static",
-        ]
-    }),
+    deps = ["@onedal_release//:thread_static"],
 )
 
 daal_module(
     name = "threading_release_dynamic",
-    deps = select({
-        "@config//:test_thread_mode_par": [
-            "@onedal_release//:thread_dynamic",
-        ]
-    }),
+    deps = ["@onedal_release//:thread_dynamic"],
 )
 
 filegroup(

@@ -21,38 +21,21 @@
 
 namespace dal = oneapi::dal;
 
-// epsilon is in the units of the metric, so each metric gets its own value.
-struct metric_case {
-    const char *name;
-    dal::dbscan::distance_metric metric;
-    double epsilon;
-};
-
-const metric_case metric_cases[] = {
-    { "euclidean", dal::dbscan::distance_metric::euclidean, 0.3 },
-    { "manhattan", dal::dbscan::distance_metric::manhattan, 0.4 },
-    { "minkowski (degree 3)", dal::dbscan::distance_metric::minkowski, 0.3 },
-    { "chebyshev", dal::dbscan::distance_metric::chebyshev, 0.25 },
-    { "cosine", dal::dbscan::distance_metric::cosine, 0.001 },
-};
-
 int main(int argc, char const *argv[]) {
     const auto data_file_name = get_data_path("data/hdbscan_dense.csv");
 
     const auto x_data = dal::read<dal::table>(dal::csv::data_source{ data_file_name });
 
+    // epsilon is in the units of the metric.
+    const double epsilon = 0.001;
     const std::int64_t min_observations = 10;
+    const auto dbscan_desc = dal::dbscan::descriptor<>(epsilon, min_observations)
+                                 .set_metric(dal::dbscan::distance_metric::cosine)
+                                 .set_result_options(dal::dbscan::result_options::responses);
 
-    for (const auto &c : metric_cases) {
-        auto dbscan_desc = dal::dbscan::descriptor<>(c.epsilon, min_observations)
-                               .set_metric(c.metric)
-                               .set_degree(3.0)
-                               .set_result_options(dal::dbscan::result_options::responses);
+    const auto result_compute = dal::compute(dbscan_desc, x_data);
 
-        const auto result_compute = dal::compute(dbscan_desc, x_data);
-
-        std::cout << "Metric: " << c.name << ", epsilon: " << c.epsilon
-                  << ", cluster count: " << result_compute.get_cluster_count() << std::endl;
-    }
+    std::cout << "Metric: cosine, epsilon: " << epsilon
+              << ", cluster count: " << result_compute.get_cluster_count() << std::endl;
     return 0;
 }
