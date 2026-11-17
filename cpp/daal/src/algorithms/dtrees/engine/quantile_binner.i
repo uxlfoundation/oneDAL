@@ -112,6 +112,7 @@ inline size_t countNotAbove(const algorithmFPType * s, size_t k, double v)
 template <CpuType cpu>
 struct PassStats
 {
+    DAAL_NEW_DELETE();
     TArray<uint8_t, cpu> nan;
     TArray<uint8_t, cpu> miss;
     TArray<double, cpu> min;

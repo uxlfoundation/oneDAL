@@ -53,47 +53,19 @@ using daal::internal::CpuType;
 /**
  *  \brief Uninitialized array for large per-fit and per-tree buffers
  *
- *  Elements are not constructed, so the pages are first touched by the code that fills them. Buffers
- *  are not advised for transparent huge pages: on a host with defrag=madvise and fragmented memory
- *  that made binning Higgs 3-4x slower (synchronous compaction on every fault).
+ *  Elements are not constructed, so the pages are first touched by the code that fills them. The scalable
+ *  allocator keeps freed blocks, so a fit does not fault in again the pages of the fit before; with malloc
+ *  a short wide fit on 224 threads spent two thirds of its time in those faults. Buffers are not advised
+ *  for transparent huge pages: on a host with defrag=madvise and fragmented memory that made binning Higgs
+ *  3-4x slower (synchronous compaction on every fault).
  */
 template <typename T, CpuType cpu>
-class LargeArray
-{
-public:
-    LargeArray() = default;
-    ~LargeArray() { release(); }
-    LargeArray(const LargeArray &)             = delete;
-    LargeArray & operator=(const LargeArray &) = delete;
+using LargeArray = services::internal::TArrayScalable<T, cpu, services::internal::DoNotConstruct<T, cpu> >;
 
-    /// Replaces the contents with n uninitialized elements; returns nullptr if n is 0 or allocation fails.
-    T * reset(size_t n)
-    {
-        release();
-        if (!n || n > ~size_t(0) / sizeof(T)) return nullptr;
-        _data = services::internal::service_malloc<T, cpu>(n);
-        if (!_data) return nullptr;
-        _size = n;
-        return _data;
-    }
-
-    T * get() { return _data; }
-    const T * get() const { return _data; }
-    size_t size() const { return _size; }
-    T & operator[](size_t i) { return _data[i]; }
-    const T & operator[](size_t i) const { return _data[i]; }
-
-private:
-    void release()
-    {
-        if (_data) services::internal::service_free<T, cpu>(_data);
-        _data = nullptr;
-        _size = 0;
-    }
-
-    T * _data    = nullptr;
-    size_t _size = 0;
-};
+/// Uninitialized array for buffers allocated per node from many threads at once (histogram planes, carries).
+/// The scalable allocator registers each block of 8 KB or more in a shared index, which these allocations contend on.
+template <typename T, CpuType cpu>
+using NodeArray = services::internal::TArray<T, cpu, services::internal::DoNotConstruct<T, cpu> >;
 
 /**
  *  \brief An array of n elements of a fit's table data, owned or borrowed from the caller
@@ -106,6 +78,7 @@ class BlockArray
 public:
     services::Status allocate(size_t n)
     {
+        DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, n, sizeof(T));
         _borrowed = nullptr;
         _size     = n;
         if (n) DAAL_CHECK_MALLOC(_data.reset(n));

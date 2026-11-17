@@ -99,6 +99,7 @@ public:
     CounterStreams()
         : _streams([]() -> Stream * {
               const unsigned int seed[2] = { 0, 0 };
+              // BaseRNGs has no DAAL_NEW_DELETE; nothrow returns null on failure where mt2203's plain new would throw.
               return new (std::nothrow) Stream(2, seed, __DAAL_BRNG_PHILOX4X32X10);
           })
     {}
@@ -134,6 +135,7 @@ public:
     {
         const unsigned int seed[2] = { unsigned(key), unsigned(key >> 32) };
         delete _base;
+        // nothrow for the same reason as CounterStreams: BaseRNGs has no DAAL_NEW_DELETE.
         _base = new (std::nothrow) Stream(2, seed, __DAAL_BRNG_PHILOX4X32X10);
         DAAL_CHECK_MALLOC(_base && _base->getState());
         // A skip with a nonzero high word tells whether the backend can address the whole counter.

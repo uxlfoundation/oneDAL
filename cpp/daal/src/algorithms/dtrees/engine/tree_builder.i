@@ -185,8 +185,8 @@ struct NodeCarry
     NodeCarry * next = nullptr;
     // Two lists of one bit per feature: constant by bins, for the histogram phase; constant by value, for
     // the exact phase, as rows in one bin can still differ in value.
-    LargeArray<uint64_t, cpu> bits;
-    LargeArray<uint32_t, cpu> lanes;
+    NodeArray<uint64_t, cpu> bits;
+    NodeArray<uint32_t, cpu> lanes;
     size_t nLanes = 0;
     hist::Planes<Record, cpu> planes;
 };

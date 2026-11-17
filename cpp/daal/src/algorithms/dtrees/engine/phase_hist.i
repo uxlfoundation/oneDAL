@@ -103,10 +103,10 @@ struct Planes
     size_t nBins    = 0;
     size_t stride   = 0; // lanes, padded
     size_t nClasses = 0;
-    double center   = 0;               // regression: subtracted from each response before it is summed (MseCost)
-    LargeArray<uint32_t, cpu> records; // classification
-    LargeArray<Stat, cpu> stat;        // classification: [class][bin][lane]
-    LargeArray<RegBin<Stat>, cpu> reg; // regression
+    double center   = 0;              // regression: subtracted from each response before it is summed (MseCost)
+    NodeArray<uint32_t, cpu> records; // classification
+    NodeArray<Stat, cpu> stat;        // classification: [class][bin][lane]
+    NodeArray<RegBin<Stat>, cpu> reg; // regression
 
     bool init(size_t bins, size_t lanes, size_t classes)
     {

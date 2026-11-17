@@ -140,7 +140,9 @@ public:
             engines::internal::Params<cpu> params(n);
             DAAL_CHECK_MALLOC(params.nSkip.get());
             for (size_t i = 0; i < n; ++i) params.nSkip[i] = i * treeBudget;
-            _collection.reset(new engines::internal::EnginesCollection<cpu>(base, _technique, params, _engines, &s));
+            // EnginesCollection has no DAAL_NEW_DELETE and legacy keeps it on the stack; nothrow lets a failure
+            // reach DAAL_CHECK_MALLOC instead of throwing std::bad_alloc.
+            _collection.reset(new (std::nothrow) engines::internal::EnginesCollection<cpu>(base, _technique, params, _engines, &s));
             DAAL_CHECK_MALLOC(_collection.get());
             DAAL_CHECK_STATUS_VAR(s);
         }
@@ -223,7 +225,7 @@ public:
     };
 
     explicit ForestInputs(const Setup & setup)
-        : _s(setup), _words((setup.nRows + 63) / 64), _nodeDraws([]() -> NodeDrawBatch * { return new (std::nothrow) NodeDrawBatch(); })
+        : _s(setup), _words((setup.nRows + 63) / 64), _nodeDraws([]() -> NodeDrawBatch * { return new NodeDrawBatch(); })
     {}
     ~ForestInputs()
     {
@@ -304,6 +306,7 @@ public:
 private:
     struct NodeDrawBatch
     {
+        DAAL_NEW_DELETE();
         double values[nodeDrawBatch];
         size_t used = nodeDrawBatch;
     };
