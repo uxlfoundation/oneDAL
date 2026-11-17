@@ -358,9 +358,40 @@ def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
             # Template values land in double-quoted strings, where a backslash starts an escape.
             "%{env_include}": repo_ctx.os.environ.get("INCLUDE", "").replace("\\", "/"),
             "%{env_lib}": repo_ctx.os.environ.get("LIB", "").replace("\\", "/"),
-            "%{env_path}": repo_ctx.os.environ.get("PATH", "").replace("\\", "/"),
+            "%{env_path}": _action_path(repo_ctx).replace("\\", "/"),
         },
     )
+
+# Environment variables (set by setvars.bat / vcvarsall.bat) whose directories the actions need on PATH.
+_ACTION_PATH_ROOT_VARS = ["ONEAPI_ROOT", "CMPLR_ROOT", "VCINSTALLDIR", "VSINSTALLDIR", "WindowsSdkDir", "SystemRoot"]
+
+def _action_path(repo_ctx):
+    """PATH for the compile and link actions: the toolchain directories only.
+
+    The whole configure-time PATH would make every action key depend on the CI image; a
+    JDK update on the Azure image invalidated the entire Windows disk cache (2026-11-13).
+
+    @param repo_ctx  Repository context of the toolchain rule.
+    @return          The PATH entries under the toolchain roots, or all of PATH when no root is set.
+    """
+    env = {key.lower(): value for key, value in repo_ctx.os.environ.items()}
+    roots = [env.get(var.lower(), "") for var in _ACTION_PATH_ROOT_VARS]
+    roots.append(env.get("programfiles", "C:\\Program Files") + "\\LLVM")
+    roots = [_norm_path(root) for root in roots if root]
+    entries = [entry for entry in env.get("path", "").split(";") if entry]
+    if not roots:
+        return ";".join(entries)
+    kept = [entry for entry in entries if _under_any(_norm_path(entry), roots)]
+    return ";".join(kept)
+
+def _norm_path(path):
+    return path.replace("/", "\\").rstrip("\\").lower()
+
+def _under_any(path, roots):
+    for root in roots:
+        if path == root or path.startswith(root + "\\"):
+            return True
+    return False
 
 def _is_clang_requested(repo_ctx):
     """Return True if the Windows toolchain should use upstream LLVM clang-cl."""

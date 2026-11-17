@@ -935,9 +935,10 @@ jobs:
     displayName: 'install-bazel'
   - task: Cache@2
     inputs:
-      key: '"bazel" | .bazelversion | "$(Agent.OS)" | "v1" | "$(Build.SourceVersion)"'
+      # Own prefix: this MD+MDd cache is twice WindowsBazel's and must not become its fallback.
+      key: '"bazel" | .bazelversion | "$(Agent.OS)" | "v1-all" | "$(Build.SourceVersion)"'
       restoreKeys: |
-        "bazel" | .bazelversion | "$(Agent.OS)" | "v1"
+        "bazel" | .bazelversion | "$(Agent.OS)" | "v1-all"
       path: $(BAZEL_CACHE_DIR)
     displayName: 'bazel-cache'
   - task: Cache@2
