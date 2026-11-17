@@ -98,7 +98,7 @@ void calcPrevImpurity(intermSummFPType var, intermSummFPType mean, intermSummFPT
     if (varPrev < 0) varPrev = 0;
 }
 
-// The one-pass mean and variance run simdBatchSize partial streams from minObsVectorizedPath values on.
+// The one-pass mean and variance run simdBatchSize partial streams from 'minObsVectorizedPath' sizes onwards.
 #if (__CPUID__(DAAL_CPU) == __avx512__)
 constexpr size_t simdBatchSize        = 8;
 constexpr size_t minObsVectorizedPath = 32;
@@ -180,7 +180,7 @@ void calcMeanAndVariance(size_t n, const ResponseFunc & response, intermSummFPTy
     if (n == 0) return;
     if (n < minObsVectorizedPath)
     {
-        // Starting from the first response, not from 0, keeps the sse2 code generation as on main.
+        // The scalar kernel starts from the first response, not from 0; icx compiles the two forms differently.
         mean = response(0);
         accumulateMeanAndVariance(1, n, response, mean, var);
         var /= static_cast<intermSummFPType>(n);
@@ -250,7 +250,7 @@ void calcMeanAndVariance(size_t n, const ResponseFunc & response, intermSummFPTy
 /// @param[in]  response     Response functor
 /// @param[in]  weight       Weight functor
 /// @param[out] mean         Weighted mean of the responses
-/// @param[out] var          Weighted variance: weighted sum of centered squares over `totalWeights`
+/// @param[out] var          Weighted variance: weighted sum of centered squares divided by `totalWeights`
 /// @param[out] totalWeights Sum of the weights
 template <CpuType cpu, typename intermSummFPType, typename ResponseFunc, typename WeightFunc>
 void calcWeightedMeanAndVariance(size_t n, const ResponseFunc & response, const WeightFunc & weight, intermSummFPType & mean, intermSummFPType & var,
@@ -1513,6 +1513,7 @@ public:
             const intermSummFPType prediction   = predicted ? ptr[i].value : intermSummFPType(0);
             const intermSummFPType squaredError = (prediction - py[i]) * (prediction - py[i]);
 
+            // -1 marks a row no tree left out of bag, as outOfBagErrorPerObservation documents.
             if (resPerObs) resPerObs[i] = predicted ? squaredError : intermSummFPType(-1);
             if (resPrediction) resPrediction[i] = prediction;
             if (predicted)
