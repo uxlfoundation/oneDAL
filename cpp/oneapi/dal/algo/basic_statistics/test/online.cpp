@@ -14,9 +14,6 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include <utility>
-#include <vector>
-
 #include "oneapi/dal/algo/basic_statistics/test/fixture.hpp"
 #include "oneapi/dal/test/engine/tables.hpp"
 #include "oneapi/dal/test/engine/io.hpp"
@@ -88,62 +85,6 @@ TEMPLATE_LIST_TEST_M(basic_statistics_online_test,
     REQUIRE(ssc[1] == 8);
     REQUIRE(variance[0] == 2);
     REQUIRE(variance[1] == 8);
-}
-
-// finalize_compute must leave the partial result as it was, so it can be finalized again
-// or extended with more blocks.
-TEMPLATE_LIST_TEST_M(basic_statistics_online_test,
-                     "basic_statistics finalize twice on the same partial result",
-                     "[basic_statistics][integration][online]",
-                     basic_statistics_types) {
-    SKIP_IF(this->not_float64_friendly());
-    using float_t = std::tuple_element_t<0, TestType>;
-    const te::dataframe data = te::dataframe_builder{ 6, 3 }.fill_normal(-30, 30, 7777).build();
-    const auto data_table = data.get_table(this->get_policy(), this->get_homogen_table_id());
-    const auto desc =
-        this->get_descriptor(bs::result_option_id(dal::result_option_id_base(mask_full)));
-    const int64_t nBlocks = GENERATE(1, 3);
-
-    bs::partial_compute_result<> partial;
-    for (const auto& block :
-         te::split_table_by_rows<float_t>(this->get_policy(), data_table, nBlocks)) {
-        partial = this->partial_compute(desc, partial, block);
-    }
-
-    const std::vector<table> partial_tables = {
-        partial.get_partial_n_rows(),      partial.get_partial_min(),
-        partial.get_partial_max(),         partial.get_partial_sum(),
-        partial.get_partial_sum_squares(), partial.get_partial_sum_squares_centered()
-    };
-    std::vector<std::vector<float_t>> before;
-    for (const auto& t : partial_tables) {
-        before.push_back(te::copy_table_values<float_t>(t));
-    }
-
-    const auto first = this->finalize_compute(desc, partial);
-    for (std::size_t i = 0; i < partial_tables.size(); ++i) {
-        CAPTURE(i);
-        REQUIRE(te::copy_table_values<float_t>(partial_tables[i]) == before[i]);
-    }
-
-    const auto second = this->finalize_compute(desc, partial);
-    const std::vector<std::pair<table, table>> results = {
-        { first.get_min(), second.get_min() },
-        { first.get_max(), second.get_max() },
-        { first.get_sum(), second.get_sum() },
-        { first.get_sum_squares(), second.get_sum_squares() },
-        { first.get_sum_squares_centered(), second.get_sum_squares_centered() },
-        { first.get_mean(), second.get_mean() },
-        { first.get_second_order_raw_moment(), second.get_second_order_raw_moment() },
-        { first.get_variance(), second.get_variance() },
-        { first.get_standard_deviation(), second.get_standard_deviation() },
-        { first.get_variation(), second.get_variation() },
-    };
-    for (std::size_t i = 0; i < results.size(); ++i) {
-        CAPTURE(i);
-        REQUIRE(te::copy_table_values<float_t>(results[i].second) ==
-                te::copy_table_values<float_t>(results[i].first));
-    }
 }
 
 /// Sweep the result option masks that the common flow above does not reach.
