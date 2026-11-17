@@ -285,6 +285,10 @@ jobs:
       - name: Install Bazelisk
         shell: pwsh
         run: .\.ci\env\bazelisk.ps1
+      # cmd parses `date.exe` as its built-in DATE, which prints "Enter the new date"; take the date from PowerShell.
+      - name: Build date
+        shell: pwsh
+        run: '"BUILD_DATE=$([DateTime]::UtcNow.ToString(''yyyyMMdd''))" >> $env:GITHUB_ENV'
       - name: Bazel release
         shell: cmd
         env:
@@ -297,7 +301,6 @@ jobs:
           set PATH=C:\msys64\usr\bin;%PATH%
           call .\oneapi\setvars.bat
           call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
-          for /f %%d in ('date.exe -u +%%Y%%m%%d') do set BUILD_DATE=%%d
           bazel build //:release --config=release-dpc --cpu=avx2 --build_date=%BUILD_DATE%
       - name: Compare make and Bazel releases
         shell: cmd
