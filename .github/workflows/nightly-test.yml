@@ -288,7 +288,7 @@ jobs:
       # cmd parses `date.exe` as its built-in DATE, which prints "Enter the new date"; take the date from PowerShell.
       - name: Build date
         shell: pwsh
-        run: '"BUILD_DATE=$([DateTime]::UtcNow.ToString(''yyyyMMdd''))" >> $env:GITHUB_ENV'
+        run: '"BUILD_DATE=$([DateTime]::UtcNow.ToString(''yyyyMMdd'', [Globalization.CultureInfo]::InvariantCulture))" >> $env:GITHUB_ENV'
       - name: Bazel release
         shell: cmd
         env:
