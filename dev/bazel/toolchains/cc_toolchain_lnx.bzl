@@ -41,6 +41,7 @@ load(
     "get_no_canonical_prefixes_opt",
     "get_starlark_list_dict",
     "get_toolchain_identifier",
+    "write_tool_identity",
 )
 
 def _find_tools(repo_ctx, reqs):
@@ -219,6 +220,12 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
     # DPC++ kernel code split option
     dpcc_code_split = "per_kernel"
 
+    tool_identity = write_tool_identity(
+        repo_ctx,
+        [tools.cc, tools.dpcc, tools.ar, tools.strip],
+        version_tools = [tools.cc, tools.dpcc],
+    )
+
     repo_ctx.template(
         "BUILD",
         Label("@onedal//dev/bazel/toolchains:cc_toolchain_lnx.tpl.BUILD"),
@@ -236,7 +243,9 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
             "%{supports_param_files}": "1",
             "%{compiler_deps}": get_starlark_list([
                 ":builtin_include_directory_paths",
+                ":" + tool_identity,
             ]),
+            "%{tool_identity}": tool_identity,
 
             "%{cc_path}": tools.cc,
             "%{dpcc_path}": tools.dpcc,

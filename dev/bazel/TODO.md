@@ -73,9 +73,12 @@
 
 - [ ] **Hermetic toolchain.** The compiler, archiver, linker and strip tool are
   absolute paths found with `repo_ctx.which()` at configure time. A build
-  therefore depends on the host `PATH`, and nothing invalidates the action cache
-  when the compiler behind that path changes. Registering a downloaded toolchain
-  would fix both.
+  therefore depends on the host `PATH`. The toolchain repository writes
+  `tool_identity.txt` (the `--version` and, on Linux, the sha256 of each tool) into
+  the compile, archive and link inputs and watches the tool binaries, so a
+  compiler changed behind the same path re-runs the configuration and misses the
+  action cache instead of reusing stale objects. Registering a downloaded
+  toolchain would remove the `PATH` dependency too.
 
 - [ ] **Remove the last helper script.** `toolchains/tools/dpc_link_win.ps1`
   and its `.tpl.bat` launcher do two things to the DPC++ link line on Windows:
@@ -90,12 +93,13 @@
   `.res` with `cvtres` into an object that joins that archive, or link through
   `lld-link` (`-fuse-ld=lld`), which has no line limit.
 
-- [ ] **No inherited shell environment.** Three actions still run with
-  `use_default_shell_env = True`: the Windows `cmd.exe` copy in `release.bzl`,
-  the resource compile in `cc.bzl` (`rc.exe`/`llvm-rc` resolved from `PATH`, not
-  from the toolchain) and the Windows archive merge in `cc/link.bzl`. Taking the
-  rc tool from the toolchain config, as the archiver is via
-  `cc_common.get_tool_for_action`, removes the second. A CI check on the Starlark
-  AST (not a regex) that lists these sites as exceptions would stop the count
-  from growing back; `buildifier` as a required check and a stored aquery diff of
-  `//:release` across the release matrix belong to the same CI policy step.
+- [ ] **No inherited shell environment.** Two actions still run with
+  `use_default_shell_env = True`: the Windows `cmd.exe` copy in `release.bzl`
+  and the resource compile in `cc.bzl` (`rc.exe`/`llvm-rc` resolved from `PATH`,
+  not from the toolchain). Taking the rc tool from the toolchain config, as the
+  archiver is via `cc_common.get_tool_for_action`, removes the second. The
+  Windows archive merge in `cc/link.bzl` now takes the toolchain's env.
+  `dev/bazel/tests/check_starlark_policy.py` (CI: `bazel-policy`) lists the two
+  sites as exceptions and fails on a new one. Still open in the same CI policy
+  step: `buildifier` as a required check (the tree is not formatted yet) and a
+  stored aquery diff of `//:release` across the release matrix.

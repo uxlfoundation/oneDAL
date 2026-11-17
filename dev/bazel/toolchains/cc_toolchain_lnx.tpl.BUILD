@@ -66,6 +66,9 @@ cc_toolchain(
     all_files = ":compiler_deps",
     as_files = ":compiler_deps",
     compiler_files = ":compiler_deps",
+    # The archiver and linker are host tools too; their identity joins those action keys.
+    ar_files = ":%{tool_identity}",
+    linker_files = ":%{tool_identity}",
     supports_param_files = %{supports_param_files},
 )
 
