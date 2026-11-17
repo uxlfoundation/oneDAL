@@ -5,6 +5,9 @@ daal_module(
     name = "kernel",
     auto = True,
     deps = [
+        "@onedal//cpp/daal:public_includes_classifier",
+        "@onedal//cpp/daal:public_includes_logistic_regression",
+        "@onedal//cpp/daal:public_includes_optimization_solver",
         "@onedal//cpp/daal:core",
         "@onedal//cpp/daal:engines",
         "@onedal//cpp/daal/src/algorithms/classifier:kernel",

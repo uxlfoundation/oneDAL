@@ -5,6 +5,7 @@ daal_module(
     name = "kernel",
     auto = True,
     deps = [
+        "@onedal//cpp/daal:public_includes_decision_forest",
         "@onedal//cpp/daal:core",
         "@onedal//cpp/daal:engines",
         "@onedal//cpp/daal/src/algorithms/classifier:kernel",

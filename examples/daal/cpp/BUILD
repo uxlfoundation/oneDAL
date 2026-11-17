@@ -26,7 +26,7 @@ dal_module(
 # here. Mirrors the `@config//:backend_ref` select in //cpp/daal:BUILD; without
 # it the examples are unbuildable on any non-MKL platform (ARM/RISC-V).
 _TEST_DEPS = [
-    ":example_util", "@tbb//:tbb",
+    ":example_util", "@onedal//cpp/daal:public_includes", "@tbb//:tbb",
     # `dal_module` turns a dict entry into a `select()` (see _expand_select).
     {
         "@config//:backend_ref": [ "@openblas//:openblas" ],

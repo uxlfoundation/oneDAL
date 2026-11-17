@@ -5,6 +5,7 @@ daal_module(
     name = "kernel",
     auto = True,
     deps = [
+        "@onedal//cpp/daal:public_includes_moments",
         "@onedal//cpp/daal:core",
         "@onedal//cpp/daal:engines",
     ],

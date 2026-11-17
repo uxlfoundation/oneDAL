@@ -57,15 +57,63 @@ daal_patch_kernel_defines(
     src = "include/services/internal/daal_kernel_defines.h",
 )
 
+# The public headers every module needs: services, data management and the algorithm base classes.
 daal_module(
-    name = "public_includes",
+    name = "public_includes_core",
     hdrs = glob([
-        "include/**/*.h",
+        "include/services/**/*.h",
+        "include/data_management/**/*.h",
+        "include/algorithms/*.h",
     ], exclude = [
         "**/daal_kernel_defines.h",
-        "**/daal_win.h",
     ]),
     includes = [ "include" ],
+)
+
+# Public headers that include another algorithm's directory.
+_PUBLIC_INCLUDE_DEPS = {
+    "decision_forest": ["classifier", "engines", "regression", "tree_utils"],
+    "elastic_net": ["linear_model", "optimization_solver"],
+    "em": ["covariance", "engines"],
+    "gradient_boosted_trees": ["classifier", "engines", "regression", "tree_utils"],
+    "implicit_als": ["engines"],
+    "kmeans": ["engines"],
+    "k_nearest_neighbors": ["classifier", "engines"],
+    "lasso_regression": ["linear_model", "optimization_solver"],
+    "linear_model": ["regression"],
+    "linear_regression": ["linear_model"],
+    "logistic_regression": ["classifier", "optimization_solver"],
+    "multi_class_classifier": ["classifier"],
+    "normalization": ["moments"],
+    "optimization_solver": ["engines"],
+    "pca": ["covariance", "normalization"],
+    "ridge_regression": ["linear_model"],
+    "svm": ["classifier", "kernel_function", "multi_class_classifier"],
+}
+
+_PUBLIC_INCLUDE_DIRS = [
+    "cholesky", "classifier", "covariance", "dbscan", "decision_forest", "distance", "elastic_net",
+    "em", "engines", "gradient_boosted_trees", "implicit_als", "kernel_function", "kmeans",
+    "k_nearest_neighbors", "lasso_regression", "linear_model", "linear_regression",
+    "logistic_regression", "moments", "multi_class_classifier", "normalization",
+    "optimization_solver", "pca", "pivoted_qr", "qr", "regression", "ridge_regression", "svd",
+    "svm", "tree_utils", "tsne",
+]
+
+# One module per public algorithm directory: an edit there recompiles its users, not every TU.
+[daal_module(
+    name = "public_includes_" + dir,
+    hdrs = glob(["include/algorithms/{}/**/*.h".format(dir)]),
+    includes = [ "include" ],
+    deps = [ ":public_includes_core" ] + [":public_includes_" + dep for dep in _PUBLIC_INCLUDE_DEPS.get(dir, [])],
+) for dir in _PUBLIC_INCLUDE_DIRS]
+
+# Every public header, with the umbrella daal.h: the release tree and the examples.
+daal_module(
+    name = "public_includes",
+    hdrs = [ "include/daal.h" ],
+    includes = [ "include" ],
+    deps = [ ":public_includes_core" ] + [":public_includes_" + dir for dir in _PUBLIC_INCLUDE_DIRS],
 )
 
 # Headers that ship under their generic name on one OS only. Make selects them
@@ -95,11 +143,11 @@ daal_module(
     ],
     deps = select({
         "@config//:backend_ref": [
-                                   ":public_includes",
+                                   ":public_includes_core",
                                    "@openblas//:headers",
                                  ],
         "//conditions:default": [
-                                  ":public_includes",
+                                  ":public_includes_core",
                                   "@mkl//:headers",
                                 ],
         }) + select({
