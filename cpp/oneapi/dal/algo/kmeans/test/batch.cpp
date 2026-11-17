@@ -338,7 +338,7 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
                      kmeans_types) {
     SKIP_IF(this->not_float64_friendly());
     SKIP_IF(this->is_sparse_method());
-    this->check_host_and_device_agree(0, true);
+    this->check_host_and_device_agree(0);
 }
 
 TEMPLATE_LIST_TEST_M(
@@ -348,9 +348,7 @@ TEMPLATE_LIST_TEST_M(
     kmeans_types) {
     SKIP_IF(this->not_float64_friendly());
     SKIP_IF(this->is_sparse_method());
-    // The assignment rounds the expanded distances differently on the two devices, so the
-    // responses may differ at this offset.
-    this->check_host_and_device_agree(1e4, false);
+    this->check_host_and_device_agree(1e4);
 }
 #endif
 

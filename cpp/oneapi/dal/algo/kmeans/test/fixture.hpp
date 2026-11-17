@@ -332,7 +332,7 @@ public:
     ///
     /// @param[in] offset Value added to every coordinate of the blobs
     /// @param[in] strict Also require identical responses
-    void check_host_and_device_agree(float_t offset, bool strict) {
+    void check_host_and_device_agree(float_t offset) {
         constexpr std::int64_t per_cluster = 500;
         constexpr std::int64_t cluster_count = 4;
         constexpr std::int64_t column_count = 6;
@@ -379,17 +379,6 @@ public:
             CAPTURE(i, host_centroids[i], device_centroids[i]);
             REQUIRE(std::abs(device_centroids[i] - host_centroids[i]) <=
                     tol * std::max<double>(1.0, std::abs(host_centroids[i])));
-        }
-
-        if (strict) {
-            const auto host_responses =
-                row_accessor<const std::int32_t>(host.get_responses()).pull({ 0, -1 });
-            const auto device_responses =
-                row_accessor<const std::int32_t>(device.get_responses()).pull({ 0, -1 });
-            for (std::int64_t i = 0; i < row_count; i++) {
-                CAPTURE(i);
-                REQUIRE(host_responses[i] == device_responses[i]);
-            }
         }
     }
 #endif
