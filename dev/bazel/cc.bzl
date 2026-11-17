@@ -383,10 +383,11 @@ def cc_static_lib(name, **kwargs):
         **kwargs
     )
 
-def _compile_windows_resource(ctx, cc_toolchain, rc_file, rc_headers, defines, out_name):
+def _compile_windows_resource(ctx, cc_toolchain, feature_config, rc_file, rc_headers, defines, out_name):
     """Compile a Windows resource script as Make's `RC.COMPILE` does.
 
-    clang uses `llvm-rc`, icx and MSVC `rc.exe`. Each header's directory is an include path.
+    clang uses `llvm-rc`, icx and MSVC `rc.exe`, found through the toolchain's PATH (the
+    action env is otherwise Bazel's fixed one). Each header's directory is an include path.
     """
     out = ctx.actions.declare_file(out_name)
     rc_tool = "llvm-rc" if cc_toolchain.compiler.split("-")[0] == "clang" else "rc.exe"
@@ -403,6 +404,11 @@ def _compile_windows_resource(ctx, cc_toolchain, rc_file, rc_headers, defines, o
                     ["-I" + d.replace("/", "\\") for d in include_dirs] +
                     ["-fo" + out.path.replace("/", "\\"), rc_file.path.replace("/", "\\")],
         use_default_shell_env = True,
+        env = cc_common.get_environment_variables(
+            feature_configuration = feature_config,
+            action_name = "c-compile",
+            variables = cc_common.empty_variables(),
+        ),
         mnemonic = "WindowsResource",
         progress_message = "Compiling resource script %s" % rc_file.short_path,
     )
@@ -438,6 +444,7 @@ def _cc_dynamic_lib_impl(ctx):
         res_files.append(_compile_windows_resource(
             ctx,
             toolchain,
+            feature_config,
             ctx.file.rc_file,
             ctx.files.rc_headers,
             ctx.attr.rc_defines,
