@@ -76,7 +76,7 @@ class _Visitor(ast.NodeVisitor):
 
     def visit_keyword(self, node):
         if node.arg == "use_default_shell_env":
-            if not (isinstance(node.value, ast.Constant) and node.value.value is False):
+            if _is_inherited_env(node.value):
                 self._report(
                     "use_default_shell_env",
                     node.value,
@@ -87,6 +87,11 @@ class _Visitor(ast.NodeVisitor):
                 if key in _FORBIDDEN_TAGS:
                     self._report(key, node.value, "opts the action out of sandboxing or caching")
         self.generic_visit(node)
+
+
+def _is_inherited_env(value):
+    """`use_default_shell_env = <value>` inherits the env unless the value is literally False."""
+    return not (isinstance(value, ast.Constant) and value.value is False)
 
 
 def _string_constants(node):
@@ -135,7 +140,8 @@ def _site_exists(root, rule, rel, function):
             for kw in ast.walk(node):
                 if not isinstance(kw, ast.keyword):
                     continue
-                if kw.arg == rule:
+                # The same predicate as the visitor: `= False` is no longer an exception.
+                if kw.arg == rule and _is_inherited_env(kw.value):
                     return True
                 if kw.arg in ("execution_requirements", "tags") and rule in _string_constants(kw.value):
                     return True
