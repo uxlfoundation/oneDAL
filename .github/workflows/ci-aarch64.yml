@@ -74,7 +74,8 @@ jobs:
       matrix:
         os: [
           { name: GitHub hosted, label: ubuntu-24.04-arm, cxx: gnu },
-          { name: Arm hosted, label: ah-ubuntu_24_04-c6g_2x-50, cxx: clang },
+          # The build targets SVE (build.sh --optimizations sve), which Graviton2 (c6g) lacks.
+          { name: Arm hosted (SVE), label: ah-ubuntu_24_04-c7g_2x-50, cxx: clang },
           { name: Arm hosted (SVE), label: ah-ubuntu_24_04-c7g_2x-50, cxx: gnu }
         ]
 
@@ -94,7 +95,16 @@ jobs:
       - name: Checkout oneDAL
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # oneTBB install is keyed like openBLAS below; restored every run, saved from main.
+      - name: Restore oneTBB
+        id: cache-tbb
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ github.workspace }}/__deps/tbb-aarch64
+          key: tbb-v1-${{ matrix.os.label }}-${{ env.TBB_VERSION }}-${{ hashFiles('.ci/env/tbb.sh') }}
+
       - name: Checkout oneTBB
+        if: steps.cache-tbb.outputs.cache-hit != 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: uxlfoundation/oneTBB
@@ -110,8 +120,17 @@ jobs:
 
       - name: Build oneTBB
         run: |
-          .ci/env/tbb.sh
+          if [ "${{ steps.cache-tbb.outputs.cache-hit }}" != "true" ]; then
+            .ci/env/tbb.sh
+          fi
           echo "TBBROOT=${{ github.workspace }}/__deps/tbb-aarch64" >> "$GITHUB_ENV"
+
+      - name: Save oneTBB
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cache-tbb.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ github.workspace }}/__deps/tbb-aarch64
+          key: tbb-v1-${{ matrix.os.label }}-${{ env.TBB_VERSION }}-${{ hashFiles('.ci/env/tbb.sh') }}
 
       # openBLAS install is keyed on its version, the build script and the
       # runner label. Restored on every run; saved only from main (a pull
@@ -153,16 +172,14 @@ jobs:
 
       - name: daal/cpp examples
         run: |
-          echo "::warning::This step is designed to always pass, please look for more details"
           # timeout added due to hanging enable_thread_pinning example, and should be removed when fixed
-          timeout 12m .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx_${{ matrix.os.cxx }} --compiler ${{ matrix.os.cxx }} --interface daal/cpp --build-system cmake --backend ref || true
+          timeout 12m .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx_${{ matrix.os.cxx }} --compiler ${{ matrix.os.cxx }} --interface daal/cpp --build-system cmake --backend ref
         env:
           CMAKE_GENERATOR: Ninja
 
       - name: oneapi/cpp examples
         run: |
-          echo "::warning::This step is designed to always pass, please look for more details"
-          .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx_${{ matrix.os.cxx }} --compiler ${{ matrix.os.cxx }} --interface oneapi/cpp --build-system cmake --backend ref || true
+          .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx_${{ matrix.os.cxx }} --compiler ${{ matrix.os.cxx }} --interface oneapi/cpp --build-system cmake --backend ref
         env:
           CMAKE_GENERATOR: Ninja
 
@@ -189,7 +206,16 @@ jobs:
       - name: Checkout oneDAL
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # oneTBB install is keyed like openBLAS below; restored every run, saved from main.
+      - name: Restore oneTBB
+        id: cache-tbb
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ github.workspace }}/__deps/tbb-aarch64
+          key: tbb-v1-${{ matrix.os.label }}-${{ env.TBB_VERSION }}-${{ hashFiles('.ci/env/tbb.sh') }}
+
       - name: Checkout oneTBB
+        if: steps.cache-tbb.outputs.cache-hit != 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: uxlfoundation/oneTBB
@@ -205,8 +231,17 @@ jobs:
 
       - name: Build oneTBB
         run: |
-          .ci/env/tbb.sh
+          if [ "${{ steps.cache-tbb.outputs.cache-hit }}" != "true" ]; then
+            .ci/env/tbb.sh
+          fi
           echo "TBBROOT=${{ github.workspace }}/__deps/tbb-aarch64" >> "$GITHUB_ENV"
+
+      - name: Save oneTBB
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cache-tbb.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ github.workspace }}/__deps/tbb-aarch64
+          key: tbb-v1-${{ matrix.os.label }}-${{ env.TBB_VERSION }}-${{ hashFiles('.ci/env/tbb.sh') }}
 
       - name: Restore openBLAS
         id: cache-openblas
@@ -305,7 +340,16 @@ jobs:
           path: ${{ runner.temp }}/bazel-repo
           key: bazel-repo-linux-arm64-${{ hashFiles('.bazelversion', 'MODULE.bazel', 'dev/bazel/deps/*.bzl') }}
 
+      # oneTBB install is keyed like openBLAS below; restored every run, saved from main.
+      - name: Restore oneTBB
+        id: cache-tbb
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ github.workspace }}/__deps/tbb-aarch64
+          key: tbb-v1-${{ matrix.os.label }}-${{ env.TBB_VERSION }}-${{ hashFiles('.ci/env/tbb.sh') }}
+
       - name: Checkout oneTBB
+        if: steps.cache-tbb.outputs.cache-hit != 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: uxlfoundation/oneTBB
@@ -317,8 +361,17 @@ jobs:
       # the libraries themselves resolve TBB at runtime, not at link time.
       - name: Build oneTBB
         run: |
-          .ci/env/tbb.sh
+          if [ "${{ steps.cache-tbb.outputs.cache-hit }}" != "true" ]; then
+            .ci/env/tbb.sh
+          fi
           echo "TBBROOT=$(pwd)/__deps/tbb-aarch64" >> "$GITHUB_ENV"
+
+      - name: Save oneTBB
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cache-tbb.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ github.workspace }}/__deps/tbb-aarch64
+          key: tbb-v1-${{ matrix.os.label }}-${{ env.TBB_VERSION }}-${{ hashFiles('.ci/env/tbb.sh') }}
 
       - name: Restore openBLAS
         id: cache-openblas

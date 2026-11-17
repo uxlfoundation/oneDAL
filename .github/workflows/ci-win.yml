@@ -520,9 +520,13 @@ jobs:
         shell: cmd
         run: |
           set PATH=C:\msys64\usr\bin;%PATH%
-          python -m pip install cpufeature
+          python -m pip install --retries 10 cpufeature
           if errorlevel 1 exit /b 1
-          pacman -S -y --noconfirm zip tree
+          for /l %%i in (1,1,3) do (
+            pacman -S -y --noconfirm zip tree && exit /b 0
+            echo pacman attempt %%i failed, retrying
+          )
+          exit /b 1
 
       - name: System info
         shell: cmd
