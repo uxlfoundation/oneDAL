@@ -719,6 +719,33 @@ DF_BATCH_REG_TEST("df reg oob r2 without oob rows scores zero predictions") {
     REQUIRE(std::abs(oob_r2 - (-4.2)) < tolerance);
 }
 
+DF_BATCH_REG_TEST("df reg oob r2 is nan for a single row") {
+    SKIP_IF(this->is_gpu()); // the GPU kernel does not compute the OOB R2
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+
+    constexpr std::int64_t row_count = 1;
+    constexpr std::int64_t column_count = 2;
+
+    static const float train_arr[] = { 0.1f, 1.f };
+
+    const te::dataframe data{ array<float>::wrap(train_arr, row_count * column_count),
+                              row_count,
+                              column_count };
+
+    auto desc = this->get_default_descriptor();
+
+    desc.set_tree_count(1);
+    desc.set_error_metric_mode(error_metric_mode::out_of_bag_error_r2);
+
+    const auto train_result = this->train_base_checks(desc, data, this->get_homogen_table_id());
+
+    REQUIRE(train_result.get_oob_err_r2().has_data());
+    const double oob_r2 = dal::row_accessor<const double>(train_result.get_oob_err_r2()).pull()[0];
+    // scikit-learn's r2_score is undefined for fewer than two samples
+    REQUIRE(std::isnan(oob_r2));
+}
+
 DF_BATCH_REG_TEST("df reg oob r2 counts rows without oob predictions") {
     SKIP_IF(this->is_gpu()); // the GPU kernel does not compute the OOB R2
     SKIP_IF(this->not_available_on_device());
