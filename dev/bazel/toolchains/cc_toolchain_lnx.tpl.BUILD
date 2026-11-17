@@ -69,6 +69,7 @@ cc_toolchain(
     # The archiver and linker are host tools too; their identity joins those action keys.
     ar_files = ":%{tool_identity}",
     linker_files = ":%{tool_identity}",
+    strip_files = ":%{tool_identity}",
     supports_param_files = %{supports_param_files},
 )
 

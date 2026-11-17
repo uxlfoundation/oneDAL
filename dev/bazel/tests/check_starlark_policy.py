@@ -90,13 +90,18 @@ class _Visitor(ast.NodeVisitor):
 
 
 def _string_constants(node):
-    if isinstance(node, ast.Dict):
-        nodes = node.keys
-    elif isinstance(node, (ast.List, ast.Tuple)):
-        nodes = node.elts
-    else:
-        return []
-    return [n.value for n in nodes if isinstance(n, ast.Constant) and isinstance(n.value, str)]
+    """Every string in the value: a list, `COMMON + [...]`, `dict(...)` and `select()` branches.
+
+    A value held in a variable defined elsewhere is not followed.
+    """
+    found = []
+    for n in ast.walk(node):
+        if isinstance(n, ast.Constant) and isinstance(n.value, str):
+            found.append(n.value)
+        elif isinstance(n, ast.keyword) and n.arg:
+            # `dict(local = "1")`
+            found.append(n.arg)
+    return found
 
 
 def check(root):
@@ -128,7 +133,11 @@ def _site_exists(root, rule, rel, function):
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef) and node.name == function:
             for kw in ast.walk(node):
-                if isinstance(kw, ast.keyword) and kw.arg == rule:
+                if not isinstance(kw, ast.keyword):
+                    continue
+                if kw.arg == rule:
+                    return True
+                if kw.arg in ("execution_requirements", "tags") and rule in _string_constants(kw.value):
                     return True
     return False
 

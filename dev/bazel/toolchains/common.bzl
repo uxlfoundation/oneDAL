@@ -287,6 +287,7 @@ def write_tool_identity(repo_ctx, tool_paths, version_tools = []):
         The name of the written file.
     """
     lines = []
+    repo_root = str(repo_ctx.path(".")) + "/"
     sha256sum = None if "windows" in repo_ctx.os.name else repo_ctx.which("sha256sum")
     for tool in tool_paths:
         if not tool:
@@ -294,7 +295,10 @@ def write_tool_identity(repo_ctx, tool_paths, version_tools = []):
         path = repo_ctx.path(tool)
         if not path.exists:
             continue
-        repo_ctx.watch(path)
+        # A downloaded tool lives in this repository and is refetched with it; Bazel
+        # refuses to watch a path under the repository being fetched.
+        if not str(path).startswith(repo_root):
+            repo_ctx.watch(path)
         # No path: the downloaded gcc lives in the output base, and a path would tie
         # the action keys to it, so caches would not carry across machines.
         lines.append("tool: " + path.basename)

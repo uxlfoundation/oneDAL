@@ -99,7 +99,7 @@
   not from the toolchain). Taking the rc tool from the toolchain config, as the
   archiver is via `cc_common.get_tool_for_action`, removes the second. The
   Windows archive merge in `cc/link.bzl` now takes the toolchain's env.
-  `dev/bazel/tests/check_starlark_policy.py` (CI: `bazel-policy`) lists the two
+  `dev/bazel/tests/check_starlark_policy.py` (pre-commit hook `starlark-policy`) lists the two
   sites as exceptions and fails on a new one. Still open in the same CI policy
   step: `buildifier` as a required check (the tree is not formatted yet) and a
   stored aquery diff of `//:release` across the release matrix.
