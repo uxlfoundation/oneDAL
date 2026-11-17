@@ -508,19 +508,18 @@ release directories from its caller. Windows also
 runs `.ci/scripts/test_bazel_release_cmake_example.ps1` to verify that a CMake
 consumer can build and run against the Bazel package.
 
-Other Windows-specific helpers are `.ci/env/bazelisk.ps1`, the PowerShell
-counterpart of the Bazelisk installer, and
-`dev/bazel/toolchains/tools/dpc_link_win.ps1`, which keeps the Intel compiler
-driver in DPC++ link actions while moving large object lists to a response
-file. Each script contains detailed usage and maintenance comments.
+Other Windows-specific helper is `.ci/env/bazelisk.ps1`, the PowerShell
+counterpart of the Bazelisk installer. It contains detailed usage and
+maintenance comments.
 
 When package contents change, update the Bazel packaging rules or the common
 comparator rather than hiding differences in a platform wrapper. The same goes
 for the build itself: prefer a Bazel action to a helper script. Windows import
 libraries are declared outputs of the DLL link (`/IMPLIB:`), CRLF staging is an
-`expand_template` and a missing `icpx` is reported during analysis; the one
-script that remains is listed in `dev/bazel/TODO.md` together with what it is
-waiting on.
+`expand_template` and a missing `icpx` is reported during analysis. DPC++ links
+run `icx` directly: the objects of DLLs and executables go into one
+`<name>_objects.lib` (`/WHOLEARCHIVE`), and the version resource of a DLL is
+converted by `cvtres` into an object of that archive.
 
 ### Run oneAPI examples
 - To run all oneAPI C++ example use the following commands:

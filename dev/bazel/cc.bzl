@@ -408,6 +408,30 @@ def _compile_windows_resource(ctx, cc_toolchain, rc_file, rc_headers, defines, o
     )
     return out
 
+def _convert_resource_to_object(ctx, feature_config, res, out_name):
+    """Convert a compiled resource script to a COFF object, which joins the DLL's objects archive.
+
+    Only the x64 DPC++ link needs it: icx takes a `.res` only ahead of `/link`, and after `/link`
+    the DLL link fails with LNK2001 `_DllMainCRTStartup`. `cvtres` runs with the link action's
+    environment (the MSVC PATH captured at configure time), so it needs no inherited shell.
+    """
+    out = ctx.actions.declare_file(out_name)
+    ctx.actions.run(
+        executable = "cmd.exe",
+        inputs = [res],
+        outputs = [out],
+        arguments = ["/d", "/c", "cvtres.exe", "/nologo", "/machine:x64",
+                     "/out:" + out.path.replace("/", "\\"), res.path.replace("/", "\\")],
+        env = cc_common.get_environment_variables(
+            feature_configuration = feature_config,
+            action_name = "c++-link-dynamic-library",
+            variables = cc_common.empty_variables(),
+        ),
+        mnemonic = "WindowsResourceObject",
+        progress_message = "Converting resource script %s to an object" % res.short_path,
+    )
+    return out
+
 def _cc_dynamic_lib_impl(ctx):
     is_windows = target(ctx).is_windows
     _validate_build_parameters_lib(ctx)
@@ -434,15 +458,21 @@ def _cc_dynamic_lib_impl(ctx):
     # Make links the version resource into every Windows DLL (dll.res, makefile:586, 870, 874).
     # Only this DLL links it, so it is kept out of the returned linking context.
     res_files = []
+    res_objects = []
     if is_windows and ctx.file.rc_file:
-        res_files.append(_compile_windows_resource(
+        res = _compile_windows_resource(
             ctx,
             toolchain,
             ctx.file.rc_file,
             ctx.files.rc_headers,
             ctx.attr.rc_defines,
             rt_name + ".res",
-        ))
+        )
+        if cc_common.is_enabled(feature_configuration = feature_config, feature_name = "dpc++"):
+            res_objects.append(_convert_resource_to_object(
+                ctx, feature_config, res, rt_name + ".res.obj"))
+        else:
+            res_files.append(res)
     linking_context, dynamic_outputs = onedal_cc_link.dynamic(
         owner = ctx.label,
         name = link_name,
@@ -455,6 +485,7 @@ def _cc_dynamic_lib_impl(ctx):
                           ctx.attr.linkopts + coverage.link_flags + [res.path for res in res_files],
         is_windows = is_windows,
         additional_inputs = ctx.files.linker_scripts + res_files,
+        extra_objects = res_objects,
     )
     # On Windows `<name>.<major>.dll` and `<name>.<major>.if.lib`; the release rule renames the latter.
     default_info = DefaultInfo(
@@ -509,6 +540,7 @@ def _cc_exec_impl(ctx):
         feature_configuration = feature_config,
         linking_contexts = linking_contexts,
         user_link_flags = ctx.attr.user_link_flags + coverage.link_flags,
+        is_windows = target(ctx).is_windows,
     )
     runtime_files = _copy_windows_runtime_files(ctx, ctx.files.data)
     default_info = DefaultInfo(

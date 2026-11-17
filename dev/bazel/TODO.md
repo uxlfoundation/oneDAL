@@ -80,19 +80,6 @@
   action cache instead of reusing stale objects. Registering a downloaded
   toolchain would remove the `PATH` dependency too.
 
-- [ ] **Remove the last helper script.** `toolchains/tools/dpc_link_win.ps1`
-  and its `.tpl.bat` launcher do two things to the DPC++ link line on Windows:
-  they move the objects into a response file of their own, because the Intel
-  driver flattens every argument into one line of the response file it hands to
-  MSVC `link`, which rejects lines over 131071 characters (LNK1170); and they
-  move the `.res` file ahead of `/link`, where the driver takes it as an input.
-  DLL links no longer need the first part, since `dev/bazel/cc/link.bzl`
-  archives their objects into `<name>_objects.lib`; DPC++ executables still
-  pass their objects directly. Script-free options, all needing a Windows DPC++
-  run to validate: archive the objects of executables the same way, convert the
-  `.res` with `cvtres` into an object that joins that archive, or link through
-  `lld-link` (`-fuse-ld=lld`), which has no line limit.
-
 - [ ] **No inherited shell environment.** Two actions still run with
   `use_default_shell_env = True`: the Windows `cmd.exe` copy in `release.bzl`
   and the resource compile in `cc.bzl` (`rc.exe`/`llvm-rc` resolved from `PATH`,
