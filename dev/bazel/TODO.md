@@ -56,13 +56,15 @@
   | Windows | :heavy_check_mark: | :heavy_check_mark: |                    | :heavy_check_mark: | :heavy_check_mark: |
 
   Intel `icx`/`icpx` is preferred whenever it is on `PATH`; `CC` overrides the
-  choice. Linux Clang builds `//:release`, but no CI job selects it, so
-  regressions in that flag set are only found by hand. Windows `clang-cl` is
-  the ARM64 lane of `ci-win.yml`.
+  choice. Linux Clang builds `//:release` (`--release_dpc=false`, `--cpu=avx2`)
+  and runs the `pca` host tests in the `LinuxBazelClang` job of `ci.yml`.
+  Windows `clang-cl` is the ARM64 lane of `ci-win.yml`.
 
 - [ ] **Windows DPC++ execution.** Windows release artifacts can include the
-  DPC++ libraries, but the examples and tests that create a SYCL queue are not
-  run there yet; that needs device and runtime validation on the CI images.
+  DPC++ libraries. The nightly Windows Bazel job runs the `pca` DPC++ tests on
+  the Intel OpenCL CPU runtime (`opencl:cpu`); the other examples and tests that
+  create a SYCL queue are not run there yet and need device and runtime
+  validation on the CI images.
 
 - [ ] **Toolchain flag tables as data.** The compile action configs, the default
   compile flags and the marker features are shared by
