@@ -532,9 +532,8 @@ jobs:
           path: ${{ runner.temp }}/bazel-repo
           key: bazel-repo-linux-x64-${{ hashFiles('.bazelversion', 'MODULE.bazel', 'dev/bazel/deps/*.bzl') }}
 
-  # Linux clang is the only compiler the Bazel legs above do not build the
-  # release with: `//:release` runs here on clang 18, CPU-only, so a clang-only
-  # regression in the release flag set fails a job. The tests are one algorithm's.
+  # Builds the release with clang, which no other Bazel leg does: a clang-only
+  # regression in the release flag set fails here.
   LinuxBazelClang:
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: ubuntu-26.04

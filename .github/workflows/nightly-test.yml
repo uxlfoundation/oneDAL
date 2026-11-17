@@ -341,9 +341,8 @@ jobs:
           powershell -NoProfile -ExecutionPolicy Bypass -File .\.ci\scripts\test_bazel_release_cmake_example.ps1 ^
             -ReleaseDir .\bazel-bin\release\daal\latest
 
-      # DPC++ tests need a SYCL device; the OpenCL CPU runtime installed above
-      # provides `opencl:cpu`. Only the pca suite runs here, as a smoke test of
-      # DPC++ test execution on Windows. Examples are not run.
+      # DPC++ tests need a SYCL device: the OpenCL CPU runtime above provides
+      # `opencl:cpu`. Only the pca suite runs, as a smoke test.
       - name: Bazel DPC++ tests on SYCL CPU device
         shell: cmd
         env:
