@@ -489,7 +489,7 @@ template <typename algorithmFPType, CpuType cpu>
 services::Status sortGroup(size_t nf, size_t k, size_t nChunks, algorithmFPType * values, algorithmFPType * tmp, const algorithmFPType ** sorted,
                            size_t * nNotNaN)
 {
-    // The sort's unused payload (design 4.12) lives in tmp, which the merges only write after every chunk is sorted.
+    // The sort's unused payload lives in tmp, which the merges only write after every chunk is sorted.
     int32_t * scratch  = reinterpret_cast<int32_t *>(tmp);
     const size_t chunk = (k + nChunks - 1) / nChunks;
     TArray<size_t, cpu> runBegin(nf * nChunks);

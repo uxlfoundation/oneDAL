@@ -17,7 +17,7 @@
 
 /*
 //++
-//  Forest layer of decision forest training on the tree engine (design 4.11):
+//  Forest layer of decision forest training on the tree engine:
 //  per-tree engine streams, bootstrap, the tree engine, OOB error and
 //  variable importance.
 //--

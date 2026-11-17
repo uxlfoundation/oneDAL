@@ -17,7 +17,7 @@
 
 /*
 //++
-//  Histogram phase of the tree builder (design 4.6): per-node histograms of the
+//  Histogram phase of the tree builder: per-node histograms of the
 //  drawn features over the bin matrix, built in chunks for large nodes, and the
 //  partition pass that builds the children's histograms as it routes the rows.
 //  Included by tree_builder.i.
@@ -49,7 +49,7 @@ using services::internal::TArray;
 // Lanes of a plane row are padded to 16, so each bin's row of u32 or f64 statistics starts on a cache line.
 constexpr size_t laneAlign = 16;
 
-/// Per-bin statistics of a record layout (design 4.10): record counts u32; class weights, or the regression
+/// Per-bin statistics of a record layout: record counts u32; class weights, or the regression
 /// weight, u32 for bootstrap counts and f64 for user weights, which float sums would round (legacy moved to
 /// f64 for the same reason); the regression weighted response sum f64.
 template <typename Record>
@@ -80,7 +80,7 @@ struct Layout<RegWeightRecord<algorithmFPType> >
 };
 
 /// A regression histogram bin of one lane: records, their weight and weighted response sum. One entry per update
-/// keeps a row's updates to one cache line per lane; planes of all features overflow L1 (design 4.6).
+/// keeps a row's updates to one cache line per lane; planes of all features overflow L1.
 template <typename Stat>
 struct RegBin
 {
@@ -361,7 +361,7 @@ struct Target
 
 /**
  *  \brief Stable partition of n records into out, the nLeft rows with left(binRow) first, building each
- *  child's histograms from the bin rows the routing reads (design 4.6, fused partition)
+ *  child's histograms from the bin rows the routing reads (fused partition)
  *
  *  One chunk routes, scatters and adds in one pass. Several chunks route and add in parallel, keeping the
  *  side of each row and partial planes per chunk and child, reduced in chunk order; a second pass

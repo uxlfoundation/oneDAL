@@ -18,7 +18,7 @@
 /*
 //++
 //  Builds decision trees with the exact phase at every node: the defaultDense
-//  method (design 4.7). The forest supplies each tree's records and receives its
+//  method. The forest supplies each tree's records and receives its
 //  tables through TreeInputs.
 //--
 */
@@ -63,10 +63,10 @@ struct TreeParams
     bool randomSplitter        = false;
     bool counterDraws          = true; // philox4x32x10 node draws by counter; otherwise TreeInputs::nodeUniform
     size_t treesInFlight       = 0;
-    // hist: nodes of fewer than denseThreshold * denseBins records take the exact phase (design 4.7).
+    // hist: nodes of fewer than denseThreshold * denseBins records take the exact phase.
     double denseThreshold = 2;
     size_t maxBins        = 256;
-    // Large histogram-phase nodes run in chunks of chunkRows records, at most maxChunks (design 4.6); the forest's
+    // Large histogram-phase nodes run in chunks of chunkRows records, at most maxChunks; the forest's
     // defaults and their measurements are in EngineHyperparameters (df_hyperparameter_impl.h).
     size_t chunkRows = size_t(1) << 14;
     size_t maxChunks = 64;
@@ -78,7 +78,7 @@ struct TreeParams
     bool partitionStats = true;
 };
 
-/// Bins per feature that denseThreshold multiplies (design 4.7). With exact bins on every non-constant feature a
+/// Bins per feature that denseThreshold multiplies. With exact bins on every non-constant feature a
 /// histogram split is the exact split, so only cost decides: their mean bin count, NaN bin included. Else maxBins.
 template <CpuType cpu>
 inline double denseBins(const BinMatrix<cpu> & bins, size_t maxBins)
@@ -107,7 +107,7 @@ struct TreeData
     size_t nFeatures                                       = 0;
 };
 
-/// The tables of one tree in the serialized DecisionTreeTable format (design 4.14).
+/// The tables of one tree in the serialized DecisionTreeTable format.
 struct EmittedTree
 {
     dtrees::internal::DecisionTreeTablePtr nodes;

@@ -53,8 +53,8 @@ namespace internal
 {
 using services::internal::TArray;
 
-// Nodes with at least this many records sort with parallel_sort (design 4.7: root-level sorts of
-// defaultDense on large n). Initial value; the exact-phase benchmark tunes it.
+// Nodes with at least this many records sort with parallel_sort, as the root-level sorts of defaultDense
+// on large n do. Initial value; the exact-phase benchmark tunes it.
 constexpr size_t parallelSortRecords = size_t(1) << 17;
 
 static_assert(sizeof(TreeNode) == 56, "TreeNode layout");
@@ -175,7 +175,7 @@ inline void setBit(uint64_t * bits, size_t i)
     bits[i >> 6] |= uint64_t(1) << (i & 63);
 }
 
-/// What a node passes to its children (design 4.6): its constant features, and the histograms of the
+/// What a node passes to its children: its constant features, and the histograms of the
 /// child's first draws that the parent's fused partition built.
 template <typename Record, CpuType cpu>
 struct NodeCarry
@@ -404,7 +404,7 @@ public:
         services::Status s;
         if (_params.counterDraws)
         {
-            // An exact phase after an all-constant histogram phase restarts the feature draws (design 4.6).
+            // An exact phase after an all-constant histogram phase restarts the feature draws.
             CounterNodeDraws<cpu> features(ctx.rng, item.key);
             CounterNodeDraws<cpu> restart(ctx.rng, item.key);
             CounterNodeDraws<cpu> splits(ctx.rng, item.key, nodeThresholdWords);
@@ -813,7 +813,7 @@ private:
     }
 
     /// The histogram phase on hist nodes, the exact phase on the others and on hist nodes whose drawn
-    /// features are all constant by bins (design 4.6, 4.7).
+    /// features are all constant by bins.
     template <typename FeatureDraws, typename SplitDraws>
     Candidate searchNode(TreeContext & ctx, NodeCarry<Record, cpu> * carry, const Record * records, size_t n, bool histNode, size_t nChunks,
                          Scratch & scratch, Cost & cost, FeatureDraws & features, FeatureDraws & restart, SplitDraws & splits,
@@ -838,7 +838,7 @@ private:
         return exactSearch(ctx, carry, records, n, scratch, cost, histNode ? restart : features, splits, status);
     }
 
-    /// The best split over the node's first k non-constant features in draw order (design 4.6, 4.13).
+    /// The best split over the node's first k non-constant features in draw order.
     /// Features on the by-value constant list are skipped as the search would find them constant.
     template <typename FeatureDraws, typename SplitDraws>
     Candidate exactSearch(TreeContext & ctx, NodeCarry<Record, cpu> * carry, const Record * records, size_t n, Scratch & scratch, Cost & cost,
@@ -868,7 +868,7 @@ private:
 
     /// The histogram phase's search: each pass draws the features still needed for k non-constant ones
     /// and histograms them together; lanes constant by bins, and features on the node's list, do not
-    /// count toward k (design 4.6). The first pass uses the histograms the parent built, if any.
+    /// count toward k. The first pass uses the histograms the parent built, if any.
     template <typename FeatureDraws, typename SplitDraws>
     Candidate histSearch(TreeContext & ctx, NodeCarry<Record, cpu> * carry, const Record * records, size_t n, size_t nChunks, Scratch & scratch,
                          Cost & cost, FeatureDraws & features, SplitDraws & splits, bool & allConstant, services::Status & status) const
@@ -923,7 +923,7 @@ private:
         return best;
     }
 
-    /// The split of one lane from its histogram (design 4.4). The missing bin goes left on ordered features
+    /// The split of one lane from its histogram. The missing bin goes left on ordered features
     /// and right on categorical ones, as NaN in the exact phase. A lane with at most one nonempty data bin
     /// is constant. Only the random draws need the nonempty bins before the scan; the best split counts them in it.
     template <typename SplitDraws>
@@ -1014,7 +1014,7 @@ private:
         if (_params.randomSplitter)
         {
             // Uniform in [upper border of the first nonempty bin, that of the last); the split goes after the
-            // last bin whose border is <= the draw, so both sides are nonempty (defect 1).
+            // last bin whose border is <= the draw, so both sides are nonempty.
             // Borders ascend, so only border[first] can be -inf and only border[last] +inf.
             const double lo      = border[first];
             const double hi      = border[last];
@@ -1073,7 +1073,7 @@ private:
 
         if (_params.randomSplitter && !categorical)
         {
-            // One threshold uniform in [min, max) of the node's values; no sort (design 4.4).
+            // One threshold uniform in [min, max) of the node's values; no sort.
             bool any = false, anyFinite = false;
             double lo = 0, hi = 0, flo = 0, fhi = 0;
             for (size_t i = 0; i < n; ++i)
@@ -1134,7 +1134,7 @@ private:
         if (categorical)
         {
             // One category against the rest; NaN rows are in the rest. The random splitter takes one
-            // category uniformly among those present (design 4.4, defects 6 and 7).
+            // category uniformly among those present.
             size_t nRuns = 1;
             for (size_t i = 1; i < m; ++i) nRuns += values[i] != values[i - 1];
             const size_t chosen = _params.randomSplitter ? size_t(draws.below(uint32_t(nRuns))) : nRuns;

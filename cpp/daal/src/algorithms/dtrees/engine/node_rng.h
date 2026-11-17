@@ -18,7 +18,7 @@
 /*
 //++
 //  Draws addressed by node identity rather than by consumption order, so they do
-//  not depend on which thread takes them or when (design 4.13).
+//  not depend on which thread takes them or when.
 //--
 */
 
@@ -74,7 +74,7 @@ constexpr size_t philoxBlockWords = 4;
  *  \brief philox4x32x10 words addressed by (stream id, position), for one 64-bit key
  *
  *  A node's draws are a function of (treeSeed, nodeKey, index) only, so a forest trained with
- *  philox4x32x10 is bit-identical for any thread count and schedule (design 4.13).
+ *  philox4x32x10 is bit-identical for any thread count and schedule.
  *
  *  Word w of stream s is output s * 2^66 + w of the sequence keyed by key: its counter holds w / 4 in
  *  the low 64 bits and s in the high 64 bits. Stream ids are 64-bit node keys, hashes that stay rare to
@@ -82,7 +82,7 @@ constexpr size_t philoxBlockWords = 4;
  *  stream 0 is the output of engines::philox4x32x10::Batch(seed).
  *
  *  Draws go through service_rng so that MKL and OpenRNG maintain the generator. A read costs about 5x a
- *  direct philox round function, mostly the generate call (design 4.13). Each read copies the keyed base
+ *  direct philox round function, mostly the generate call. Each read copies the keyed base
  *  state into the calling thread's own stream and skips there, so concurrent reads share nothing
  *  mutable. Backends that cannot skip past 2^64 (the reference backend, whose philox4x32x10 is not
  *  philox) fail init with ErrorMethodNotSupported.
@@ -179,7 +179,7 @@ inline uint32_t boundedWord(uint32_t range, NextWord && next)
 }
 
 // Words read per CounterRng call for one node: a feature subset of sqrt(p) features and its random
-// thresholds usually fit, and the read cost is mostly per call (design 4.13).
+// thresholds usually fit, and the read cost is mostly per call.
 constexpr size_t nodeDrawBlock = 16;
 
 // A node's feature draws use words [0, 2^62) of its stream and its splitter draws (random thresholds and
@@ -289,7 +289,7 @@ constexpr size_t densePermutationDrawShare = 8;
  *  \brief The features of a node in draw order: a Fisher-Yates permutation of [0, p) drawn one element at a time
  *
  *  Draw j is uniform over the p - j features not yet drawn, so the first k draws are a uniform
- *  k-subset in a uniform order (design 4.13).
+ *  k-subset in a uniform order.
  */
 template <CpuType cpu>
 class FeaturePermutation

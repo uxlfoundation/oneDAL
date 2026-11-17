@@ -54,10 +54,9 @@ using daal::internal::CpuType;
  *  \brief Uninitialized array for large per-fit and per-tree buffers
  *
  *  Elements are not constructed, so the pages are first touched by the code that fills them. The scalable
- *  allocator keeps freed blocks, so a fit does not fault in again the pages of the fit before; with malloc
- *  a short wide fit on 224 threads spent two thirds of its time in those faults. Buffers are not advised
- *  for transparent huge pages: on a host with defrag=madvise and fragmented memory that made binning Higgs
- *  3-4x slower (synchronous compaction on every fault).
+ *  allocator keeps freed blocks, so a fit reuses the pages of the fit before instead of faulting them in
+ *  again from every thread. Buffers are not advised for transparent huge pages: with defrag=madvise and
+ *  fragmented memory, every fault waits on synchronous compaction, which made binning 3-4x slower.
  */
 template <typename T, CpuType cpu>
 using LargeArray = services::internal::TArrayScalable<T, cpu, services::internal::DoNotConstruct<T, cpu> >;
@@ -166,7 +165,7 @@ inline size_t passBlockRows(size_t nRows, size_t nThreads, size_t tasksPerBlock,
 }
 
 /**
- *  \brief Row-major x in algorithmFPType (design 4.9)
+ *  \brief Row-major x in algorithmFPType
  *
  *  A homogen table of algorithmFPType, already row-major, is borrowed; its pages stay where the caller placed them.
  *  Other tables are copied through ReadRows blocks.

@@ -82,7 +82,7 @@ inline bool isPhilox(const engines::EnginePtr & e)
 }
 
 /**
- *  \brief Engine streams of a fit (design 4.13)
+ *  \brief Engine streams of a fit
  *
  *  One stream per tree, of treeBudget draws (two for the seed, the bootstrap, the MDA permutations), then, for
  *  node draws not addressed by counter, one node stream that every thread reads in batches (fillNodeDraws). The
@@ -623,7 +623,7 @@ services::Status trainForest(const data_management::NumericTable & x, const data
     DAAL_CHECK_MALLOC(categorical.get());
     for (size_t f = 0; f < p; ++f) categorical[f] = x.getFeatureType(f) == data_management::features::DAAL_CATEGORICAL;
 
-    // The binning sample reads the engine first; the streams are derived from it as the sample left it (4.13).
+    // The binning sample reads the engine first; the streams are derived from it as the sample left it.
     engines::EnginePtr base = par.engine->clone();
     auto baseImpl           = dynamic_cast<engines::internal::BatchBaseImpl *>(base.get());
     DAAL_CHECK(baseImpl, services::ErrorEngineNotSupported);
@@ -705,7 +705,7 @@ services::Status trainForest(const data_management::NumericTable & x, const data
     if (predictions || mda) DAAL_CHECK_MALLOC(oobBits.reset(nTrees * words));
     if (mdi && res.varImportance) DAAL_CHECK_MALLOC(mdiPerTree.reset(nTrees * p));
 
-    // The tree engine, by record layout (design 4.10).
+    // The tree engine, by record layout.
     if (nClasses)
     {
         if (src.weighted())

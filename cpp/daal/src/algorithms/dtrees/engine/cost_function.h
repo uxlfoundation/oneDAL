@@ -18,7 +18,7 @@
 /*
 //++
 //  Split cost functions of the tree engine: Gini for classification, MSE for
-//  regression (design 4.3).
+//  regression.
 //
 //  Both score a split by a proxy P = sum over children of (child statistic)^2 / child weight
 //  (Gini: per-class weights; MSE: weighted response sums). With the parent's proxy P0, the
@@ -302,7 +302,7 @@ struct IsClassRecord<ClsWeightRecord<algorithmFPType> > : std::true_type
 {};
 
 /**
- *  \brief A node's parent-pass sums, taken by the partition that makes the node (design 4.6)
+ *  \brief A node's parent-pass sums, taken by the partition that makes the node
  *
  *  add() sums each record as GiniCost / MseCost::addParent does, in the node's record order, so one partition
  *  chunk gives what the node's own pass would; chunks merge in chunk order. Regression sums are of y less center,

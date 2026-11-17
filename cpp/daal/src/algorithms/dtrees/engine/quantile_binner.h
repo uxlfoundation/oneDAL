@@ -18,7 +18,7 @@
 /*
 //++
 //  Bins the training table once per fit: borders from a sorted uniform row
-//  sample, then every row assigned to its bins (design 4.1).
+//  sample, then every row assigned to its bins.
 //--
 */
 
@@ -55,8 +55,7 @@ constexpr size_t binSampleScratchBytes = size_t(1) << 30;
 
 /// Features sorted together: at most one per thread, as each thread sorts a whole feature once a group has
 /// nThreads of them, and at most what binSampleScratchBytes holds. Larger groups gain no parallelism and only
-/// touch more scratch, whose pages every fit faults in anew (a quarter of an MNIST fit with all 784 features in
-/// one group).
+/// touch more scratch.
 template <CpuType cpu>
 inline size_t binGroupFeatures(size_t sampleRows, size_t bytesPerValue, size_t nThreads)
 {

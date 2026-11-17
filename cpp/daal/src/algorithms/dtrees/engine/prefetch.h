@@ -53,7 +53,7 @@ constexpr size_t defaultPrefetchLines()
     return 10;
 }
 
-/// How far ahead a pass over rows prefetches (design 4.5), in lines rather than rows, so wide rows do not put more
+/// How far ahead a pass over rows prefetches, in lines rather than rows, so wide rows do not put more
 /// lines in flight than the fill buffers hold.
 template <CpuType cpu>
 struct PrefetchBudget

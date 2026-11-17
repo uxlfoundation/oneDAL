@@ -58,7 +58,7 @@ inline services::Status checkRowCount(size_t nRows)
     return nRows > maxTrainingRows ? services::Status(services::ErrorIncorrectNumberOfObservations) : services::Status();
 }
 
-// Record layouts (design 4.2). No field is narrower than in the legacy code; counts are exact.
+// Record layouts. No field is narrower than in the legacy code; counts are exact.
 struct ClsCountRecord
 {
     uint32_t row;

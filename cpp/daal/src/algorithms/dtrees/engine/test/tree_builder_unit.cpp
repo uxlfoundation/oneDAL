@@ -488,7 +488,7 @@ TEST("every in-bag row reaches a leaf that matches its rows, with bootstrap and 
     }
 }
 
-// Identity across CpuTypes is not required (design 4.13): FMA contraction in the AVX-512 objects
+// Identity across CpuTypes is not required: FMA contraction in the AVX-512 objects
 // rounds sums differently. Each CpuType is checked against its own single-thread trees.
 TEST("trees do not depend on threads or trees in flight", "[unit]")
 {
@@ -662,7 +662,7 @@ TEST("random thresholds on features with infinite values are finite and route as
         }
 }
 
-TEST("the random categorical split takes each category present with equal chance (defect 7)", "[unit]")
+TEST("the random categorical split takes each category present with equal chance", "[unit]")
 {
     SKIP_IF(!counterDrawsSupported());
     Dataset d;
@@ -690,7 +690,7 @@ TEST("the random categorical split takes each category present with equal chance
     REQUIRE(chiSquare(hits) < chiSquare2Dof999);
 }
 
-TEST("the best categorical split equals brute force when one category dominates (defect 6)", "[unit]")
+TEST("the best categorical split equals brute force when one category dominates", "[unit]")
 {
     SKIP_IF(!counterDrawsSupported());
     // Category 0 holds 90% of the rows with mixed labels; small categories 1..5 are pure. The best
@@ -812,7 +812,7 @@ TEST("other engines draw nodes from the inputs' stream", "[unit]")
         requireSameTables(a[i], b[i]); // one thread: the stream order is fixed
     }
 }
-// --- Histogram phase (design 4.6) ---
+// --- Histogram phase ---
 
 /// Integer features in [0, D), one categorical, NaN in feature 1; integer responses, so every bin and
 /// row statistic is exact and the histogram and exact phases score candidates identically.
@@ -1127,7 +1127,7 @@ TEST("a histogram node with every drawn feature constant by bins takes the exact
     REQUIRE(depthOf(t) == 3);
 }
 
-TEST("the random splitter on bins takes each border uniformly and never leaves a side empty (defect 1)", "[unit]")
+TEST("the random splitter on bins takes each border uniformly and never leaves a side empty", "[unit]")
 {
     SKIP_IF(!counterDrawsSupported());
     // Values 0..8, one bin each: the draw is uniform in [0, 8) and the split goes after bin floor(t).

@@ -18,7 +18,7 @@
 /*
 //++
 //  The working tree of one tree build: nodes in a pool that node tasks append
-//  to concurrently (design 4.14).
+//  to concurrently.
 //--
 */
 
