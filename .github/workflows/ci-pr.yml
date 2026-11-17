@@ -16,8 +16,8 @@
 
 name: PR CI
 
-# LinuxBazelNoCompiler gates the test workflows, so a change that does not build holds no other
-# runners. Pushes to main start ci.yml, ci-win.yml and ci-aarch64.yml directly.
+# LinuxBazelNoCompiler and the format check gate the test workflows, so a change that does not
+# build or is not formatted holds no other runner. Pushes to main start the workflows directly.
 
 on:
   pull_request:
@@ -68,21 +68,36 @@ jobs:
     with:
       part: gate
 
+  # Same hooks as Azure FormatterChecks; on GitHub a formatting error stopped nothing before.
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: pre-commit checks
+        run: |
+          python3 -m pip install --quiet pre-commit
+          python3 -m pre_commit run --all-files --show-diff-on-failure
+
   linux:
     name: Linux
-    needs: gate
+    needs: [gate, format]
     uses: ./.github/workflows/ci.yml
     with:
       part: tests
 
   windows:
     name: Windows
-    needs: gate
+    needs: [gate, format]
     uses: ./.github/workflows/ci-win.yml
 
   aarch64:
     name: AArch64
-    needs: gate
+    needs: [gate, format]
     # A called workflow may not ask for more than its caller grants.
     permissions: read-all
     uses: ./.github/workflows/ci-aarch64.yml
