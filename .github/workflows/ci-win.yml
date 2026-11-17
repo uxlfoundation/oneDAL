@@ -57,6 +57,8 @@ on:
       - main
       - 'feature/**'
       - 'rls/*'
+  # TEMP(runner shortage): run by hand on a branch while the jobs are skipped on pull requests.
+  workflow_dispatch:
   
 permissions:
   contents: read
@@ -66,7 +68,7 @@ env:
   TBB_VERSION: v2023.2.0
   OPENBLAS_VERSION: v0.3.34
   LLVM_VERSION: 22.1.8
-  CMAKE_VERSION: 4.4.5
+  CMAKE_VERSION: 4.5.0
   NINJA_VERSION: 1.13.2
 
 # A PR push cancels the older run of that PR. A push to main waits behind the
@@ -77,10 +79,9 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # Drafts skip `build-and-test`, `bazel-msvc` and `make-msvc` until marked ready;
-  # `bazel-build` runs on drafts too, as before #3989.
   build-and-test:
-    if: '!github.event.pull_request.draft'
+    # TEMP(runner shortage): not on pull requests.
+    if: github.event_name != 'pull_request'
     strategy:
       fail-fast: false
       matrix:
@@ -221,7 +222,8 @@ jobs:
 
   bazel-build:
     name: WindowsBazel_OpenBLAS(SVE)-GitHub hosted
-    if: github.repository == 'uxlfoundation/oneDAL'
+    # TEMP(runner shortage): not on pull requests.
+    if: github.repository == 'uxlfoundation/oneDAL' && github.event_name != 'pull_request'
     runs-on: windows-11-vs2026-arm
     timeout-minutes: 180
     # Part of the OpenBLAS cache key, as in `build-and-test`.
@@ -248,14 +250,14 @@ jobs:
         shell: pwsh
         run: .\.ci\env\bazelisk.ps1
 
-      # ~/.bazelrc is read from %USERPROFILE%; forward slashes, since the rc parser does not split on
-      # backslashes. The fingerprint covers clang-cl; `action_env=PATH` already keys the image PATH.
+      # Forward slashes: the rc parser does not split on backslashes. The fingerprint covers clang-cl;
+      # `action_env=PATH` already keys the image PATH.
       - name: Configure the Bazel disk cache
         id: bazel-disk
         shell: pwsh
         run: |
           $cache = "${{ runner.temp }}".Replace('\', '/') + '/bazel-disk'
-          Add-Content -Path "$HOME/.bazelrc" -Value "build --disk_cache=$cache --experimental_disk_cache_gc_max_size=2G --experimental_disk_cache_gc_idle_delay=0s"
+          Add-Content -Path "user.bazelrc" -Value "build --disk_cache=$cache --experimental_disk_cache_gc_max_size=2G --config=ci"
           $repo = "${{ runner.temp }}".Replace('\', '/') + '/bazel-repo'
           Add-Content -Path "$HOME/.bazelrc" -Value "common --repository_cache=$repo"
           $versions = (& "$env:ProgramFiles\LLVM\bin\clang-cl.exe" --version) -join "`n"
@@ -347,7 +349,7 @@ jobs:
           rem `mathbackend_thread`, so it is listed explicitly: without it the
           rem lane would not exercise the new Windows OpenBLAS static archive
           rem at all.
-          bazel build --platforms=@config//:windows_arm64 --backend_config=ref ^
+          bazel build --platforms=@config//:windows_arm64 ^
             //cpp/daal:core_dynamic //cpp/daal:thread_dynamic //cpp/oneapi/dal:dynamic
 
       # A successful link is not proof of the target arch: confirm the PE
@@ -395,8 +397,8 @@ jobs:
         run: |
           CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" arm64
           set PATH=%PATH%;C:\msys64\usr\bin
-          bazel test --platforms=@config//:windows_arm64 --backend_config=ref ^
-            --test_link_mode=dev --enable_runfiles --test_output=errors ^
+          bazel test --platforms=@config//:windows_arm64 ^
+            --enable_runfiles ^
             //examples/oneapi/cpp:kmeans_lloyd_dense_batch_host
 
       - name: Trim the Bazel disk cache
@@ -443,7 +445,8 @@ jobs:
   # dev/bazel/toolchains/cc_toolchain_win.bzl). MKL and TBB come from the
   # `@mkl`/`@tbb` downloads, so the stock runner needs no Intel compiler.
   bazel-msvc:
-    if: '!github.event.pull_request.draft'
+    # TEMP(runner shortage): not on pull requests.
+    if: github.event_name != 'pull_request'
     name: WindowsBazel_MKL(AVX2)-MSVC-GitHub hosted
     runs-on: windows-2025
     timeout-minutes: 120
@@ -484,13 +487,14 @@ jobs:
           if errorlevel 1 exit /b 1
           rem A short output root keeps object paths under MAX_PATH, as in the
           rem Azure Bazel lane (.ci/pipeline/ci.yml, BAZEL_OUTPUT_USER_ROOT).
-          bazel --output_user_root=C:\b test --cpu=avx2 --test_link_mode=dev --enable_runfiles --test_output=errors ^
+          bazel --output_user_root=C:\b test --cpu=avx2 --enable_runfiles --test_output=errors ^
             //examples/oneapi/cpp:kmeans_lloyd_dense_batch_host
 
   # GitHub Actions twin of Azure's `WindowsMakeVC`. `VS_VER` stays unset, so build.bat and
   # test.bat take the Visual Studio that the toolkit's setvars-vcvarsall.bat finds.
   make-msvc:
-    if: '!github.event.pull_request.draft'
+    # TEMP(runner shortage): not on pull requests.
+    if: github.event_name != 'pull_request'
     name: WindowsMakeVC_MKL(AVX2)-GitHub hosted
     runs-on: windows-2025
     timeout-minutes: 180

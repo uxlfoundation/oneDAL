@@ -20,6 +20,9 @@ The one place to bump them. `makefile.ver` carries the same values for the
 Make build until it is removed.
 """
 
+# Unstamped builds carry this date; `--build_date=YYYYMMDD` sets the real one.
+DEV_BUILD_DATE = "21990101"
+
 VERSION = struct(
     major = "2026",
     minor = "3",

@@ -33,6 +33,7 @@ load(
     "TEST_CPP_FILE",
     "add_compiler_option_if_supported",
     "add_linker_option_if_supported",
+    "find_tool",
     "get_cpu_specific_options",
     "get_cross_tool_prefix",
     "get_cxx_inc_directories",
@@ -40,53 +41,26 @@ load(
     "get_no_canonical_prefixes_opt",
     "get_starlark_list_dict",
     "get_toolchain_identifier",
-    "get_tmp_dpcpp_inc_directories",
 )
-
-def _find_tool(repo_ctx, tool_name, mandatory = False):
-    if tool_name.startswith("/"):
-        tool_path = repo_ctx.path(tool_name) if repo_ctx.path(tool_name).exists else None
-    else:
-        tool_path = repo_ctx.which(tool_name)
-    is_found = tool_path != None
-    if not is_found:
-        if mandatory:
-            auto_configure_fail("Cannot find {}; try to correct your $PATH".format(tool_name))
-        else:
-            repo_ctx.template(
-                "tool_not_found.sh",
-                Label("@onedal//dev/bazel/toolchains/tools:tool_not_found.tpl.sh"),
-                {"%{tool_name}": tool_name},
-            )
-            tool_path = repo_ctx.path("tool_not_found.sh")
-    return str(tool_path), is_found
-
-def find_tool(repo_ctx, tool_name, mandatory = False):
-    return _find_tool(repo_ctx, tool_name, mandatory)
 
 def _find_tools(repo_ctx, reqs):
     # TODO: Use full compiler path from reqs
-    # A cross-toolchain triple prefix (e.g. `aarch64-linux-gnu-`) applies to
-    # binutils (`ar`, `strip`) as well as the compiler itself; without it,
-    # cross-compiling with CC=aarch64-linux-gnu-gcc would silently pick up
-    # the exec host's native `ar`/`strip`, producing wrong-arch archives.
+    # The cross triple prefix applies to ar and strip too, or a cross build gets the host's.
     if reqs.downloaded_tools:
         ar_path = reqs.downloaded_tools.ar
         cc_path = reqs.downloaded_tools.cc
         strip_path = reqs.downloaded_tools.strip
     else:
         cross_prefix = get_cross_tool_prefix(repo_ctx)
-        ar_path, _ = _find_tool(repo_ctx, cross_prefix + "ar", mandatory = True)
+        ar_path, _ = find_tool(repo_ctx, cross_prefix + "ar", mandatory = True)
         # Use CC as given so that a versioned name (gcc-14, clang-19) or a full
         # path selects that exact compiler.
         cc_name = repo_ctx.os.environ.get("CC") or (cross_prefix + reqs.compiler_id)
-        cc_path, _ = _find_tool(repo_ctx, cc_name, mandatory = True)
-        strip_path, _ = _find_tool(repo_ctx, cross_prefix + "strip", mandatory = True)
-    dpcc_path, dpcpp_found = _find_tool(repo_ctx, reqs.dpc_compiler_id, mandatory = False)
+        cc_path, _ = find_tool(repo_ctx, cc_name, mandatory = True)
+        strip_path, _ = find_tool(repo_ctx, cross_prefix + "strip", mandatory = True)
+    dpcc_path, dpcpp_found = find_tool(repo_ctx, reqs.dpc_compiler_id, mandatory = False)
     if dpcpp_found:
-        # The llvm-ar tool is used because Bazel prepends directory names with +,
-        # which caused issues with GNU ar on RHEL. Derive it from the DPC++
-        # compiler, not from the unrelated host C/C++ compiler.
+        # GNU ar on RHEL mishandles the `+` Bazel puts in directory names.
         ar_path = paths.join(paths.dirname(dpcc_path), "compiler", "llvm-ar")
         if not repo_ctx.path(ar_path).exists:
             auto_configure_fail("Cannot find DPC++ archiver at {}".format(ar_path))
@@ -97,15 +71,30 @@ def _find_tools(repo_ctx, reqs):
         strip = strip_path,
         ar = ar_path,
         is_dpc_found = dpcpp_found,
-        dpc_compiler_version = reqs.dpc_compiler_version
     )
 
-def _preapre_builtin_include_directory_paths(repo_ctx, tools):
-    required_tmp_includes = get_tmp_dpcpp_inc_directories(repo_ctx, tools) if tools.is_dpc_found else []
+def _prepare_builtin_include_directory_paths(repo_ctx, tools, cc_probe, dpcc_probe):
+    dpcc_include_directories = (
+        get_cxx_inc_directories(
+            repo_ctx,
+            tools.dpcc,
+            "-xc++",
+            dpcc_probe.gcc_toolchain,
+        ) +
+        get_cxx_inc_directories(
+            repo_ctx,
+            tools.dpcc,
+            "-xc++",
+            dpcc_probe.no_canonical + dpcc_probe.gcc_toolchain + _add_sycl_linkage(repo_ctx, tools.dpcc),
+        ) +
+        # icpx includes the integration header it generates under /tmp, which Bazel
+        # then requires to be a builtin include directory.
+        ["/tmp"]
+    ) if tools.is_dpc_found else []
 
     # Probe with the flags the compile actions pass: --gcc-toolchain can select another libstdc++.
-    cc_flags = _add_gcc_toolchain_if_needed(repo_ctx, tools.cc)
-    cc_no_canonical_flags = cc_flags + get_no_canonical_prefixes_opt(repo_ctx, tools.cc)
+    cc_flags = cc_probe.gcc_toolchain
+    cc_no_canonical_flags = cc_flags + cc_probe.no_canonical
 
     # As in rules_cc, the libc++ headers are builtin too, so a -stdlib=libc++ build works.
     libcxx_flags = add_compiler_option_if_supported(repo_ctx, tools.cc, "-stdlib=libc++")
@@ -118,21 +107,7 @@ def _preapre_builtin_include_directory_paths(repo_ctx, tools):
             get_cxx_inc_directories(repo_ctx, tools.cc, "-xc++", cc_flags + libcxx_flags) +
             get_cxx_inc_directories(repo_ctx, tools.cc, "-xc++", cc_no_canonical_flags + libcxx_flags) if libcxx_flags else []
         ) +
-        get_cxx_inc_directories(
-            repo_ctx,
-            tools.dpcc,
-            "-xc++",
-            _add_gcc_toolchain_if_needed(repo_ctx, tools.dpcc),
-        ) +
-        get_cxx_inc_directories(
-            repo_ctx,
-            tools.dpcc,
-            "-xc++",
-            get_no_canonical_prefixes_opt(repo_ctx, tools.dpcc) +
-            _add_gcc_toolchain_if_needed(repo_ctx, tools.dpcc) +
-            _add_sycl_linkage(repo_ctx, tools.dpcc) if tools.is_dpc_found else [],
-        ) +
-        required_tmp_includes,
+        dpcc_include_directories,
     )
     write_builtin_include_directory_paths(repo_ctx, tools.cc, builtin_include_directories)
     return builtin_include_directories
@@ -140,10 +115,8 @@ def _preapre_builtin_include_directory_paths(repo_ctx, tools):
 def _get_bin_search_flag(repo_ctx, cc_path):
     cc_path = repo_ctx.path(cc_path)
     if not str(cc_path).startswith(str(repo_ctx.path(".")) + "/"):
-        # cc is outside the repository, set -B
         bin_search_flag = ["-B" + str(cc_path.dirname)]
     else:
-        # cc is inside the repository, don't set -B.
         bin_search_flag = []
     return bin_search_flag
 
@@ -175,40 +148,51 @@ def _add_sycl_linkage(repo_ctx, cc):
         return []
 
 def _add_new_offload_driver_link(repo_ctx, dpcc):
-    # Probe --offload-compress with a shared link, as Make's dpcpp.mk:84-92 does.
-    # A compile-only probe misses an icpx 2025.3 link failure; the probe runs in a fresh temp dir.
-    tmp = repo_ctx.execute(["mktemp", "-d"])
-    if tmp.return_code != 0:
-        return []
-    tmp_dir = tmp.stdout.strip()
+    # Probe --offload-compress with a shared link, as Make's dpcpp.mk does: a compile-only
+    # probe misses an icpx 2025.3 link failure. The probe gets a scratch dir of its own.
+    scratch_dir = repo_ctx.path("offload_probe")
+    repo_ctx.file("offload_probe/.keep", "")
     result = repo_ctx.execute([
         dpcc, "-fsycl", "--offload-new-driver", "--offload-compress",
         "-shared", "-fPIC", str(repo_ctx.path(TEST_CPP_FILE)),
-        "-o", tmp_dir + "/probe.so",
-    ], environment = {"TMPDIR": tmp_dir})
-    repo_ctx.execute(["rm", "-rf", "--", tmp_dir])
+        "-o", str(scratch_dir.get_child("probe.so")),
+    ], environment = {"TMPDIR": str(scratch_dir)})
+    repo_ctx.delete(scratch_dir)
     if result.return_code != 0:
         return []
     flags = ["--offload-new-driver"]
 
-    # The legacy driver embeds -ftarget-register-alloc-mode=pvc:<opt> in the
-    # device image, so the PVC-only JIT option is applied to PVC devices alone.
-    # The new driver embeds no GRF option on its own, so pass it in that same
-    # form. A bare -ze-intel-enable-auto-large-GRF-mode for every device breaks
-    # the CPU OpenCL JIT ("Unrecognized build options").
+    # The GRF option the legacy driver embeds, for PVC only: on every device it breaks the
+    # CPU OpenCL JIT ("Unrecognized build options").
     return flags + [
         "-Xsycl-target-backend=spir64",
         "-ftarget-register-alloc-mode=pvc:-ze-intel-enable-auto-large-GRF-mode",
     ]
 
+def _secure_link_flags(repo_ctx, driver):
+    # Make's secure.opts.link.lnx; some linkers still default to a writable and executable stack.
+    # -pass-exit-codes has gcc return the exit code from ld.
+    return (
+        add_linker_option_if_supported(repo_ctx, driver, "-Wl,--as-needed", "--as-needed") +
+        add_linker_option_if_supported(repo_ctx, driver, "-Wl,-z,relro,-z,now", "-z") +
+        add_linker_option_if_supported(repo_ctx, driver, "-Wl,-z,noexecstack", "-z") +
+        add_compiler_option_if_supported(repo_ctx, driver, "-pass-exit-codes")
+    )
+
+def _probe_driver(repo_ctx, driver):
+    """Flags probed once per compiler driver and shared by its compile, link and include setup."""
+    return struct(
+        gcc_toolchain = _add_gcc_toolchain_if_needed(repo_ctx, driver),
+        no_canonical = get_no_canonical_prefixes_opt(repo_ctx, driver),
+        secure_link = _secure_link_flags(repo_ctx, driver),
+    )
+
 def configure_cc_toolchain_lnx(repo_ctx, reqs):
     if reqs.os_id != "lnx":
         auto_configure_fail("Cannot configure Linux toolchain for '{}'".format(reqs.os_id))
 
-    # Write empty C++ file to test compiler options
     repo_ctx.file(TEST_CPP_FILE, "int main() { return 0; }")
 
-    # Default compilations/link options
     cxx_opts = []
     link_opts = []
     # -lpthread -ldl stay outside --as-needed, as in Make (lnx32e.mk, deps.mkl.mk).
@@ -222,16 +206,15 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
         "-Wl,--as-needed",
     ]
 
-    # Paths to tools/compiler includes
     tools = _find_tools(repo_ctx, reqs)
-    builtin_include_directories = _preapre_builtin_include_directory_paths(repo_ctx, tools)
+    cc_probe = _probe_driver(repo_ctx, tools.cc)
+    dpcc_probe = _probe_driver(repo_ctx, tools.dpcc) if tools.is_dpc_found else None
+    builtin_include_directories = _prepare_builtin_include_directory_paths(repo_ctx, tools, cc_probe, dpcc_probe)
 
-    # Addition compile/link flags. Do not inject the host compiler directory
-    # with -B for a GNU cross compiler: /usr/bin contains the host `ld`, which
-    # overrides GCC's configured target linker (for example riscv64-linux-gnu-ld).
+    # No -B for a GNU cross compiler: /usr/bin holds the host `ld`, which would override its own.
     cross_compiling = get_cross_tool_prefix(repo_ctx) != ""
     bin_search_flag_cc = [] if cross_compiling else _get_bin_search_flag(repo_ctx, tools.cc)
-    bin_search_flag_dpcc = [] if cross_compiling else _get_bin_search_flag(repo_ctx, tools.dpcc)
+    bin_search_flag_dpcc = [] if cross_compiling or not tools.is_dpc_found else _get_bin_search_flag(repo_ctx, tools.dpcc)
 
     # DPC++ kernel code split option
     dpcc_code_split = "per_kernel"
@@ -240,7 +223,6 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
         "BUILD",
         Label("@onedal//dev/bazel/toolchains:cc_toolchain_lnx.tpl.BUILD"),
         {
-            # Various IDs
             "%{cc_toolchain_identifier}": get_toolchain_identifier(reqs),
             "%{compiler}": reqs.compiler_id + "-" + reqs.compiler_version,
             "%{abi_version}": reqs.compiler_abi_version,
@@ -256,14 +238,13 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
                 ":builtin_include_directory_paths",
             ]),
 
-            # Tools
             "%{cc_path}": tools.cc,
             "%{dpcc_path}": tools.dpcc,
             "%{ar_path}": tools.ar,
             "%{strip_path}": tools.strip,
             "%{cxx_builtin_include_directories}": get_starlark_list(builtin_include_directories),
             "%{compile_flags_cc}": get_starlark_list(
-                _add_gcc_toolchain_if_needed(repo_ctx, tools.cc) +
+                cc_probe.gcc_toolchain +
                 get_default_compiler_options(
                     repo_ctx,
                     reqs,
@@ -272,8 +253,6 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
                     category = "common",
                 ) +
                 add_compiler_option_if_supported(
-                    # Option supported only by Intel Compiler to disable some warnings:
-                    # https://software.intel.com/comment/1848937
                     repo_ctx,
                     tools.cc,
                     "-diag-disable=remark",
@@ -285,7 +264,7 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
                 ),
             ),
             "%{compile_flags_dpcc}": get_starlark_list(
-                _add_gcc_toolchain_if_needed(repo_ctx, tools.dpcc) +
+                dpcc_probe.gcc_toolchain +
                 get_default_compiler_options(
                     repo_ctx,
                     reqs,
@@ -300,7 +279,7 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
                 ) +
                 add_compiler_option_if_supported(
                     repo_ctx,
-                    tools.cc,
+                    tools.dpcc,
                     "-fdiagnostics-color=always",
                 ),
             ) if tools.is_dpc_found else "",
@@ -324,52 +303,17 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
             ) if tools.is_dpc_found else "",
             "%{cxx_flags}": get_starlark_list(cxx_opts),
             "%{link_flags_cc}": get_starlark_list(
-                _add_gcc_toolchain_if_needed(repo_ctx, tools.cc) +
-                add_linker_option_if_supported(
-                    repo_ctx,
-                    tools.cc,
-                    "-Wl,--as-needed",
-                    "--as-needed",
-                ) +
-                add_linker_option_if_supported(
-                    repo_ctx,
-                    tools.cc,
-                    "-Wl,-z,relro,-z,now",
-                    "-z",
-                ) +
-                add_linker_option_if_supported(
-                    # Matches the Make build's secure.opts.link.lnx; some linkers
-                    # still default to a writable and executable stack.
-                    repo_ctx,
-                    tools.cc,
-                    "-Wl,-z,noexecstack",
-                    "-z",
-                ) +
-                add_compiler_option_if_supported(
-                    # Have gcc return the exit code from ld.
-                    repo_ctx,
-                    tools.cc,
-                    "-pass-exit-codes",
-                ) +
+                cc_probe.gcc_toolchain +
+                cc_probe.secure_link +
                 (
-                    # `-static-intel` is not enough: the icx releases measured
-                    # here still add `-limf` to a shared library link, so
-                    # `libonedal.so` and `libonedal_core.so` end up recording
-                    # DT_NEEDED `libimf.so`. Neither release stages the Intel
-                    # compiler runtimes, so such a library fails to load on a
-                    # host without oneAPI installed. The objects are already
-                    # compiled with `-no-intel-lib` (dev/bazel/flags.bzl), so
-                    # repeating it on the link line drops the dependency
-                    # instead of satisfying it statically -- and it is what
-                    # Make does: `link.dynamic.lnx.icx` in
-                    # dev/make/compiler_definitions/icx.mkl.32e.mk passes
-                    # `-no-intel-lib` and its libraries record no `libimf.so`.
+                    # icx adds -limf to shared links despite -static-intel, and the release ships no
+                    # libimf.so; Make: link.dynamic.lnx.icx.
                     ["-no-intel-lib", "-static-intel"] if reqs.compiler_id in ["icx", "icpx"] else []
                 ) +
                 bin_search_flag_cc + link_opts,
             ),
             "%{link_flags_dpcc}": get_starlark_list(
-                _add_gcc_toolchain_if_needed(repo_ctx, tools.dpcc) +
+                dpcc_probe.gcc_toolchain +
                 add_compiler_option_if_supported(
                     repo_ctx,
                     tools.dpcc,
@@ -380,61 +324,25 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
                     tools.dpcc,
                     "-fsycl-device-code-split={}".format(dpcc_code_split),
                 ) +
-                # Device link with the new offloading driver. The legacy driver
-                # runs clang-offload-bundler, llvm-objcopy and
-                # spirv-to-ir-wrapper once for every input object, including the
-                # host-only DAAL objects that carry no device code. On
-                # libonedal_dpc.so that is ~9.3k serial subprocesses. With this
-                # flag the host-only objects are skipped and the DPC objects
-                # keep their existing (legacy) format. Link actions only; compile
-                # actions are unchanged.
+                # The legacy offload driver runs three tools per input object, host-only DAAL
+                # objects included; the new one skips those.
                 _add_new_offload_driver_link(repo_ctx, tools.dpcc) +
-                add_linker_option_if_supported(
-                    repo_ctx,
-                    tools.dpcc,
-                    "-Wl,--as-needed",
-                    "--as-needed",
-                ) +
-                add_linker_option_if_supported(
-                    repo_ctx,
-                    tools.dpcc,
-                    "-Wl,-z,relro,-z,now",
-                    "-z",
-                ) +
-                add_linker_option_if_supported(
-                    # Matches the Make build's secure.opts.link.lnx; some linkers
-                    # still default to a writable and executable stack.
-                    repo_ctx,
-                    tools.dpcc,
-                    "-Wl,-z,noexecstack",
-                    "-z",
-                ) +
-                add_compiler_option_if_supported(
-                    # Have gcc return the exit code from ld.
-                    repo_ctx,
-                    tools.dpcc,
-                    "-pass-exit-codes",
-                ) +
+                dpcc_probe.secure_link +
                 bin_search_flag_dpcc + link_opts,
             ) if tools.is_dpc_found else "",
             "%{dynamic_link_libs}": get_starlark_list(dynamic_link_libs),
             "%{opt_compile_flags}": get_starlark_list(
                 [
-                    # No debug symbols.
                     "-g0",
 
-                    # Conservative choice for -O
                     "-O2",
 
-                    # It turns out that some GCC builds set _FORTIFY_SOURCE internally,
-                    # so we need to undefine it first
+                    # Some GCC builds predefine _FORTIFY_SOURCE.
                     "-U_FORTIFY_SOURCE",
 
-                    # Security hardening on by default.
                     "-D_FORTIFY_SOURCE=2",
 
-                    # Removal of unused code and data at link time (can this increase binary
-                    # size in some cases?).
+                    # For --gc-sections.
                     "-ffunction-sections",
                     "-fdata-sections",
                 ],
@@ -448,17 +356,14 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
                 ),
             ),
             "%{no_canonical_system_headers_flags_cc}": get_starlark_list(
-                # Probably bug: Intel Compiler links OpenMP runtime if
-                # -fno-canonical-system-headers is provided
-                (get_no_canonical_prefixes_opt(repo_ctx, tools.cc) if reqs.compiler_id not in ["icx", "icpx"] else []),
+                # icx links the OpenMP runtime when given -fno-canonical-system-headers.
+                (cc_probe.no_canonical if reqs.compiler_id not in ["icx", "icpx"] else []),
             ),
             "%{no_canonical_system_headers_flags_dpcc}": get_starlark_list(
-                get_no_canonical_prefixes_opt(repo_ctx, tools.dpcc),
+                dpcc_probe.no_canonical,
             ) if tools.is_dpc_found else "",
             "%{deterministic_compile_flags}": get_starlark_list(
                 [
-                    # Make C++ compilation deterministic. Use linkstamping instead of these
-                    # compiler symbols.
                     "-Wno-builtin-macro-redefined",
                     "-D__DATE__=\\\"redacted\\\"",
                     "-D__TIMESTAMP__=\\\"redacted\\\"",
@@ -469,19 +374,14 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
                 [
                     "-g",
 
-                    # Enable assertions
                     "-DONEDAL_ENABLE_ASSERT",
 
-                    # Disable optimizations explicitly
-                    # Some compilers like Intel uses -O2 by default
-                    # Prefer -O1 because -O0 code may be painfully slow
+                    # Explicit, as icx defaults to -O2; -O0 code is too slow.
                     "-O1",
 
-                    # Disable loop transformation warnings that appear with -O1
-                    # and are treated as errors in dbg configuration
+                    # Loop transformation warnings appear at -O1.
                     "-Wno-pass-failed",
 
-                    # oneDAL specific defined to enabled assertions
                     "-DDEBUG_ASSERT",
                 ],
             ),
