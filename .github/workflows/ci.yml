@@ -37,9 +37,15 @@ on:
       - '.github/.mergify.yml'
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/instructions/**'
+      - 'dev/docker/**'
       - '.github/workflows/check-intel-urls.yml'
+      - '.github/workflows/ci-aarch64.yml'
+      - '.github/workflows/ci-win.yml'
       - '.github/workflows/ci-conda-recipe.yml'
+      - '.github/workflows/codeql.yml'
+      - '.github/workflows/comment-blocks.yml'
       - '.github/workflows/coverity.yml'
+      - '.github/workflows/docker-validation-ci.yml'
       - '.github/workflows/docker-validation-nightly.yml'
       - '.github/workflows/docs-release.yml'
       - '.github/workflows/label-enforcement.yml'
@@ -66,10 +72,16 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Only the Make or only the Bazel jobs when the change touches files that
+  # just one build system reads (.ci/scripts/change_scope.py). Pushes run all.
+  scope:
+    uses: ./.github/workflows/change-scope.yml
+
   # Draft pull requests skip the jobs that take hours; they run once the
   # pull request is marked ready for review.
   LinuxMakeDPCPP:
-    if: github.repository == 'uxlfoundation/oneDAL' && !github.event.pull_request.draft
+    needs: scope
+    if: github.repository == 'uxlfoundation/oneDAL' && !github.event.pull_request.draft && needs.scope.outputs.make != 'false'
     strategy:
       fail-fast: false
       matrix:
@@ -214,7 +226,8 @@ jobs:
   # the apt oneAPI packages, so it guards the dependency layout that the
   # conda-forge feedstock and the sklearnex conda builds see.
   LinuxMakeGNU_MKL_Conda:
-    if: github.repository == 'uxlfoundation/oneDAL' && !github.event.pull_request.draft
+    needs: scope
+    if: github.repository == 'uxlfoundation/oneDAL' && !github.event.pull_request.draft && needs.scope.outputs.make != 'false'
     runs-on: ubuntu-26.04
     timeout-minutes: 300
     env:
@@ -305,7 +318,8 @@ jobs:
           .ci/scripts/test.sh --test-kind samples --build-dir "${RELEASE_DIR}" --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
 
   LinuxBazelNoCompiler:
-    if: github.repository == 'uxlfoundation/oneDAL'
+    needs: scope
+    if: github.repository == 'uxlfoundation/oneDAL' && needs.scope.outputs.bazel != 'false'
     runs-on: ubuntu-26.04
     # A bare image: no compiler, binutils or libc headers, so Bazel downloads gcc.
     container:
@@ -377,7 +391,8 @@ jobs:
   # runs the tests and the example of one algorithm; the clang legs remove the gcc
   # drivers, so the toolchain has to find clang by itself.
   LinuxBazelNoOneAPI:
-    if: github.repository == 'uxlfoundation/oneDAL'
+    needs: scope
+    if: github.repository == 'uxlfoundation/oneDAL' && needs.scope.outputs.bazel != 'false'
     strategy:
       fail-fast: false
       matrix:
