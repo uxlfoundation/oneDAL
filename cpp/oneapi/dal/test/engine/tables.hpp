@@ -136,6 +136,16 @@ template <typename T>
 inline array<T> get_table_block(device_test_policy& p, const table& t, const range& row_range) {
     return row_accessor<const T>{ t }.pull(p.get_queue(), row_range, sycl::usm::alloc::device);
 }
+
+/// Checks that a GPU result table holds device or shared USM, as the GPU kernels return.
+///
+/// @param t The table to check; it must hold data
+inline void check_if_table_on_device(const table& t) {
+    REQUIRE(t.has_data());
+    const auto kind = t.get_metadata().get_alloc_kind();
+    CAPTURE(static_cast<int>(kind));
+    REQUIRE((kind == alloc_kind::usm_device || kind == alloc_kind::usm_shared));
+}
 #endif
 
 template <typename Float, typename TestPolicy>
