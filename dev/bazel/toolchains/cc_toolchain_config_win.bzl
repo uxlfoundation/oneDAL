@@ -192,6 +192,8 @@ def _impl(ctx):
         msvc_env_entries.append(env_entry(key = "LIB", value = ctx.attr.env_lib))
     if ctx.attr.env_path:
         msvc_env_entries.append(env_entry(key = "PATH", value = ctx.attr.env_path))
+    if ctx.attr.env_systemroot:
+        msvc_env_entries.append(env_entry(key = "SystemRoot", value = ctx.attr.env_systemroot))
     msvc_env_feature = feature(
         name = "msvc_env",
         enabled = True,
@@ -623,6 +625,8 @@ cc_toolchain_config = rule(
         env_include = attr.string(default = ""),
         env_lib = attr.string(default = ""),
         env_path = attr.string(default = ""),
+        # cmd.exe needs it; passed through so no action inherits the shell environment.
+        env_systemroot = attr.string(default = ""),
         _msvc_runtime = attr.label(
             default = "@config//:msvc_runtime",
             providers = [ConfigFlagInfo],

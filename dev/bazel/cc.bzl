@@ -188,6 +188,21 @@ def _msvc_runtime_suffix(ctx):
     """The `d` the debug MSVC CRT appends to library names, as Make's `$d`."""
     return "d" if target(ctx).msvc_runtime_debug else ""
 
+def _dpc_crt_link_flags(ctx, feature_config):
+    """Name the MSVC CRT import library on a DPC++ Windows link, after `/link`.
+
+    The DPC++ DLL link failed in CI with LNK2001 `_DllMainCRTStartup` once its objects came from
+    an archive behind /WHOLEARCHIVE. The cause is not confirmed (no Windows run here); naming the
+    CRT (`msvcrt`, or `msvcrtd` for the debug CRT) is meant to resolve the entry point whichever
+    way the objects carry their default-library directives.
+    """
+    if not target(ctx).is_windows or not cc_common.is_enabled(
+        feature_configuration = feature_config,
+        feature_name = "dpc++",
+    ):
+        return []
+    return ["/DEFAULTLIB:msvcrt" + _msvc_runtime_suffix(ctx)]
+
 def _cc_module_impl(ctx):
     toolchain, feature_config = _init_cc_rule(ctx)
     coverage = _coverage_options(ctx, toolchain, feature_config)
@@ -408,28 +423,35 @@ def _compile_windows_resource(ctx, cc_toolchain, rc_file, rc_headers, defines, o
     )
     return out
 
+def _coff_machine(ctx):
+    """The `/machine:` value of the target: the COFF machine type that `cvtres` writes."""
+    arch = target(ctx).arch
+    if arch == "intel64":
+        return "x64"
+    if arch == "arm":
+        return "ARM64"
+    fail("no COFF machine type for the {} arch on Windows".format(arch))
+
 def _convert_resource_to_object(ctx, feature_config, res, out_name):
     """Convert a compiled resource script to a COFF object, which joins the DLL's objects archive.
 
-    Only the x64 DPC++ link needs it: icx takes a `.res` only ahead of `/link`, and after `/link`
-    the DLL link fails with LNK2001 `_DllMainCRTStartup`. `cvtres` runs with the link action's
-    environment (the MSVC PATH captured at configure time, which overrides the inherited PATH).
-    The action inherits the default shell environment, as the resource compile above does,
-    because `cmd.exe` needs SystemRoot; TODO.md lists it with the other inherited-environment sites.
+    Only the DPC++ link needs it: icx takes a `.res` only ahead of `/link`, and after `/link`
+    the DLL link fails with LNK2001 `_DllMainCRTStartup`. `cvtres` runs through `cmd.exe`, which
+    finds it on the PATH of the link action's env; that env passes SystemRoot through from
+    configure time, so the action needs no inherited shell environment.
     """
     out = ctx.actions.declare_file(out_name)
     ctx.actions.run(
         executable = "cmd.exe",
         inputs = [res],
         outputs = [out],
-        arguments = ["/d", "/c", "cvtres.exe", "/nologo", "/machine:x64",
+        arguments = ["/d", "/c", "cvtres.exe", "/nologo", "/machine:" + _coff_machine(ctx),
                      "/out:" + out.path.replace("/", "\\"), res.path.replace("/", "\\")],
         env = cc_common.get_environment_variables(
             feature_configuration = feature_config,
             action_name = "c++-link-dynamic-library",
             variables = cc_common.empty_variables(),
         ),
-        use_default_shell_env = True,
         mnemonic = "WindowsResourceObject",
         progress_message = "Converting resource script %s to an object" % res.short_path,
     )
@@ -485,7 +507,8 @@ def _cc_dynamic_lib_impl(ctx):
         linking_contexts = linking_contexts,
         def_file = ctx.file.def_file,
         user_link_flags = linux_soname_flags + linux_linker_script_flags + exclude_libs_flags +
-                          ctx.attr.linkopts + coverage.link_flags + [res.path for res in res_files],
+                          ctx.attr.linkopts + coverage.link_flags + [res.path for res in res_files] +
+                          _dpc_crt_link_flags(ctx, feature_config),
         is_windows = is_windows,
         additional_inputs = ctx.files.linker_scripts + res_files,
         extra_objects = res_objects,
@@ -542,7 +565,8 @@ def _cc_exec_impl(ctx):
         cc_toolchain = toolchain,
         feature_configuration = feature_config,
         linking_contexts = linking_contexts,
-        user_link_flags = ctx.attr.user_link_flags + coverage.link_flags,
+        user_link_flags = ctx.attr.user_link_flags + coverage.link_flags +
+                          _dpc_crt_link_flags(ctx, feature_config),
         is_windows = target(ctx).is_windows,
     )
     runtime_files = _copy_windows_runtime_files(ctx, ctx.files.data)

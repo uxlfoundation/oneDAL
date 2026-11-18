@@ -192,9 +192,8 @@ def _link(owner, name, actions, cc_toolchain,
     # Files that dependencies name only through `user_link_flags` must be staged as well.
     additional_link_inputs = list(additional_inputs) + unpacked_linking_context.additional_inputs
     if is_windows and all_object_list:
-        # Objects of DLLs and executables alike go into one archive, so the link line names a single
-        # library instead of every object: the Intel driver puts its arguments on one response-file
-        # line, which MSVC link rejects past 131071 characters (LNK1170).
+        # One archive for all objects, so the link line names one library: the Intel driver's
+        # response-file line otherwise passes MSVC's 131071-character limit (LNK1170).
         object_archive = _merge_static_libs(
             filename = name + "_objects.lib",
             actions = actions,
@@ -211,9 +210,8 @@ def _link(owner, name, actions, cc_toolchain,
             pic_static_library = object_archive,
         )
         libraries_to_link = [object_archive_to_link] + libraries_to_link
-        # Whole archive, or the dllexport objects stay out of leaf DLLs such as onedal_thread.dll,
-        # and test registrations are dropped from executables. No `/link` here: dpc_linker_mode
-        # emits one already, and a second gives LNK4044.
+        # Whole archive: otherwise dllexport objects stay out of leaf DLLs, and test registrations
+        # drop from executables. No `/link` here: dpc_linker_mode emits one, and a second gives LNK4044.
         object_archive_link_flags.append("/WHOLEARCHIVE:" + object_archive.path)
         additional_link_inputs.append(object_archive)
         all_object_list = []

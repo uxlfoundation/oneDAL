@@ -61,8 +61,7 @@ def _find_tools_icx(repo_ctx):
         cc = cc_path,
         dpcc = cc_path,
         # Host links run the linker directly, as Make's `link.dynamic.win`. DPC++ links run icx
-        # itself, which adds the SYCL device libraries (Make: dpc.link.dynamic.win); the objects
-        # reach it as one archive, so no response-file wrapper is needed.
+        # itself (Make: dpc.link.dynamic.win), with the objects in one archive: no wrapper.
         cc_link = cc_link_path,
         dpcc_link = cc_path,
         ar = ar_path,
@@ -345,6 +344,7 @@ def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
             "%{env_include}": repo_ctx.os.environ.get("INCLUDE", "").replace("\\", "/"),
             "%{env_lib}": repo_ctx.os.environ.get("LIB", "").replace("\\", "/"),
             "%{env_path}": repo_ctx.os.environ.get("PATH", "").replace("\\", "/"),
+            "%{env_systemroot}": repo_ctx.os.environ.get("SystemRoot", "C:\\Windows").replace("\\", "/"),
         },
     )
 
