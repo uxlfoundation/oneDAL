@@ -282,6 +282,16 @@ DAAL_EXPORT void profiler_record_alloc(const void * ptr, std::size_t size, profi
 /// @param[in] ptr  Address of the block
 DAAL_EXPORT void profiler_record_free(const void * ptr);
 
+/// The task name of a kernel type, kept for the life of the process: its algorithm, its own name
+/// and the last scope of each template argument, followed by `suffix`.
+///
+/// @param[in] type    The type name, as the compiler spells it
+/// @param[in] length  Length of `type`
+/// @param[in] suffix  Appended to the name
+///
+/// @return The same address for the same type and suffix
+DAAL_EXPORT const char * profiler_kernel_task_name(const char * type, std::size_t length, const char * suffix);
+
 /// Whether a call site is to be logged now: the first time `site` is seen, or always at level 5.
 ///
 /// @param[in] site  Key of the call site, such as "file:line"

@@ -157,6 +157,11 @@ A task given a SYCL queue is marked ``on a SYCL queue``: it waits for the queue 
 its time is the device's. ``in a sequential region`` means one host thread outside any parallel
 loop.
 
+Each oneAPI algorithm call gets a task named after its kernel type, for example
+``kmeans.train_kernel_cpu<float,lloyd_dense,clustering>``; a GPU kernel's task is timed on its
+queue. A DAAL kernel it calls gets a nested task that names the instruction set it runs, for
+example ``pca.PCACorrelationKernel<batch,float,avx512>``. These tasks need no ``PROFILER_TASK``.
+
 The Analyzer helps visualize nested kernel calls and their contribution to the total runtime. It's especially helpful for understanding which tasks call which kernels and how much time each part consumes.
 
 Memory

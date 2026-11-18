@@ -285,6 +285,16 @@ dal_test_suite(
 )
 
 dal_test_suite(
+    name = "backend_internal_tests",
+    framework = "catch2",
+    srcs = glob([
+        "backend/test/*.cpp",
+    ]),
+    dal_deps = [ ":common" ],
+    private = True,
+)
+
+dal_test_suite(
     name = "mpi_communicator_test",
     mpi = True,
     mpi_ranks = 2,
@@ -325,6 +335,7 @@ dal_collect_test_suites(
     tests = [
         ":common_tests",
         ":profiler_tests",
+        ":backend_internal_tests",
         # TODO: Temporary disabled due to
         #       unexpectedly high build time
         # "@onedal//cpp/oneapi:dal_hpp_test",

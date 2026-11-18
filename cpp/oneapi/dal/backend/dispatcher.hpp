@@ -25,6 +25,7 @@
 #include "oneapi/dal/backend/common.hpp"
 #include "oneapi/dal/backend/communicator.hpp"
 #include "oneapi/dal/backend/dispatcher_cpu.hpp"
+#include "oneapi/dal/backend/kernel_profiler.hpp"
 
 #define KERNEL_SPEC(spec, ...) ::oneapi::dal::backend::kernel_spec<spec, __VA_ARGS__>
 
@@ -150,6 +151,16 @@ inline auto dispatch_by_device(const detail::data_parallel_policy& policy,
 }
 #endif
 
+#ifdef ONEDAL_DATA_PARALLEL
+inline sycl::queue& gpu_queue(const detail::data_parallel_policy& policy) {
+    return policy.get_queue();
+}
+
+inline sycl::queue& gpu_queue(const detail::spmd_data_parallel_policy& policy) {
+    return policy.get_local().get_queue();
+}
+#endif
+
 /// Tag that indicates CPU kernel for single-node
 struct single_node_cpu_kernel {};
 
@@ -186,6 +197,7 @@ template <typename CpuKernel>
 struct kernel_dispatcher<kernel_spec<single_node_cpu_kernel, CpuKernel>> {
     template <typename... Args>
     auto operator()(const detail::host_policy& policy, Args&&... args) const {
+        const auto task = start_kernel_task<CpuKernel>();
         return CpuKernel{}(context_cpu{ policy }, std::forward<Args>(args)...);
     }
 
@@ -204,6 +216,7 @@ struct kernel_dispatcher<kernel_spec<single_node_cpu_kernel, CpuKernel>> {
         return dispatch_by_device(
             policy,
             [&]() {
+                const auto task = start_kernel_task<CpuKernel>();
                 return CpuKernel{}(context_cpu{}, std::forward<Args>(args)...);
             },
             [&]() -> cpu_kernel_return_t<CpuKernel, Args...> {
@@ -229,11 +242,13 @@ template <typename CpuKernel>
 struct kernel_dispatcher<kernel_spec<universal_spmd_cpu_kernel, CpuKernel>> {
     template <typename... Args>
     auto operator()(const detail::host_policy& policy, Args&&... args) const {
+        const auto task = start_kernel_task<CpuKernel>();
         return CpuKernel{}(context_cpu{}, std::forward<Args>(args)...);
     }
 
     template <typename... Args>
     auto operator()(const detail::spmd_host_policy& policy, Args&&... args) const {
+        const auto task = start_kernel_task<CpuKernel>();
         return CpuKernel{}(context_cpu{ policy }, std::forward<Args>(args)...);
     }
 
@@ -243,6 +258,7 @@ struct kernel_dispatcher<kernel_spec<universal_spmd_cpu_kernel, CpuKernel>> {
         return dispatch_by_device(
             policy,
             [&]() {
+                const auto task = start_kernel_task<CpuKernel>();
                 return CpuKernel{}(context_cpu{}, std::forward<Args>(args)...);
             },
             [&]() -> cpu_kernel_return_t<CpuKernel, Args...> {
@@ -273,9 +289,11 @@ struct kernel_dispatcher<kernel_spec<single_node_cpu_kernel, CpuKernel>,
         return dispatch_by_device(
             policy,
             [&]() {
+                const auto task = start_kernel_task<CpuKernel>();
                 return CpuKernel{}(context_cpu{}, std::forward<Args>(args)...);
             },
             [&]() {
+                const auto task = start_kernel_task<GpuKernel>(gpu_queue(policy));
                 return GpuKernel{}(context_gpu{ policy }, std::forward<Args>(args)...);
             });
     }
@@ -302,9 +320,11 @@ struct kernel_dispatcher<kernel_spec<single_node_cpu_kernel, CpuKernel>,
         return dispatch_by_device(
             policy,
             [&]() {
+                const auto task = start_kernel_task<CpuKernel>();
                 return CpuKernel{}(context_cpu{}, std::forward<Args>(args)...);
             },
             [&]() {
+                const auto task = start_kernel_task<GpuKernel>(gpu_queue(policy));
                 return GpuKernel{}(context_gpu{ policy }, std::forward<Args>(args)...);
             });
     }
@@ -322,6 +342,7 @@ struct kernel_dispatcher<kernel_spec<single_node_cpu_kernel, CpuKernel>,
                 };
             },
             [&]() {
+                const auto task = start_kernel_task<GpuKernel>(gpu_queue(policy));
                 return GpuKernel{}(context_gpu{ policy }, std::forward<Args>(args)...);
             });
     }

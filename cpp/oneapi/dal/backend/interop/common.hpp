@@ -50,13 +50,22 @@ struct to_daal_cpu_type<cpu_dispatch_rv64> : daal_cpu_value<daal::internal::rv64
 
 #endif
 
+struct kernel_step_finalize_merge {
+    static constexpr const char* suffix = ".finalizeMerge";
+};
+
+struct kernel_step_finalize_compute {
+    static constexpr const char* suffix = ".finalizeCompute";
+};
+
 template <typename Float,
           template <typename, daal::internal::CpuType> typename CpuKernel,
           typename... Args>
 inline auto call_daal_kernel(const context_cpu& ctx, Args&&... args) {
     return dal::backend::dispatch_by_cpu(ctx, [&](auto cpu) {
-        return CpuKernel<Float, to_daal_cpu_type<decltype(cpu)>::value>().compute(
-            std::forward<Args>(args)...);
+        using kernel_t = CpuKernel<Float, to_daal_cpu_type<decltype(cpu)>::value>;
+        const auto task = start_kernel_task<kernel_t, kernel_step_default>();
+        return kernel_t().compute(std::forward<Args>(args)...);
     });
 }
 
@@ -65,8 +74,9 @@ template <typename Float,
           typename... Args>
 inline auto call_daal_kernel_finalize_merge(const context_cpu& ctx, Args&&... args) {
     return dal::backend::dispatch_by_cpu(ctx, [&](auto cpu) {
-        return CpuKernel<Float, to_daal_cpu_type<decltype(cpu)>::value>().finalizeMerge(
-            std::forward<Args>(args)...);
+        using kernel_t = CpuKernel<Float, to_daal_cpu_type<decltype(cpu)>::value>;
+        const auto task = start_kernel_task<kernel_t, kernel_step_finalize_merge>();
+        return kernel_t().finalizeMerge(std::forward<Args>(args)...);
     });
 }
 
@@ -75,8 +85,9 @@ template <typename Float,
           typename... Args>
 inline auto call_daal_kernel_finalize_compute(const context_cpu& ctx, Args&&... args) {
     return dal::backend::dispatch_by_cpu(ctx, [&](auto cpu) {
-        return CpuKernel<Float, to_daal_cpu_type<decltype(cpu)>::value>().finalizeCompute(
-            std::forward<Args>(args)...);
+        using kernel_t = CpuKernel<Float, to_daal_cpu_type<decltype(cpu)>::value>;
+        const auto task = start_kernel_task<kernel_t, kernel_step_finalize_compute>();
+        return kernel_t().finalizeCompute(std::forward<Args>(args)...);
     });
 }
 

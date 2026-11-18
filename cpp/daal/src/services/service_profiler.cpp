@@ -39,10 +39,12 @@
 #include <atomic>
 #include <chrono>
 #include <cstdio>
+#include <cstring>
 #include <fstream>
 #include <iomanip>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -615,6 +617,92 @@ void flatten(const merged & m, std::int64_t parent, std::int64_t depth, std::vec
     }
 }
 
+/// Shortens a qualified type name: the outer type keeps its first and last scopes that are not
+/// library namespaces, a template argument keeps only its last one.
+std::string shorten_type_name(const char * type, std::size_t length)
+{
+    std::string text(type, length);
+    for (const char * anonymous : { "(anonymous namespace)::", "{anonymous}::", "`anonymous namespace'::" })
+    {
+        for (auto at = text.find(anonymous); at != std::string::npos; at = text.find(anonymous))
+        {
+            text.erase(at, std::strlen(anonymous));
+        }
+    }
+    const auto is_word  = [](char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_'; };
+    const auto is_noise = [](const std::string & scope) {
+        static const char * const noise[] = { "oneapi",  "dal",        "daal",   "backend", "internal", "detail", "v1",   "v2",
+                                              "interop", "algorithms", "method", "task",    "struct",   "class",  "enum", "parameters" };
+        for (const char * n : noise)
+        {
+            if (scope == n)
+            {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    std::string out;
+    int depth     = 0;
+    std::size_t i = 0;
+    while (i < text.size())
+    {
+        if (!is_word(text[i]))
+        {
+            depth += (text[i] == '<') - (text[i] == '>');
+            if (text[i] != ' ')
+            {
+                out += text[i];
+            }
+            ++i;
+            continue;
+        }
+        std::string scopes[2];
+        for (;;)
+        {
+            std::size_t end = i;
+            while (end < text.size() && is_word(text[end]))
+            {
+                ++end;
+            }
+            std::string scope = text.substr(i, end - i);
+            i                 = end;
+            while (i < text.size() && text[i] == ' ')
+            {
+                ++i;
+            }
+            // MSVC spells `struct x` and `class x`.
+            const bool keyword = scope == "struct" || scope == "class" || scope == "enum";
+            if (!is_noise(scope))
+            {
+                if (scopes[0].empty())
+                {
+                    scopes[0] = scopes[1];
+                }
+                scopes[1] = std::move(scope);
+            }
+            if (text.compare(i, 2, "::") == 0)
+            {
+                i += 2;
+                continue;
+            }
+            if (keyword && i < text.size() && is_word(text[i]))
+            {
+                continue;
+            }
+            break;
+        }
+        if (depth == 0 && !scopes[0].empty())
+        {
+            out += scopes[0];
+            out += '.';
+        }
+        out += scopes[1];
+    }
+    return out;
+}
+
 void report_at_exit()
 {
     std::ostringstream out;
@@ -642,6 +730,21 @@ DAAL_EXPORT void print_header()
     out << '\n';
     const std::string text = out.str();
     profiler_log(text.data(), text.size());
+}
+
+DAAL_EXPORT const char * profiler_kernel_task_name(const char * type, std::size_t length, const char * suffix)
+{
+    std::string key(type, length);
+    key += suffix;
+    static std::unordered_map<std::string, const char *> * const names = new std::unordered_map<std::string, const char *>();
+    std::lock_guard<std::mutex> lock(log_mutex());
+    const auto found = names->find(key);
+    if (found != names->end()) return found->second;
+    const std::string text = shorten_type_name(type, length) + suffix;
+    char * const name      = new char[text.size() + 1];
+    std::memcpy(name, text.c_str(), text.size() + 1);
+    names->emplace(std::move(key), name);
+    return name;
 }
 
 DAAL_EXPORT bool profiler_claim_log_site(const char * site)
