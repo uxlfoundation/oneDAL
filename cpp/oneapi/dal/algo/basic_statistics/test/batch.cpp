@@ -160,4 +160,38 @@ TEMPLATE_LIST_TEST_M(basic_statistics_batch_test,
     REQUIRE(max[2] == float_t(8));
 }
 
+// Enough values for several chunks, so a reduction that depends on the thread schedule would show.
+TEMPLATE_LIST_TEST_M(basic_statistics_batch_test,
+                     "basic_statistics CSR results are the same from run to run",
+                     "[basic_statistics][integration][batch]",
+                     basic_statistics_sparse_types) {
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->get_policy().is_gpu());
+    using float_t = std::tuple_element_t<0, TestType>;
+    const auto builder = te::csr_table_builder(20000, 100, 0.1, sparse_indexing::zero_based);
+    const auto data = builder.build_csr_table(this->get_policy());
+    const auto desc =
+        bs::descriptor<float_t, basic_statistics::method::sparse>{}.set_result_options(
+            bs::result_option_id(dal::result_option_id_base(mask_full)));
+
+    const auto values = [](const table& t) {
+        const auto ary = row_accessor<const float_t>(t).pull();
+        return std::vector<float_t>(ary.get_data(), ary.get_data() + ary.get_count());
+    };
+    const auto all = [&](const auto& r) {
+        return std::vector<std::vector<float_t>>{ values(r.get_min()),
+                                                  values(r.get_max()),
+                                                  values(r.get_sum()),
+                                                  values(r.get_sum_squares()),
+                                                  values(r.get_sum_squares_centered()),
+                                                  values(r.get_mean()),
+                                                  values(r.get_variance()) };
+    };
+    const auto first = all(this->compute(desc, data));
+    for (int run = 0; run < 5; ++run) {
+        CAPTURE(run);
+        REQUIRE(all(this->compute(desc, data)) == first);
+    }
+}
+
 } // namespace oneapi::dal::basic_statistics::test

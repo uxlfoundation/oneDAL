@@ -57,9 +57,10 @@ struct Moments
         sum.reset(nFeatures);
         sumSq.reset(nFeatures);
         sumSqCen.reset(nFeatures);
+        mean.reset(nFeatures);
         min.reset(nFeatures);
         max.reset(nFeatures);
-        DAAL_CHECK_MALLOC(sum.get() && sumSq.get() && sumSqCen.get() && min.get() && max.get());
+        DAAL_CHECK_MALLOC(sum.get() && sumSq.get() && sumSqCen.get() && mean.get() && min.get() && max.get());
         return Status();
     }
 
@@ -67,54 +68,64 @@ struct Moments
     TArray<double, cpu> sum;
     TArray<double, cpu> sumSq;
     TArray<double, cpu> sumSqCen;
+    TArray<double, cpu> mean;
     TArray<double, cpu> min;
     TArray<double, cpu> max;
 };
 
-/// Thread-local accumulators of one pass over the non-zero values.
-template <CpuType cpu>
-struct PassAccumulators
+/// Running moments of one column inside a chunk, packed into one cache line so that a
+/// stored value updates a single line.
+enum ColumnSlot
 {
-    static PassAccumulators * create(size_t nFeatures, size_t nArrays)
-    {
-        PassAccumulators * acc = new PassAccumulators();
-        if (!acc) return nullptr;
-        acc->values.reset(nFeatures * nArrays);
-        if (!acc->values.get())
-        {
-            delete acc;
-            return nullptr;
-        }
-        return acc;
-    }
-
-    TArrayScalable<double, cpu> values;
+    slotCount = 0,
+    slotMean,
+    slotM2,
+    slotSum,
+    slotSumSq,
+    slotMin,
+    slotMax,
+    slotsPerColumn = 8
 };
 
-/// Splits the rows into blocks that each hold enough non-zero values to amortize
-/// the per-block accumulators of length nFeatures.
+/// Splits the rows into chunks with their own accumulators. The count does not depend on the
+/// number of threads, and the chunks are merged in order, so the result is the same bit for bit.
 ///
 /// @param[in]  nRows      Number of rows
 /// @param[in]  nFeatures  Number of columns
 /// @param[in]  nnz        Number of stored values
-/// @return     Number of rows per block
-inline size_t rowsPerBlock(size_t nRows, size_t nFeatures, size_t nnz)
+/// @return     Number of rows per chunk
+inline size_t rowsPerChunk(size_t nRows, size_t nFeatures, size_t nnz)
 {
-    // A block reads at least this many values per accumulator entry it allocates, initializes and reduces.
-    constexpr size_t valuesPerAccumulator = 16;
-    const size_t nThreads                 = threader_get_threads_number();
-    const size_t minNnzPerBlock           = valuesPerAccumulator * nFeatures;
-    size_t nBlocks                        = nThreads;
-    const size_t byNnz                    = nnz / minNnzPerBlock;
-    nBlocks                               = byNnz < nBlocks ? byNnz : nBlocks;
-    nBlocks                               = nBlocks < 1 ? 1 : nBlocks;
-    nBlocks                               = nRows < nBlocks ? nRows : nBlocks;
-    return (nRows + nBlocks - 1) / nBlocks;
+    // A chunk initializes and merges slotsPerColumn values per column: 64 stored values per
+    // column keep that under a few percent of its work, 2^15 keeps the task overhead small.
+    constexpr size_t valuesPerColumn   = 64;
+    constexpr size_t minValuesPerChunk = size_t(1) << 15;
+    // Enough chunks to occupy any thread count; fixed so that the chunking stays the same.
+    constexpr size_t maxChunks = 1024;
+
+    const size_t byColumns = valuesPerColumn * nFeatures;
+    const size_t perChunk  = byColumns > minValuesPerChunk ? byColumns : minValuesPerChunk;
+    size_t nChunks         = nnz / perChunk;
+    nChunks                = nChunks < 1 ? 1 : nChunks;
+    nChunks                = nChunks > maxChunks ? maxChunks : nChunks;
+    nChunks                = nChunks > nRows ? nRows : nChunks;
+    return (nRows + nChunks - 1) / nChunks;
 }
 
-/// Moments of all rows of a CSR table, from its non-zero values only: implicit
-/// zeros enter the sums as zero, the minimum and maximum as a zero value, and the
-/// centered sum of squares as (nRows - nnz_j) * mean_j^2.
+/// Merges the moments (cB, meanB, m2B) into (cA, meanA, m2A), Chan et al.; either side may be empty.
+inline void mergeMoments(double & cA, double & meanA, double & m2A, double cB, double meanB, double m2B)
+{
+    const double c     = cA + cB;
+    const double inv   = c > 0.0 ? 1.0 / c : 0.0;
+    const double delta = meanB - meanA;
+    meanA += delta * (cB * inv);
+    m2A += m2B + delta * delta * (cA * cB * inv);
+    cA = c;
+}
+
+/// Moments of all rows of a CSR table, from its stored values only. Each chunk runs Welford's
+/// update over its values; the chunks are merged, and the implicit zeros join as one final
+/// observation of value 0 and weight (nRows - nnz_j), as a weighted dense column would.
 ///
 /// @param[in]  table      The CSR table
 /// @param[in]  userSums   Precomputed column sums used for the mean, or nullptr
@@ -127,164 +138,135 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
     moments.nRows = nRows;
     if (nRows == 0) return st;
 
-    const size_t blockRows = rowsPerBlock(nRows, nFeatures, table.getDataSize());
-    const size_t nBlocks   = (nRows + blockRows - 1) / blockRows;
+    const size_t chunkRows = rowsPerChunk(nRows, nFeatures, table.getDataSize());
+    const size_t nChunks   = (nRows + chunkRows - 1) / chunkRows;
+    DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nFeatures, slotsPerColumn);
+    const size_t stride = nFeatures * slotsPerColumn;
+    DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nChunks, stride);
+    TArrayScalable<double, cpu> acc(nChunks * stride);
+    DAAL_CHECK_MALLOC(acc.get());
 
-    /* Pass 1: sums, sums of squares, extremes and non-zero counts */
-    TArray<double, cpu> count(nFeatures);
-    DAAL_CHECK_MALLOC(count.get());
-    {
-        SafeStatus safeStat;
-        daal::tls<PassAccumulators<cpu> *> tls([&]() {
-            PassAccumulators<cpu> * acc = PassAccumulators<cpu>::create(nFeatures, 5);
-            if (!acc)
-            {
-                safeStat.add(ErrorMemoryAllocationFailed);
-                return acc;
-            }
-            double * v = acc->values.get();
-            for (size_t j = 0; j < nFeatures; j++)
-            {
-                v[j]                 = 0.0;
-                v[nFeatures + j]     = 0.0;
-                v[2 * nFeatures + j] = MaxVal<double>::get();
-                v[3 * nFeatures + j] = -MaxVal<double>::get();
-                v[4 * nFeatures + j] = 0.0;
-            }
-            return acc;
-        });
-
-        daal::threader_for(nBlocks, 1, [&](size_t iBlock) {
-            PassAccumulators<cpu> * acc = tls.local();
-            if (!acc) return;
-            const size_t start = iBlock * blockRows;
-            const size_t rows  = (start + blockRows > nRows) ? nRows - start : blockRows;
-            ReadRowsCSR<algorithmFPType, cpu> block(&table, start, rows);
-            DAAL_CHECK_BLOCK_STATUS_THR(block);
-            const algorithmFPType * values = block.values();
-            const size_t * cols            = block.cols();
-            const size_t nnz               = block.rows()[rows] - block.rows()[0];
-
-            double * sum   = acc->values.get();
-            double * sumSq = sum + nFeatures;
-            double * min   = sum + 2 * nFeatures;
-            double * max   = sum + 3 * nFeatures;
-            double * cnt   = sum + 4 * nFeatures;
-            for (size_t k = 0; k < nnz; k++)
-            {
-                const size_t j = cols[k] - 1;
-                const double x = values[k];
-                sum[j] += x;
-                sumSq[j] += x * x;
-                min[j] = x < min[j] ? x : min[j];
-                max[j] = x > max[j] ? x : max[j];
-                cnt[j] += 1.0;
-            }
-        });
-        DAAL_CHECK_SAFE_STATUS();
-
-        double * sum   = moments.sum.get();
-        double * sumSq = moments.sumSq.get();
-        double * min   = moments.min.get();
-        double * max   = moments.max.get();
-        double * cnt   = count.get();
+    SafeStatus safeStat;
+    daal::threader_for(nChunks, 1, [&](size_t iChunk) {
+        double * const a = acc.get() + iChunk * stride;
+        PRAGMA_OMP_SIMD
         for (size_t j = 0; j < nFeatures; j++)
         {
-            sum[j]   = 0.0;
-            sumSq[j] = 0.0;
-            min[j]   = MaxVal<double>::get();
-            max[j]   = -MaxVal<double>::get();
-            cnt[j]   = 0.0;
+            double * const col = a + j * slotsPerColumn;
+            col[slotCount]     = 0.0;
+            col[slotMean]      = 0.0;
+            col[slotM2]        = 0.0;
+            col[slotSum]       = 0.0;
+            col[slotSumSq]     = 0.0;
+            col[slotMin]       = MaxVal<double>::get();
+            col[slotMax]       = -MaxVal<double>::get();
         }
-        tls.reduce([&](PassAccumulators<cpu> * acc) {
-            if (!acc) return;
-            const double * v = acc->values.get();
-            for (size_t j = 0; j < nFeatures; j++)
-            {
-                sum[j] += v[j];
-                sumSq[j] += v[nFeatures + j];
-                min[j] = v[2 * nFeatures + j] < min[j] ? v[2 * nFeatures + j] : min[j];
-                max[j] = v[3 * nFeatures + j] > max[j] ? v[3 * nFeatures + j] : max[j];
-                cnt[j] += v[4 * nFeatures + j];
-            }
-            delete acc;
-        });
 
-        const double n = double(nRows);
-        for (size_t j = 0; j < nFeatures; j++)
+        const size_t start = iChunk * chunkRows;
+        const size_t rows  = (start + chunkRows > nRows) ? nRows - start : chunkRows;
+        ReadRowsCSR<algorithmFPType, cpu> block(&table, start, rows);
+        DAAL_CHECK_BLOCK_STATUS_THR(block);
+        const algorithmFPType * const values = block.values();
+        const size_t * const cols            = block.cols();
+        const size_t nnz                     = block.rows()[rows] - block.rows()[0];
+        // A sparse block can report success with no buffer when converting the value type fails to allocate.
+        DAAL_CHECK_THR(nnz == 0 || (values && cols), ErrorMemoryAllocationFailed);
+
+        // Not vectorized: a row may repeat a column index, which the format does not rule out.
+        for (size_t k = 0; k < nnz; k++)
         {
-            if (cnt[j] < n)
-            {
-                min[j] = 0.0 < min[j] ? 0.0 : min[j];
-                max[j] = 0.0 > max[j] ? 0.0 : max[j];
-            }
-            if (userSums) sum[j] = double(userSums[j]);
+            double * const col = a + (cols[k] - 1) * slotsPerColumn;
+            const double x     = values[k];
+            const double c     = col[slotCount] + 1.0;
+            const double delta = x - col[slotMean];
+            col[slotCount]     = c;
+            col[slotMean] += delta / c;
+            col[slotM2] += delta * (x - col[slotMean]);
+            col[slotSum] += x;
+            col[slotSumSq] += x * x;
+            col[slotMin] = x < col[slotMin] ? x : col[slotMin];
+            col[slotMax] = x > col[slotMax] ? x : col[slotMax];
         }
-    }
+    });
+    DAAL_CHECK_SAFE_STATUS();
 
-    /* Pass 2: squared deviations of the stored values from the mean */
-    {
-        const double invN = 1.0 / double(nRows);
-        TArray<double, cpu> mean(nFeatures);
-        DAAL_CHECK_MALLOC(mean.get());
-        for (size_t j = 0; j < nFeatures; j++)
+    /* Merge the chunks in order, a block of columns per task, then add the implicit zeros */
+    constexpr size_t columnsPerTask = 256;
+    const size_t nColumnBlocks      = (nFeatures + columnsPerTask - 1) / columnsPerTask;
+    const double n                  = double(nRows);
+    const double invN               = 1.0 / n;
+    daal::threader_for(nColumnBlocks, 1, [&](size_t iBlock) {
+        const size_t jBegin = iBlock * columnsPerTask;
+        const size_t width  = (jBegin + columnsPerTask > nFeatures) ? nFeatures - jBegin : columnsPerTask;
+        double c[columnsPerTask], m[columnsPerTask], m2[columnsPerTask], s[columnsPerTask];
+        double s2[columnsPerTask], lo[columnsPerTask], hi[columnsPerTask];
+
+        const double * const first = acc.get() + jBegin * slotsPerColumn;
+        PRAGMA_OMP_SIMD
+        for (size_t t = 0; t < width; t++)
         {
-            mean[j] = moments.sum[j] * invN;
+            const double * const col = first + t * slotsPerColumn;
+            c[t]                     = col[slotCount];
+            m[t]                     = col[slotMean];
+            m2[t]                    = col[slotM2];
+            s[t]                     = col[slotSum];
+            s2[t]                    = col[slotSumSq];
+            lo[t]                    = col[slotMin];
+            hi[t]                    = col[slotMax];
         }
-
-        SafeStatus safeStat;
-        daal::tls<PassAccumulators<cpu> *> tls([&]() {
-            PassAccumulators<cpu> * acc = PassAccumulators<cpu>::create(nFeatures, 1);
-            if (!acc)
-            {
-                safeStat.add(ErrorMemoryAllocationFailed);
-                return acc;
-            }
-            service_memset_seq<double, cpu>(acc->values.get(), 0.0, nFeatures);
-            return acc;
-        });
-
-        const double * m = mean.get();
-        daal::threader_for(nBlocks, 1, [&](size_t iBlock) {
-            PassAccumulators<cpu> * acc = tls.local();
-            if (!acc) return;
-            const size_t start = iBlock * blockRows;
-            const size_t rows  = (start + blockRows > nRows) ? nRows - start : blockRows;
-            ReadRowsCSR<algorithmFPType, cpu> block(&table, start, rows);
-            DAAL_CHECK_BLOCK_STATUS_THR(block);
-            const algorithmFPType * values = block.values();
-            const size_t * cols            = block.cols();
-            const size_t nnz               = block.rows()[rows] - block.rows()[0];
-
-            double * ssc = acc->values.get();
-            for (size_t k = 0; k < nnz; k++)
-            {
-                const size_t j = cols[k] - 1;
-                const double d = double(values[k]) - m[j];
-                ssc[j] += d * d;
-            }
-        });
-        DAAL_CHECK_SAFE_STATUS();
-
-        double * ssc = moments.sumSqCen.get();
-        service_memset_seq<double, cpu>(ssc, 0.0, nFeatures);
-        tls.reduce([&](PassAccumulators<cpu> * acc) {
-            if (!acc) return;
-            const double * v = acc->values.get();
-            for (size_t j = 0; j < nFeatures; j++)
-            {
-                ssc[j] += v[j];
-            }
-            delete acc;
-        });
-
-        const double n   = double(nRows);
-        const double * c = count.get();
-        for (size_t j = 0; j < nFeatures; j++)
+        for (size_t iChunk = 1; iChunk < nChunks; iChunk++)
         {
-            ssc[j] += (n - c[j]) * m[j] * m[j];
+            const double * const chunk = acc.get() + iChunk * stride + jBegin * slotsPerColumn;
+            PRAGMA_OMP_SIMD
+            for (size_t t = 0; t < width; t++)
+            {
+                const double * const col = chunk + t * slotsPerColumn;
+                mergeMoments(c[t], m[t], m2[t], col[slotCount], col[slotMean], col[slotM2]);
+                s[t] += col[slotSum];
+                s2[t] += col[slotSumSq];
+                lo[t] = col[slotMin] < lo[t] ? col[slotMin] : lo[t];
+                hi[t] = col[slotMax] > hi[t] ? col[slotMax] : hi[t];
+            }
         }
-    }
+
+        PRAGMA_OMP_SIMD
+        for (size_t t = 0; t < width; t++)
+        {
+            // A row can repeat a column, so the stored values may outnumber the rows.
+            const double zeros = c[t] < n ? n - c[t] : 0.0;
+            lo[t]              = (zeros > 0.0 && 0.0 < lo[t]) ? 0.0 : lo[t];
+            hi[t]              = (zeros > 0.0 && 0.0 > hi[t]) ? 0.0 : hi[t];
+            mergeMoments(c[t], m[t], m2[t], zeros, 0.0, 0.0);
+        }
+        if (userSums)
+        {
+            PRAGMA_OMP_SIMD
+            for (size_t t = 0; t < width; t++)
+            {
+                const double userMean = double(userSums[jBegin + t]) * invN;
+                m2[t] += n * (m[t] - userMean) * (m[t] - userMean);
+                m[t] = userMean;
+                s[t] = double(userSums[jBegin + t]);
+            }
+        }
+
+        double * const sum   = moments.sum.get() + jBegin;
+        double * const sumSq = moments.sumSq.get() + jBegin;
+        double * const ssc   = moments.sumSqCen.get() + jBegin;
+        double * const mean  = moments.mean.get() + jBegin;
+        double * const min   = moments.min.get() + jBegin;
+        double * const max   = moments.max.get() + jBegin;
+        PRAGMA_OMP_SIMD
+        for (size_t t = 0; t < width; t++)
+        {
+            sum[t]   = s[t];
+            sumSq[t] = s2[t];
+            ssc[t]   = m2[t];
+            mean[t]  = m[t];
+            min[t]   = lo[t];
+            max[t]   = hi[t];
+        }
+    });
     return st;
 }
 
@@ -338,7 +320,7 @@ Status computeBatch(NumericTable * dataTable, Result * result)
     const double invNM1 = 1.0 / double(nRows - 1);
     for (size_t j = 0; j < nFeatures; j++)
     {
-        const double meanJ           = m.sum[j] * invN;
+        const double meanJ           = m.mean[j];
         const double varianceJ       = m.sumSqCen[j] * invNM1;
         res[minimum][j]              = algorithmFPType(m.min[j]);
         res[maximum][j]              = algorithmFPType(m.max[j]);
@@ -413,7 +395,7 @@ Status computeOnline(NumericTable * dataTable, PartialResult * partialResult, bo
         for (size_t j = 0; j < nFeatures; j++)
         {
             const double sum1  = res[partialSum][j];
-            const double delta = m.sum[j] / n2 - sum1 / n1;
+            const double delta = m.mean[j] - sum1 / n1;
             const double min1  = res[partialMinimum][j];
             const double max1  = res[partialMaximum][j];
 
