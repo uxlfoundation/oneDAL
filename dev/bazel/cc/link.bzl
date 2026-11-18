@@ -71,10 +71,16 @@ def _merge_static_libs(filename, actions, cc_toolchain,
         actions.run(
             executable = archiver_path,
             arguments = [args],
-            inputs = static_libs,
+            inputs = depset(direct = static_libs, transitive = [cc_toolchain.all_files]),
             outputs = [output_file],
             mnemonic = "MergeStaticLibraries",
-            use_default_shell_env = True,
+            # The toolchain's env for archiving (PATH, LIB of the configure-time shell),
+            # as for the cc_common archive actions, instead of the whole client env.
+            env = cc_common.get_environment_variables(
+                feature_configuration = feature_configuration,
+                action_name = ACTION_NAMES.cpp_link_static_library,
+                variables = cc_common.empty_variables(),
+            ),
         )
         return output_file
     mri_script = actions.declare_file(filename + ".mri")
