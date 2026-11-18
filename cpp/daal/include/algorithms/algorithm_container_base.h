@@ -147,6 +147,12 @@ public:
     virtual services::Status resetFinalizeCompute() = 0;
 };
 
+// Defined in algorithm_base_impl.cpp; MSVC warns C4661 when a derived container is explicitly instantiated.
+template <>
+AlgorithmContainer<online>::AlgorithmContainer();
+template <>
+AlgorithmContainer<distributed>::AlgorithmContainer();
+
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ALGORITHMCONTAINERIMPL"></a>
  * \brief Abstract interface class that provides virtual methods to access and run implementations
