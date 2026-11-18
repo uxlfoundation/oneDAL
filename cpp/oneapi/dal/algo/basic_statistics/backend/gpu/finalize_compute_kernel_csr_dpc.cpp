@@ -29,8 +29,8 @@ using descriptor_t = detail::descriptor_base<task_t>;
 /// CSR finalize on GPU: the CSR partial_compute writes the same six fields
 /// (partial_n_rows, partial_min, partial_max, partial_sum, partial_sum_squares,
 /// partial_sum_squares_centered) that the dense partial_compute does, so the
-/// post-processing step (allreduce + mean / variance / stddev / variation /
-/// second_order_raw_moment / recompute sum_squares_centered) is identical.
+/// post-processing step (allreduce, merging the centered sums of squares, and mean /
+/// variance / stddev / variation / second_order_raw_moment) is identical.
 /// Delegate to the dense finalize impl.
 template <typename Float>
 struct finalize_compute_kernel_gpu<Float, method::sparse, task::compute> {

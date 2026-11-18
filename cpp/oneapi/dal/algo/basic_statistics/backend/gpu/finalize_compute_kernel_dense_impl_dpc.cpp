@@ -45,22 +45,20 @@ using descriptor_t = detail::descriptor_base<task::compute>;
 /// @tparam Float  Floating-point type used to perform computations
 ///
 /// @param[in]  q             The SYCL queue
-/// @param[in]  sums          The allreuced input partial sums
-/// @param[in]  sums2         The allreuced partial sums squared
+/// @param[in]  sums          The sums over all rows
+/// @param[in]  sums2         The sums of squares over all rows
+/// @param[in]  sums2cent     The centered sums of squares over all rows
 /// @param[in]  nobs          The total number of rows
-/// @param[in]  column_count  The total number of rows
-/// @param[in]  deps          Events indicating availability of the results for reading or writing
+/// @param[in]  column_count  The number of columns
+/// @param[in]  deps          Events indicating availability of the inputs
 ///
-/// @return A tuple of seven elements, where the first element is the resulting means,
-/// the second is the resulting variances, the third is the resulting raw moment,
-/// the fourth is the resulting variations, the fifth is the resulting stddev,
-/// the sixth is the resulting sums squared centered
-/// and the seventh element is a SYCL event indicating the availability
-/// of the all arrays for reading and writing
+/// @return A tuple of the means, variances, second order raw moments, variations and standard
+/// deviations, and a SYCL event indicating the availability of the all arrays
 template <typename Float>
 auto compute_all_metrics(sycl::queue& q,
                          const pr::ndview<Float, 1>& sums,
                          const pr::ndview<Float, 1>& sums2,
+                         const pr::ndview<Float, 1>& sums2cent,
                          std::int64_t nobs,
                          std::size_t column_count,
                          const dal::backend::event_vector& deps = {}) {
@@ -70,7 +68,6 @@ auto compute_all_metrics(sycl::queue& q,
     auto result_raw_moment = pr::ndarray<Float, 1>::empty(q, column_count, alloc::device);
     auto result_variation = pr::ndarray<Float, 1>::empty(q, column_count, alloc::device);
     auto result_stddev = pr::ndarray<Float, 1>::empty(q, column_count, alloc::device);
-    auto result_sums2cent = pr::ndarray<Float, 1>::empty(q, column_count, alloc::device);
 
     auto result_means_ptr = result_means.get_mutable_data();
     auto result_variance_ptr = result_variance.get_mutable_data();
@@ -78,26 +75,16 @@ auto compute_all_metrics(sycl::queue& q,
     auto result_variation_ptr = result_variation.get_mutable_data();
     auto result_stddev_ptr = result_stddev.get_mutable_data();
 
-    auto sums_data = sums.get_data();
-    auto sums2_data = sums2.get_data();
-    auto sums2cent_data = result_sums2cent.get_mutable_data();
+    const auto sums_data = sums.get_data();
+    const auto sums2_data = sums2.get_data();
+    const auto sums2cent_data = sums2cent.get_data();
 
     const Float inv_n = Float(1.0 / double(nobs));
-
-    auto update_sums_event = q.submit([&](sycl::handler& cgh) {
-        const auto range = sycl::range<1>(column_count);
-
-        cgh.depends_on(deps);
-        cgh.parallel_for(range, [=](sycl::item<1> id) {
-            // This computation is necessary for correct sum2cent values across several device
-            sums2cent_data[id] = sums2_data[id] - sums_data[id] * sums_data[id] / nobs;
-        });
-    });
 
     auto update_event = q.submit([&](sycl::handler& cgh) {
         const auto range = sycl::range<1>(column_count);
 
-        cgh.depends_on(update_sums_event);
+        cgh.depends_on(deps);
         cgh.parallel_for(range, [=](sycl::item<1> id) {
             result_means_ptr[id] = sums_data[id] / nobs;
 
@@ -116,8 +103,62 @@ auto compute_all_metrics(sycl::queue& q,
                            result_raw_moment,
                            result_variation,
                            result_stddev,
-                           result_sums2cent,
                            update_event);
+}
+
+/// Sums the per-rank centered sums of squares around the global mean:
+/// `ssc_r + n_r * (mean_r - mean)^2` on each rank, then one allreduce.
+///
+/// @param[in]  q               The SYCL queue
+/// @param[in]  comm            The communicator
+/// @param[in]  local_sums      This rank's sums
+/// @param[in]  global_sums     The sums over all ranks
+/// @param[in]  local_sums2cent This rank's centered sums of squares
+/// @param[in]  local_rows      This rank's number of rows
+/// @param[in]  global_rows     The number of rows over all ranks
+/// @param[in]  column_count    The number of columns
+///
+/// @return The centered sums of squares over all ranks
+template <typename Float, typename Comm>
+pr::ndarray<Float, 1> merge_sums2cent_across_ranks(sycl::queue& q,
+                                                   Comm& comm,
+                                                   const pr::ndview<Float, 1>& local_sums,
+                                                   const pr::ndview<Float, 1>& global_sums,
+                                                   const pr::ndview<Float, 1>& local_sums2cent,
+                                                   std::int64_t local_rows,
+                                                   std::int64_t global_rows,
+                                                   std::int64_t column_count) {
+    auto merged = pr::ndarray<Float, 1>::empty(q, column_count, alloc::device);
+    auto merged_ptr = merged.get_mutable_data();
+    const auto local_sums_ptr = local_sums.get_data();
+    const auto global_sums_ptr = global_sums.get_data();
+    const auto local_sums2cent_ptr = local_sums2cent.get_data();
+    const Float n_r = Float(local_rows);
+    const Float n = Float(global_rows);
+    auto event = q.submit([&](sycl::handler& cgh) {
+        cgh.parallel_for(sycl::range<1>(column_count), [=](sycl::item<1> id) {
+            Float between = Float(0);
+            if (n_r > Float(0)) {
+                const Float delta = local_sums_ptr[id] / n_r - global_sums_ptr[id] / n;
+                between = n_r * delta * delta;
+            }
+            merged_ptr[id] = local_sums2cent_ptr[id] + between;
+        });
+    });
+    event.wait_and_throw();
+    {
+        ONEDAL_PROFILER_TASK(allreduce_sums2cent, q);
+        comm.allreduce(merged.flatten(q, {}), spmd::reduce_op::sum).wait();
+    }
+    return merged;
+}
+
+/// A copy of a partial result array, so that an allreduce leaves the partial result as it was.
+template <typename Float>
+pr::ndarray<Float, 1> copy_for_allreduce(sycl::queue& q, const pr::ndview<Float, 1>& src) {
+    auto dst = pr::ndarray<Float, 1>::empty(q, { src.get_count() }, alloc::device);
+    copy(q, dst, src, {}).wait_and_throw();
+    return dst;
 }
 
 ///  A wrapper that computes arrays of basic statistics
@@ -160,7 +201,8 @@ result_t finalize_compute_kernel_dense_impl<Float>::operator()(const descriptor_
     //
     // Casting to `std::int64_t` here is exact and prevents further precision loss during
     // the SPMD allreduce sum across ranks.
-    std::int64_t rows_count_global = static_cast<std::int64_t>(nobs_nd.get_data()[0]);
+    const std::int64_t rows_count_local = static_cast<std::int64_t>(nobs_nd.get_data()[0]);
+    std::int64_t rows_count_global = rows_count_local;
     auto is_distributed = (comm_.get_rank_count() > 1);
     {
         ONEDAL_PROFILER_TASK(allreduce_rows_count_global);
@@ -170,10 +212,11 @@ result_t finalize_compute_kernel_dense_impl<Float>::operator()(const descriptor_
     }
     if (res_op.test(result_options::min)) {
         ONEDAL_ASSERT(input.get_partial_min().get_column_count() == column_count);
-        const auto min =
+        auto min =
             pr::table2ndarray_1d<Float>(q, input.get_partial_min(), sycl::usm::alloc::device);
 
         if (is_distributed) {
+            min = copy_for_allreduce<Float>(q, min);
             comm_.allreduce(min.flatten(q, {}), spmd::reduce_op::min).wait();
         }
         res.set_min(homogen_table::wrap(min.flatten(q, {}), 1, column_count));
@@ -181,43 +224,45 @@ result_t finalize_compute_kernel_dense_impl<Float>::operator()(const descriptor_
 
     if (res_op.test(result_options::max)) {
         ONEDAL_ASSERT(input.get_partial_max().get_column_count() == column_count);
-        const auto max =
+        auto max =
             pr::table2ndarray_1d<Float>(q, input.get_partial_max(), sycl::usm::alloc::device);
 
         if (is_distributed) {
+            max = copy_for_allreduce<Float>(q, max);
             comm_.allreduce(max.flatten(q, {}), spmd::reduce_op::max).wait();
         }
         res.set_max(homogen_table::wrap(max.flatten(q, {}), 1, column_count));
     }
 
     if (res_op_partial.test(result_options::sum)) {
-        auto sums_nd =
+        const auto local_sums_nd =
             pr::table2ndarray_1d<Float>(q, input.get_partial_sum(), sycl::usm::alloc::device);
+        auto sums_nd = local_sums_nd;
         auto sums2_nd = pr::table2ndarray_1d<Float>(q,
                                                     input.get_partial_sum_squares(),
                                                     sycl::usm::alloc::device);
+        auto sums2cent_nd = pr::table2ndarray_1d<Float>(q,
+                                                        input.get_partial_sum_squares_centered(),
+                                                        sycl::usm::alloc::device);
         if (is_distributed) {
-            auto sums_nd_copy =
-                pr::ndarray<Float, 1>::empty(q, { column_count }, sycl::usm::alloc::device);
-            auto copy_event = copy(q, sums_nd_copy, sums_nd, {});
-            copy_event.wait_and_throw();
-            sums_nd = sums_nd_copy;
-
+            sums_nd = copy_for_allreduce<Float>(q, local_sums_nd);
             {
                 ONEDAL_PROFILER_TASK(allreduce_sums, q);
                 comm_.allreduce(sums_nd.flatten(q, {}), spmd::reduce_op::sum).wait();
             }
-
-            auto sums2_nd_copy =
-                pr::ndarray<Float, 1>::empty(q, { column_count }, sycl::usm::alloc::device);
-            copy_event = copy(q, sums2_nd_copy, sums2_nd, {});
-            copy_event.wait_and_throw();
-            sums2_nd = sums2_nd_copy;
-
+            sums2_nd = copy_for_allreduce<Float>(q, sums2_nd);
             {
                 ONEDAL_PROFILER_TASK(allreduce_sums, q);
                 comm_.allreduce(sums2_nd.flatten(q, {}), spmd::reduce_op::sum).wait();
             }
+            sums2cent_nd = merge_sums2cent_across_ranks<Float>(q,
+                                                               comm_,
+                                                               local_sums_nd,
+                                                               sums_nd,
+                                                               sums2cent_nd,
+                                                               rows_count_local,
+                                                               rows_count_global,
+                                                               column_count);
         }
 
         auto [result_means,
@@ -225,9 +270,13 @@ result_t finalize_compute_kernel_dense_impl<Float>::operator()(const descriptor_
               result_raw_moment,
               result_variation,
               result_stddev,
-              result_sums2cent,
-              update_event] =
-            compute_all_metrics<Float>(q, sums_nd, sums2_nd, rows_count_global, column_count, {});
+              update_event] = compute_all_metrics<Float>(q,
+                                                         sums_nd,
+                                                         sums2_nd,
+                                                         sums2cent_nd,
+                                                         rows_count_global,
+                                                         column_count,
+                                                         {});
 
         if (res_op.test(result_options::sum)) {
             ONEDAL_ASSERT(input.get_partial_sum().get_column_count() == column_count);
@@ -244,9 +293,7 @@ result_t finalize_compute_kernel_dense_impl<Float>::operator()(const descriptor_
             ONEDAL_ASSERT(input.get_partial_sum_squares_centered().get_column_count() ==
                           column_count);
             res.set_sum_squares_centered(
-                homogen_table::wrap(result_sums2cent.flatten(q, { update_event }),
-                                    1,
-                                    column_count));
+                homogen_table::wrap(sums2cent_nd.flatten(q, { update_event }), 1, column_count));
         }
 
         if (res_op.test(result_options::mean)) {

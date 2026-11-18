@@ -115,6 +115,45 @@ public:
         }
     }
 
+    /// Online SPMD flow on one column near 1e8 whose second half is shifted by 0.5: the
+    /// ranks then have different means, which the merge across ranks has to account for.
+    void online_spmd_large_offset_checks() {
+        constexpr std::int64_t row_count = 4000;
+        std::vector<float_t> column(row_count);
+        long double mean = 0;
+        for (std::int64_t i = 0; i < row_count; ++i) {
+            const float_t shift = i < row_count / 2 ? float_t(0) : float_t(0.5);
+            column[i] =
+                float_t(1e8) + shift + float_t(1e-3) * float_t((i * 7919) % 1000) / float_t(500);
+            mean += column[i];
+        }
+        mean /= row_count;
+        long double ref = 0;
+        for (auto x : column)
+            ref += (x - mean) * (x - mean);
+
+        const auto data = homogen_table::wrap(column.data(), row_count, 1);
+        const auto desc =
+            base_t::get_descriptor(result_options::sum_squares_centered | result_options::variance);
+        std::vector<partial_result_t> partial_results;
+        for (const auto &rank_data :
+             te::split_table_by_rows<float_t>(this->get_policy(), data, rank_count_)) {
+            partial_result_t partial;
+            for (const auto &block :
+                 te::split_table_by_rows<float_t>(this->get_policy(), rank_data, blocks_count_)) {
+                partial = this->partial_compute(desc, partial, block);
+            }
+            partial_results.push_back(partial);
+        }
+        const auto result = this->finalize_compute_override(desc, partial_results);
+        const auto ssc = row_accessor<const float_t>(result.get_sum_squares_centered()).pull();
+        const auto variance = row_accessor<const float_t>(result.get_variance()).pull();
+        CAPTURE(rank_count_, blocks_count_, ssc[0], double(ref));
+        REQUIRE(std::abs(ssc[0] - double(ref)) <= 1e-6 * double(ref));
+        REQUIRE(std::abs(variance[0] - double(ref / (row_count - 1))) <=
+                1e-6 * double(ref / (row_count - 1)));
+    }
+
 private:
     std::int64_t rank_count_;
     std::int64_t blocks_count_;
@@ -162,6 +201,19 @@ TEMPLATE_LIST_TEST_M(basic_statistics_online_spmd_test,
     else {
         this->online_spmd_general_checks(data_, table{}, compute_mode);
     }
+}
+
+TEMPLATE_LIST_TEST_M(basic_statistics_online_spmd_test,
+                     "basic_statistics online spmd merge with a large offset",
+                     "[basic_statistics][integration][spmd]",
+                     basic_statistics_types) {
+    SKIP_IF(this->get_policy().is_cpu());
+    SKIP_IF(this->not_float64_friendly());
+    using float_t = std::tuple_element_t<0, TestType>;
+    SKIP_IF((!std::is_same_v<float_t, double>));
+    this->set_rank_count(GENERATE(2, 4));
+    this->set_blocks_count(3);
+    this->online_spmd_large_offset_checks();
 }
 
 } // namespace oneapi::dal::basic_statistics::test
