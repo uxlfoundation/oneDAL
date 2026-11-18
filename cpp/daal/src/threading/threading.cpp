@@ -321,8 +321,8 @@ DAAL_EXPORT void _daal_static_threader_for(int64_t n, const void * a, daal::func
     }
 }
 
-// tbb::parallel_sort sorts shorter ranges serially; below it, skip the isolate call that dominates tiny sorts.
-constexpr std::int64_t parallelSortMinSize = 500;
+// Below this size std::sort beats tbb::parallel_sort.
+constexpr std::int64_t parallelSortMinSize = 4096;
 
 template <typename F, typename Compare = std::less<F> >
 DAAL_EXPORT void _daal_parallel_sort_template(F * begin_p, F * end_p, Compare comp = Compare())
