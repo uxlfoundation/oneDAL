@@ -61,10 +61,12 @@
   Windows `clang-cl` is the ARM64 lane of `ci-win.yml`.
 
 - [ ] **Windows DPC++ execution.** Windows release artifacts can include the
-  DPC++ libraries. The nightly Windows Bazel job runs the `pca` DPC++ tests on
-  the Intel OpenCL CPU runtime (`opencl:cpu`); the other examples and tests that
-  create a SYCL queue are not run there yet and need device and runtime
-  validation on the CI images.
+  DPC++ libraries. The nightly Windows Bazel job is configured to run the `pca`
+  DPC++ tests on the Intel OpenCL CPU runtime (`opencl:cpu`). That execution is
+  not validated: the runtime install and the `opencl:cpu` check pass, but the
+  test link fails (run 44460598549), so no `pca` test has run there yet. The
+  other examples and tests that create a SYCL queue are not run there and need
+  device and runtime validation on the CI images.
 
 - [ ] **Toolchain flag tables as data.** The compile action configs, the default
   compile flags and the marker features are shared by
