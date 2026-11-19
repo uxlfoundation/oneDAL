@@ -154,6 +154,54 @@ static void fillFullDistMatrix(const FPType * data, size_t nRows, size_t nCols, 
     });
 }
 
+/// Accumulate `op(acc, q_d - x_d)` over the features of `count` column-major rows into `out`.
+///
+/// Rows are taken `blockRows` at a time so the accumulators stay in registers across features.
+///
+/// @param[in]  query Query point, length `nCols`
+/// @param[in]  cols  Column-major block, `cols[d * ld + j]` is feature `d` of row `j`
+/// @param[in]  count Number of rows
+/// @param[in]  ld    Column stride of `cols`
+/// @param[in]  nCols Number of features
+/// @param[out] out   Accumulated values, length `count`
+/// @param[in]  op    `acc = op(acc, diff)`, starting from zero
+template <typename FPType, typename Op>
+static inline void accumulateColumns(const FPType * query, const FPType * cols, size_t count, size_t ld, size_t nCols, FPType * out, const Op & op)
+{
+    constexpr size_t blockRows = 64 / sizeof(FPType) * 2;
+    size_t j0                  = 0;
+    for (; j0 + blockRows <= count; j0 += blockRows)
+    {
+        FPType acc[blockRows];
+        PRAGMA_OMP_SIMD
+        for (size_t j = 0; j < blockRows; j++) acc[j] = FPType(0);
+        for (size_t d = 0; d < nCols; d++)
+        {
+            const FPType qd    = query[d];
+            const FPType * col = cols + d * ld + j0;
+            PRAGMA_OMP_SIMD
+            for (size_t j = 0; j < blockRows; j++) acc[j] = op(acc[j], qd - col[j]);
+        }
+        PRAGMA_OMP_SIMD
+        for (size_t j = 0; j < blockRows; j++) out[j0 + j] = acc[j];
+    }
+    if (j0 < count)
+    {
+        const size_t len = count - j0;
+        FPType acc[blockRows];
+        PRAGMA_OMP_SIMD
+        for (size_t j = 0; j < blockRows; j++) acc[j] = FPType(0);
+        for (size_t d = 0; d < nCols; d++)
+        {
+            const FPType qd    = query[d];
+            const FPType * col = cols + d * ld + j0;
+            PRAGMA_OMP_SIMD
+            for (size_t j = 0; j < len; j++) acc[j] = op(acc[j], qd - col[j]);
+        }
+        for (size_t j = 0; j < len; j++) out[j0 + j] = acc[j];
+    }
+}
+
 // =========================================================================
 // Distance functors used by the tree builds and the Boruvka queries. Each provides
 //   - pointDist<cpu>(a, b, nCols): point-to-point distance
@@ -217,6 +265,50 @@ struct EuclideanDist
             sum += excess * excess;
         }
         return daal::internal::MathInst<FPType, cpu>::sSqrt(sum);
+    }
+
+    /// Squared distance: the reduced form the tree leaves compare.
+    template <daal::internal::CpuType cpu>
+    FPType toReduced(FPType dist) const
+    {
+        return dist * dist;
+    }
+
+    /// Distance from its reduced form.
+    template <daal::internal::CpuType cpu>
+    FPType fromReduced(FPType r) const
+    {
+        return daal::internal::MathInst<FPType, cpu>::sSqrt(r);
+    }
+
+    /// Squared distance from a query to a box, `bboxLowerBound` without the root.
+    template <daal::internal::CpuType cpu>
+    FPType bboxLowerBoundReduced(const FPType * query, const FPType * lo, const FPType * hi, size_t nCols) const
+    {
+        FPType sum = FPType(0);
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
+        for (size_t d = 0; d < nCols; d++)
+        {
+            const FPType belowLo = (query[d] < lo[d]) ? (lo[d] - query[d]) : FPType(0);
+            const FPType aboveHi = (query[d] > hi[d]) ? (query[d] - hi[d]) : FPType(0);
+            const FPType excess  = belowLo + aboveHi;
+            sum += excess * excess;
+        }
+        return sum;
+    }
+
+    /// Squared distances from `query` to `count` rows stored column by column with stride `ld`.
+    ///
+    /// @param[in]  query Query point, length `nCols`
+    /// @param[in]  cols  Column-major block, `cols[d * ld + j]` is feature `d` of row `j`
+    /// @param[in]  count Number of rows
+    /// @param[in]  ld    Column stride of `cols`
+    /// @param[in]  nCols Number of features
+    /// @param[out] out   Reduced distances, length `count`
+    template <daal::internal::CpuType cpu>
+    void leafReduced(const FPType * query, const FPType * cols, size_t count, size_t ld, size_t nCols, FPType * out) const
+    {
+        accumulateColumns(query, cols, count, ld, nCols, out, [](FPType acc, FPType diff) { return acc + diff * diff; });
     }
 
     /// Vectorized pivot-to-block Euclidean distance via BLAS xxgemv.
@@ -313,6 +405,34 @@ struct ManhattanDist
         return sum;
     }
 
+    /// The L1 distance is its own reduced form.
+    template <daal::internal::CpuType cpu>
+    FPType toReduced(FPType dist) const
+    {
+        return dist;
+    }
+
+    /// Distance from its reduced form.
+    template <daal::internal::CpuType cpu>
+    FPType fromReduced(FPType r) const
+    {
+        return r;
+    }
+
+    /// Same as `bboxLowerBound`: the distance is its own reduced form.
+    template <daal::internal::CpuType cpu>
+    FPType bboxLowerBoundReduced(const FPType * query, const FPType * lo, const FPType * hi, size_t nCols) const
+    {
+        return bboxLowerBound<cpu>(query, lo, hi, nCols);
+    }
+
+    /// L1 distances to a column-major block; see `EuclideanDist::leafReduced`.
+    template <daal::internal::CpuType cpu>
+    void leafReduced(const FPType * query, const FPType * cols, size_t count, size_t ld, size_t nCols, FPType * out) const
+    {
+        accumulateColumns(query, cols, count, ld, nCols, out, [](FPType acc, FPType diff) { return acc + ((diff >= FPType(0)) ? diff : -diff); });
+    }
+
     /// Pivot-to-block Manhattan distance.
     ///
     /// @tparam cpu CPU dispatch tag (unused for this metric)
@@ -389,6 +509,78 @@ struct MinkowskiDist
             const FPType aboveHi = (query[d] > hi[d]) ? (query[d] - hi[d]) : FPType(0);
             return belowLo + aboveHi;
         }));
+    }
+
+    /// `dist^p`, the sum before the root.
+    template <daal::internal::CpuType cpu>
+    FPType toReduced(FPType dist) const
+    {
+        if (twoP > 0)
+        {
+            FPType powered = (twoP % 2) ? daal::internal::MathInst<FPType, cpu>::sSqrt(dist) : FPType(1);
+            for (int k = 0; k < twoP / 2; k++) powered *= dist;
+            return powered;
+        }
+        return daal::internal::MathInst<FPType, cpu>::sPowx(dist, static_cast<FPType>(p));
+    }
+
+    /// Distance from its reduced form.
+    template <daal::internal::CpuType cpu>
+    FPType fromReduced(FPType r) const
+    {
+        return root<cpu>(r);
+    }
+
+    /// `bboxLowerBound` without the root.
+    template <daal::internal::CpuType cpu>
+    FPType bboxLowerBoundReduced(const FPType * query, const FPType * lo, const FPType * hi, size_t nCols) const
+    {
+        return powSum<cpu>(nCols, [&](size_t d) {
+            const FPType belowLo = (query[d] < lo[d]) ? (lo[d] - query[d]) : FPType(0);
+            const FPType aboveHi = (query[d] > hi[d]) ? (query[d] - hi[d]) : FPType(0);
+            return belowLo + aboveHi;
+        });
+    }
+
+    /// `sum_d |q_d - x_d|^p` to a column-major block; see `EuclideanDist::leafReduced`.
+    template <daal::internal::CpuType cpu>
+    void leafReduced(const FPType * query, const FPType * cols, size_t count, size_t ld, size_t nCols, FPType * out) const
+    {
+        PRAGMA_OMP_SIMD
+        for (size_t j = 0; j < count; j++) out[j] = FPType(0);
+        FPType buf[powBufSize];
+        for (size_t j0 = 0; j0 < count; j0 += powBufSize)
+        {
+            const size_t len = (count - j0 < powBufSize) ? count - j0 : powBufSize;
+            for (size_t d = 0; d < nCols; d++)
+            {
+                const FPType qd    = query[d];
+                const FPType * col = cols + d * ld + j0;
+                PRAGMA_OMP_SIMD
+                for (size_t j = 0; j < len; j++)
+                {
+                    const FPType diff = qd - col[j];
+                    buf[j]            = (diff < FPType(0)) ? -diff : diff;
+                }
+                if (twoP > 0)
+                {
+                    PRAGMA_OMP_SIMD
+                    for (size_t j = 0; j < len; j++)
+                    {
+                        const FPType t = buf[j];
+                        FPType powered = (twoP % 2) ? daal::internal::MathInst<FPType, cpu>::sSqrt(t) : FPType(1);
+                        for (int k = 0; k < twoP / 2; k++) powered *= t;
+                        out[j0 + j] += powered;
+                    }
+                }
+                else
+                {
+                    daal::internal::MathInst<FPType, cpu>::vPowx(len, buf, static_cast<FPType>(p), buf);
+                    PRAGMA_OMP_SIMD
+                    for (size_t j = 0; j < len; j++) out[j0 + j] += buf[j];
+                }
+            }
+        }
     }
 
     /// Pivot-to-block Minkowski distance.
@@ -572,6 +764,37 @@ struct ChebyshevDist
         return mx;
     }
 
+    /// The L-infinity distance is its own reduced form.
+    template <daal::internal::CpuType cpu>
+    FPType toReduced(FPType dist) const
+    {
+        return dist;
+    }
+
+    /// Distance from its reduced form.
+    template <daal::internal::CpuType cpu>
+    FPType fromReduced(FPType r) const
+    {
+        return r;
+    }
+
+    /// Same as `bboxLowerBound`: the distance is its own reduced form.
+    template <daal::internal::CpuType cpu>
+    FPType bboxLowerBoundReduced(const FPType * query, const FPType * lo, const FPType * hi, size_t nCols) const
+    {
+        return bboxLowerBound<cpu>(query, lo, hi, nCols);
+    }
+
+    /// L-infinity distances to a column-major block; see `EuclideanDist::leafReduced`.
+    template <daal::internal::CpuType cpu>
+    void leafReduced(const FPType * query, const FPType * cols, size_t count, size_t ld, size_t nCols, FPType * out) const
+    {
+        accumulateColumns(query, cols, count, ld, nCols, out, [](FPType acc, FPType diff) {
+            const FPType absd = (diff < FPType(0)) ? -diff : diff;
+            return (absd > acc) ? absd : acc;
+        });
+    }
+
     /// Pivot-to-block Chebyshev distance.
     ///
     /// Same rationale as ManhattanDist::blockDist -- no BLAS factorization.
@@ -616,6 +839,45 @@ static services::Status callWithLpDistance(algorithms::internal::PairwiseDistanc
     default: return services::Status(services::ErrorMethodNotSupported);
     }
     return services::Status();
+}
+
+/// Rows per leaf distance chunk; leaves larger than this are scanned in pieces.
+constexpr size_t leafChunk = 64;
+
+/// Relative slack on reduced-distance filters, so round-off never drops a candidate the exact
+/// check would take.
+template <typename FPType>
+static inline FPType reducedSlack()
+{
+    return FPType(1) + FPType(1024) * daal::services::internal::EpsilonVal<FPType>::get();
+}
+
+/// Copy the rows of every tree leaf into `leafCols` in tree order, one leaf as a column-major
+/// block starting at `leafCols + pointBegin * nCols`.
+///
+/// @param[in]  data         Row-major input, `nRows x nCols`
+/// @param[in]  nCols        Number of features
+/// @param[in]  nodes        Tree nodes with `pointBegin` / `pointEnd`
+/// @param[in]  totalNodes   Number of nodes
+/// @param[in]  pointIndices Point-index permutation of the tree
+/// @param[out] leafCols     Output, `nRows x nCols`
+/// @param[in]  isLeaf       Predicate on a node
+template <typename FPType, daal::internal::CpuType cpu, typename Node, typename IsLeaf>
+static void buildLeafColumns(const FPType * data, size_t nCols, const Node * nodes, DAAL_INT totalNodes, const DAAL_INT * pointIndices,
+                             FPType * leafCols, const IsLeaf & isLeaf)
+{
+    daal::threader_for(static_cast<size_t>(totalNodes), 64, [&](size_t n) {
+        const Node & node = nodes[n];
+        if (!isLeaf(node)) return;
+        const DAAL_INT begin = node.pointBegin;
+        const size_t count   = static_cast<size_t>(node.pointEnd - begin);
+        FPType * block       = leafCols + static_cast<size_t>(begin) * nCols;
+        for (size_t j = 0; j < count; j++)
+        {
+            const FPType * row = data + static_cast<size_t>(pointIndices[begin + j]) * nCols;
+            for (size_t d = 0; d < nCols; d++) block[d * count + j] = row[d];
+        }
+    });
 }
 
 /// Return the `k`-th smallest entry of `values[0, n)` without modifying or copying the input.

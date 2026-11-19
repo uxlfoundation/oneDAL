@@ -172,20 +172,30 @@ static DAAL_INT buildKdTree(const algorithmFPType * data, DAAL_INT * pointIndice
 /// @param[in,out] heap         Bounded max-heap of best-k candidates seen so far
 /// @param[in]     distFunc     Metric functor instance
 template <typename algorithmFPType, CpuType cpu, typename DistFunc>
-static void knnQuery(const algorithmFPType * data, size_t nCols, const KdNode<algorithmFPType> * nodes, const DAAL_INT * pointIndices,
-                     const algorithmFPType * queryPoint, DAAL_INT nodeIdx, KnnHeap<algorithmFPType, cpu> & heap, const DistFunc & distFunc)
+static void knnQuery(const algorithmFPType * leafCols, size_t nCols, const KdNode<algorithmFPType> * nodes, const DAAL_INT * pointIndices,
+                     const algorithmFPType * bboxLo, const algorithmFPType * bboxHi, const algorithmFPType * queryPoint, DAAL_INT nodeIdx,
+                     KnnHeap<algorithmFPType, cpu> & heap, const DistFunc & distFunc)
 {
     const KdNode<algorithmFPType> & node = nodes[nodeIdx];
 
     if (node.splitDim < 0)
     {
-        // Leaf node: check all points
-        for (DAAL_INT i = node.pointBegin; i < node.pointEnd; i++)
+        // Leaf: reduced distances for a chunk at once, the root only for heap candidates.
+        const size_t count            = static_cast<size_t>(node.pointEnd - node.pointBegin);
+        const algorithmFPType * block = leafCols + static_cast<size_t>(node.pointBegin) * nCols;
+        const algorithmFPType slack   = reducedSlack<algorithmFPType>();
+        algorithmFPType reduced[leafChunk];
+        for (size_t j0 = 0; j0 < count; j0 += leafChunk)
         {
-            const DAAL_INT pi           = pointIndices[i];
-            const algorithmFPType * row = data + pi * nCols;
-            const algorithmFPType dist  = distFunc.template pointDist<cpu>(queryPoint, row, nCols);
-            heap.push(dist, pi);
+            const size_t len = (count - j0 < leafChunk) ? count - j0 : leafChunk;
+            distFunc.template leafReduced<cpu>(queryPoint, block + j0, len, count, nCols, reduced);
+            algorithmFPType limit = distFunc.template toReduced<cpu>(heap.maxDist()) * slack;
+            for (size_t j = 0; j < len; j++)
+            {
+                if (reduced[j] > limit) continue;
+                heap.push(distFunc.template fromReduced<cpu>(reduced[j]), pointIndices[node.pointBegin + j0 + j]);
+                limit = distFunc.template toReduced<cpu>(heap.maxDist()) * slack;
+            }
         }
         return;
     }
@@ -196,13 +206,14 @@ static void knnQuery(const algorithmFPType * data, size_t nCols, const KdNode<al
     const DAAL_INT nearChild = (diff <= 0) ? node.left : node.right;
     const DAAL_INT farChild  = (diff <= 0) ? node.right : node.left;
 
-    knnQuery<algorithmFPType, cpu>(data, nCols, nodes, pointIndices, queryPoint, nearChild, heap, distFunc);
+    knnQuery<algorithmFPType, cpu>(leafCols, nCols, nodes, pointIndices, bboxLo, bboxHi, queryPoint, nearChild, heap, distFunc);
 
-    // For an axis-aligned split every supported L_p distance to the plane is |diff|.
+    // The plane distance |diff| is a cheap first test; the far box distance is the tight one.
     const algorithmFPType pd = (diff < algorithmFPType(0)) ? -diff : diff;
-    if (pd < heap.maxDist())
+    if (pd < heap.maxDist()
+        && distFunc.template bboxLowerBound<cpu>(queryPoint, bboxLo + farChild * nCols, bboxHi + farChild * nCols, nCols) < heap.maxDist())
     {
-        knnQuery<algorithmFPType, cpu>(data, nCols, nodes, pointIndices, queryPoint, farChild, heap, distFunc);
+        knnQuery<algorithmFPType, cpu>(leafCols, nCols, nodes, pointIndices, bboxLo, bboxHi, queryPoint, farChild, heap, distFunc);
     }
 }
 
@@ -317,52 +328,57 @@ static DAAL_INT updateNodeComponents(KdNode<algorithmFPType> * nodes, const DAAL
 /// @param[in]     invAlpha        `1.0 / alpha`, applied only to dist(q,p) inside MRD
 /// @param[in]     bound           Subtrees whose MRD lower bound exceeds it are skipped
 template <typename algorithmFPType, CpuType cpu, typename DistFunc>
-static void nearestMrdBoruvkaQuery(const algorithmFPType * data, size_t nCols, const KdNode<algorithmFPType> * nodes, const DAAL_INT * pointIndices,
-                                   const algorithmFPType * coreDistances, const algorithmFPType * bboxLo, const algorithmFPType * bboxHi,
-                                   const algorithmFPType * minCoreDistNode, const DAAL_INT * componentOf, const algorithmFPType * queryPoint,
-                                   DAAL_INT queryIdx, algorithmFPType queryCoreD, DAAL_INT queryComponent, DAAL_INT nodeIdx,
-                                   algorithmFPType & bestMrd, DAAL_INT & bestIdx, const DistFunc & distFunc, algorithmFPType invAlpha,
-                                   algorithmFPType bound)
+static void nearestMrdBoruvkaQuery(const algorithmFPType * leafCols, size_t nCols, const KdNode<algorithmFPType> * nodes,
+                                   const DAAL_INT * pointIndices, const algorithmFPType * treeCore, const algorithmFPType * bboxLo,
+                                   const algorithmFPType * bboxHi, const algorithmFPType * minCoreDistNode, const DAAL_INT * treeComp,
+                                   const algorithmFPType * queryPoint, DAAL_INT queryIdx, algorithmFPType queryCoreD, DAAL_INT queryComponent,
+                                   DAAL_INT nodeIdx, algorithmFPType & bestMrd, DAAL_INT & bestIdx, const DistFunc & distFunc,
+                                   algorithmFPType invAlpha, algorithmFPType bound)
 {
     const KdNode<algorithmFPType> & node = nodes[nodeIdx];
 
     // Pruning 1: all points in this subtree belong to the same component as query
     if (node.componentId == queryComponent) return;
 
-    // Pruning 2: bounding-box MRD lower bound
+    // Pruning 2: MRD(q, p) >= max(core_q, minCoreDist_subtree, boxDist * invAlpha); the box term
+    // is compared in reduced form with a slack, so round-off only ever prunes less.
     {
-        const algorithmFPType * lo    = bboxLo + nodeIdx * nCols;
-        const algorithmFPType * hi    = bboxHi + nodeIdx * nCols;
-        const algorithmFPType minDist = distFunc.template bboxLowerBound<cpu>(queryPoint, lo, hi, nCols);
-
-        // MRD(q, p) = max(core_q, core_p, dist(q,p) * invAlpha)
-        // >= max(core_q, minCoreDist_subtree, minDist * invAlpha)
-        algorithmFPType mrdLB = minDist * invAlpha;
-        if (queryCoreD > mrdLB) mrdLB = queryCoreD;
-        if (minCoreDistNode[nodeIdx] > mrdLB) mrdLB = minCoreDistNode[nodeIdx];
-
-        if (mrdLB >= bestMrd || mrdLB > bound) return;
+        const algorithmFPType coreLB = (queryCoreD > minCoreDistNode[nodeIdx]) ? queryCoreD : minCoreDistNode[nodeIdx];
+        if (coreLB >= bestMrd || coreLB > bound) return;
+        const algorithmFPType limit = (bestMrd < bound) ? bestMrd : bound;
+        const algorithmFPType * lo  = bboxLo + nodeIdx * nCols;
+        const algorithmFPType * hi  = bboxHi + nodeIdx * nCols;
+        if (distFunc.template bboxLowerBoundReduced<cpu>(queryPoint, lo, hi, nCols)
+            > distFunc.template toReduced<cpu>(limit / invAlpha) * reducedSlack<algorithmFPType>())
+            return;
     }
 
     if (node.splitDim < 0)
     {
-        // Leaf node: check all points
-        for (DAAL_INT i = node.pointBegin; i < node.pointEnd; i++)
+        // Leaf: reduced distances for a chunk at once; MRD only for the points that can win.
+        const DAAL_INT begin          = node.pointBegin;
+        const size_t count            = static_cast<size_t>(node.pointEnd - begin);
+        const algorithmFPType * block = leafCols + static_cast<size_t>(begin) * nCols;
+        const algorithmFPType slack   = reducedSlack<algorithmFPType>();
+        algorithmFPType reduced[leafChunk];
+        for (size_t j0 = 0; j0 < count; j0 += leafChunk)
         {
-            const DAAL_INT pi = pointIndices[i];
-            if (componentOf[pi] == queryComponent) continue;
-
-            const algorithmFPType * row = data + pi * nCols;
-            const algorithmFPType dist  = distFunc.template pointDist<cpu>(queryPoint, row, nCols);
-
-            algorithmFPType mrd = dist * invAlpha;
-            if (queryCoreD > mrd) mrd = queryCoreD;
-            if (coreDistances[pi] > mrd) mrd = coreDistances[pi];
-
-            if (mrd < bestMrd)
+            const size_t len = (count - j0 < leafChunk) ? count - j0 : leafChunk;
+            distFunc.template leafReduced<cpu>(queryPoint, block + j0, len, count, nCols, reduced);
+            algorithmFPType limit = distFunc.template toReduced<cpu>(bestMrd / invAlpha) * slack;
+            for (size_t j = 0; j < len; j++)
             {
-                bestMrd = mrd;
-                bestIdx = pi;
+                const size_t pos = static_cast<size_t>(begin) + j0 + j;
+                if (reduced[j] > limit || treeComp[pos] == queryComponent || treeCore[pos] >= bestMrd) continue;
+                algorithmFPType mrd = distFunc.template fromReduced<cpu>(reduced[j]) * invAlpha;
+                if (queryCoreD > mrd) mrd = queryCoreD;
+                if (treeCore[pos] > mrd) mrd = treeCore[pos];
+                if (mrd < bestMrd)
+                {
+                    bestMrd = mrd;
+                    bestIdx = pointIndices[pos];
+                    limit   = distFunc.template toReduced<cpu>(bestMrd / invAlpha) * slack;
+                }
             }
         }
         return;
@@ -375,10 +391,10 @@ static void nearestMrdBoruvkaQuery(const algorithmFPType * data, size_t nCols, c
     const DAAL_INT nearChild = (diff <= 0) ? node.left : node.right;
     const DAAL_INT farChild  = (diff <= 0) ? node.right : node.left;
 
-    nearestMrdBoruvkaQuery<algorithmFPType, cpu>(data, nCols, nodes, pointIndices, coreDistances, bboxLo, bboxHi, minCoreDistNode, componentOf,
+    nearestMrdBoruvkaQuery<algorithmFPType, cpu>(leafCols, nCols, nodes, pointIndices, treeCore, bboxLo, bboxHi, minCoreDistNode, treeComp,
                                                  queryPoint, queryIdx, queryCoreD, queryComponent, nearChild, bestMrd, bestIdx, distFunc, invAlpha,
                                                  bound);
-    nearestMrdBoruvkaQuery<algorithmFPType, cpu>(data, nCols, nodes, pointIndices, coreDistances, bboxLo, bboxHi, minCoreDistNode, componentOf,
+    nearestMrdBoruvkaQuery<algorithmFPType, cpu>(leafCols, nCols, nodes, pointIndices, treeCore, bboxLo, bboxHi, minCoreDistNode, treeComp,
                                                  queryPoint, queryIdx, queryCoreD, queryComponent, farChild, bestMrd, bestIdx, distFunc, invAlpha,
                                                  bound);
 }
@@ -425,12 +441,20 @@ static services::Status computeCoreDistAndMst(const algorithmFPType * data, size
     edgesAdded       = 0;
     SafeStatus safeStat;
 
+    // The leaves' rows in tree order, column-major per leaf, so a leaf scan is contiguous SIMD work.
+    DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nRows, nCols);
+    TArrayScalable<algorithmFPType, cpu> leafColsVec(nRows * nCols);
+    algorithmFPType * leafCols = leafColsVec.get();
+    DAAL_CHECK_MALLOC(leafCols);
+    buildLeafColumns<algorithmFPType, cpu>(data, nCols, nodes, totalTreeNodes, pointIndices, leafCols,
+                                           [](const KdNode<algorithmFPType> & node) { return node.splitDim < 0; });
+
     // Step 2: Compute core distances via k-NN queries on the kd-tree
     daal::threader_for(nRows, 1, [&](size_t i) {
         KnnHeap<algorithmFPType, cpu> heap(k);
         DAAL_CHECK_MALLOC_THR(heap.ok());
 
-        knnQuery<algorithmFPType, cpu>(data, nCols, nodes, pointIndices, data + i * nCols, 0, heap, distFunc);
+        knnQuery<algorithmFPType, cpu>(leafCols, nCols, nodes, pointIndices, bboxLo, bboxHi, data + i * nCols, 0, heap, distFunc);
 
         coreDistances[i] = heap.maxDist();
     });
@@ -487,6 +511,17 @@ static services::Status computeCoreDistAndMst(const algorithmFPType * data, size
 
     updateNodeComponents<algorithmFPType, cpu>(nodes, pointIndices, componentOf, 0);
 
+    // Core distances and components in tree order, next to the leaf rows.
+    TArrayScalable<algorithmFPType, cpu> treeCoreVec(nRows);
+    TArrayScalable<DAAL_INT, cpu> treeCompVec(nRows);
+    algorithmFPType * treeCore = treeCoreVec.get();
+    DAAL_INT * treeComp        = treeCompVec.get();
+    DAAL_CHECK_MALLOC(treeCore && treeComp);
+    daal::threader_for(nRows, 4096, [&](size_t pos) {
+        treeCore[pos] = coreDistances[pointIndices[pos]];
+        treeComp[pos] = componentOf[pointIndices[pos]];
+    });
+
     size_t numComponents = nRows;
 
     // Nearest neighbor of each point outside its component, under MRD.
@@ -502,9 +537,9 @@ static services::Status computeCoreDistAndMst(const algorithmFPType * data, size
             algorithmFPType bestMrd          = daal::services::internal::MaxVal<algorithmFPType>::get();
             DAAL_INT bestIdx                 = -1;
 
-            nearestMrdBoruvkaQuery<algorithmFPType, cpu>(data, nCols, nodes, pointIndices, coreDistances, bboxLo, bboxHi, minCoreDistNode,
-                                                         componentOf, queryPt, static_cast<DAAL_INT>(i), queryCoreD, comp, 0, bestMrd, bestIdx,
-                                                         distFunc, invAlpha, compBound[comp]);
+            nearestMrdBoruvkaQuery<algorithmFPType, cpu>(leafCols, nCols, nodes, pointIndices, treeCore, bboxLo, bboxHi, minCoreDistNode, treeComp,
+                                                         queryPt, static_cast<DAAL_INT>(i), queryCoreD, comp, 0, bestMrd, bestIdx, distFunc, invAlpha,
+                                                         compBound[comp]);
 
             // Above the bound the pruned search may miss the best edge; such a result cannot win.
             pointBestMrd[i] = bestMrd;
@@ -519,6 +554,7 @@ static services::Status computeCoreDistAndMst(const algorithmFPType * data, size
         if (addedThisRound == 0) break;
 
         refreshComponentIds<cpu>(nRows, uf, componentOf);
+        daal::threader_for(nRows, 4096, [&](size_t pos) { treeComp[pos] = componentOf[pointIndices[pos]]; });
 
         updateNodeComponents<algorithmFPType, cpu>(nodes, pointIndices, componentOf, 0);
     }
