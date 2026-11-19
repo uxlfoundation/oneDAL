@@ -47,8 +47,8 @@ TEMPLATE_LIST_TEST_M(basic_statistics_online_csr_test,
     this->online_csr_general_checks(data, compute_mode, n_blocks);
 }
 
-// Column 0 sits at 1e8 in every row and column 1 holds a value in every fourth row, so the
-// centered sums must merge around the block means instead of coming from the sums.
+// Both columns sit near 1e8 and column 1 is stored in every fourth row only, so the centered
+// sums must merge around the block means instead of coming from the sums.
 TEMPLATE_LIST_TEST_M(basic_statistics_online_csr_test,
                      "basic_statistics online CSR merge with a large offset",
                      "[basic_statistics][integration][online]",
@@ -58,56 +58,32 @@ TEMPLATE_LIST_TEST_M(basic_statistics_online_csr_test,
     SKIP_IF((!std::is_same_v<float_t, double>));
     // The CPU CSR kernel copies the input to a dense array first: https://github.com/uxlfoundation/oneDAL/pull/4037
     SKIP_IF(this->get_policy().is_cpu());
-    constexpr std::int64_t row_count = 3000;
-    constexpr std::int64_t column_count = 2;
-    std::vector<float_t> values;
-    std::vector<std::int64_t> column_indices;
-    std::vector<std::int64_t> row_offsets{ 0 };
-    std::vector<long double> column0, column1(row_count, 0.0L);
+    constexpr std::int64_t row_count = 3000, column_count = 2;
+    const te::dataframe df =
+        te::dataframe_builder{ row_count, column_count }.fill_uniform(-1, 1, 7777).build();
+    // The offset is added in double: float cannot hold a deviation of 1 at 1e8.
+    std::vector<float_t> dense(df.get_array().get_data(),
+                               df.get_array().get_data() + row_count * column_count);
     for (std::int64_t i = 0; i < row_count; ++i) {
-        const float_t x0 = float_t(1e8) + float_t(1e-3) * float_t((i * 7919) % 1000) / float_t(500);
-        values.push_back(x0);
-        column_indices.push_back(0);
-        column0.push_back(x0);
-        if (i % 4 == 0) {
-            const float_t x1 = float_t(1e8) + float_t((i * 13) % 17);
-            values.push_back(x1);
-            column_indices.push_back(1);
-            column1[i] = x1;
-        }
-        row_offsets.push_back(std::int64_t(values.size()));
+        dense[i * column_count] += float_t(1e8);
+        dense[i * column_count + 1] =
+            (i % 4 == 0) ? dense[i * column_count + 1] + float_t(1e8) : float_t(0);
     }
-    const auto data = csr_table::wrap(values.data(),
-                                      column_indices.data(),
-                                      row_offsets.data(),
-                                      row_count,
-                                      column_count,
-                                      sparse_indexing::zero_based);
+    const auto data =
+        te::dense_to_sparse_csr(dense.data(), row_count, column_count, sparse_indexing::one_based);
 
+    const auto mode = result_options::sum_squares_centered | result_options::variance;
     const auto desc =
-        bs::descriptor<float_t, bs::method::sparse, bs::task::compute>{}.set_result_options(
-            result_options::sum_squares_centered | result_options::variance);
+        bs::descriptor<float_t, bs::method::sparse, bs::task::compute>{}.set_result_options(mode);
     dal::basic_statistics::partial_compute_result<> partial;
     for (const auto& block : te::split_csr_by_rows<float_t>(data, 3)) {
         partial = this->partial_compute(desc, partial, block);
     }
-    const auto result = this->finalize_compute(desc, partial);
-
-    const auto ssc = row_accessor<const float_t>(result.get_sum_squares_centered()).pull();
-    const auto variance = row_accessor<const float_t>(result.get_variance()).pull();
-    const std::vector<std::vector<long double>> columns{ column0, column1 };
-    for (std::int64_t j = 0; j < column_count; ++j) {
-        long double mean = 0, ref = 0;
-        for (auto x : columns[j])
-            mean += x;
-        mean /= row_count;
-        for (auto x : columns[j])
-            ref += (x - mean) * (x - mean);
-        CAPTURE(j, ssc[j], double(ref));
-        REQUIRE(std::abs(ssc[j] - double(ref)) <= 1e-6 * double(ref));
-        REQUIRE(std::abs(variance[j] - double(ref / (row_count - 1))) <=
-                1e-6 * double(ref / (row_count - 1)));
-    }
+    this->check_compute_result(mode,
+                               homogen_table::wrap(dense.data(), row_count, column_count),
+                               table{},
+                               this->finalize_compute(desc, partial),
+                               1e-6);
 }
 
 // A one-row block used to make the online variance NaN.

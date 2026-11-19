@@ -99,35 +99,21 @@ TEMPLATE_LIST_TEST_M(basic_statistics_online_test,
     SKIP_IF(this->not_float64_friendly());
     SKIP_IF((!std::is_same_v<float_t, double>));
     constexpr std::int64_t row_count = 3000;
-    constexpr double offset = 1e8, dev = 1e-3;
-    std::vector<float_t> data(row_count);
-    for (std::int64_t i = 0; i < row_count; ++i) {
-        data[i] = offset + dev * double((i * 7919) % 1000) / 500.0;
+    const te::dataframe df =
+        te::dataframe_builder{ row_count, 1 }.fill_uniform(-1, 1, 7777).build();
+    // The offset is added in double: float cannot hold a deviation of 1 at 1e8.
+    std::vector<float_t> column(df.get_array().get_data(), df.get_array().get_data() + row_count);
+    for (auto& x : column) {
+        x += float_t(1e8);
     }
-    long double mean = 0;
-    for (auto x : data)
-        mean += x;
-    mean /= row_count;
-    long double ssc_ref = 0;
-    for (auto x : data)
-        ssc_ref += (x - mean) * (x - mean);
-
-    const auto desc =
-        this->get_descriptor(result_options::sum_squares_centered | result_options::variance);
+    const auto data = homogen_table::wrap(column.data(), row_count, 1);
+    const auto mode = result_options::sum_squares_centered | result_options::variance;
+    const auto desc = this->get_descriptor(mode);
     bs::partial_compute_result<> partial;
-    constexpr std::int64_t block = row_count / 3;
-    for (std::int64_t b = 0; b < 3; ++b) {
-        partial = this->partial_compute(desc,
-                                        partial,
-                                        homogen_table::wrap(data.data() + b * block, block, 1));
+    for (const auto& block : te::split_table_by_rows<float_t>(this->get_policy(), data, 3)) {
+        partial = this->partial_compute(desc, partial, block);
     }
-    const auto result = this->finalize_compute(desc, partial);
-
-    const auto ssc = row_accessor<const float_t>(result.get_sum_squares_centered()).pull();
-    const auto variance = row_accessor<const float_t>(result.get_variance()).pull();
-    REQUIRE(std::abs(ssc[0] - double(ssc_ref)) <= 1e-4 * double(ssc_ref));
-    REQUIRE(std::abs(variance[0] - double(ssc_ref / (row_count - 1))) <=
-            1e-4 * double(ssc_ref / (row_count - 1)));
+    this->check_compute_result(mode, data, table{}, this->finalize_compute(desc, partial), 1e-6);
 }
 
 // finalize_compute must leave the partial result as it was, so it can be finalized again
