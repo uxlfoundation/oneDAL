@@ -119,6 +119,8 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
     TArrayScalable<algorithmFPType, cpu> distMatrixVec(nRows * nRows);
     algorithmFPType * distMatrix = distMatrixVec.get();
     DAAL_CHECK_MALLOC(distMatrix);
+    // Faulting in and unmapping 4 KB pages took about two thirds of a 20000-row fit.
+    services::internal::service_advise_huge_pages(distMatrix, nRows * nRows * sizeof(algorithmFPType));
 
     using algorithms::internal::PairwiseDistanceType;
     using algorithms::internal::EuclideanDistances;
