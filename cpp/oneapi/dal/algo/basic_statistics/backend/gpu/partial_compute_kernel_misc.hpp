@@ -130,21 +130,21 @@ inline auto update_partial_sums(sycl::queue& q,
     const auto sums2cent_ptr = sums2cent.get_data();
     const auto nobs_ptr = nobs.get_data();
     const Float n2 = Float(block_row_count);
+    // An empty side has zero sums, so a zero inverse count drops its mean shift.
+    const Float inv_n2 = block_row_count > 0 ? Float(1) / n2 : Float(0);
 
     auto update_sums_event = q.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
         cgh.parallel_for(sycl::range<1>(column_count), [=](sycl::item<1> id) {
             const Float n = nobs_ptr[0];
             const Float n1 = n - n2;
+            const Float inv_n1 = n1 > Float(0) ? Float(1) / n1 : Float(0);
+            const Float weight = n > Float(0) ? n1 * n2 / n : Float(0);
+            const Float mean_shift = current_sums_ptr[id] * inv_n2 - sums_ptr[id] * inv_n1;
             result_sums_ptr[id] = sums_ptr[id] + current_sums_ptr[id];
             result_sums2_ptr[id] = sums2_ptr[id] + current_sums2_ptr[id];
-
-            Float between = Float(0);
-            if (n1 > Float(0) && n2 > Float(0)) {
-                const Float delta = current_sums_ptr[id] / n2 - sums_ptr[id] / n1;
-                between = n1 * (n2 / n) * delta * delta;
-            }
-            result_sums2cent_ptr[id] = sums2cent_ptr[id] + current_sums2cent_ptr[id] + between;
+            result_sums2cent_ptr[id] =
+                sums2cent_ptr[id] + current_sums2cent_ptr[id] + weight * mean_shift * mean_shift;
         });
     });
 

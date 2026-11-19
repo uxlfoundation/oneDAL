@@ -106,8 +106,8 @@ auto compute_all_metrics(sycl::queue& q,
                            update_event);
 }
 
-/// Sums the per-rank centered sums of squares around the global mean:
-/// `ssc_r + n_r * (mean_r - mean)^2` on each rank, then one allreduce.
+/// Sums the centered sums of squares of all ranks around the global mean,
+/// `ssc_r + n_r * (mean_r - mean)^2` summed over the ranks `r`.
 ///
 /// @param[in]  q               The SYCL queue
 /// @param[in]  comm            The communicator
@@ -116,41 +116,33 @@ auto compute_all_metrics(sycl::queue& q,
 /// @param[in]  local_sums2cent This rank's centered sums of squares
 /// @param[in]  local_rows      This rank's number of rows
 /// @param[in]  global_rows     The number of rows over all ranks
-/// @param[in]  column_count    The number of columns
 ///
 /// @return The centered sums of squares over all ranks
 template <typename Float, typename Comm>
-pr::ndarray<Float, 1> merge_sums2cent_across_ranks(sycl::queue& q,
-                                                   Comm& comm,
-                                                   const pr::ndview<Float, 1>& local_sums,
-                                                   const pr::ndview<Float, 1>& global_sums,
-                                                   const pr::ndview<Float, 1>& local_sums2cent,
-                                                   std::int64_t local_rows,
-                                                   std::int64_t global_rows,
-                                                   std::int64_t column_count) {
-    auto merged = pr::ndarray<Float, 1>::empty(q, column_count, alloc::device);
-    auto merged_ptr = merged.get_mutable_data();
+pr::ndarray<Float, 1> allreduce_sums2cent(sycl::queue& q,
+                                          Comm& comm,
+                                          const pr::ndview<Float, 1>& local_sums,
+                                          const pr::ndview<Float, 1>& global_sums,
+                                          const pr::ndview<Float, 1>& local_sums2cent,
+                                          std::int64_t local_rows,
+                                          std::int64_t global_rows) {
+    const std::int64_t column_count = local_sums.get_count();
+    auto result = pr::ndarray<Float, 1>::empty(q, column_count, alloc::device);
+    auto result_ptr = result.get_mutable_data();
     const auto local_sums_ptr = local_sums.get_data();
     const auto global_sums_ptr = global_sums.get_data();
     const auto local_sums2cent_ptr = local_sums2cent.get_data();
     const Float n_r = Float(local_rows);
-    const Float n = Float(global_rows);
-    auto event = q.submit([&](sycl::handler& cgh) {
-        cgh.parallel_for(sycl::range<1>(column_count), [=](sycl::item<1> id) {
-            Float between = Float(0);
-            if (n_r > Float(0)) {
-                const Float delta = local_sums_ptr[id] / n_r - global_sums_ptr[id] / n;
-                between = n_r * delta * delta;
-            }
-            merged_ptr[id] = local_sums2cent_ptr[id] + between;
-        });
+    // A rank without rows has zero sums and adds nothing.
+    const Float inv_n_r = local_rows > 0 ? Float(1) / n_r : Float(0);
+    const Float inv_n = global_rows > 0 ? Float(1) / Float(global_rows) : Float(0);
+    auto event = q.parallel_for(sycl::range<1>(column_count), [=](sycl::id<1> j) {
+        const Float mean_shift = local_sums_ptr[j] * inv_n_r - global_sums_ptr[j] * inv_n;
+        result_ptr[j] = local_sums2cent_ptr[j] + n_r * mean_shift * mean_shift;
     });
-    event.wait_and_throw();
-    {
-        ONEDAL_PROFILER_TASK(allreduce_sums2cent, q);
-        comm.allreduce(merged.flatten(q, {}), spmd::reduce_op::sum).wait();
-    }
-    return merged;
+    ONEDAL_PROFILER_TASK(allreduce_sums2cent, q);
+    comm.allreduce(result.flatten(q, { event }), spmd::reduce_op::sum).wait();
+    return result;
 }
 
 /// A copy of a partial result array, so that an allreduce leaves the partial result as it was.
@@ -255,14 +247,13 @@ result_t finalize_compute_kernel_dense_impl<Float>::operator()(const descriptor_
                 ONEDAL_PROFILER_TASK(allreduce_sums, q);
                 comm_.allreduce(sums2_nd.flatten(q, {}), spmd::reduce_op::sum).wait();
             }
-            sums2cent_nd = merge_sums2cent_across_ranks<Float>(q,
-                                                               comm_,
-                                                               local_sums_nd,
-                                                               sums_nd,
-                                                               sums2cent_nd,
-                                                               rows_count_local,
-                                                               rows_count_global,
-                                                               column_count);
+            sums2cent_nd = allreduce_sums2cent<Float>(q,
+                                                      comm_,
+                                                      local_sums_nd,
+                                                      sums_nd,
+                                                      sums2cent_nd,
+                                                      rows_count_local,
+                                                      rows_count_global);
         }
 
         auto [result_means,
