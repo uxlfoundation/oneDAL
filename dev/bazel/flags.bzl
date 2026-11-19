@@ -41,6 +41,52 @@ lnx_cc_flags = {
     "pedantic": lnx_cc_pedantic_flags,
 }
 
+# Per-compiler Linux flags, keyed by compiler, then category. Appended to
+# lnx_cc_flags[category]; a compiler or category not listed adds nothing.
+_LNX_ICX_FLAGS = [
+    "-qopenmp-simd",
+    # Keeps __svml_* references, which gcc cannot resolve, out of static archives.
+    "-no-intel-lib",
+    "-no-canonical-prefixes",
+]
+
+_LNX_ICPX_FLAGS = [
+    "-fwrapv",
+    "-no-intel-lib",
+    "-fsycl",
+    "-fno-canonical-system-headers",
+    "-no-canonical-prefixes",
+    "-Wno-gnu-zero-variadic-macro-arguments",
+]
+
+_LNX_GCC_FLAGS = [
+    "-Wno-gnu-zero-variadic-macro-arguments",
+    "-fopenmp-simd",
+    # Make: COMPILER.all.gnu.
+    "-fwrapv",
+    "-fno-strict-overflow",
+    "-fno-delete-null-pointer-checks",
+]
+
+_LNX_COMPILER_FLAGS = {
+    "gcc": {
+        "common": _LNX_GCC_FLAGS,
+        "pedantic": _LNX_GCC_FLAGS,
+    },
+    "clang": {
+        # Unhonored vectorization pragmas; icx/icpx honor them, so they keep the warning.
+        "common": ["-Wno-pass-failed"],
+        "pedantic": ["-Wno-pass-failed"],
+    },
+    "icx": {
+        "common": _LNX_ICX_FLAGS,
+    },
+    "icpx": {
+        "common": _LNX_ICPX_FLAGS,
+        "pedantic": _LNX_ICPX_FLAGS + ["-Wno-unused-command-line-argument"],
+    },
+}
+
 # icx/icpx on Windows use clang-cl spellings; mirrors COMPILER.win.icx in icx.mkl.32e.mk.
 # -Qopenmp-simd comes from the runtime_library feature: icx rejects it with the debug CRT.
 win_icx_common_flags = [
@@ -90,6 +136,17 @@ win_clang_flags = {
     "pedantic": win_clang_pedantic_flags,
 }
 
+# Windows flags, keyed by compiler, then category. cl is not listed: it uses
+# the rules_cc MSVC auto-config and gets none of these flags.
+_WIN_COMPILER_FLAGS = {
+    "icx": win_icx_flags,
+    "icpx": {
+        "common": win_icx_flags["common"] + ["-fsycl"],
+        "pedantic": win_icx_flags["pedantic"],
+    },
+    "clang": win_clang_flags,
+}
+
 # clang-cl targets the arch of its own binary unless told otherwise.
 _WIN_CLANG_TARGET_TRIPLE = {
     "arm": "aarch64-pc-windows-msvc",
@@ -102,68 +159,34 @@ def get_win_clang_target_flags(arch_id):
 def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
     _check_flag_category(category)
     if os_id == "lnx":
-        flags = lnx_cc_flags[category]
-        if compiler_id == "icx" and category == "common":
-            flags = flags + [
-                "-qopenmp-simd",
-                # Keeps __svml_* references, which gcc cannot resolve, out of static archives.
-                "-no-intel-lib",
-                "-no-canonical-prefixes",
-            ]
-        if compiler_id == "icpx":
-            flags = flags + [
-                "-fwrapv",
-                "-no-intel-lib",
-                "-fsycl",
-                "-fno-canonical-system-headers",
-                "-no-canonical-prefixes",
-                "-Wno-gnu-zero-variadic-macro-arguments",
-            ]
-        if compiler_id == "icpx" and category == "pedantic":
-            flags = flags + ["-Wno-unused-command-line-argument"]
-        if compiler_id == "gcc":
-            flags = flags + [
-                "-Wno-gnu-zero-variadic-macro-arguments",
-                "-fopenmp-simd",
-            ]
-        if compiler_id == "clang":
-            flags = flags + [
-                # Unhonored vectorization pragmas; icx/icpx honor them, so they keep the warning.
-                "-Wno-pass-failed",
-            ]
-        if compiler_id == "gcc":
-            # Make: COMPILER.all.gnu.
-            flags = flags + [
-                "-fwrapv",
-                "-fno-strict-overflow",
-                "-fno-delete-null-pointer-checks",
-            ]
+        flags = lnx_cc_flags[category] + _LNX_COMPILER_FLAGS.get(compiler_id, {}).get(category, [])
         if arch_id in ["arm", "riscv64"]:
             # A single ISA variant, so -march goes on every compile action.
             flags = flags + _get_single_variant_march_flags(arch_id)
-            if arch_id == "arm" and compiler_id == "gcc" and category == "common":
-                flags = flags + ["-ftree-vectorize"]
+            flags = flags + _SINGLE_VARIANT_COMPILER_FLAGS.get(arch_id, {}).get(compiler_id, {}).get(category, [])
         return flags
     if os_id == "win":
-        if compiler_id in ["icx", "icpx"]:
-            flags = win_icx_flags[category]
-            if compiler_id == "icpx" and category == "common":
-                flags = flags + ["-fsycl"]
-            return flags
-        if compiler_id == "clang":
-            flags = win_clang_flags[category]
-            if category == "common":
-                flags = flags + get_win_clang_target_flags(arch_id)
-                if arch_id in _SINGLE_VARIANT_MARCH_FLAGS:
-                    flags = flags + _get_single_variant_march_flags(arch_id)
-            return flags
-        # cl uses the rules_cc MSVC auto-config and none of these flags.
-        return []
+        flags = _WIN_COMPILER_FLAGS.get(compiler_id, {}).get(category, [])
+        if compiler_id == "clang" and category == "common":
+            flags = flags + get_win_clang_target_flags(arch_id)
+            if arch_id in _SINGLE_VARIANT_MARCH_FLAGS:
+                flags = flags + _get_single_variant_march_flags(arch_id)
+        return flags
     fail("Unsupported OS")
 
 _SINGLE_VARIANT_MARCH_FLAGS = {
     "arm": ["-march=armv8-a+sve"],
     "riscv64": ["-march=rv64gc_v1p0_zvl128b"],
+}
+
+# Extra flags for single-variant arch, keyed by arch, compiler, then category.
+# Appended after the -march flag.
+_SINGLE_VARIANT_COMPILER_FLAGS = {
+    "arm": {
+        "gcc": {
+            "common": ["-ftree-vectorize"],
+        },
+    },
 }
 
 _SINGLE_VARIANT_ISA_ID = {
