@@ -1,0 +1,24 @@
+{
+  "id": "feat_csr_original_accessors",
+  "family": "feature",
+  "base": "4f235e649a2fef142b76fe72b2f4a00cee17566e^",
+  "grader": "test_pass",
+  "gate": [
+    "strict_pass"
+  ],
+  "source_pr": 3775,
+  "hidden_from": "4f235e649a2fef142b76fe72b2f4a00cee17566e",
+  "hidden_files": [
+    "cpp/oneapi/dal/table/detail/test/csr_utils.cpp"
+  ],
+  "oracle_patch": "oracle.patch",
+  "targets": [
+    "//cpp/oneapi/dal/table:detail_test_csr_utils_host"
+  ],
+  "regression_targets": [
+    "//cpp/oneapi/dal/table:test_csr_host",
+    "//cpp/oneapi/dal/table:test_csr_accessor_host",
+    "//cpp/oneapi/dal/table:test_csr_badargs_host"
+  ],
+  "prompt": "Implement the following feature request in this repository (oneDAL). Build and run the C++ tests with `bazel` (on PATH); this machine has no GPU and no oneAPI compiler, so use the `*_host` targets. Do not weaken or delete existing tests.\n\n# Expose the buffers behind a csr_table to detail code without copying\n\nDetail code that wraps a `csr_table` needs the arrays the table was built from: the values, the column indices and the row offsets, with the same memory and the same mutability the table holds. The public `csr_table` accessors do not give that. Add three helpers to `cpp/oneapi/dal/table/detail/csr_utils.hpp`, in namespace `oneapi::dal::detail`:\n\n- `get_original_data(const csr_table& t)` returns `dal::array<byte_t>`;\n- `get_original_column_indices(const csr_table& t)` returns `dal::array<std::int64_t>`;\n- `get_original_row_offsets(const csr_table& t)` returns `dal::array<std::int64_t>`.\n\nEach returned array must be the table's own buffer, not a copy: its `get_data()` is the pointer the table holds, and its `get_size()` is the size in bytes of the whole buffer (the number of non-zero elements times the element size for the data and the column indices; row count plus one times the element size for the row offsets). `has_mutable_data()` must report the mutability the table holds for that buffer, so a table built from const raw pointers reports immutable arrays, and a table built through `csr_table_builder` from mutable `dal::array` objects reports mutable data.\n\nA table that was created from a custom implementation (not from arrays) has no original buffers, so each helper returns an empty array in that case.\n\nThe helpers are for detail code only: no public header changes and no changes to the public `csr_table` API. Add no new test files unless they help you check your work."
+}
