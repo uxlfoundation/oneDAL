@@ -64,7 +64,8 @@ public:
 
     void online_spmd_general_checks(const table &data,
                                     const table &weights,
-                                    bs::result_option_id compute_mode) {
+                                    bs::result_option_id compute_mode,
+                                    double tol = 1e-2) {
         CAPTURE(static_cast<std::uint64_t>(compute_mode));
 
         const auto use_weights = weights.has_data();
@@ -92,9 +93,9 @@ public:
                 partial_results.push_back(partial_result);
             }
             auto compute_result = this->finalize_compute_override(bs_desc, partial_results);
-            base_t::check_compute_result(compute_mode, data, weights, compute_result);
+            base_t::check_compute_result(compute_mode, data, weights, compute_result, tol);
             compute_result = this->finalize_compute_override(bs_desc, partial_results);
-            base_t::check_compute_result(compute_mode, data, weights, compute_result);
+            base_t::check_compute_result(compute_mode, data, weights, compute_result, tol);
         }
         else {
             for (int64_t i = 0; i < rank_count_; i++) {
@@ -109,9 +110,9 @@ public:
                 partial_results.push_back(partial_result);
             }
             auto compute_result = this->finalize_compute_override(bs_desc, partial_results);
-            base_t::check_compute_result(compute_mode, data, table{}, compute_result);
+            base_t::check_compute_result(compute_mode, data, table{}, compute_result, tol);
             compute_result = this->finalize_compute_override(bs_desc, partial_results);
-            base_t::check_compute_result(compute_mode, data, table{}, compute_result);
+            base_t::check_compute_result(compute_mode, data, table{}, compute_result, tol);
         }
     }
 
@@ -162,6 +163,32 @@ TEMPLATE_LIST_TEST_M(basic_statistics_online_spmd_test,
     else {
         this->online_spmd_general_checks(data_, table{}, compute_mode);
     }
+}
+
+TEMPLATE_LIST_TEST_M(basic_statistics_online_spmd_test,
+                     "basic_statistics online spmd merge with a large offset",
+                     "[basic_statistics][integration][spmd]",
+                     basic_statistics_types) {
+    SKIP_IF(this->get_policy().is_cpu());
+    SKIP_IF(this->not_float64_friendly());
+    using float_t = std::tuple_element_t<0, TestType>;
+    SKIP_IF((!std::is_same_v<float_t, double>));
+    this->set_rank_count(GENERATE(2, 4));
+    this->set_blocks_count(3);
+    // The offset is added in double, and the second half is shifted so the ranks have
+    // different means to merge around.
+    constexpr std::int64_t row_count = 4000;
+    const te::dataframe df =
+        te::dataframe_builder{ row_count, 1 }.fill_uniform(-1, 1, 7777).build();
+    std::vector<float_t> column(df.get_array().get_data(), df.get_array().get_data() + row_count);
+    for (std::int64_t i = 0; i < row_count; ++i) {
+        column[i] += float_t(i < row_count / 2 ? 1e8 : 1e8 + 0.5);
+    }
+    const auto mode = result_options::sum_squares_centered | result_options::variance;
+    this->online_spmd_general_checks(homogen_table::wrap(column.data(), row_count, 1),
+                                     table{},
+                                     mode,
+                                     1e-6);
 }
 
 } // namespace oneapi::dal::basic_statistics::test
