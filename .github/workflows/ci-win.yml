@@ -502,9 +502,8 @@ jobs:
       - name: Checkout oneDAL
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # The toolkit URL and component list are read from .ci/pipeline/ci.yml,
-      # their single source of truth, as nightly-build.yml does.
-      # Keyed on the installer and component list in ci.yml, the single source of truth for both.
+      # The installer URL and component list come from .ci/pipeline/ci.yml, their single source
+      # of truth; both the cache key and the install step below read them.
       - name: Compute the oneAPI Base Toolkit cache key
         id: basekit
         shell: bash
