@@ -101,11 +101,12 @@ prints the task ids of a tier, and `run.py validate` checks that every `tier` is
 | `smoke` | `build_kmeans_host`, `build_release_host`, `fix_kmeans_csr_obj` | environment floor: failing these means a broken setup, not a weak result |
 | `scored` (default) | everything not listed elsewhere, including the new mined tasks | the headline comparison between arms |
 | `hard` | `fix_cel_thread_race`, `fix_df_extratrees_reg`, `test_add_minkowski` | ceiling probe for stronger models, reported apart from the headline |
-| `retired` | `fix_avx2_dispatch`, `fix_finiteness_mut`, `fix_df_fraction_gt1`, `feat_xparam_cov_bias` | still checked by `dokimi repo tasks check`, not used for agent scores: they were 6/6 in both arms in the pilot |
+| `retired` | `fix_avx2_dispatch`, `fix_finiteness_mut`, `fix_df_fraction_gt1`, `feat_xparam_cov_bias` | not used for agent scores, and left out of CI's `tasks: all` self-check: they were 6/6 in both arms in the pilot. Check one by hand with `dokimi repo tasks check --task <id>` |
 
-The tier is recorded, but **dokimi does not read it yet**: `dokimi repo run` still takes every task directory, and
-the `smoke-tasks` list in `.github/workflows/agent-evals.yml` still names retired tasks. Until dokimi honours the
-field, the tiers are advisory.
+`.github/workflows/agent-evals.yml` reads the tiers through `run.py`: its `plan` job passes `run.py list --tier retired`
+as `exclude-tasks`, and `run.py list --smoke` as `smoke-tasks`. The smoke set is every `smoke`-tier task plus one task
+for each grader no smoke task covers (the best non-retired task of that grader). `dokimi repo run` (agent scores)
+still takes every task directory, so the tiers only shape the CI self-check and the headline you choose to report.
 
 `fix_cel_thread_race` only fails on hardware where the race can happen. It was measured to need at least 3 CPUs,
 as oneTBB counts them (the affinity mask and the cgroup quota), and it was never seen on AMD EPYC 7763. The task

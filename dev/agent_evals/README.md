@@ -159,7 +159,8 @@ Agent variance is large (haiku review recall ranged 0.375–0.75 within one cell
 ## Eval image
 
 The image is `Dockerfile`; dokimi builds it from the repository at the eval revision without `tasks/` (tag
-`dokimi/onedal:<sha>`). Runs are offline (`image.network: none`); the four caches of `repo-eval.yaml` are host
+`dokimi/onedal:<sha>`). It pre-fetches the Bazel versions the task bases pin, listed in `task-bazel-versions.txt`
+(`run.py bazel-versions`; CI checks the file against the bases). Runs are offline (`image.network: none`); the four caches of `repo-eval.yaml` are host
 directories mounted at `/cache/bazel-repo`, `/cache/bazel-disk`, `/cache/bazel-registry` (a BCR mirror: task
 workspaces have no `MODULE.bazel.lock`) and `/cache/bazel-install` (`bin/bazel` passes it as `--output_user_root`,
 so Bazel's install base is shared and stays off the container layer). dokimi puts them under `--cache-root`

@@ -45,8 +45,37 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # The task sets come from the task.json tiers (run.py), not from a list here; the bazel versions must match the
+  # committed task-bazel-versions.txt that the eval image pre-fetches.
+  plan:
+    name: eval sets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      retired: ${{ steps.sets.outputs.retired }}
+      smoke: ${{ steps.sets.outputs.smoke }}
+    steps:
+      # Full history: `bazel-versions --check` reads each task base's .bazelversion.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Task sets and bazel versions
+        id: sets
+        run: |
+          set -euo pipefail
+          python3 dev/agent_evals/run.py validate
+          python3 dev/agent_evals/run.py bazel-versions --check
+          echo "retired=$(python3 dev/agent_evals/run.py list --tier retired | tr '\n' ' ')" >> "$GITHUB_OUTPUT"
+          echo "smoke=$(python3 dev/agent_evals/run.py list --smoke | tr '\n' ' ')" >> "$GITHUB_OUTPUT"
+          echo "retired (not in tasks: all): $(python3 dev/agent_evals/run.py list --tier retired | tr '\n' ' ')" >> "$GITHUB_STEP_SUMMARY"
+          echo "smoke (set for a harness change): $(python3 dev/agent_evals/run.py list --smoke | tr '\n' ' ')" >> "$GITHUB_STEP_SUMMARY"
+
   repo-eval:
     name: dokimi
+    needs: plan
     if: github.repository == 'uxlfoundation/oneDAL' || github.event_name != 'schedule'
     permissions:
       contents: read
@@ -57,9 +86,9 @@ jobs:
       dokimi-ref: 09be35bf0a1e887ba7b146357b839052c830c3b9
       manifest: dev/agent_evals/repo-eval.yaml
       tasks: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.tasks || 'all') || 'changed' }}
-      smoke-tasks: >-
-        build_kmeans_host build_make_gnu build_release_host fix_finiteness_mut fix_avx2_dispatch
-        review_seeded_fc review_replay_pr3580 test_add_chebyshev
+      # retired tasks are left out of `all` and of the smoke set; a task named by hand on workflow_dispatch is skipped too
+      exclude-tasks: ${{ needs.plan.outputs.retired }}
+      smoke-tasks: ${{ needs.plan.outputs.smoke }}
       # fix_cel_thread_race needs 4+ Intel CPUs (its task.json `host`); a hosted runner may be AMD or smaller, where
       # its null run would pass. dokimi then reports it unsupported, with the reason, and this passes the job.
       allow-unsupported: true
