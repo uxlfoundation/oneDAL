@@ -101,8 +101,7 @@ TEMPLATE_LIST_TEST_M(basic_statistics_online_test,
     constexpr std::int64_t row_count = 3000;
     const te::dataframe df =
         te::dataframe_builder{ row_count, 1 }.fill_uniform(1e8 - 1.0, 1e8 + 1.0, 7777).build();
-    std::vector<float_t> column(df.get_array().get_data(), df.get_array().get_data() + row_count);
-    const auto data = homogen_table::wrap(column.data(), row_count, 1);
+    const auto data = df.get_table(this->get_policy(), this->get_homogen_table_id());
     const auto mode = result_options::sum_squares_centered | result_options::variance;
     const auto desc = this->get_descriptor(mode);
     bs::partial_compute_result<> partial;
