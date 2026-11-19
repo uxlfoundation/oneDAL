@@ -237,7 +237,10 @@ static void refreshComponentIds(size_t nRows, UnionFind & uf, DAAL_INT * compone
 }
 
 /// Width from which the tree bounds barely prune, so `primMst` replaces the Boruvka rounds.
-constexpr size_t primMinCols = 32;
+constexpr size_t primMinCols = 96;
+
+/// Rows from which `primMst` wins at `primMinCols`; below it each Prim step is too short to share.
+constexpr size_t primMinRows = 32768;
 
 /// Below this many row values left to scan, a Prim step runs serially: a parallel-for costs more than the scan.
 constexpr size_t primSerialWork = 32768;

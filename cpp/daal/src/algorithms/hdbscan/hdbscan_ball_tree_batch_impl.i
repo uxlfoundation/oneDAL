@@ -571,7 +571,7 @@ static services::Status computeCoreDistAndMstBallTree(const algorithmFPType * da
     });
     DAAL_CHECK_SAFE_STATUS();
 
-    if (nCols >= primMinCols)
+    if (nCols >= primMinCols && nRows >= primMinRows)
     {
         return primMst<algorithmFPType, cpu>(data, nRows, nCols, coreDistances, distFunc, invAlpha, mstFrom, mstTo, mstWeights, edgesAdded);
     }
