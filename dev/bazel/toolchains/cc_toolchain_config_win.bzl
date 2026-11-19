@@ -157,32 +157,36 @@ def _impl(ctx):
         ],
     )
 
-    # Make's dep_dpc, before `/link`: the SYCL link has no CRT object behind /WHOLEARCHIVE
-    # (LNK2001 `_DllMainCRTStartup`). https://github.com/uxlfoundation/oneDAL/pull/4042
-    dpc_runtime_library_feature = feature(
-        name = "dpc_runtime_library",
+    # The `.res` goes before `/link` as icx needs (main's dpc_link_win.ps1 did the same):
+    # the objects of a DPC++ link, which hold only the `.res`, are emitted here, not after `/link`.
+    dpc_resource_inputs_feature = feature(
+        name = "dpc_resource_inputs",
         enabled = True,
-        flag_sets = [
-            flag_set(
-                actions = all_link_actions + lto_index_actions,
-                flag_groups = [flag_group(
-                    flags = ["msvcrtd.lib", "msvcprtd.lib", "vcruntime.lib", "ucrtd.lib"],
-                )],
-                with_features = [with_feature_set(
-                    features = ["dpc++", "msvc_runtime_debug"],
-                )],
-            ),
-            flag_set(
-                actions = all_link_actions + lto_index_actions,
-                flag_groups = [flag_group(
-                    flags = ["msvcrt.lib", "msvcprt.lib", "vcruntime.lib", "ucrt.lib"],
-                )],
-                with_features = [with_feature_set(
-                    features = ["dpc++"],
-                    not_features = ["msvc_runtime_debug"],
-                )],
-            ),
-        ],
+        flag_sets = [flag_set(
+            actions = all_link_actions + lto_index_actions,
+            flag_groups = [flag_group(
+                iterate_over = "libraries_to_link",
+                flag_groups = [
+                    flag_group(
+                        flags = ["%{libraries_to_link.object_files}"],
+                        iterate_over = "libraries_to_link.object_files",
+                        expand_if_equal = variable_with_value(
+                            name = "libraries_to_link.type",
+                            value = "object_file_group",
+                        ),
+                    ),
+                    flag_group(
+                        flags = ["%{libraries_to_link.name}"],
+                        expand_if_equal = variable_with_value(
+                            name = "libraries_to_link.type",
+                            value = "object_file",
+                        ),
+                    ),
+                ],
+                expand_if_available = "libraries_to_link",
+            )],
+            with_features = [with_feature_set(features = ["dpc++"])],
+        )],
     )
     # No `supports_pic`: PE/COFF has no PIC variant, and cc_module rejects two object variants.
     supports_dynamic_linker_feature = common.supports_dynamic_linker_feature()
@@ -383,6 +387,7 @@ def _impl(ctx):
     libraries_to_link_feature = feature(
         name = "libraries_to_link",
         flag_sets = [
+            # A DPC++ link emits its objects before `/link` (dpc_resource_inputs), not here.
             flag_set(
                 actions = all_link_actions + lto_index_actions,
                 flag_groups = [flag_group(
@@ -403,14 +408,22 @@ def _impl(ctx):
                                 value = "object_file",
                             ),
                         ),
-                        flag_group(
-                            flags = ["%{libraries_to_link.name}"],
-                            expand_if_equal = variable_with_value(
-                                name = "libraries_to_link.type",
-                                value = "static_library",
-                            ),
-                        ),
                     ],
+                    expand_if_available = "libraries_to_link",
+                )],
+                with_features = [with_feature_set(not_features = ["dpc++"])],
+            ),
+            flag_set(
+                actions = all_link_actions + lto_index_actions,
+                flag_groups = [flag_group(
+                    iterate_over = "libraries_to_link",
+                    flag_groups = [flag_group(
+                        flags = ["%{libraries_to_link.name}"],
+                        expand_if_equal = variable_with_value(
+                            name = "libraries_to_link.type",
+                            value = "static_library",
+                        ),
+                    )],
                     expand_if_available = "libraries_to_link",
                 )],
             ),
@@ -583,14 +596,14 @@ def _impl(ctx):
         compiler_input_flags_feature,
         compiler_output_flags_feature,
         default_link_flags_feature,
-        # Before `/link`: these libraries and the CRT ones of dpc_runtime_library are the
-        # driver's only inputs on a DPC++ link, which otherwise fails with "no input files".
+        # Before `/link`: sycl.lib and the `.res` are the driver's inputs on a DPC++ link,
+        # which otherwise fails with "no input files".
         sycl_runtime_library_feature,
-        dpc_runtime_library_feature,
         # The icx driver flags go before the `/link` from dpc_linker_mode and the
         # lld-link inputs after it; clang-cl ignores lld-link options.
         shared_flag_feature,
         output_execpath_flags_feature,
+        dpc_resource_inputs_feature,
         dpc_linker_mode_feature,
         # `/IMPLIB:` is a linker option, so it sits after `/link` on a DPC++
         # link and overrides the `-implib:` the icx driver derives from `-o`.

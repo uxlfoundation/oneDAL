@@ -193,15 +193,17 @@ def _link(owner, name, actions, cc_toolchain,
     additional_link_inputs = list(additional_inputs) + unpacked_linking_context.additional_inputs
     dpc_link = cc_common.is_enabled(feature_configuration = feature_configuration, feature_name = "dpc++")
     if is_windows and all_object_list and dpc_link:
-        # The objects go to icx after `/link` in one response file, one quoted path per line, so no
-        # line nears the 131071-character limit (LNK1170). No archive and no /WHOLEARCHIVE: the
-        # archive link produced no exports (Azure 66369). Make and the old wrapper pass objects so.
-        objects_rsp = actions.declare_file(name + "_objects.rsp")
-        actions.write(objects_rsp, "\n".join(['"' + o.path + '"' for o in all_object_list]) + "\n")
-        object_archive_link_flags.append("@" + objects_rsp.path)
-        additional_link_inputs.append(objects_rsp)
+        # Objects after `/link` in one response file: an archive there gave no exports (Azure 66369).
+        # The `.res` stays a compilation output, and dpc_resource_inputs puts it before `/link`.
+        resources = [o for o in all_object_list if o.path.endswith(".res")]
+        objects = [o for o in all_object_list if not o.path.endswith(".res")]
+        if objects:
+            objects_rsp = actions.declare_file(name + "_objects.rsp")
+            actions.write(objects_rsp, "\n".join(['"' + o.path + '"' for o in objects]) + "\n")
+            object_archive_link_flags.append("@" + objects_rsp.path)
+            additional_link_inputs.append(objects_rsp)
         additional_link_inputs.extend(all_object_list)
-        all_object_list = []
+        all_object_list = resources
     elif is_windows and all_object_list:
         # One archive for all objects, so the link line names one library (MSVC link, LNK1170).
         object_archive = _merge_static_libs(

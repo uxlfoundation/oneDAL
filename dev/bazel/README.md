@@ -517,10 +517,10 @@ comparator rather than hiding differences in a platform wrapper. The same goes
 for the build itself: prefer a Bazel action to a helper script. Windows import
 libraries are declared outputs of the DLL link (`/IMPLIB:`), CRLF staging is an
 `expand_template` and a missing `icpx` is reported during analysis. DPC++ links
-run `icx` directly, with the objects of DLLs and executables in one response
-file after `/link`. MSVC links put them into one `<name>_objects.lib`
-(`/WHOLEARCHIVE`). The version resource of a DLL is converted by `cvtres` into
-an object of that link.
+run `icx` directly: the version resource `.res` goes before `/link`, and the
+objects of DLLs and executables go in one response file after it. MSVC links
+put the objects into one `<name>_objects.lib` (`/WHOLEARCHIVE`) and take the
+`.res` as an input.
 
 ### Run oneAPI examples
 - To run all oneAPI C++ example use the following commands:
