@@ -48,6 +48,8 @@ struct Math
 
     static fpType sSqrt(fpType in) { return _impl<fpType, cpu>::sSqrt(in); }
 
+    static fpType sCbrt(fpType in) { return _impl<fpType, cpu>::sCbrt(in); }
+
     static fpType sPowx(fpType in, fpType in1) { return _impl<fpType, cpu>::sPowx(in, in1); }
 
     static fpType sCeil(fpType in) { return _impl<fpType, cpu>::sCeil(in); }
@@ -89,6 +91,8 @@ struct Math
     static void vTanh(SizeType n, const fpType * in, fpType * out) { _impl<fpType, cpu>::vTanh(n, in, out); }
 
     static void vSqrt(SizeType n, const fpType * in, fpType * out) { _impl<fpType, cpu>::vSqrt(n, in, out); }
+
+    static void vCbrt(SizeType n, const fpType * in, fpType * out) { _impl<fpType, cpu>::vCbrt(n, in, out); }
 
     static void vInvSqrt(SizeType n, const fpType * a, fpType * b) { _impl<fpType, cpu>::vInvSqrt(n, a, b); }
 
