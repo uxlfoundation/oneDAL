@@ -324,12 +324,20 @@ DAAL_EXPORT void _daal_static_threader_for(int64_t n, const void * a, daal::func
 // Below this size std::sort beats tbb::parallel_sort.
 constexpr std::int64_t parallelSortMinSize = 4096;
 
+// tbb::parallel_sort is used only for large arrays outside parallel regions. Inside a parallel region
+// (e.g. the per-tree bootstrap sort in decision forest training) the other threads are busy, so it gains
+// nothing and its overhead makes it ~17% slower than std::sort.
+inline bool useParallelSort(std::int64_t n)
+{
+    return n >= parallelSortMinSize && daal::threader_env()->getNumberOfThreads() > 1 && !_daal_is_in_parallel();
+}
+
 template <typename F, typename Compare = std::less<F> >
 DAAL_EXPORT void _daal_parallel_sort_template(F * begin_p, F * end_p, Compare comp = Compare())
 {
-    if (daal::threader_env()->getNumberOfThreads() > 1 && end_p - begin_p >= parallelSortMinSize)
+    if (useParallelSort(end_p - begin_p))
     {
-        // Isolated so that a caller inside a parallel loop does not run other loop tasks while it waits.
+        // Isolated so that the calling thread does not pick up unrelated outer tasks while it waits.
         tbb::this_task_arena::isolate([&]() { tbb::parallel_sort(begin_p, end_p, comp); });
     }
     else
@@ -382,7 +390,7 @@ void parallelIndexSort(size_t n, F * data, I *... index)
 {
     const ZipIterator<F, I...> first(data, index...);
     const ZipIterator<F, I...> last = first + n;
-    if (daal::threader_env()->getNumberOfThreads() > 1 && n >= parallelSortMinSize)
+    if (useParallelSort(n))
     {
         // Isolated for the same reason as in _daal_parallel_sort_template.
         tbb::this_task_arena::isolate([&]() { tbb::parallel_sort(first, last, ZipKeyLess()); });
