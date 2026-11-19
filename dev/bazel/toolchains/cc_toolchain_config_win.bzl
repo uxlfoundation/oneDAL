@@ -156,6 +156,34 @@ def _impl(ctx):
             ),
         ],
     )
+
+    # Make's dep_dpc, before `/link`: the SYCL link has no CRT object behind /WHOLEARCHIVE
+    # (LNK2001 `_DllMainCRTStartup`). https://github.com/uxlfoundation/oneDAL/pull/4042
+    dpc_runtime_library_feature = feature(
+        name = "dpc_runtime_library",
+        enabled = True,
+        flag_sets = [
+            flag_set(
+                actions = all_link_actions + lto_index_actions,
+                flag_groups = [flag_group(
+                    flags = ["msvcrtd.lib", "msvcprtd.lib", "vcruntime.lib", "ucrtd.lib"],
+                )],
+                with_features = [with_feature_set(
+                    features = ["dpc++", "msvc_runtime_debug"],
+                )],
+            ),
+            flag_set(
+                actions = all_link_actions + lto_index_actions,
+                flag_groups = [flag_group(
+                    flags = ["msvcrt.lib", "msvcprt.lib", "vcruntime.lib", "ucrt.lib"],
+                )],
+                with_features = [with_feature_set(
+                    features = ["dpc++"],
+                    not_features = ["msvc_runtime_debug"],
+                )],
+            ),
+        ],
+    )
     # No `supports_pic`: PE/COFF has no PIC variant, and cc_module rejects two object variants.
     supports_dynamic_linker_feature = common.supports_dynamic_linker_feature()
     do_not_link_dynamic_dependencies_feature = common.do_not_link_dynamic_dependencies_feature()
@@ -555,9 +583,10 @@ def _impl(ctx):
         compiler_input_flags_feature,
         compiler_output_flags_feature,
         default_link_flags_feature,
-        # Before `/link`: on a DPC++ link this is the only input the icx driver sees,
-        # which otherwise fails with "no input files".
+        # Before `/link`: these libraries and the CRT ones of dpc_runtime_library are the
+        # driver's only inputs on a DPC++ link, which otherwise fails with "no input files".
         sycl_runtime_library_feature,
+        dpc_runtime_library_feature,
         # The icx driver flags go before the `/link` from dpc_linker_mode and the
         # lld-link inputs after it; clang-cl ignores lld-link options.
         shared_flag_feature,

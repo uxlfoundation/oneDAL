@@ -188,19 +188,6 @@ def _msvc_runtime_suffix(ctx):
     """The `d` the debug MSVC CRT appends to library names, as Make's `$d`."""
     return "d" if target(ctx).msvc_runtime_debug else ""
 
-def _dpc_link_flags(ctx, feature_config):
-    """Set the COFF machine type on a DPC++ Windows link, after `/link`.
-
-    With all objects behind one archive, link.exe sees no object file and warns LNK4068 that
-    /MACHINE defaults to X64. Pass the target's machine type explicitly.
-    """
-    if not target(ctx).is_windows or not cc_common.is_enabled(
-        feature_configuration = feature_config,
-        feature_name = "dpc++",
-    ):
-        return []
-    return ["/MACHINE:" + _coff_machine(ctx)]
-
 def _cc_module_impl(ctx):
     toolchain, feature_config = _init_cc_rule(ctx)
     coverage = _coverage_options(ctx, toolchain, feature_config)
@@ -505,8 +492,7 @@ def _cc_dynamic_lib_impl(ctx):
         linking_contexts = linking_contexts,
         def_file = ctx.file.def_file,
         user_link_flags = linux_soname_flags + linux_linker_script_flags + exclude_libs_flags +
-                          ctx.attr.linkopts + coverage.link_flags + [res.path for res in res_files] +
-                          _dpc_link_flags(ctx, feature_config),
+                          ctx.attr.linkopts + coverage.link_flags + [res.path for res in res_files],
         is_windows = is_windows,
         additional_inputs = ctx.files.linker_scripts + res_files,
         extra_objects = res_objects,
@@ -563,8 +549,7 @@ def _cc_exec_impl(ctx):
         cc_toolchain = toolchain,
         feature_configuration = feature_config,
         linking_contexts = linking_contexts,
-        user_link_flags = ctx.attr.user_link_flags + coverage.link_flags +
-                          _dpc_link_flags(ctx, feature_config),
+        user_link_flags = ctx.attr.user_link_flags + coverage.link_flags,
         is_windows = target(ctx).is_windows,
     )
     runtime_files = _copy_windows_runtime_files(ctx, ctx.files.data)
