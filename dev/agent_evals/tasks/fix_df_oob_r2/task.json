@@ -1,0 +1,24 @@
+{
+  "id": "fix_df_oob_r2",
+  "family": "fix",
+  "base": "c3f1319928940488ac3fc2de0361f06613832003^",
+  "grader": "test_pass",
+  "gate": [
+    "strict_pass"
+  ],
+  "source_pr": 3910,
+  "hidden_from": "c3f1319928940488ac3fc2de0361f06613832003",
+  "hidden_files": [
+    "cpp/oneapi/dal/algo/decision_forest/test/batch.cpp"
+  ],
+  "oracle_patch": "oracle.patch",
+  "targets": [
+    "//cpp/oneapi/dal/algo/decision_forest:test_batch_host"
+  ],
+  "regression_targets": [
+    "//cpp/oneapi/dal/algo/decision_forest:test_badarg_host",
+    "//cpp/oneapi/dal/algo/decision_forest:test_serialization_host",
+    "//cpp/oneapi/dal/algo/decision_forest:test_train_parameters_host"
+  ],
+  "prompt": "Fix the following bug in this repository (oneDAL). Build and run the C++ tests with `bazel` (on PATH); this machine has no GPU and no oneAPI compiler, so use the `*_host` targets. Do not weaken or delete existing tests.\n\n# Decision forest regression: out-of-bag R2 is wrong for constant responses and for rows without out-of-bag predictions\n\nWhen `error_metric_mode::out_of_bag_error_r2` is requested for a regression forest on CPU, the value is wrong in two cases:\n\n- The response is constant (for example every label is 2.0). An exact fit then gives NaN, and an imperfect fit gives -inf, where the metric should be a finite number.\n- Some training rows are in the out-of-bag set of no tree, so they have no out-of-bag prediction. Such a row is reported with a per-observation error of -1 and is left out of the R2 numerator and denominator. The R2 should instead be computed over all rows, with a row without an out-of-bag prediction predicting 0, as scikit-learn's `oob_score_` does (`r2_score(y, oob_prediction_)`).\n\nThe expected value follows scikit-learn's `r2_score` convention: a zero denominator gives 1 when the error is also zero and 0 otherwise; the R2 is NaN for fewer than two rows, and it stays NaN when the out-of-bag computation has no predictions or the response is not finite.\n\nThe checks are in `cpp/oneapi/dal/algo/decision_forest/test/batch.cpp` (the `df reg oob r2` tests). Please report the root cause in your final answer."
+}
