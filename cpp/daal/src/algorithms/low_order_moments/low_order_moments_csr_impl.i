@@ -172,7 +172,8 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
         // A sparse block can report success with no buffer when converting the value type fails to allocate.
         DAAL_CHECK_THR(nnz == 0 || (values && cols), ErrorMemoryAllocationFailed);
 
-        // Not vectorized: a row may repeat a column index, which the format does not rule out.
+        // Scalar: a row may repeat a column index, and a gather/scatter loop over the rows
+        // without repeats measured slower than this one.
         for (size_t k = 0; k < nnz; k++)
         {
             double * const col = a + (cols[k] - 1) * slotsPerColumn;
@@ -280,6 +281,7 @@ Status readUserSums(NumericTable * dataTable, size_t nFeatures, TArray<algorithm
     DAAL_CHECK_BLOCK_STATUS(rows);
     sums.reset(nFeatures);
     DAAL_CHECK_MALLOC(sums.get());
+    PRAGMA_OMP_SIMD
     for (size_t j = 0; j < nFeatures; j++)
     {
         sums[j] = rows.get()[j];
@@ -318,6 +320,7 @@ Status computeBatch(NumericTable * dataTable, Result * result)
 
     const double invN   = 1.0 / double(nRows);
     const double invNM1 = 1.0 / double(nRows - 1);
+    PRAGMA_OMP_SIMD
     for (size_t j = 0; j < nFeatures; j++)
     {
         const double meanJ           = m.mean[j];
@@ -332,6 +335,7 @@ Status computeBatch(NumericTable * dataTable, Result * result)
         res[variance][j]             = algorithmFPType(varianceJ);
     }
     MathInst<algorithmFPType, cpu>::vSqrt(nFeatures, res[variance], res[standardDeviation]);
+    PRAGMA_OMP_SIMD
     for (size_t j = 0; j < nFeatures; j++)
     {
         res[variation][j] = res[standardDeviation][j] / res[mean][j];
@@ -379,6 +383,7 @@ Status computeOnline(NumericTable * dataTable, PartialResult * partialResult, bo
 
     if (n1 == 0.0)
     {
+        PRAGMA_OMP_SIMD
         for (size_t j = 0; j < nFeatures; j++)
         {
             res[partialMinimum][j]            = algorithmFPType(m.min[j]);
@@ -392,6 +397,7 @@ Status computeOnline(NumericTable * dataTable, PartialResult * partialResult, bo
     {
         /* Chan et al. pairwise update; (mean2 - mean1)^2 does not cancel the way the expanded form does */
         const double coeff = n1 * n2 / (n1 + n2);
+        PRAGMA_OMP_SIMD
         for (size_t j = 0; j < nFeatures; j++)
         {
             const double sum1  = res[partialSum][j];
