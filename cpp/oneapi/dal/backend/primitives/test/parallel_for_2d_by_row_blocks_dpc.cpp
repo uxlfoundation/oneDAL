@@ -14,6 +14,8 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include <limits>
+
 #include "oneapi/dal/array.hpp"
 #include "oneapi/dal/backend/atomic.hpp"
 #include "oneapi/dal/backend/common.hpp"
@@ -53,6 +55,35 @@ TEST("parallel_for_2d_by_row_blocks visits every cell once", "[parallel_for_2d_b
         CAPTURE(i / col_count, i % col_count);
         REQUIRE(visits[i] == 1);
     }
+}
+
+TEST("parallel_for_2d_by_row_blocks launches a grid whose rounded blocks pass 2^31 items",
+     "[parallel_for_2d_by_row_blocks]") {
+    DECLARE_TEST_POLICY(policy);
+    auto& q = policy.get_queue();
+
+    // 46281 rows of 46400 fit in int32, but SYCL rounds 46281 up to 46304, and that block does not.
+    constexpr std::int64_t col_count = 46400;
+    const std::int64_t row_count = max_range_2d_rows(col_count) + 1;
+
+    auto visits = array<std::int32_t>::zeros(q, 1);
+    std::int32_t* const ptr = visits.get_mutable_data();
+    parallel_for_2d_by_row_blocks(q, row_count, col_count, [=](std::int64_t row, std::int64_t col) {
+        if (row == row_count - 1 && col == col_count - 1) {
+            atomic_global_add(ptr, std::int32_t(1));
+        }
+    }).wait_and_throw();
+
+    REQUIRE(visits[0] == 1);
+}
+
+TEST("max_range_2d_rows leaves room for the SYCL range rounding",
+     "[parallel_for_2d_by_row_blocks]") {
+    const std::int64_t col_count = GENERATE(1, 7, 1000, 46400, 65536, 100003, 3000000);
+    CAPTURE(col_count);
+    const std::int64_t rows = max_range_2d_rows(col_count);
+    const std::int64_t rounded = (rows + 31) / 32 * 32;
+    REQUIRE(rounded * col_count <= std::numeric_limits<std::int32_t>::max());
 }
 
 } // namespace oneapi::dal::backend::test
