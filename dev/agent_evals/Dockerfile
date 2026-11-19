@@ -35,7 +35,7 @@ RUN curl -fsSL -o /usr/local/bin/bazelisk \
 
 # Holds every task base's Bazel version and the eval tree's own pin: CI builds the image from merged main.
 # Keep it in step when a task base or the pinned .bazelversion changes.
-ARG TASK_BAZEL_VERSIONS="6.2.0 7.0.2 8.4.1 9.0.1 9.1.0 9.1.1 9.2.0 9.3.0"
+ARG TASK_BAZEL_VERSIONS="6.2.0 7.0.2 8.4.1 9.0.1 9.1.0 9.1.1 9.2.0 9.3.0 9.3.2"
 ENV BAZELISK_HOME=/opt/bazelisk
 COPY .bazelversion /tmp/.bazelversion
 RUN for v in $(cat /tmp/.bazelversion) ${TASK_BAZEL_VERSIONS}; do USE_BAZEL_VERSION=$v bazelisk --version || exit 1; done && \
