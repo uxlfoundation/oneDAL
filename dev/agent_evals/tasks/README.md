@@ -52,27 +52,34 @@ The key format is in [`../README.md`](../README.md#tasks). This page explains th
 | `build_release_host` | build the CPU release package with Bazel, report the path of `libonedal_core` | the path must be a real ELF file inside the release layout of this run | tests whether the agent knows the release target and layout, not just `bazel build //...` |
 | `build_make_gnu` | build the DAAL CPU libraries with **make** (oneMKL/oneTBB preinstalled under `/opt/onedal-make-deps`) | `libonedal_core.so` under `__release_lnx_gnu`, and the run is rejected if Bazel was used | the make build is the older, less documented path; agents tend to fall back to Bazel, which is what the task forbids |
 
-### fix (11) and feature (2): change the library so that a hidden test passes
+### fix (15) and feature (3): change the library so that a hidden test passes
 
-Nine are **mined**: a merged upstream PR fixed the bug or added the feature, the task starts at its parent commit
+Fourteen are **mined**: a merged upstream PR fixed the bug or added the feature, the task starts at its parent commit
 (`base` = `<fix>^`), and the PR's own test is the hidden test. These are real oneDAL problems with a maintainer's
 solution as the reference.
 
-| task | upstream fix | what the agent must do |
+| task | upstream fix (merged) | what the agent must do |
 |---|---|---|
-| `fix_kmeans_empty_reloc` | #3742 | relocate empty K-Means clusters the way scikit-learn does (dense and CSR) |
-| `fix_kmeans_csr_obj` | #3681 | correct the objective function value of sparse (CSR) K-Means |
-| `fix_df_fraction_gt1` | #3720 | allow `observations_per_tree_fraction` above 1.0 in decision forest |
-| `fix_df_bestfirst` | #3772 | use the right child impurity for best-first leaf order (`max_leaf_nodes`) |
-| `fix_df_extratrees_reg` | #3649 | fix the random splitter of decision forest regression (ExtraTrees) |
-| `fix_pca_online_signflip` | #2705 | apply the deterministic sign flip in online CPU PCA |
-| `fix_table_csr_accessor` | #2421 | make `csr_accessor::pull` return consistent blocks across zero/one-based indexing |
-| `fix_table_csr_zero_based` | #3347 | fix the crash on zero-based `csr_table` input in K-Means and BasicStatistics |
-| `feat_cosine_self` | #3712 | let `cosine_distance` compute self-distances from a single table |
+| `fix_kmeans_empty_reloc` | #3742 (after cutoff) | relocate empty K-Means clusters the way scikit-learn does (dense and CSR) |
+| `fix_kmeans_csr_obj` | #3681 (after cutoff) | correct the objective function value of sparse (CSR) K-Means |
+| `fix_df_fraction_gt1` | #3720 (after cutoff) | allow `observations_per_tree_fraction` above 1.0 in decision forest |
+| `fix_df_bestfirst` | #3772 (after cutoff) | use the right child impurity for best-first leaf order (`max_leaf_nodes`) |
+| `fix_df_extratrees_reg` | #3649 (2026-06, at the cutoff) | fix the random splitter of decision forest regression (ExtraTrees) |
+| `fix_pca_online_signflip` | #2705 (2024) | apply the deterministic sign flip in online CPU PCA |
+| `fix_table_csr_accessor` | #2421 (2023) | make `csr_accessor::pull` return consistent blocks across zero/one-based indexing |
+| `fix_table_csr_zero_based` | #3347 (2025) | fix the crash on zero-based `csr_table` input in K-Means and BasicStatistics |
+| `feat_cosine_self` | #3712 (after cutoff) | let `cosine_distance` compute self-distances from a single table |
+| `feat_csr_original_accessors` | #3775 (2026-09-03) | add the helpers that read the original data of a `csr_table` without a copy, with their mutability contract; the hidden test is the `csr_utils` white-box test |
+| `fix_low_order_moments_online_nan` | #3875 (2026-10-13) | keep the online dispersion finite for one-row blocks of low-order moments (dense and CSR) |
+| `fix_df_constant_feature_order` | #3856 (2026-10-07) | keep the best split's sample order when constant features are skipped, so classifier probabilities stay valid |
+| `fix_df_oob_r2` | #3910 (2026-11-17) | define the decision forest regression OOB R2 for constant responses and for rows without OOB predictions, as scikit-learn does |
+| `fix_kmeans_init_best_trial` | #3859 (2026-10-15) | score the previous best k-means++ trial with its own candidate, in dense and CSR; the hidden test is a white-box test of the block helper |
 
 The prompts are written as bug reports or feature requests (what a user would file), not as hints about the fix.
-Several upstream fixes are newer than some models' training data and some are older; reports can split results by
-the base date for that reason.
+Dates are the merge dates of the upstream PR. Relative to the June 2026 knowledge cutoff of the models under test,
+the five new mined tasks are all after it (2026-09-03 to 2026-11-17). Of the nine earlier mined tasks, five are after
+the cutoff, one is at it, and three are before it (contamination note of the #3818 refresh). Results can be split by
+these dates.
 
 Four are **constructed**. They cover what mined fixes do not: one-character bugs, CPU-dispatch code, and changes
 that cross the oneAPI → DAAL layers.
@@ -82,7 +89,23 @@ that cross the oneAPI → DAAL layers.
 | `fix_avx2_dispatch` | `setup.patch` breaks the AVX2 specialisation of `popcnt64` in subgraph isomorphism (counts 32 bits, not 64); the hidden test is built with `--cpu=all` | the bug only exists in one ISA branch, so the agent has to understand oneDAL's CPU dispatch to find it |
 | `fix_finiteness_mut` | `setup.patch` flips one `&&` to `\|\|` in the DAAL double-precision finiteness check | a minimal, local bug in DAAL code; `root_cause_fixed` also checks that the agent fixed that line, not a symptom elsewhere |
 | `feat_xparam_cov_bias` | `setup.patch` removes the covariance `bias` option from the oneAPI interface, the DAAL parameter and the kernel; the hidden tests are the original covariance tests | a feature that must be threaded through both layers, the most common shape of real oneDAL changes |
-| `fix_cel_thread_race` | a real, unfixed bug (#3820): DAAL `cross_entropy_loss` returns different results on 4+ threads; the reference fix (`oracle.patch`) and the hidden threading test are written for the task | a concurrency bug in DAAL threading code, which no mined task covers |
+| `fix_cel_thread_race` | the bug was reported as #3820 and was fixed upstream later by #3912 (2026-10-30); the task starts at the pre-fix base. The reference (`oracle.patch`: per-block buffers instead of thread-local ones) and the hidden threading test are written for the task. Upstream instead wraps the MKL `vExp`/`vLog` calls in `threader_isolate`; both pass the hidden test, and wrapping only `vExp` fails it | a concurrency bug in DAAL threading code, which no mined task covers |
+
+## Tiers
+
+Each task has a `tier` in its `task.json`; a missing key means `scored`. `python3 dev/agent_evals/run.py list [--tier T]`
+prints the task ids of a tier, and `run.py validate` checks that every `tier` is known.
+
+| tier | tasks | meaning |
+|---|---|---|
+| `smoke` | `build_kmeans_host`, `build_release_host`, `fix_kmeans_csr_obj` | environment floor: failing these means a broken setup, not a weak result |
+| `scored` (default) | everything not listed elsewhere, including the new mined tasks | the headline comparison between arms |
+| `hard` | `fix_cel_thread_race`, `fix_df_extratrees_reg`, `test_add_minkowski` | ceiling probe for stronger models, reported apart from the headline |
+| `retired` | `fix_avx2_dispatch`, `fix_finiteness_mut`, `fix_df_fraction_gt1`, `feat_xparam_cov_bias` | still checked by `dokimi repo tasks check`, not used for agent scores: they were 6/6 in both arms in the pilot |
+
+The tier is recorded, but **dokimi does not read it yet**: `dokimi repo run` still takes every task directory, and
+the `smoke-tasks` list in `.github/workflows/agent-evals.yml` still names retired tasks. Until dokimi honours the
+field, the tiers are advisory.
 
 `fix_cel_thread_race` only fails on hardware where the race can happen. It was measured to need at least 3 CPUs,
 as oneTBB counts them (the affinity mask and the cgroup quota), and it was never seen on AMD EPYC 7763. The task
@@ -139,5 +162,10 @@ These numbers are from one small run and are not significant; they show which ta
 1. Pick a base commit and a check the untouched tree fails, preferably the test of a merged fix.
 2. Write the prompt as the user or the reporter would, without the solution.
 3. Add `regression_targets` for the component, and `"gate": ["strict_pass"]` for fix and feature tasks.
-4. Run `dokimi repo validate` and `dokimi repo tasks check --task <task>` ([README](../README.md)) until the
+4. Set `"tier"` if the task is not `scored` (see [Tiers](#tiers)) and run `python3 dev/agent_evals/run.py validate`.
+5. Run `dokimi repo validate` and `dokimi repo tasks check --task <task>` ([README](../README.md)) until the
    untouched tree fails and the reference passes. CI runs the same check for changed tasks.
+
+The five tasks added with the #3818 refresh (`feat_csr_original_accessors`, `fix_low_order_moments_online_nan`,
+`fix_df_constant_feature_order`, `fix_df_oob_r2`, `fix_kmeans_init_best_trial`) have a passing self-check but no
+agent pilot yet; their arm results are not in the pilot numbers above.
