@@ -181,31 +181,17 @@ def _static(owner, name, actions, cc_toolchain,
 def _link(owner, name, actions, cc_toolchain,
           feature_configuration, linking_contexts,
           def_file=None, is_executable=False, user_link_flags=[],
-          is_windows=False, additional_inputs=[], extra_objects=[]):
+          is_windows=False, additional_inputs=[]):
     unpacked_linking_context = onedal_cc_common.unpack_linking_contexts(linking_contexts)
     if not is_executable and unpacked_linking_context.objects and unpacked_linking_context.pic_objects:
         fail("Dynamic library {} contains non-PIC object files: {}".format(
             name, unpacked_linking_context.objects))
-    all_object_list = unpacked_linking_context.pic_objects + unpacked_linking_context.objects + extra_objects
+    all_object_list = unpacked_linking_context.pic_objects + unpacked_linking_context.objects
     libraries_to_link = unpacked_linking_context.libraries_to_link
     object_archive_link_flags = []
     # Files that dependencies name only through `user_link_flags` must be staged as well.
     additional_link_inputs = list(additional_inputs) + unpacked_linking_context.additional_inputs
-    dpc_link = cc_common.is_enabled(feature_configuration = feature_configuration, feature_name = "dpc++")
-    if is_windows and all_object_list and dpc_link:
-        # Objects after `/link` in one response file: an archive there gave no exports (Azure 66369).
-        # The `.res` stays a compilation output, and dpc_resource_inputs puts it before `/link`.
-        resources = [o for o in all_object_list if o.path.endswith(".res")]
-        objects = [o for o in all_object_list if not o.path.endswith(".res")]
-        if objects:
-            objects_rsp = actions.declare_file(name + "_objects.rsp")
-            actions.write(objects_rsp, "\n".join(['"' + o.path + '"' for o in objects]) + "\n")
-            object_archive_link_flags.append("@" + objects_rsp.path)
-            additional_link_inputs.append(objects_rsp)
-        additional_link_inputs.extend(all_object_list)
-        all_object_list = resources
-    elif is_windows and all_object_list:
-        # One archive for all objects, so the link line names one library (MSVC link, LNK1170).
+    if is_windows and all_object_list and not is_executable:
         object_archive = _merge_static_libs(
             filename = name + "_objects.lib",
             actions = actions,
@@ -222,8 +208,8 @@ def _link(owner, name, actions, cc_toolchain,
             pic_static_library = object_archive,
         )
         libraries_to_link = [object_archive_to_link] + libraries_to_link
-        # Whole archive: otherwise dllexport objects stay out of leaf DLLs, and test registrations
-        # drop from executables. No `/link` here: dpc_linker_mode emits one, and a second gives LNK4044.
+        # Whole archive, or the dllexport objects stay out of leaf DLLs such as onedal_thread.dll.
+        # No `/link` here: dpc_linker_mode emits one already, and a second gives LNK4044.
         object_archive_link_flags.append("/WHOLEARCHIVE:" + object_archive.path)
         additional_link_inputs.append(object_archive)
         all_object_list = []
@@ -269,7 +255,7 @@ def _link(owner, name, actions, cc_toolchain,
 def _dynamic(owner, name, actions, cc_toolchain,
              feature_configuration, linking_contexts,
              def_file=None, user_link_flags=[], is_windows=False,
-             additional_inputs=[], extra_objects=[]):
+             additional_inputs=[]):
     unpacked_linking_context, linking_outputs = _link(
         owner, name, actions, cc_toolchain,
         feature_configuration, linking_contexts,
@@ -277,7 +263,6 @@ def _dynamic(owner, name, actions, cc_toolchain,
         user_link_flags=user_link_flags,
         is_windows=is_windows,
         additional_inputs=additional_inputs,
-        extra_objects=extra_objects,
     )
     library_to_link = linking_outputs.library_to_link
     dynamic_lib = None
@@ -316,13 +301,13 @@ def _dynamic(owner, name, actions, cc_toolchain,
 
 def _executable(owner, name, actions, cc_toolchain,
                 feature_configuration, linking_contexts,
-                user_link_flags=[], is_windows=False):
+                user_link_flags=[]):
     _, linking_outputs = _link(
         owner, name, actions, cc_toolchain,
         feature_configuration, linking_contexts,
         is_executable = True,
         user_link_flags = user_link_flags,
-        is_windows = is_windows,
+        is_windows = False,
     )
     if not linking_outputs.executable:
         fail("'{}' executable does not contain any object file".format(name))

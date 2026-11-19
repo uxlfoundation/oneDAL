@@ -74,7 +74,6 @@ cc_toolchain_config(
     env_include = "%{env_include}",
     env_lib = "%{env_lib}",
     env_path = "%{env_path}",
-    env_systemroot = "%{env_systemroot}",
 )
 
 cc_toolchain(

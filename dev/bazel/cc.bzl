@@ -434,21 +434,15 @@ def _cc_dynamic_lib_impl(ctx):
     # Make links the version resource into every Windows DLL (dll.res, makefile:586, 870, 874).
     # Only this DLL links it, so it is kept out of the returned linking context.
     res_files = []
-    dpc_res = []
     if is_windows and ctx.file.rc_file:
-        res = _compile_windows_resource(
+        res_files.append(_compile_windows_resource(
             ctx,
             toolchain,
             ctx.file.rc_file,
             ctx.files.rc_headers,
             ctx.attr.rc_defines,
             rt_name + ".res",
-        )
-        if cc_common.is_enabled(feature_configuration = feature_config, feature_name = "dpc++"):
-            # The DPC++ link takes the `.res` before `/link`; _link and dpc_resource_inputs place it.
-            dpc_res.append(res)
-        else:
-            res_files.append(res)
+        ))
     linking_context, dynamic_outputs = onedal_cc_link.dynamic(
         owner = ctx.label,
         name = link_name,
@@ -461,7 +455,6 @@ def _cc_dynamic_lib_impl(ctx):
                           ctx.attr.linkopts + coverage.link_flags + [res.path for res in res_files],
         is_windows = is_windows,
         additional_inputs = ctx.files.linker_scripts + res_files,
-        extra_objects = dpc_res,
     )
     # On Windows `<name>.<major>.dll` and `<name>.<major>.if.lib`; the release rule renames the latter.
     default_info = DefaultInfo(
@@ -516,7 +509,6 @@ def _cc_exec_impl(ctx):
         feature_configuration = feature_config,
         linking_contexts = linking_contexts,
         user_link_flags = ctx.attr.user_link_flags + coverage.link_flags,
-        is_windows = target(ctx).is_windows,
     )
     runtime_files = _copy_windows_runtime_files(ctx, ctx.files.data)
     default_info = DefaultInfo(

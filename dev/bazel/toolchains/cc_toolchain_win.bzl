@@ -31,6 +31,19 @@ load("@onedal//dev/bazel/toolchains:common.bzl",
     "write_tool_identity",
 )
 
+def _create_dpc_link_wrapper(repo_ctx, dpcc_path):
+    repo_ctx.template(
+        "dpc_link_win.ps1",
+        Label("@onedal//dev/bazel/toolchains/tools:dpc_link_win.ps1"),
+        {},
+    )
+    repo_ctx.template(
+        "dpc_link_win.bat",
+        Label("@onedal//dev/bazel/toolchains/tools:dpc_link_win.tpl.bat"),
+        {"%{dpcc}": dpcc_path},
+    )
+    return str(repo_ctx.path("dpc_link_win.bat"))
+
 def _find_llvm_tool(repo_ctx, cc_path, name, fallback):
     """Finds an LLVM tool of the icx toolchain, or the MSVC tool it replaces.
 
@@ -54,16 +67,18 @@ def _find_llvm_tool(repo_ctx, cc_path, name, fallback):
     return path
 
 def _find_tools_icx(repo_ctx):
+    # Host links run the linker directly, as Make's `link.dynamic.win`: icx writes all arguments
+    # of a large link into one response-file line and fails with LNK1170.
     cc_path, _ = find_tool(repo_ctx, "icx", mandatory = True)
+    dpcc_link_path = _create_dpc_link_wrapper(repo_ctx, cc_path)
     cc_link_path = _find_llvm_tool(repo_ctx, cc_path, "lld-link", "link")
     ar_path = _find_llvm_tool(repo_ctx, cc_path, "llvm-lib", "lib")
     return struct(
         cc = cc_path,
         dpcc = cc_path,
-        # Host links run the linker directly, as Make's `link.dynamic.win`. DPC++ links run icx
-        # itself (Make: dpc.link.dynamic.win), with the objects in one archive: no wrapper.
+        # DPC++ links go through icx for the SYCL device libraries (Make: dpc.link.dynamic.win).
         cc_link = cc_link_path,
-        dpcc_link = cc_path,
+        dpcc_link = dpcc_link_path,
         ar = ar_path,
         is_dpc_found = True,
     )
@@ -344,7 +359,6 @@ def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
             "%{env_include}": repo_ctx.os.environ.get("INCLUDE", "").replace("\\", "/"),
             "%{env_lib}": repo_ctx.os.environ.get("LIB", "").replace("\\", "/"),
             "%{env_path}": repo_ctx.os.environ.get("PATH", "").replace("\\", "/"),
-            "%{env_systemroot}": repo_ctx.os.environ.get("SystemRoot", "C:\\Windows").replace("\\", "/"),
         },
     )
 
