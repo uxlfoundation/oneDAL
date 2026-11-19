@@ -19,6 +19,7 @@
 
 #include "services/daal_defines.h" // DAAL_MALLOC_DEFAULT_ALIGNMENT
 #include "services/error_handling.h"
+#include "src/algorithms/hdbscan/hdbscan_distance_utils.h"
 #include "src/externals/service_memory.h"
 #include "src/services/service_arrays.h"
 #include "src/services/service_data_utils.h"
@@ -277,20 +278,20 @@ static services::Status primMst(const FPType * data, size_t nRows, size_t nCols,
     // Row id, row, core distance and best edge of each point outside the tree. Removing a point
     // moves the last one into its slot.
     TArray<DAAL_INT, cpu> outIdVec(outCount);
-    TArray<FPType, cpu> outRowsVec(outCount * nCols);
+    TArray<FPType, cpu> outColsVec(outCount * nCols);
     TArray<FPType, cpu> outCoreVec(outCount);
     TArray<FPType, cpu> bestMrdVec(outCount);
     TArray<DAAL_INT, cpu> bestFromVec(outCount);
     TArray<FPType, cpu> blockMrdVec(maxBlocks);
     TArray<size_t, cpu> blockPosVec(maxBlocks);
     DAAL_INT * outId    = outIdVec.get();
-    FPType * outRows    = outRowsVec.get();
+    FPType * outCols    = outColsVec.get();
     FPType * outCore    = outCoreVec.get();
     FPType * bestMrd    = bestMrdVec.get();
     DAAL_INT * bestFrom = bestFromVec.get();
     FPType * blockMrd   = blockMrdVec.get();
     size_t * blockPos   = blockPosVec.get();
-    DAAL_CHECK_MALLOC(outId && outRows && outCore && bestMrd && bestFrom && blockMrd && blockPos);
+    DAAL_CHECK_MALLOC(outId && outCols && outCore && bestMrd && bestFrom && blockMrd && blockPos);
 
     for (size_t p = 0; p < outCount; p++)
     {
@@ -299,8 +300,12 @@ static services::Status primMst(const FPType * data, size_t nRows, size_t nCols,
         bestMrd[p]  = inf;
         bestFrom[p] = -1;
     }
-    const size_t rowsBytes = outCount * nCols * sizeof(FPType);
-    daal::services::internal::daal_memcpy_s(outRows, rowsBytes, data + nCols, rowsBytes);
+    // Column-major, so a block's distances to the current point are one SIMD pass per feature.
+    daal::threader_for(nCols, 1, [&](size_t d) {
+        FPType * col = outCols + d * outCount;
+        for (size_t p = 0; p < outCount; p++) col[p] = data[(p + 1) * nCols + d];
+    });
+    const FPType slack = reducedSlack<FPType>();
 
     DAAL_INT current = 0;
     for (size_t remaining = outCount; remaining > 0; remaining--)
@@ -314,13 +319,16 @@ static services::Status primMst(const FPType * data, size_t nRows, size_t nCols,
             const size_t end   = (begin + blockSize < remaining) ? begin + blockSize : remaining;
             FPType localMrd    = inf;
             size_t localPos    = remaining;
+            FPType reduced[blockSize];
+            distFunc.template leafReduced<cpu>(currentRow, outCols + begin, end - begin, outCount, nCols, reduced);
             for (size_t p = begin; p < end; p++)
             {
                 // The MRD is at least both core distances, so only a pair below both needs the distance.
                 const FPType coreP = outCore[p];
-                if (currentCore < bestMrd[p] && coreP < bestMrd[p])
+                if (currentCore < bestMrd[p] && coreP < bestMrd[p]
+                    && reduced[p - begin] <= distFunc.template toReduced<cpu>(bestMrd[p] / invAlpha) * slack)
                 {
-                    FPType mrd = distFunc.template pointDist<cpu>(currentRow, outRows + p * nCols, nCols) * invAlpha;
+                    FPType mrd = distFunc.template fromReduced<cpu>(reduced[p - begin]) * invAlpha;
                     mrd        = (currentCore > mrd) ? currentCore : mrd;
                     mrd        = (coreP > mrd) ? coreP : mrd;
                     if (mrd < bestMrd[p])
@@ -372,7 +380,7 @@ static services::Status primMst(const FPType * data, size_t nRows, size_t nCols,
         outCore[minPos]   = outCore[last];
         bestMrd[minPos]   = bestMrd[last];
         bestFrom[minPos]  = bestFrom[last];
-        for (size_t d = 0; d < nCols; d++) outRows[minPos * nCols + d] = outRows[last * nCols + d];
+        for (size_t d = 0; d < nCols; d++) outCols[d * outCount + minPos] = outCols[d * outCount + last];
     }
     return services::Status();
 }
