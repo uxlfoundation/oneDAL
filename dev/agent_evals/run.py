@@ -36,7 +36,7 @@ import contract
 from common import bazel
 
 # task.json "tier": smoke (environment floor, scored), scored (default when absent), hard (ceiling probe, reported
-# apart from the headline), retired (kept for `tasks check`, not run for agent scores)
+# apart from the headline), retired (out of CI's self-check and the headline; dokimi repo run still takes them)
 TIERS = ("smoke", "scored", "hard", "retired")
 BAZEL_VERSIONS = config.H / "task-bazel-versions.txt"
 
