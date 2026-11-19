@@ -191,9 +191,19 @@ def _link(owner, name, actions, cc_toolchain,
     object_archive_link_flags = []
     # Files that dependencies name only through `user_link_flags` must be staged as well.
     additional_link_inputs = list(additional_inputs) + unpacked_linking_context.additional_inputs
-    if is_windows and all_object_list:
-        # One archive for all objects, so the link line names one library: the Intel driver's
-        # response-file line otherwise passes MSVC's 131071-character limit (LNK1170).
+    dpc_link = cc_common.is_enabled(feature_configuration = feature_configuration, feature_name = "dpc++")
+    if is_windows and all_object_list and dpc_link:
+        # The objects go to icx after `/link` in one response file, one quoted path per line, so no
+        # line nears the 131071-character limit (LNK1170). No archive and no /WHOLEARCHIVE: the
+        # archive link produced no exports (Azure 66369). Make and the old wrapper pass objects so.
+        objects_rsp = actions.declare_file(name + "_objects.rsp")
+        actions.write(objects_rsp, "\n".join(['"' + o.path + '"' for o in all_object_list]) + "\n")
+        object_archive_link_flags.append("@" + objects_rsp.path)
+        additional_link_inputs.append(objects_rsp)
+        additional_link_inputs.extend(all_object_list)
+        all_object_list = []
+    elif is_windows and all_object_list:
+        # One archive for all objects, so the link line names one library (MSVC link, LNK1170).
         object_archive = _merge_static_libs(
             filename = name + "_objects.lib",
             actions = actions,
