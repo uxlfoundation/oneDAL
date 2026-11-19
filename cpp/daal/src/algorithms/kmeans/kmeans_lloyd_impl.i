@@ -260,6 +260,11 @@ Status TaskKMeansLloyd<algorithmFPType, cpu>::addNTToTaskThreadedCSR(const Numer
     size_t nBlocks = n / blockSizeDefault;
     nBlocks += (nBlocks * blockSizeDefault != n);
 
+    TArrayScalable<algorithmFPType, cpu> centroidsTArray(dim * clNum);
+    DAAL_CHECK_MALLOC(centroidsTArray.get());
+    algorithmFPType * const centroidsT = centroidsTArray.get();
+    transpose<algorithmFPType, cpu>(cCenters, clNum, dim, centroidsT);
+
     SafeStatus safeStat;
     daal::static_threader_for(nBlocks, [=, &safeStat](const int k, size_t tid) {
         struct TlsTask<algorithmFPType, cpu> * tt = tls_task->local(tid);
@@ -276,7 +281,6 @@ Status TaskKMeansLloyd<algorithmFPType, cpu>::addNTToTaskThreadedCSR(const Numer
 
         const size_t p                     = dim;
         const size_t nClusters             = clNum;
-        const algorithmFPType * inClusters = cCenters;
         const algorithmFPType * clustersSq = clSq;
 
         algorithmFPType * trg        = &(tt->goalFunc);
@@ -293,29 +297,21 @@ Status TaskKMeansLloyd<algorithmFPType, cpu>::addNTToTaskThreadedCSR(const Numer
             assignments = assignBlock.get();
         }
 
-        const char transa           = 'n';
-        const DAAL_INT _n           = blockSize;
-        const DAAL_INT _p           = p;
-        const DAAL_INT _c           = nClusters;
-        const algorithmFPType alpha = 1.0;
-        const algorithmFPType beta  = 0.0;
-        const char matdescra[6]     = { 'G', 0, 0, 'F', 0, 0 };
-
-        SpBlasInst<algorithmFPType, cpu>::xxcsrmm(&transa, &_n, &_c, &_p, &alpha, matdescra, data, (DAAL_INT *)colIdx, (DAAL_INT *)rowIdx, inClusters,
-                                                  &_p, &beta, x_clusters, &_n);
+        csrRowsTimesCentroids<algorithmFPType, cpu>(blockSize, nClusters, data, colIdx, rowIdx, centroidsT, x_clusters);
 
         algorithmFPType goal = 0;
         size_t csrCursor     = 0;
         for (size_t i = 0; i < blockSize; i++)
         {
-            algorithmFPType minGoalVal = clustersSq[0] - x_clusters[i];
-            size_t minIdx              = 0;
+            const algorithmFPType * const products = x_clusters + i * nClusters;
+            algorithmFPType minGoalVal             = clustersSq[0] - products[0];
+            size_t minIdx                          = 0;
 
             for (size_t j = 0; j < nClusters; j++)
             {
-                if (minGoalVal > clustersSq[j] - x_clusters[i + j * blockSize])
+                if (minGoalVal > clustersSq[j] - products[j])
                 {
-                    minGoalVal = clustersSq[j] - x_clusters[i + j * blockSize];
+                    minGoalVal = clustersSq[j] - products[j];
                     minIdx     = j;
                 }
             }

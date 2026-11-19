@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <numeric>
 #include <random>
+#include <vector>
 
 #include "oneapi/dal/algo/kmeans/test/fixture.hpp"
 #include "oneapi/dal/table/csr_accessor.hpp"
@@ -475,6 +476,88 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
         for (std::int64_t i = 0; i < baseline_centroids.get_count(); ++i) {
             REQUIRE(trial_centroids[i] == baseline_centroids[i]);
         }
+    }
+}
+
+// Enough blocks for every thread, so a result that depends on the thread schedule would show.
+TEMPLATE_LIST_TEST_M(kmeans_batch_test,
+                     "KMeans CSR responses are the nearest centroids in every run",
+                     "[kmeans][batch]",
+                     kmeans_types_csr) {
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->get_policy().is_gpu());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    constexpr std::int64_t row_count = 100000;
+    constexpr std::int64_t column_count = 10;
+    constexpr std::int64_t cluster_count = 5;
+    constexpr int run_count = 5;
+
+    std::mt19937 rng(42);
+    std::normal_distribution<double> normal;
+    std::vector<Float> dense(row_count * column_count);
+    std::vector<Float> values;
+    std::vector<std::int64_t> column_indices;
+    std::vector<std::int64_t> row_offsets{ 0 };
+    for (std::int64_t i = 0; i < row_count; ++i) {
+        for (std::int64_t j = 0; j < column_count; ++j) {
+            const Float x = std::max(Float(0), Float(normal(rng)));
+            dense[i * column_count + j] = x;
+            if (x != Float(0)) {
+                values.push_back(x);
+                column_indices.push_back(j);
+            }
+        }
+        row_offsets.push_back(std::int64_t(values.size()));
+    }
+    const auto data = csr_table::wrap<Float>(values.data(),
+                                             column_indices.data(),
+                                             row_offsets.data(),
+                                             row_count,
+                                             column_count,
+                                             sparse_indexing::zero_based);
+    const auto initial_centroids = homogen_table::wrap(dense.data(), cluster_count, column_count);
+    const auto desc = this->get_descriptor(cluster_count, 300, Float(0));
+
+    const auto pull = [](const table& t) {
+        const auto ary = row_accessor<const Float>(t).pull();
+        return std::vector<Float>(ary.get_data(), ary.get_data() + ary.get_count());
+    };
+    // Near-ties may go either way, so a response only has to be as close as the nearest centroid.
+    const double tie_tol = std::is_same_v<Float, double> ? 1e-10 : 1e-4;
+    const auto count_not_nearest = [&](const std::vector<Float>& centroids,
+                                       const std::vector<Float>& responses) {
+        std::int64_t count = 0;
+        for (std::int64_t i = 0; i < row_count; ++i) {
+            std::vector<double> dist(cluster_count, 0.0);
+            for (std::int64_t c = 0; c < cluster_count; ++c) {
+                for (std::int64_t j = 0; j < column_count; ++j) {
+                    const double d = double(dense[i * column_count + j]) -
+                                     double(centroids[c * column_count + j]);
+                    dist[c] += d * d;
+                }
+            }
+            const double nearest = *std::min_element(dist.begin(), dist.end());
+            const auto response = std::int64_t(responses[i]);
+            count += dist[response] > nearest + tie_tol * std::max(1.0, nearest);
+        }
+        return count;
+    };
+
+    const auto first = this->train(desc, data, initial_centroids);
+    const auto first_centroids = pull(first.get_model().get_centroids());
+    const auto first_responses = pull(first.get_responses());
+    REQUIRE(count_not_nearest(first_centroids, first_responses) == 0);
+    for (int run = 1; run < run_count; ++run) {
+        CAPTURE(run);
+        const auto result = this->train(desc, data, initial_centroids);
+        const auto centroids = pull(result.get_model().get_centroids());
+        const auto responses = pull(result.get_responses());
+        REQUIRE(count_not_nearest(centroids, responses) == 0);
+        REQUIRE(result.get_iteration_count() == first.get_iteration_count());
+        REQUIRE(result.get_objective_function_value() == first.get_objective_function_value());
+        REQUIRE(centroids == first_centroids);
+        REQUIRE(responses == first_responses);
     }
 }
 

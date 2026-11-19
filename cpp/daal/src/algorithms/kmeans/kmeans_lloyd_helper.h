@@ -35,6 +35,7 @@
 #include "src/externals/service_spblas.h"
 #include "src/services/service_data_utils.h"
 #include "src/services/service_environment.h"
+#include "src/services/service_utils.h"
 
 namespace daal
 {
@@ -159,6 +160,42 @@ struct BSHelper<lloydCSR, algorithmFPType, cpu>
 {
     static size_t kmeansGetBlockSize(const size_t nRows, const size_t dim, const size_t clNum) { return 512; }
 };
+
+/// Inner products of the rows of a CSR block with every centroid, each summed over the
+/// stored values of the row in order. `mkl_sparse_?_mm` runs in parallel under the TBB
+/// layer even after `mkl_set_num_threads_local(1)`, so its sums vary from run to run.
+///
+/// @param nRows       Number of rows in the block
+/// @param nClusters   Number of centroids
+/// @param values      Stored values of the block
+/// @param colIdx      One-based column index of each stored value
+/// @param rowIdx      One-based offsets of the rows in `values`, `nRows + 1` entries
+/// @param centroidsT  Transposed centroids, `p x nClusters`, row-major
+/// @param products    Output, `nRows x nClusters`, row-major
+template <typename algorithmFPType, CpuType cpu>
+void csrRowsTimesCentroids(const size_t nRows, const size_t nClusters, const algorithmFPType * const values, const size_t * const colIdx,
+                           const size_t * const rowIdx, const algorithmFPType * const centroidsT, algorithmFPType * const products)
+{
+    for (size_t i = 0; i < nRows; i++)
+    {
+        algorithmFPType * const out = products + i * nClusters;
+        PRAGMA_OMP_SIMD
+        for (size_t j = 0; j < nClusters; j++)
+        {
+            out[j] = algorithmFPType(0);
+        }
+        for (size_t k = rowIdx[i] - 1; k < rowIdx[i + 1] - 1; k++)
+        {
+            const algorithmFPType value          = values[k];
+            const algorithmFPType * const column = centroidsT + (colIdx[k] - 1) * nClusters;
+            PRAGMA_OMP_SIMD
+            for (size_t j = 0; j < nClusters; j++)
+            {
+                out[j] += value * column[j];
+            }
+        }
+    }
+}
 
 template <typename algorithmFPType>
 struct Fp2IntSize
