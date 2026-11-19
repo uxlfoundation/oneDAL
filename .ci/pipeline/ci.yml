@@ -58,6 +58,8 @@ variables:
   # Check section 'Install through a Command Line':
   WINDOWS_BASEKIT_URL: 'https://registrationcenter-download.intel.com/akdlm/IRC_NAS/728c4418-1b40-47a9-ad51-31530fb27c94/intel-oneapi-toolkit-2026.2.0.661_offline.exe'
   WINDOWS_DPCPP_COMPONENTS: 'intel.oneapi.win.cpp-dpcpp-common:intel.oneapi.win.mkl.devel:intel.oneapi.win.tbb.devel:intel.oneapi.win.dpl'
+  # Under the pipeline workspace so Cache@2 can restore it; install_basekit.bat reuses a matching install.
+  ONEAPI_DIR: '$(Pipeline.Workspace)\oneapi'
 
 resources:
   repositories:
@@ -759,14 +761,20 @@ jobs:
   pool:
     vmImage: '$(WIN_VM_IMAGE)'
   steps:
-  - script: .ci/scripts/install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS)
+  - task: Cache@2
+    inputs:
+      key: '"basekit" | "$(Agent.OS)" | "$(WINDOWS_BASEKIT_URL)" | "$(WINDOWS_DPCPP_COMPONENTS)"'
+      path: $(ONEAPI_DIR)
+    displayName: 'Restore oneAPI Base Toolkit'
+    continueOnError: true
+  - script: .ci/scripts/install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS) $(ONEAPI_DIR)
     displayName: 'Install oneAPI Base Toolkit'
   - powershell: |
       .ci/env/bazelisk.ps1
       & "$(BAZELISK_EXE)" version
     displayName: 'install-bazel'
   - script: |
-      call %TEMP%\oneapi\setvars.bat --force
+      call $(ONEAPI_DIR)\setvars.bat --force
       bash .ci/scripts/describe_system.sh
     displayName: 'System info'
   - task: Cache@2
@@ -801,7 +809,7 @@ jobs:
       echo ##vso[task.setvariable variable=BAZEL_JOBS]%NUMBER_OF_PROCESSORS%
     displayName: 'bazel-configure'
   - script: |
-      call %TEMP%\oneapi\setvars.bat --force
+      call $(ONEAPI_DIR)\setvars.bat --force
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build @config//:validate_build_parameters_lib --build_parameters_lib=yes > build_parameters_lib_yes.log 2>&1
       if not errorlevel 1 (
         type build_parameters_lib_yes.log
@@ -815,7 +823,7 @@ jobs:
       )
     displayName: 'Reject separate parameter libraries on Windows'
   - script: |
-      call %TEMP%\oneapi\setvars.bat --force
+      call $(ONEAPI_DIR)\setvars.bat --force
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" shutdown
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release --verbose_failures --jobs=$(BAZEL_JOBS) --execution_log_compact_file="$(Build.ArtifactStagingDirectory)\release-exec-log.zst"
     displayName: 'release'
@@ -866,7 +874,7 @@ jobs:
   # PR runs do not build the debug CRT, so check in seconds that it and the //:release_all
   # transitions analyze; WindowsBazelReleaseAll builds them on scheduled runs.
   - script: |
-      call %TEMP%\oneapi\setvars.bat --force
+      call $(ONEAPI_DIR)\setvars.bat --force
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release --config=mdd --nobuild --verbose_failures || exit /b 1
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release_all --nobuild --verbose_failures || exit /b 1
     displayName: 'analyze-msvc-runtime-configs'
@@ -877,7 +885,7 @@ jobs:
     displayName: 'Upload build artifacts'
     continueOnError: true
   - script: |
-      call %TEMP%\oneapi\setvars.bat --force
+      call $(ONEAPI_DIR)\setvars.bat --force
       "$(VSDEVCMD)" -arch=amd64 -host_arch=amd64
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" info output_base > output_base.txt
       set /p OUTPUT_BASE=<output_base.txt
@@ -888,7 +896,7 @@ jobs:
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" test //examples/daal/cpp:all --test_link_mode=release_dynamic --test_env=DALROOT "--test_env=PATH=%TEST_PATH%" --verbose_failures --jobs=$(BAZEL_JOBS)
     displayName: 'daal-cpp-examples-thread-release-dynamic'
   - script: |
-      call %TEMP%\oneapi\setvars.bat --force
+      call $(ONEAPI_DIR)\setvars.bat --force
       "$(VSDEVCMD)" -arch=amd64 -host_arch=amd64
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" info output_base > output_base.txt
       set /p OUTPUT_BASE=<output_base.txt
@@ -931,7 +939,13 @@ jobs:
   pool:
     vmImage: '$(WIN_VM_IMAGE)'
   steps:
-  - script: .ci/scripts/install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS)
+  - task: Cache@2
+    inputs:
+      key: '"basekit" | "$(Agent.OS)" | "$(WINDOWS_BASEKIT_URL)" | "$(WINDOWS_DPCPP_COMPONENTS)"'
+      path: $(ONEAPI_DIR)
+    displayName: 'Restore oneAPI Base Toolkit'
+    continueOnError: true
+  - script: .ci/scripts/install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS) $(ONEAPI_DIR)
     displayName: 'Install oneAPI Base Toolkit'
   - powershell: |
       .ci/env/bazelisk.ps1
@@ -964,7 +978,7 @@ jobs:
       echo ##vso[task.setvariable variable=BAZEL_JOBS]%NUMBER_OF_PROCESSORS%
     displayName: 'bazel-configure'
   - script: |
-      call %TEMP%\oneapi\setvars.bat --force
+      call $(ONEAPI_DIR)\setvars.bat --force
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" build //:release_all --verbose_failures --jobs=$(BAZEL_JOBS)
     displayName: 'release-all'
   - powershell: |
@@ -1039,7 +1053,13 @@ jobs:
   pool:
     vmImage: '$(WIN_VM_IMAGE)'
   steps:
-  - script: .ci/scripts/install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS)
+  - task: Cache@2
+    inputs:
+      key: '"basekit" | "$(Agent.OS)" | "$(WINDOWS_BASEKIT_URL)" | "$(WINDOWS_DPCPP_COMPONENTS)"'
+      path: $(ONEAPI_DIR)
+    displayName: 'Restore oneAPI Base Toolkit'
+    continueOnError: true
+  - script: .ci/scripts/install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS) $(ONEAPI_DIR)
     displayName: Install oneAPI Base Toolkit
   - script: |
       set PATH=C:\msys64\usr\bin;%PATH%
@@ -1049,15 +1069,15 @@ jobs:
     # The MSYS2 mirrors answer 500 now and then; the failure cost a whole build (66042).
     retryCountOnTaskFailure: 3
   - script: |
-      call %TEMP%\oneapi\setvars.bat --force
+      call $(ONEAPI_DIR)\setvars.bat --force
       bash .ci/scripts/describe_system.sh
     displayName: 'System info'
   - script: |
-      call %TEMP%\oneapi\setvars.bat --force
+      call $(ONEAPI_DIR)\setvars.bat --force
       .\.ci\scripts\build.bat daal vc avx2
     displayName: 'make daal'
   - script: |
-      call %TEMP%\oneapi\setvars.bat --force
+      call $(ONEAPI_DIR)\setvars.bat --force
       .\.ci\scripts\build.bat onedal_c vc avx2
     displayName: 'make onedal_c'
   - task: PublishPipelineArtifact@1
@@ -1073,12 +1093,12 @@ jobs:
     displayName: 'Upload environment artifacts'
     continueOnError: true
   - script: |
-      call %TEMP%\oneapi\setvars.bat --force
+      call $(ONEAPI_DIR)\setvars.bat --force
       .\.ci\scripts\test.bat daal\cpp lib msvs cmake
       .\.ci\scripts\test.bat daal\cpp dll msvs cmake
     displayName: 'daal/cpp examples'
   - script: |
-      call %TEMP%\oneapi\setvars.bat --force
+      call $(ONEAPI_DIR)\setvars.bat --force
       .\.ci\scripts\test.bat oneapi\cpp lib msvs cmake
       .\.ci\scripts\test.bat oneapi\cpp dll msvs cmake
     displayName: 'oneapi/cpp examples'
@@ -1103,7 +1123,7 @@ jobs:
     release.dir: '__release_win_vc'
     platform.type: 'win32e'
     DALROOT: '$(Pipeline.Workspace)\daal\latest'
-    TBBROOT: '%TEMP%\oneapi\tbb\latest'
+    TBBROOT: '$(ONEAPI_DIR)\tbb\latest'
   pool:
     vmImage: '$(WIN_VM_IMAGE)'
     maxParallel: 2
@@ -1125,7 +1145,13 @@ jobs:
     inputs:
       artifact: '$(platform.type) build'
       path: $(Pipeline.Workspace)
-  - script: .ci\env\install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS)
+  - task: Cache@2
+    inputs:
+      key: '"basekit" | "$(Agent.OS)" | "$(WINDOWS_BASEKIT_URL)" | "$(WINDOWS_DPCPP_COMPONENTS)"'
+      path: $(ONEAPI_DIR)
+    displayName: 'Restore oneAPI Base Toolkit'
+    continueOnError: true
+  - script: .ci\env\install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS) $(ONEAPI_DIR)
     displayName: 'TBB installation'
   - template: .ci/pipeline/build-and-test-win.yml@sklearnex
   - task: PublishPipelineArtifact@1

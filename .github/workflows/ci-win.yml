@@ -504,6 +504,21 @@ jobs:
 
       # The toolkit URL and component list are read from .ci/pipeline/ci.yml,
       # their single source of truth, as nightly-build.yml does.
+      # Keyed on the installer and component list in ci.yml, the single source of truth for both.
+      - name: Compute the oneAPI Base Toolkit cache key
+        id: basekit
+        shell: bash
+        run: |
+          id=$(grep -oP -m 2 "(?<=WINDOWS_BASEKIT_URL: |WINDOWS_DPCPP_COMPONENTS: ).*" .ci/pipeline/ci.yml | sha256sum | cut -c1-16)
+          echo "key=basekit-${RUNNER_OS}-${RUNNER_ARCH}-${id}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore oneAPI Base Toolkit
+        id: cache-basekit
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: oneapi
+          key: ${{ steps.basekit.outputs.key }}
+
       - name: Install oneAPI Base Toolkit
         shell: cmd
         run: |
@@ -513,6 +528,13 @@ jobs:
           if not defined baseurl exit /b 1
           if not defined components exit /b 1
           call .ci\scripts\install_basekit.bat %baseurl:'="% %components:'="% .\oneapi\
+
+      - name: Save oneAPI Base Toolkit
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cache-basekit.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: oneapi
+          key: ${{ steps.basekit.outputs.key }}
 
       # `cpufeature` is read by describe_system.sh; `zip` packs the nuget
       # package (deploy/nuget/prepare_dal_nuget.sh) and `tree` lists it.
