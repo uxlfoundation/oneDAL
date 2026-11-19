@@ -100,12 +100,8 @@ TEMPLATE_LIST_TEST_M(basic_statistics_online_test,
     SKIP_IF((!std::is_same_v<float_t, double>));
     constexpr std::int64_t row_count = 3000;
     const te::dataframe df =
-        te::dataframe_builder{ row_count, 1 }.fill_uniform(-1, 1, 7777).build();
-    // The offset is added in double: float cannot hold a deviation of 1 at 1e8.
+        te::dataframe_builder{ row_count, 1 }.fill_uniform(1e8 - 1.0, 1e8 + 1.0, 7777).build();
     std::vector<float_t> column(df.get_array().get_data(), df.get_array().get_data() + row_count);
-    for (auto& x : column) {
-        x += float_t(1e8);
-    }
     const auto data = homogen_table::wrap(column.data(), row_count, 1);
     const auto mode = result_options::sum_squares_centered | result_options::variance;
     const auto desc = this->get_descriptor(mode);
