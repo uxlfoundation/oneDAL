@@ -95,7 +95,8 @@
   pass their objects directly. Script-free options, all needing a Windows DPC++
   run to validate: archive the objects of executables the same way, or link
   through `lld-link` (`-fuse-ld=lld`), which has no line limit. Converting the
-  `.res` with `cvtres` into an object of that archive was tried and failed.
+  `.res` with `cvtres` into an object of that archive was tried once and failed;
+  finding (1) below says that failure is not isolated.
   Findings from PR #4042 (Azure 66390, 66418): (1) hypothesis, not isolated:
   the `.res` before `/link` is likely what makes icx honour `/IMPLIB`. Main's
   working link has it there; the run that put a cvtres object after `/link`

@@ -92,9 +92,9 @@ Windows Bazel support covers the regular C++/CPU build with the MSVC compiler
 and release DPC++/SYCL artifact builds with the Intel(R) oneAPI DPC++ Compiler.
 The nightly Windows Bazel job is configured to run the DPC++ tests of
 `//cpp/oneapi/dal/algo/pca:tests` on the Intel OpenCL CPU runtime, but that run is not
-validated yet: its test link fails (see `dev/bazel/TODO.md`). Other Windows DPC++ examples
-and tests still need device/runtime validation. Windows ARM64 uses `clang-cl` instead of MSVC and is described in
-[Windows ARM64](#windows-arm64).
+validated yet: its test link fails (see `dev/bazel/TODO.md`). Other Windows DPC++
+examples and tests still need device/runtime validation. Windows ARM64 uses `clang-cl`
+instead of MSVC and is described in [Windows ARM64](#windows-arm64).
 
 1. Install Visual Studio 2022 Build Tools with the MSVC x64 C++ toolchain.
 
