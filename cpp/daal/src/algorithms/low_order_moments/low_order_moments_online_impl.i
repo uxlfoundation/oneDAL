@@ -26,6 +26,7 @@
 
 #include "src/algorithms/low_order_moments/low_order_moments_kernel.h"
 #include "src/algorithms/low_order_moments/low_order_moments_impl.i"
+#include "src/algorithms/low_order_moments/low_order_moments_csr_impl.i"
 
 namespace daal
 {
@@ -50,6 +51,11 @@ services::Status LowOrderMomentsOnlineKernel<algorithmFPType, method, cpu>::comp
         default /* estimatesAll */: break;
         }
         return estimates_online_all::compute_estimates<algorithmFPType, method, cpu>(dataTable, partialResult, isOnline);
+    }
+
+    if (method == fastCSR || method == singlePassCSR || method == sumCSR)
+    {
+        return csr::computeOnline<algorithmFPType, method, cpu>(dataTable, partialResult, isOnline);
     }
 
     LowOrderMomentsOnlineTask<algorithmFPType, cpu> task(dataTable);
