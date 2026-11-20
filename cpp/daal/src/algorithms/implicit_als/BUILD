@@ -5,6 +5,7 @@ daal_module(
     name = "kernel",
     auto = True,
     deps = [
+        "@onedal//cpp/daal:public_includes_implicit_als",
         "@onedal//cpp/daal:core",
         "@onedal//cpp/daal/src/algorithms/distributions:kernel",
     ],

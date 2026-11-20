@@ -21,6 +21,7 @@ daal_module(
     name = "kernel",
     auto = True,
     deps = [
+        "@onedal//cpp/daal:public_includes_tsne",
         "@onedal//cpp/daal:core",
     ],
 )

@@ -5,6 +5,8 @@ daal_module(
     name = "kernel",
     auto = True,
     deps = [
+        "@onedal//cpp/daal:public_includes_multi_class_classifier",
+        "@onedal//cpp/daal:public_includes_svm",
         "@onedal//cpp/daal:core",
         "@onedal//cpp/daal/src/algorithms/classifier:kernel",
         "@onedal//cpp/daal/src/algorithms/svm:kernel",

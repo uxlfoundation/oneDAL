@@ -8,6 +8,7 @@ daal_module(
     hdrs = glob(["**/*.h", "**/*.i"]),
     srcs = glob(["*.cpp"]),
     deps = [
+        "@onedal//cpp/daal:public_includes_gradient_boosted_trees",
         "@onedal//cpp/daal:core",
         "@onedal//cpp/daal:engines",
         "@onedal//cpp/daal/src/algorithms/dtrees/gbt:kernel",
