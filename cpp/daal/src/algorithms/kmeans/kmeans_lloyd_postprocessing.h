@@ -213,7 +213,7 @@ struct PostProcessing<lloydCSR, algorithmFPType, cpu>
 
         TArrayScalable<algorithmFPType, cpu> centroidsT(p * nClusters);
         DAAL_CHECK(centroidsT.get(), services::ErrorMemoryAllocationFailed);
-        transpose<algorithmFPType, cpu>(inClusters, nClusters, p, centroidsT.get());
+        transposeCentroids<algorithmFPType, cpu>(inClusters, nClusters, p, centroidsT.get());
 
         SafeStatus safeStat;
         CSRNumericTableIface * ntDataCsr = dynamic_cast<CSRNumericTableIface *>(const_cast<NumericTable *>(ntData));

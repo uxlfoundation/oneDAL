@@ -263,7 +263,7 @@ Status TaskKMeansLloyd<algorithmFPType, cpu>::addNTToTaskThreadedCSR(const Numer
     TArrayScalable<algorithmFPType, cpu> centroidsTArray(dim * clNum);
     DAAL_CHECK_MALLOC(centroidsTArray.get());
     algorithmFPType * const centroidsT = centroidsTArray.get();
-    transpose<algorithmFPType, cpu>(cCenters, clNum, dim, centroidsT);
+    transposeCentroids<algorithmFPType, cpu>(cCenters, clNum, dim, centroidsT);
 
     SafeStatus safeStat;
     daal::static_threader_for(nBlocks, [=, &safeStat](const int k, size_t tid) {

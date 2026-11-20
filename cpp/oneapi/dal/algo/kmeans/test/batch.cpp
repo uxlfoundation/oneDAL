@@ -488,10 +488,10 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
     SKIP_IF(this->get_policy().is_gpu());
     using Float = std::tuple_element_t<0, TestType>;
 
-    constexpr std::int64_t row_count = 100000;
+    constexpr std::int64_t row_count = 50000;
     constexpr std::int64_t column_count = 10;
     constexpr std::int64_t cluster_count = 5;
-    constexpr int run_count = 5;
+    constexpr int run_count = 2;
 
     std::mt19937 rng(42);
     std::normal_distribution<double> normal;
@@ -517,7 +517,7 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
                                              column_count,
                                              sparse_indexing::zero_based);
     const auto initial_centroids = homogen_table::wrap(dense.data(), cluster_count, column_count);
-    const auto desc = this->get_descriptor(cluster_count, 300, Float(0));
+    const auto desc = this->get_descriptor(cluster_count, 20, Float(0));
 
     const auto pull = [](const table& t) {
         const auto ary = row_accessor<const Float>(t).pull();

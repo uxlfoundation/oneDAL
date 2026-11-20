@@ -35,7 +35,6 @@
 #include "src/externals/service_spblas.h"
 #include "src/services/service_data_utils.h"
 #include "src/services/service_environment.h"
-#include "src/services/service_utils.h"
 
 namespace daal
 {
@@ -161,6 +160,21 @@ struct BSHelper<lloydCSR, algorithmFPType, cpu>
     static size_t kmeansGetBlockSize(const size_t nRows, const size_t dim, const size_t clNum) { return 512; }
 };
 
+/// Transposes the `nClusters x p` row-major centroids into `p x nClusters`.
+///
+/// @param centroids   Centroids, `nClusters x p`, row-major
+/// @param nClusters   Number of centroids
+/// @param p           Number of features
+/// @param centroidsT  Output, `p x nClusters`, row-major
+template <typename algorithmFPType, CpuType cpu>
+void transposeCentroids(const algorithmFPType * const centroids, const size_t nClusters, const size_t p, algorithmFPType * const centroidsT)
+{
+    const DAAL_INT rows       = static_cast<DAAL_INT>(nClusters);
+    const DAAL_INT cols       = static_cast<DAAL_INT>(p);
+    const algorithmFPType one = algorithmFPType(1);
+    BlasInst<algorithmFPType, cpu>::xomatcopy("R", "T", &rows, &cols, &one, centroids, &cols, centroidsT, &rows);
+}
+
 /// Inner products of the rows of a CSR block with every centroid, each summed over the
 /// stored values of the row in order. `mkl_sparse_?_mm` runs in parallel under the TBB
 /// layer even after `mkl_set_num_threads_local(1)`, so its sums vary from run to run.
@@ -179,11 +193,7 @@ void csrRowsTimesCentroids(const size_t nRows, const size_t nClusters, const alg
     for (size_t i = 0; i < nRows; i++)
     {
         algorithmFPType * const out = products + i * nClusters;
-        PRAGMA_OMP_SIMD
-        for (size_t j = 0; j < nClusters; j++)
-        {
-            out[j] = algorithmFPType(0);
-        }
+        service_memset_seq<algorithmFPType, cpu>(out, algorithmFPType(0), nClusters);
         for (size_t k = rowIdx[i] - 1; k < rowIdx[i + 1] - 1; k++)
         {
             const algorithmFPType value          = values[k];
