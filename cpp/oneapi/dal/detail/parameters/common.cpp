@@ -43,7 +43,7 @@ std::int64_t covariance_block_size(const dal::backend::context_cpu& ctx,
         const bool avx512 = ctx.get_enabled_cpu_extensions() >= dal::detail::cpu_extension::avx512;
         const std::int64_t budget = avx512 ? budget_avx512 : budget_avx2;
 
-        std::int64_t row_bytes = column_count * std::int64_t(sizeof(Float));
+        std::int64_t row_bytes = std::max<std::int64_t>(1, column_count) * std::int64_t(sizeof(Float));
         std::int64_t b_cache = std::max<std::int64_t>(1, budget / row_bytes);
 
         // Whole number of blocks per thread, so the static partition gives every thread the same count.
