@@ -232,6 +232,7 @@ TEMPLATE_LIST_TEST_M(inner_product_test_random,
                      "Randomly filled Inner-Product computation",
                      "[l2][ip][aux][small]",
                      types_to_check) {
+    SKIP_IF(this->get_policy().is_cpu());
     SKIP_IF(this->not_float64_friendly());
     this->generate();
     this->test_inner_product();

@@ -97,6 +97,7 @@ dal_collect_test_suites(
     name = "tests",
     modules = [
         "blas",
+        "distance",
         "heap",
         "lapack",
         "optimizers",
@@ -105,6 +106,7 @@ dal_collect_test_suites(
         "reduction",
         "regression",
         "selection",
+        "search",
         "sort",
         "sparse_blas",
         "stat",
