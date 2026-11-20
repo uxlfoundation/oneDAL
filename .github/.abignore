@@ -18,23 +18,30 @@
 ;;;; DAAL DESELECTIONS ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; deselect daal::internal namespaces
+;
+; The namespace must be in the symbol's own name: the lower-case components
+; before it cannot cross the `E` or `I` that opens the parameters or template
+; arguments, so a public function that takes an internal type is still compared.
 
 [suppress_type]
-symbol_name_regexp = _Z+.*4daal[[:digit:]].*8internal[[:digit:]].*
+symbol_name_regexp = ^_Z(Z|T[ISV])?N[rVK]*4daal([[:digit:]]+[a-z][a-z0-9_]*)*8internal[[:digit:]]
 drop = yes
 
 [suppress_variable]
-symbol_name_regexp = _Z+.*4daal[[:digit:]].*8internal[[:digit:]].*
+symbol_name_regexp = ^_Z(Z|T[ISV])?N[rVK]*4daal([[:digit:]]+[a-z][a-z0-9_]*)*8internal[[:digit:]]
 drop = yes
 
 [suppress_function]
-symbol_name_regexp = _Z+.*4daal[[:digit:]].*8internal[[:digit:]].*
+symbol_name_regexp = ^_Z(Z|T[ISV])?N[rVK]*4daal([[:digit:]]+[a-z][a-z0-9_]*)*8internal[[:digit:]]
 drop = yes
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; DAAL 2026.0 REMOVALS ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; deselect the removed daal symbols
+;
+; If re-enabled, remove `drop = yes` from these stanzas (see "newly added
+; symbols" below).
 
 ;[suppress_type]
 ;symbol_name_regexp = _Z+N4daal[[:digit:]].*
@@ -54,57 +61,58 @@ drop = yes
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; oneDAL DESELECTIONS ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; deselect oneapi::dal backend namespaces
+; deselect oneapi::dal backend namespaces (nested-name rule as for daal::internal)
 [suppress_type]
-symbol_name_regexp = _Z+N6oneapi3dal[[:digit:]].*7backend[[:digit:]].*
+symbol_name_regexp = ^_Z+N6oneapi3dal([[:digit:]]+[a-z][a-z0-9_]*)*7backend[[:digit:]]
 drop = yes
 
 [suppress_variable]
-symbol_name_regexp = _Z+N6oneapi3dal[[:digit:]].*7backend[[:digit:]].*
+symbol_name_regexp = ^_Z+N6oneapi3dal([[:digit:]]+[a-z][a-z0-9_]*)*7backend[[:digit:]]
 drop = yes
 
 [suppress_function]
-symbol_name_regexp = _Z+N6oneapi3dal[[:digit:]].*7backend[[:digit:]].*
+symbol_name_regexp = ^_Z+N6oneapi3dal([[:digit:]]+[a-z][a-z0-9_]*)*7backend[[:digit:]]
 drop = yes
 
 ; deselect oneapi::dal detail namespaces
 [suppress_type]
-symbol_name_regexp = _Z+N6oneapi3dal[[:digit:]].*6detail[[:digit:]].*
+symbol_name_regexp = ^_Z+N6oneapi3dal([[:digit:]]+[a-z][a-z0-9_]*)*6detail[[:digit:]]
 drop = yes
 
 [suppress_variable]
-symbol_name_regexp = _Z+N6oneapi3dal[[:digit:]].*6detail[[:digit:]].*
+symbol_name_regexp = ^_Z+N6oneapi3dal([[:digit:]]+[a-z][a-z0-9_]*)*6detail[[:digit:]]
 drop = yes
 
 [suppress_function]
-symbol_name_regexp = _Z+N6oneapi3dal[[:digit:]].*6detail[[:digit:]].*
+symbol_name_regexp = ^_Z+N6oneapi3dal([[:digit:]]+[a-z][a-z0-9_]*)*6detail[[:digit:]]
 drop = yes
 
 ; deselect oneapi::dal preview namespaces
 [suppress_type]
-symbol_name_regexp = _Z+N6oneapi3dal[[:digit:]].*7preview[[:digit:]].*
+symbol_name_regexp = ^_Z+N6oneapi3dal([[:digit:]]+[a-z][a-z0-9_]*)*7preview[[:digit:]]
 drop = yes
 
 [suppress_variable]
-symbol_name_regexp = _Z+N6oneapi3dal[[:digit:]].*7preview[[:digit:]].*
+symbol_name_regexp = ^_Z+N6oneapi3dal([[:digit:]]+[a-z][a-z0-9_]*)*7preview[[:digit:]]
 drop = yes
 
 [suppress_function]
-symbol_name_regexp = _Z+N6oneapi3dal[[:digit:]].*7preview[[:digit:]].*
+symbol_name_regexp = ^_Z+N6oneapi3dal([[:digit:]]+[a-z][a-z0-9_]*)*7preview[[:digit:]]
 drop = yes
 
 ; deselect oneapi::dal newly added symbols
+;
+; No `drop = yes` here: it removes the matched symbols before comparison, which
+; would hide removals and layout changes across all of oneapi::dal, not only
+; additions.
 [suppress_type]
 symbol_name_regexp = _Z[ZT]?[ISV]?N6oneapi3dal[[:digit:]].*
 change_kind = added-type
-drop = yes
 
 [suppress_variable]
 symbol_name_regexp = _Z[ZT]?[ISV]?N6oneapi3dal[[:digit:]].*
 change_kind = added-variable
-drop = yes
 
 [suppress_function]
 symbol_name_regexp = _Z[ZT]?[ISV]?N6oneapi3dal[[:digit:]].*
 change_kind = added-function
-drop = yes
