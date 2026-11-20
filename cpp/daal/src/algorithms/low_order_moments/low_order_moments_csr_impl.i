@@ -126,6 +126,23 @@ inline void mergeMoments(double & cA, double & meanA, double & m2A, double cB, d
     cA = c;
 }
 
+/// No row has touched the column yet in the per-column scratch of an unsorted row.
+constexpr size_t noRow = ~size_t(0);
+
+/// Welford's update of one column's running moments with the observation `x`.
+inline void addObservation(double * const col, const double x)
+{
+    const double c     = col[slotCount] + 1.0;
+    const double delta = x - col[slotMean];
+    col[slotCount]     = c;
+    col[slotMean] += delta / c;
+    col[slotM2] += delta * (x - col[slotMean]);
+    col[slotSum] += x;
+    col[slotSumSq] += x * x;
+    col[slotMin] = x < col[slotMin] ? x : col[slotMin];
+    col[slotMax] = x > col[slotMax] ? x : col[slotMax];
+}
+
 /// Moments of all rows of a CSR table, from its stored values only. Each chunk runs Welford's
 /// update over its values; the chunks are merged, and the implicit zeros join as one final
 /// observation of value 0 and weight (nRows - nnz_j), as a weighted dense column would.
@@ -175,21 +192,54 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
         // A sparse block can report success with no buffer when converting the value type fails to allocate.
         DAAL_CHECK_THR(nnz == 0 || (values && cols), ErrorMemoryAllocationFailed);
 
-        // Scalar: a row may repeat a column index, and a gather/scatter loop over the rows
-        // without repeats measured slower than this one.
-        for (size_t k = 0; k < nnz; k++)
+        // Values of a column repeated in a row are summed, as in the dense row. Rows with sorted
+        // indices sum the adjacent repeats; the others go through a per-column scratch.
+        const size_t * const rowOffsets = block.rows();
+        TArrayScalable<size_t, cpu> seenRow;
+        TArrayScalable<double, cpu> pending;
+        for (size_t r = 0; r < rows; r++)
         {
-            double * const col = a + (cols[k] - 1) * slotsPerColumn;
-            const double x     = values[k];
-            const double c     = col[slotCount] + 1.0;
-            const double delta = x - col[slotMean];
-            col[slotCount]     = c;
-            col[slotMean] += delta / c;
-            col[slotM2] += delta * (x - col[slotMean]);
-            col[slotSum] += x;
-            col[slotSumSq] += x * x;
-            col[slotMin] = x < col[slotMin] ? x : col[slotMin];
-            col[slotMax] = x > col[slotMax] ? x : col[slotMax];
+            const size_t begin = rowOffsets[r] - rowOffsets[0];
+            const size_t end   = rowOffsets[r + 1] - rowOffsets[0];
+            bool sorted        = true;
+            for (size_t k = begin + 1; k < end && sorted; k++)
+            {
+                sorted = cols[k - 1] <= cols[k];
+            }
+            if (sorted)
+            {
+                for (size_t k = begin; k < end;)
+                {
+                    const size_t j = cols[k];
+                    double x       = values[k];
+                    while (++k < end && cols[k] == j)
+                    {
+                        x += values[k];
+                    }
+                    addObservation(a + (j - 1) * slotsPerColumn, x);
+                }
+                continue;
+            }
+            if (!seenRow.get())
+            {
+                seenRow.reset(nFeatures);
+                pending.reset(nFeatures);
+                DAAL_CHECK_THR(seenRow.get() && pending.get(), ErrorMemoryAllocationFailed);
+                services::internal::service_memset_seq<size_t, cpu>(seenRow.get(), noRow, nFeatures);
+            }
+            for (size_t k = begin; k < end; k++)
+            {
+                const size_t j = cols[k] - 1;
+                pending[j]     = (seenRow[j] == r) ? pending[j] + values[k] : double(values[k]);
+                seenRow[j]     = r;
+            }
+            for (size_t k = begin; k < end; k++)
+            {
+                const size_t j = cols[k] - 1;
+                if (seenRow[j] != r) continue;
+                addObservation(a + j * slotsPerColumn, pending[j]);
+                seenRow[j] = noRow;
+            }
         }
     });
     DAAL_CHECK_SAFE_STATUS();
@@ -235,8 +285,7 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
         PRAGMA_OMP_SIMD
         for (size_t t = 0; t < width; t++)
         {
-            // A row can repeat a column, so the stored values may outnumber the rows.
-            const double zeros = c[t] < n ? n - c[t] : 0.0;
+            const double zeros = n - c[t];
             lo[t]              = (zeros > 0.0 && 0.0 < lo[t]) ? 0.0 : lo[t];
             hi[t]              = (zeros > 0.0 && 0.0 > hi[t]) ? 0.0 : hi[t];
             mergeMoments(c[t], m[t], m2[t], zeros, 0.0, 0.0);

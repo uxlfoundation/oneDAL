@@ -160,6 +160,58 @@ TEMPLATE_LIST_TEST_M(basic_statistics_batch_test,
     REQUIRE(max[2] == float_t(8));
 }
 
+// Repeated column indices in a row are summed, as in the dense row: row 0 repeats column 0 in
+// order, row 1 repeats column 2 out of order.
+TEMPLATE_LIST_TEST_M(basic_statistics_batch_test,
+                     "basic_statistics CSR sums repeated column indices",
+                     "[basic_statistics][integration][batch]",
+                     basic_statistics_sparse_types) {
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->get_policy().is_gpu());
+    using float_t = std::tuple_element_t<0, TestType>;
+    constexpr std::int64_t row_count = 4;
+    constexpr std::int64_t column_count = 3;
+    std::vector<float_t> values{ 2, 5, 1, 3, 4, 6 };
+    std::vector<std::int64_t> column_indices{ 0, 0, 2, 0, 2, 1 };
+    std::vector<std::int64_t> row_offsets{ 0, 2, 5, 6, 6 };
+    const double dense[row_count][column_count] = { { 7, 0, 0 },
+                                                    { 3, 0, 5 },
+                                                    { 0, 6, 0 },
+                                                    { 0, 0, 0 } };
+    const auto data = csr_table::wrap(values.data(),
+                                      column_indices.data(),
+                                      row_offsets.data(),
+                                      row_count,
+                                      column_count,
+                                      sparse_indexing::zero_based);
+    const auto desc =
+        bs::descriptor<float_t, basic_statistics::method::sparse>{}.set_result_options(
+            bs::result_option_id(dal::result_option_id_base(mask_full)));
+    const auto result = this->compute(desc, data);
+
+    const auto sum = row_accessor<const float_t>(result.get_sum()).pull();
+    const auto sum_sq = row_accessor<const float_t>(result.get_sum_squares()).pull();
+    const auto ssc = row_accessor<const float_t>(result.get_sum_squares_centered()).pull();
+    const auto min = row_accessor<const float_t>(result.get_min()).pull();
+    const auto max = row_accessor<const float_t>(result.get_max()).pull();
+    for (std::int64_t j = 0; j < column_count; ++j) {
+        double s = 0, s2 = 0, lo = dense[0][j], hi = dense[0][j];
+        for (std::int64_t i = 0; i < row_count; ++i) {
+            s += dense[i][j];
+            s2 += dense[i][j] * dense[i][j];
+            lo = std::min(lo, dense[i][j]);
+            hi = std::max(hi, dense[i][j]);
+        }
+        const double ref_ssc = s2 - s * s / row_count;
+        CAPTURE(j, sum[j], sum_sq[j], ssc[j], min[j], max[j]);
+        REQUIRE(sum[j] == float_t(s));
+        REQUIRE(sum_sq[j] == float_t(s2));
+        REQUIRE(std::abs(ssc[j] - ref_ssc) <= 1e-5 * std::max(1.0, ref_ssc));
+        REQUIRE(min[j] == float_t(lo));
+        REQUIRE(max[j] == float_t(hi));
+    }
+}
+
 // Enough values for several chunks, so a reduction that depends on the thread schedule would show.
 TEMPLATE_LIST_TEST_M(basic_statistics_batch_test,
                      "basic_statistics CSR results are the same from run to run",
