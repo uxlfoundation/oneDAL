@@ -45,17 +45,7 @@ struct ColIndexTask
     virtual ~ColIndexTask() {}
     bool isValid() const { return _index.get(); }
 
-    struct FeatureIdx
-    {
-        algorithmFPType key;
-        IndexType val;
-        static int compare(const void * a, const void * b)
-        {
-            if (static_cast<const FeatureIdx *>(a)->key < static_cast<const FeatureIdx *>(b)->key) return -1;
-            return static_cast<const FeatureIdx *>(a)->key > static_cast<const FeatureIdx *>(b)->key;
-        }
-        bool operator<(const FeatureIdx & o) const { return key < o.key; }
-    };
+    using FeatureIdx = daal::IdxValType<algorithmFPType, IndexType>;
 
     virtual services::Status makeIndex(NumericTable & nt, IndexedFeatures::FeatureEntry & entry, IndexType * aRes, size_t iCol, size_t nRows,
                                        bool bUnorderedFeature)
@@ -86,11 +76,11 @@ struct ColIndexTask
             return s;
         }
         IndexType iUnique    = 0;
-        aRes[index[0].val]   = iUnique;
+        aRes[index[0].index] = iUnique;
         algorithmFPType prev = index[0].key;
         for (size_t i = 1; i < nRows; ++i)
         {
-            const IndexType idx = index[i].val;
+            const IndexType idx = index[i].index;
             if (index[i].key == prev)
                 aRes[idx] = iUnique;
             else
@@ -136,8 +126,8 @@ protected:
         FeatureIdx * index = _index.get();
         for (size_t i = 0; i < nRows; ++i)
         {
-            index[i].key = pBlock[i];
-            index[i].val = i;
+            index[i].key   = pBlock[i];
+            index[i].index = i;
         }
         daal::algorithms::internal::qSortByKey<FeatureIdx, cpu>(nRows, index);
         return Status();
@@ -184,7 +174,8 @@ static void append(TContainer & cont, size_t & contSize, size_t size)
     cont[contSize++] = size;
 }
 
-//Returns an index of the first element in the range[ar, ar + n) that is not less than(i.e.greater or equal to) value.
+// Returns the first element in [first, last) whose key is greater than value.key.
+// Compares keys only: IdxValType::operator< also orders equal keys by index.
 template <typename T>
 const T * upper_bound(const T * first, const T * last, const T & value)
 {
@@ -194,7 +185,7 @@ const T * upper_bound(const T * first, const T * last, const T & value)
         auto it   = first;
         auto step = (n >> 1);
         it += step;
-        if (!(value < *it))
+        if (!(value.key < it->key))
         {
             first = ++it;
             n -= step + 1;
@@ -231,7 +222,7 @@ services::Status ColIndexTaskBins<IndexType, algorithmFPType, cpu>::assignIndexA
     size_t i = 0;
     for (size_t iBin = 0; iBin < nBins; ++iBin)
     {
-        for (size_t n = i + _bins[iBin]; i < n; ++i) aRes[index[i].val] = iBin;
+        for (size_t n = i + _bins[iBin]; i < n; ++i) aRes[index[i].index] = iBin;
         entry.binBorders[iBin] = index[i - 1].key;
     }
     if (this->maxNumDiffValues < entry.numIndices) this->maxNumDiffValues = entry.numIndices;

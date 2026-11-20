@@ -22,14 +22,15 @@
 */
 
 #include "src/threading/threading.h"
+#include "src/threading/zip_iterator.h"
 #include "services/daal_memory.h"
-#include "src/algorithms/service_qsort.h"
 
 #define TBB_PREVIEW_GLOBAL_CONTROL 1
 #define TBB_PREVIEW_TASK_ARENA     1
 
-#include <algorithm> // std::min
-#include <stdlib.h>  // malloc and free
+#include <algorithm> // std::min, std::sort
+#include <cstddef>
+#include <stdlib.h> // malloc and free
 #include <tbb/tbb.h>
 #include <tbb/spin_mutex.h>
 #include <tbb/scalable_allocator.h>
@@ -320,16 +321,27 @@ DAAL_EXPORT void _daal_static_threader_for(int64_t n, const void * a, daal::func
     }
 }
 
-template <typename F>
-DAAL_EXPORT void _daal_parallel_sort_template(F * begin_p, F * end_p)
+// Below this size std::sort beats tbb::parallel_sort.
+constexpr std::int64_t parallelSortMinSize = 4096;
+
+// tbb::parallel_sort is used only for large arrays outside parallel regions.
+// Inside a parallel region it gains nothing and its overhead makes it slower than std::sort.
+inline bool useParallelSort(std::int64_t n)
 {
-    if (daal::threader_env()->getNumberOfThreads() > 1)
+    return n >= parallelSortMinSize && daal::threader_env()->getNumberOfThreads() > 1 && !_daal_is_in_parallel();
+}
+
+template <typename F, typename Compare = std::less<F> >
+DAAL_EXPORT void _daal_parallel_sort_template(F * begin_p, F * end_p, Compare comp = Compare())
+{
+    if (useParallelSort(end_p - begin_p))
     {
-        tbb::parallel_sort(begin_p, end_p);
+        // Isolated so that the calling thread does not pick up unrelated outer tasks while it waits.
+        tbb::this_task_arena::isolate([&]() { tbb::parallel_sort(begin_p, end_p, comp); });
     }
     else
     {
-        daal::algorithms::internal::qSort<F>(end_p - begin_p, begin_p);
+        std::sort(begin_p, end_p, comp);
     }
 }
 
@@ -341,11 +353,76 @@ DAAL_EXPORT void _daal_parallel_sort_template(F * begin_p, F * end_p)
 
 DAAL_PARALLEL_SORT_IMPL(int, int32)
 DAAL_PARALLEL_SORT_IMPL(size_t, uint64)
-DAAL_PARALLEL_SORT_IMPL(daal::IdxValType<int>, pair_int32_uint64)
-DAAL_PARALLEL_SORT_IMPL(daal::IdxValType<float>, pair_fp32_uint64)
-DAAL_PARALLEL_SORT_IMPL(daal::IdxValType<double>, pair_fp64_uint64)
+DAAL_PARALLEL_SORT_IMPL(float, fp32)
+DAAL_PARALLEL_SORT_IMPL(double, fp64)
 
 #undef DAAL_PARALLEL_SORT_IMPL
+
+#define DAAL_PARALLEL_PAIR_SORT_IMPL(FPTYPE, INDEXTYPE, NAMESUFFIX)                                       \
+    DAAL_EXPORT void _daal_parallel_sort_pair_##NAMESUFFIX(daal::IdxValType<FPTYPE, INDEXTYPE> * begin_p, \
+                                                           daal::IdxValType<FPTYPE, INDEXTYPE> * end_p)   \
+    {                                                                                                     \
+        _daal_parallel_sort_template(begin_p, end_p);                                                     \
+    }
+
+DAAL_PARALLEL_PAIR_SORT_IMPL(int, size_t, int32_uint64)
+DAAL_PARALLEL_PAIR_SORT_IMPL(float, size_t, fp32_uint64)
+DAAL_PARALLEL_PAIR_SORT_IMPL(double, size_t, fp64_uint64)
+
+#undef DAAL_PARALLEL_PAIR_SORT_IMPL
+
+#define DAAL_PARALLEL_PAIR_SORT_BY_KEY_IMPL(FPTYPE, INDEXTYPE, NAMESUFFIX)                                          \
+    DAAL_EXPORT void _daal_parallel_sort_pair_by_key_##NAMESUFFIX(daal::IdxValType<FPTYPE, INDEXTYPE> * begin_p,    \
+                                                                  daal::IdxValType<FPTYPE, INDEXTYPE> * end_p)      \
+    {                                                                                                               \
+        _daal_parallel_sort_template(begin_p, end_p, [](const auto & a, const auto & b) { return a.key < b.key; }); \
+    }
+
+DAAL_PARALLEL_PAIR_SORT_BY_KEY_IMPL(float, int, fp32_int32)
+DAAL_PARALLEL_PAIR_SORT_BY_KEY_IMPL(double, int, fp64_int32)
+
+#undef DAAL_PARALLEL_PAIR_SORT_BY_KEY_IMPL
+
+// Sorts data[0..n) and permutes every index array the same way.
+template <typename F, typename... I>
+void parallelIndexSort(size_t n, F * data, I *... index)
+{
+    const ZipIterator<F, I...> first(data, index...);
+    const ZipIterator<F, I...> last = first + n;
+    if (useParallelSort(n))
+    {
+        // Isolated for the same reason as in _daal_parallel_sort_template.
+        tbb::this_task_arena::isolate([&]() { tbb::parallel_sort(first, last, ZipKeyLess()); });
+    }
+    else
+    {
+        std::sort(first, last, ZipKeyLess());
+    }
+}
+
+#define DAAL_PARALLEL_INDEX_SORT_IMPL(DATATYPE, INDEXTYPE, NAMESUFFIX)                                    \
+    DAAL_EXPORT void _daal_parallel_index_sort_##NAMESUFFIX(size_t n, DATATYPE * data, INDEXTYPE * index) \
+    {                                                                                                     \
+        parallelIndexSort(n, data, index);                                                                \
+    }
+
+DAAL_PARALLEL_INDEX_SORT_IMPL(float, int, fp32_int32)
+DAAL_PARALLEL_INDEX_SORT_IMPL(double, int, fp64_int32)
+DAAL_PARALLEL_INDEX_SORT_IMPL(size_t, float, uint64_fp32)
+DAAL_PARALLEL_INDEX_SORT_IMPL(size_t, double, uint64_fp64)
+
+#undef DAAL_PARALLEL_INDEX_SORT_IMPL
+
+#define DAAL_PARALLEL_INDEX2_SORT_IMPL(DATATYPE, INDEXTYPE1, INDEXTYPE2, NAMESUFFIX)                                             \
+    DAAL_EXPORT void _daal_parallel_index_sort_##NAMESUFFIX(size_t n, DATATYPE * data, INDEXTYPE1 * index1, INDEXTYPE2 * index2) \
+    {                                                                                                                            \
+        parallelIndexSort(n, data, index1, index2);                                                                              \
+    }
+
+DAAL_PARALLEL_INDEX2_SORT_IMPL(size_t, float, size_t, uint64_fp32_uint64)
+DAAL_PARALLEL_INDEX2_SORT_IMPL(size_t, double, size_t, uint64_fp64_uint64)
+
+#undef DAAL_PARALLEL_INDEX2_SORT_IMPL
 
 DAAL_EXPORT void _daal_threader_for_blocked(int64_t n, int64_t grain_size, const void * a, daal::functype2 func)
 {
