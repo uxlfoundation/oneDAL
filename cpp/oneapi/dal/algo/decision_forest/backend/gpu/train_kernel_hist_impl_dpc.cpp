@@ -1873,7 +1873,7 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::finalize_var_imp(
             var_imp = var_imp_host.to_device(queue_);
         }
         else {
-            var_imp.fill(queue_, 0);
+            return var_imp.fill(queue_, 0);
         }
     }
     else if (ctx.mdi_required_) {
@@ -2174,22 +2174,19 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
             .wait_and_throw();
 
         if (ctx.oob_err_required_) {
-            auto res_oob_err_host = res_oob_err.to_host(queue_);
-            res.set_oob_err(homogen_table::wrap(res_oob_err_host.flatten(), 1, 1));
+            res.set_oob_err(homogen_table::wrap(res_oob_err.flatten(queue_), 1, 1));
         }
 
         if (ctx.oob_err_obs_required_) {
-            auto res_oob_err_obs_host = res_oob_err_obs.to_host(queue_);
             res.set_oob_err_per_observation(
-                homogen_table::wrap(res_oob_err_obs_host.flatten(), ctx.row_count_, 1));
+                homogen_table::wrap(res_oob_err_obs.flatten(queue_), ctx.row_count_, 1));
         }
     }
 
     if (ctx.mdi_required_ || ctx.mda_required_) {
         finalize_var_imp(ctx, res_var_imp_, var_imp_variance_host_).wait_and_throw();
-        auto res_var_imp_host = res_var_imp_.to_host(queue_);
         res.set_var_importance(
-            homogen_table::wrap(res_var_imp_host.flatten(), 1, ctx.column_count_));
+            homogen_table::wrap(res_var_imp_.flatten(queue_), 1, ctx.column_count_));
     }
 
     if (!desc.get_local_trees_mode()) {

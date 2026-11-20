@@ -16,6 +16,7 @@
 
 #include "oneapi/dal/algo/hdbscan/test/fixture.hpp"
 #include "oneapi/dal/test/engine/blobs.hpp"
+#include "oneapi/dal/test/engine/tables.hpp"
 #include "oneapi/dal/detail/error_messages.hpp"
 
 #include <algorithm>
@@ -1486,6 +1487,13 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
             .set_store_centers(store_centers_method::both);
     const auto result = this->compute(desc, x);
     REQUIRE(result.get_cluster_count() == 2);
+#ifdef ONEDAL_DATA_PARALLEL
+    if (this->get_policy().is_gpu()) {
+        te::check_if_table_on_device(result.get_responses());
+        te::check_if_table_on_device(result.get_cluster_centers());
+        te::check_if_table_on_device(result.get_medoid_centers());
+    }
+#endif
 
     // Cluster ids follow first appearance, and the first rows belong to the blob at the origin.
     const double tol = te::get_tolerance<Float>(1e-4, 1e-8);
