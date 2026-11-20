@@ -21,7 +21,7 @@ load("@onedal//dev/bazel:repos.bzl", "repos")
 
 # Bumped by Renovate (conda datasource); the builds and hashes below are
 # re-pinned by dev/bazel/deps/relock_conda.py (see dev/bazel/README.md).
-_GCC_VERSION = "14.3.0"
+_GCC_VERSION = "16.2.0"
 _TRIPLE = "x86_64-conda-linux-gnu"
 _URL = "https://anaconda.org/conda-forge/{name}/{version}/download/{subdir}/{name}-{version}-{build}.conda"
 
@@ -30,14 +30,14 @@ def _pkg(name, version, build, sha256, subdir = "linux-64"):
     return repos.archive(url = url, sha256 = sha256)
 
 _PACKAGES = [
-    _pkg("gcc_impl_linux-64", _GCC_VERSION, "h054831b_20", "09bb9b0d54b012c36a115e3ecebc80276df261555e847afbb3fbc7ab5566408c"),
-    _pkg("gxx_impl_linux-64", _GCC_VERSION, "h99ea42b_20", "8cd46d6f94a5a34181492549e1e56e5795337007289e6ca30d9ff1864f0e33c1"),
-    _pkg("libgcc-devel_linux-64", _GCC_VERSION, "hf649bbc_120", "9e2a3e7de26fc149707f9ff3988dc3e6a0b9534aea1bedcaa6ec9ba93dfdd013", subdir = "noarch"),
-    _pkg("libstdcxx-devel_linux-64", _GCC_VERSION, "h9f08a49_120", "5b7fd889a648c71d71a7cdda09107c0f189aa306f77c33cd66678a56cb225e53", subdir = "noarch"),
-    _pkg("libgcc", _GCC_VERSION, "he0feb66_20", "ee549953022da53692ae9a5da17a5d4a1829b9a173b68433e529279f0d2f9305"),
-    _pkg("libstdcxx", _GCC_VERSION, "h934c35e_20", "83447d514a21052674806585721fef05979dd6700ca199dbfdef713b6113cb2b"),
-    _pkg("libgomp", _GCC_VERSION, "he0feb66_20", "b182215de444505bf9d590d409cc685b2fc1510ea5e865ffb2e0c6d4619cd01c"),
-    _pkg("libsanitizer", _GCC_VERSION, "h91d2232_20", "4b685b1da0f85f4771e1b243e66cf2cf7b2e625caa440efc082d800a4e9b091e"),
+    _pkg("gcc_impl_linux-64", _GCC_VERSION, "h9891192_7", "14acaa661e4c4ef6c65606612b8b08f8f079c6a9e6da3ffcb77056685c675651"),
+    _pkg("gxx_impl_linux-64", _GCC_VERSION, "h0d273dc_7", "f873532a86ce9073a7255dec909472c2a271a57db938f383b630a3caa0b47709"),
+    _pkg("libgcc-devel_linux-64", _GCC_VERSION, "he3ce08f_107", "f1e7465f6b53f89b325e441c30ad7b19407b051eca556b6d0386ec05513b8e76", subdir = "noarch"),
+    _pkg("libstdcxx-devel_linux-64", _GCC_VERSION, "h86e191b_107", "ebbad84bdebd8a9964020d74dcce0f211f1431878c66326f6115dcb59e4c3469", subdir = "noarch"),
+    _pkg("libgcc", _GCC_VERSION, "ha9f2e26_7", "e031634c3a928f9594eba868bc46ef5230d6571a364a0c63215b06c4563bfcea"),
+    _pkg("libstdcxx", _GCC_VERSION, "h934c35e_7", "fa7018298629fc429971fffd6ecba3d27a7b02e4e890d6a93ea01ffebe8cb745"),
+    _pkg("libgomp", _GCC_VERSION, "he0feb66_7", "92a0bb350c7be6a4eedcb4e111c60aefd176018e6b1c009a6e025dbe9bbcd758"),
+    _pkg("libsanitizer", _GCC_VERSION, "h3048135_7", "e383569c331239308a8663facb76208fc0e141131ff3d17c1c2e50f34716a5a9"),
     _pkg("binutils_impl_linux-64", "2.46.1", "default_hfdba357_103", "98f9ddc6dc5d56a824b7eaea5bab6ad4bb47642288fc70d6b1b4024ac39d5595"),
     _pkg("ld_impl_linux-64", "2.46.1", "default_hbd61a6d_103", "901649b1edbe841fd4ee7e2d491a05184ed540eb01cdae506872f344babc1d28"),
     _pkg("zstd", "1.5.7", "hb78ec9c_7", "47d682b9f6d6ec9eb1a6e6c3e75ea6273e899e78fb7fc59f81d39745009fbc60"),
