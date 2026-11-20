@@ -104,7 +104,7 @@ External libraries are referenced by their repository labels, e.g. `@mkl//:mkl_c
 - `//conditions:default` in a `select()` means every platform not listed, macOS included, not just Linux. Put Linux-only flags under `@platforms//os:linux`.
 - Don't add `allow_empty = True` to a glob that must match; it hides packaging mistakes. The optional globs in `dal.bzl`, `daal.bzl` and `deps/*.tpl.BUILD` need it.
 - Don't hardcode the workspace name in test paths; use `${TEST_WORKSPACE}`.
-- No `use_default_shell_env = True`; it breaks hermeticity.
+- No `use_default_shell_env = True` and no `no-sandbox`/`no-cache`/`no-remote`/`local` execution requirements; they break hermeticity. `dev/bazel/tests/check_starlark_policy.py` enforces this as the `starlark-policy` pre-commit hook; the reviewed exceptions are listed in its `ALLOWED`, by file and function. Take an action's env from the toolchain with `cc_common.get_environment_variables`.
 - Don't write globs that match several `.so` variants of one library; they produce duplicate link inputs.
 - Remove unused `load()` symbols.
 - Don't hardcode platform-specific paths; reference external libraries by their repository labels.

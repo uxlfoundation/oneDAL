@@ -212,14 +212,21 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
             const auto prev_sum2_nd = pr::table2ndarray_1d<Float>(q,
                                                                   prev.get_partial_sum_squares(),
                                                                   sycl::usm::alloc::device);
+            const auto prev_sum2cent_nd =
+                pr::table2ndarray_1d<Float>(q,
+                                            prev.get_partial_sum_squares_centered(),
+                                            sycl::usm::alloc::device);
             auto [res_sum, res_sum2, res_sum2cent, sum_ev] =
                 update_partial_sums(q,
                                     prev_sum_nd,
                                     batch_stat(stat::sum),
                                     prev_sum2_nd,
                                     batch_stat(stat::sum2),
+                                    prev_sum2cent_nd,
+                                    batch_stat(stat::sum2_cent),
                                     column_count,
                                     result_nobs,
+                                    row_count,
                                     { nobs_ev, batch_ev });
 
             result.set_partial_sum(
@@ -248,24 +255,12 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
                 extract_stat<Float>(q, batch_stats_ptr, stat::sum, column_count, { batch_ev }));
             result.set_partial_sum_squares(
                 extract_stat<Float>(q, batch_stats_ptr, stat::sum2, column_count, { batch_ev }));
-            // Initial sum_squares_centered is the batch's own centered sum of squares
-            // for a single-batch case where n == row_count and mean == sum / n, i.e.
-            // `sum_squares - sum^2 / n`. Compute it here so that downstream
-            // partial_compute merges have a consistent baseline.
-            auto sums2cent =
-                pr::ndarray<Float, 1>::empty(q, column_count, sycl::usm::alloc::device);
-            auto sums2cent_ptr = sums2cent.get_mutable_data();
-            const auto* const sum_ptr = batch_stat(stat::sum).get_data();
-            const auto* const sum2_ptr = batch_stat(stat::sum2).get_data();
-            const Float n = Float(row_count);
-            auto ev = q.submit([&](sycl::handler& cgh) {
-                cgh.depends_on(batch_ev);
-                cgh.parallel_for(sycl::range<1>(column_count), [=](sycl::item<1> id) {
-                    sums2cent_ptr[id] = sum2_ptr[id] - sum_ptr[id] * sum_ptr[id] / n;
-                });
-            });
-            result.set_partial_sum_squares_centered(
-                homogen_table::wrap(sums2cent.flatten(q, { ev }), 1, column_count));
+            // The batch kernel's centered sum is taken around the mean, not from the sums.
+            result.set_partial_sum_squares_centered(extract_stat<Float>(q,
+                                                                        batch_stats_ptr,
+                                                                        stat::sum2_cent,
+                                                                        column_count,
+                                                                        { batch_ev }));
         }
 
         result.set_partial_n_rows(homogen_table::wrap(init_nobs.flatten(q, {}), 1, 1));

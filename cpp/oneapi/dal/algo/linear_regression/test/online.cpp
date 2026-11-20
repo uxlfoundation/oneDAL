@@ -61,4 +61,42 @@ TEMPLATE_LIST_TEST_M(lr_online_test, "RR common flow", "[rr][online]", lr_types)
     this->run_and_check_ridge_online(nBlocks);
 }
 
+// finalize_train must leave the partial result as it was, so it can be finalized again
+// or extended with more blocks; ridge used to add alpha to the partial xtx on GPU.
+TEMPLATE_LIST_TEST_M(lr_online_test,
+                     "LR and RR finalize twice on the same partial result",
+                     "[lr][rr][online]",
+                     lr_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using float_t = std::tuple_element_t<0, TestType>;
+    this->intercept_ = GENERATE(false, true);
+    const double alpha = GENERATE(0.0, 1.5);
+    const int64_t nBlocks = GENERATE(1, 3);
+
+    const te::dataframe x_data = te::dataframe_builder{ 6, 2 }.fill_uniform(-5, 5, 7777).build();
+    const te::dataframe y_data = te::dataframe_builder{ 6, 1 }.fill_uniform(-5, 5, 8888).build();
+    const auto x = x_data.get_table(this->get_policy(), this->get_homogen_table_id());
+    const auto y = y_data.get_table(this->get_policy(), this->get_homogen_table_id());
+    const auto x_blocks = te::split_table_by_rows<float_t>(this->get_policy(), x, nBlocks);
+    const auto y_blocks = te::split_table_by_rows<float_t>(this->get_policy(), y, nBlocks);
+
+    const auto desc = this->get_descriptor(alpha);
+    dal::linear_regression::partial_train_result<> partial;
+    for (std::int64_t i = 0; i < nBlocks; i++) {
+        partial = this->partial_train(desc, partial, x_blocks[i], y_blocks[i]);
+    }
+    const auto xtx = te::copy_table_values<float_t>(partial.get_partial_xtx());
+    const auto xty = te::copy_table_values<float_t>(partial.get_partial_xty());
+
+    const auto first = this->finalize_train(desc, partial);
+    REQUIRE(te::copy_table_values<float_t>(partial.get_partial_xtx()) == xtx);
+    REQUIRE(te::copy_table_values<float_t>(partial.get_partial_xty()) == xty);
+
+    const auto second = this->finalize_train(desc, partial);
+    te::check_if_table_content_equal<float_t>(second.get_coefficients(), first.get_coefficients());
+    if (this->intercept_) {
+        te::check_if_table_content_equal<float_t>(second.get_intercept(), first.get_intercept());
+    }
+}
+
 } // namespace oneapi::dal::linear_regression::test

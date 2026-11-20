@@ -119,14 +119,25 @@ static partial_compute_result<Task> partial_compute(const context_gpu& ctx,
             const auto cur_sums2_nd = pr::table2ndarray_1d<Float>(q,
                                                                   compute_result_.get_sum_squares(),
                                                                   sycl::usm::alloc::device);
+            const auto sums2cent_nd =
+                pr::table2ndarray_1d<Float>(q,
+                                            input_.get_partial_sum_squares_centered(),
+                                            sycl::usm::alloc::device);
+            const auto cur_sums2cent_nd =
+                pr::table2ndarray_1d<Float>(q,
+                                            compute_result_.get_sum_squares_centered(),
+                                            sycl::usm::alloc::device);
             auto [result_sums, result_sums2, result_sums2cent, merge_sums_event] =
                 update_partial_sums(q,
                                     sums_nd,
                                     cur_sums_nd,
                                     sums2_nd,
                                     cur_sums2_nd,
+                                    sums2cent_nd,
+                                    cur_sums2cent_nd,
                                     column_count,
                                     result_nobs,
+                                    row_count,
                                     { nobs_update_event });
 
             result.set_partial_sum(
