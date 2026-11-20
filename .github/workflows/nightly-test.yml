@@ -245,7 +245,7 @@ jobs:
       ${{ github.repository == 'uxlfoundation/oneDAL'
           && (github.event_name == 'workflow_dispatch'
               || github.event.workflow_run.conclusion == 'success') }}
-    timeout-minutes: 180
+    timeout-minutes: 240
     # Read-only for the same reason as `bazel_lnx` above.
     permissions:
       contents: read
@@ -342,7 +342,7 @@ jobs:
             -ReleaseDir .\bazel-bin\release\daal\latest
 
       # DPC++ tests need a SYCL device: the OpenCL CPU runtime above provides
-      # `opencl:cpu`. Only the pca suite runs, as a smoke test.
+      # `opencl:cpu`. The pca suite is the algorithm smoke test.
       - name: Bazel DPC++ tests on SYCL CPU device
         shell: cmd
         env:
@@ -353,6 +353,19 @@ jobs:
           call .\oneapi\setvars.bat
           call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
           bazel test --config=dpc --device=cpu --test_env=ONEAPI_DEVICE_SELECTOR --test_output=errors //cpp/oneapi/dal/algo/pca:tests
+      # These suites link many DPC++ test executables in parallel, which catches
+      # races on shared link outputs (#4050).
+      - name: Bazel DPC++ backend and table tests on SYCL CPU device
+        if: ${{ !cancelled() }}
+        shell: cmd
+        env:
+          BAZEL_SH: 'C:\Program Files\Git\bin\bash.exe'
+          ONEAPI_DEVICE_SELECTOR: opencl:cpu
+        run: |
+          set PATH=C:\msys64\usr\bin;%PATH%
+          call .\oneapi\setvars.bat
+          call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
+          bazel test --config=dpc --device=cpu --test_env=ONEAPI_DEVICE_SELECTOR --test_output=errors //cpp/oneapi/dal/backend/primitives:tests //cpp/oneapi/dal/table:tests
 
   check_finish:
     name: Complete Bazel test check runs
