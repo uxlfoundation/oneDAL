@@ -468,12 +468,13 @@ public:
         if (res.oobErrorDecisionFunction) DAAL_CHECK_BLOCK_STATUS(decision);
         if (res.oobErrorPrediction) DAAL_CHECK_BLOCK_STATUS(prediction);
         size_t nPredicted = 0;
-        double sumError = 0, yMean = 0, sumSquares = 0;
+        double sumError = 0, sumAllError = 0, yMean = 0, sumSquares = 0;
         if (!_nClasses)
         {
             const algorithmFPType * y = _src.responses();
             for (size_t i = 0; i < n; ++i) yMean += double(y[i]);
             yMean /= double(n);
+            for (size_t i = 0; i < n; ++i) sumSquares += (double(y[i]) - yMean) * (double(y[i]) - yMean);
         }
         for (size_t i = 0; i < n; ++i)
         {
@@ -502,30 +503,33 @@ public:
             }
             else
             {
+                const double y = double(_src.responses()[i]);
                 if (!_counts[i])
                 {
+                    // scikit-learn's oob_score_ scores a row without OOB predictions as predicting 0.
+                    sumAllError += y * y;
                     if (perObs.get()) perObs.get()[i] = -1;
                     if (prediction.get()) prediction.get()[i] = 0;
                     continue;
                 }
-                const double y    = double(_src.responses()[i]);
                 const double mean = _sums[i] / double(_counts[i]);
                 const double e    = (mean - y) * (mean - y);
                 ++nPredicted;
                 sumError += e;
-                sumSquares += (y - yMean) * (y - yMean);
+                sumAllError += e;
                 if (perObs.get()) perObs.get()[i] = algorithmFPType(e);
                 if (prediction.get()) prediction.get()[i] = algorithmFPType(mean);
             }
         }
         if (err.get()) err.get()[0] = nPredicted ? algorithmFPType(sumError / double(nPredicted)) : 0;
         if (accuracy.get()) accuracy.get()[0] = nPredicted ? algorithmFPType(1 - sumError / double(nPredicted)) : 1;
-        // Undefined without OOB predictions. Constant responses give a zero denominator; as in scikit-learn's
-        // r2_score, R2 is then 1 for an exact fit and 0 otherwise.
+        // As scikit-learn's oob_score_: r2_score over all rows; NaN for fewer than 2 rows, 1 for a zero error
+        // and 0 for a zero denominator otherwise.
         if (r2.get())
-            r2.get()[0] = !nPredicted    ? std::numeric_limits<algorithmFPType>::quiet_NaN() :
-                          sumSquares > 0 ? algorithmFPType(1 - sumError / sumSquares) :
-                                           algorithmFPType(sumError > 0 ? 0 : 1);
+            r2.get()[0] = n < 2            ? std::numeric_limits<algorithmFPType>::quiet_NaN() :
+                          sumAllError == 0 ? algorithmFPType(1) :
+                          sumSquares == 0  ? algorithmFPType(0) :
+                                             algorithmFPType(1 - sumAllError / sumSquares);
         return services::Status();
     }
 
