@@ -87,6 +87,9 @@ enum ColumnSlot
     slotsPerColumn = 8
 };
 
+/// Columns merged per task; at namespace scope so that MSVC accepts it as an array size in a lambda.
+constexpr size_t columnsPerTask = 256;
+
 /// Splits the rows into chunks with their own accumulators. The count does not depend on the
 /// number of threads, and the chunks are merged in order, so the result is the same bit for bit.
 ///
@@ -192,10 +195,9 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
     DAAL_CHECK_SAFE_STATUS();
 
     /* Merge the chunks in order, a block of columns per task, then add the implicit zeros */
-    constexpr size_t columnsPerTask = 256;
-    const size_t nColumnBlocks      = (nFeatures + columnsPerTask - 1) / columnsPerTask;
-    const double n                  = double(nRows);
-    const double invN               = 1.0 / n;
+    const size_t nColumnBlocks = (nFeatures + columnsPerTask - 1) / columnsPerTask;
+    const double n             = double(nRows);
+    const double invN          = 1.0 / n;
     daal::threader_for(nColumnBlocks, 1, [&](size_t iBlock) {
         const size_t jBegin = iBlock * columnsPerTask;
         const size_t width  = (jBegin + columnsPerTask > nFeatures) ? nFeatures - jBegin : columnsPerTask;
