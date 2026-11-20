@@ -110,15 +110,16 @@ struct train_context {
 
     Index class_count_ = 0;
     Index row_count_ = 0;
-    Index row_total_count_ = 0;
     Index column_count_ = 0;
     Index total_bins_ = 0;
     Index tree_count_ = 0;
 
-    Index global_row_offset_ = 0;
-
     Index selected_ftr_count_ = 0;
+    // Rows selected for one tree out of the rows owned by this rank; the stride
+    // of the per-tree row order buffers
     Index selected_row_count_ = 0;
+    // Rows selected for one tree over all ranks: root statistics, input validation
+    // and the RNG substream stride only, never an allocation size or a stride
     Index selected_row_total_count_ = 0;
     Index min_observations_in_leaf_node_ = 0;
     Index max_tree_depth_ = 0;
