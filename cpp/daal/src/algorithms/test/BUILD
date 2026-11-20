@@ -10,5 +10,6 @@ dal_test_suite(
     ]),
     dal_deps = [
         "@onedal//cpp/daal:core",
+        "@onedal//cpp/daal/src/algorithms/dtrees:kernel",
     ],
 )
