@@ -32,7 +32,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <type_traits>
 
 #include "src/algorithms/dtrees/engine/response_set.h"
 #include "src/services/service_defines.h"
@@ -130,12 +129,6 @@ public:
         _sq = 0;
         for (size_t c = 0; c < _nClasses; ++c) _sq += _parent[c] * _parent[c];
     }
-    /// Sets the parent from sums of addParent's terms (RecordStats); finishParent follows.
-    void setParent(const double * classWeights, double w)
-    {
-        for (size_t c = 0; c < _nClasses; ++c) _parent[c] = classWeights[c];
-        _w = w;
-    }
 
     double weight() const { return _w; }
     /// sum_c w_c^2 / w.
@@ -230,13 +223,6 @@ public:
         _dev += a * d * d;
     }
     void finishParent() { _c = _w > 0 ? _s / _w : 0; }
-    /// Sets the parent from sums of addParent's terms around center() (RecordStats); finishParent follows.
-    void setParent(double w, double s, double dev)
-    {
-        _w   = w;
-        _s   = s;
-        _dev = dev;
-    }
 
     double weight() const { return _w; }
     /// The parent's weighted sum of responses less the center.
@@ -286,78 +272,6 @@ private:
     double _dev    = 0; // weighted sum of squared deviations from _center
     double _wL     = 0;
     double _sL     = 0;
-};
-
-// Classes RecordStats holds; a classification node with more takes its own pass over its records.
-constexpr size_t recordStatsClasses = 8;
-
-template <typename Record>
-struct IsClassRecord : std::false_type
-{};
-template <>
-struct IsClassRecord<ClsCountRecord> : std::true_type
-{};
-template <typename algorithmFPType>
-struct IsClassRecord<ClsWeightRecord<algorithmFPType> > : std::true_type
-{};
-
-/**
- *  \brief A node's parent-pass sums, taken by the partition that makes the node
- *
- *  add() sums each record as GiniCost / MseCost::addParent does, in the node's record order, so one partition
- *  chunk gives what the node's own pass would; chunks merge in chunk order. Regression sums are of y less center,
- *  and pure means every response equals the first.
- */
-template <typename Record, CpuType cpu>
-struct RecordStats
-{
-    static constexpr bool classification = IsClassRecord<Record>::value;
-
-    double center                                                = 0; // regression: the node's center (MseCost::setCenter)
-    uint64_t nSamples                                            = 0;
-    double w                                                     = 0;
-    double s                                                     = 0; // regression
-    double dev                                                   = 0; // regression
-    double first                                                 = 0; // regression: the first response
-    bool seen                                                    = false;
-    bool differs                                                 = false;
-    double classWeights[classification ? recordStatsClasses : 1] = {};
-
-    void add(const Record & r)
-    {
-        nSamples += recordCount<cpu>(r);
-        const double a = recordWeight<cpu>(r);
-        if constexpr (classification)
-        {
-            classWeights[recordClass<cpu>(r)] += a;
-            w += a;
-        }
-        else
-        {
-            const double y = recordResponse<cpu>(r);
-            const double d = y - center;
-            w += a;
-            s += a * d;
-            dev += a * d * d;
-            differs = differs || (seen && y != first);
-            first   = seen ? first : y;
-            seen    = true;
-        }
-    }
-
-    void merge(const RecordStats & b, size_t nClasses)
-    {
-        nSamples += b.nSamples;
-        w += b.w;
-        s += b.s;
-        dev += b.dev;
-        if constexpr (classification)
-            for (size_t c = 0; c < nClasses; ++c) classWeights[c] += b.classWeights[c];
-        if (!b.seen) return;
-        differs = differs || b.differs || (seen && b.first != first);
-        first   = seen ? first : b.first;
-        seen    = true;
-    }
 };
 
 } // namespace internal

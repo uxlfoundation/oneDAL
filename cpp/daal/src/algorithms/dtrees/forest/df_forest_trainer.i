@@ -104,7 +104,8 @@ public:
         _nodeStream = nodeStream;
         auto impl   = dynamic_cast<engines::internal::BatchBaseImpl *>(base.get());
         DAAL_CHECK(impl, services::ErrorEngineNotSupported);
-        const ParallelizationTechnique order[] = { engines::internal::family, engines::internal::skipahead, engines::internal::leapfrog };
+        // Every MKL and OpenRNG generator with leapfrog also has skip-ahead, so leapfrog is not offered.
+        const ParallelizationTechnique order[] = { engines::internal::family, engines::internal::skipahead };
         bool supported                         = false;
         for (ParallelizationTechnique t : order)
         {
@@ -117,7 +118,6 @@ public:
 
         DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nTrees, treeBudget);
         _treeRegion = nTrees * treeBudget;
-        _treeBudget = treeBudget;
 
         const size_t n = nTrees + (nodeStream ? 1 : 0);
         DAAL_CHECK_MALLOC(_engines.reset(n) && _states.reset(n));
@@ -164,7 +164,6 @@ public:
         AutoLock lock(_nodeMutex);
         daal::internal::RNGsInst<double, cpu> rng;
         DAAL_CHECK(!rng.uniform(n, out, _states[_nTrees], 0.0, 1.0), services::ErrorIncorrectErrorcodeFromGenerator);
-        _nodeDrawn += n;
         return services::Status();
     }
 
@@ -178,15 +177,10 @@ public:
             return _collection->getUpdatedEngine(_base, _engines, unused);
         }
         // The node stream reads on past the tree region; without it, the cursor stands at the region's end.
-        if (_nodeStream && _technique == engines::internal::skipahead) return _engines[_nTrees]->clone();
+        if (_nodeStream) return _engines[_nTrees]->clone();
         if (_cursor) return _cursor->clone();
-        // Leapfrog streams interleave, so they end at the stream count times the longest stream's use, at most two
-        // engine elements per node double.
-        const size_t nodeUse = 2 * _nodeDrawn;
-        const size_t longest = nodeUse > _treeBudget ? nodeUse : _treeBudget;
-        const size_t skip    = _technique == engines::internal::skipahead ? _treeRegion : n * longest;
         engines::EnginePtr e = _base->clone();
-        if (!e || !e->skipAhead(skip)) return engines::EnginePtr();
+        if (!e || !e->skipAhead(_treeRegion)) return engines::EnginePtr();
         return e;
     }
 
@@ -194,10 +188,8 @@ private:
     engines::EnginePtr _base;
     ParallelizationTechnique _technique = engines::internal::family;
     size_t _nTrees                      = 0;
-    size_t _treeBudget                  = 0;
     size_t _treeRegion                  = 0;
     bool _nodeStream                    = false;
-    size_t _nodeDrawn                   = 0; // doubles read from the node stream
     Mutex _nodeMutex;
     engines::EnginePtr _cursor; // the incremental setup's cursor
     TArray<engines::EnginePtr, cpu> _engines;

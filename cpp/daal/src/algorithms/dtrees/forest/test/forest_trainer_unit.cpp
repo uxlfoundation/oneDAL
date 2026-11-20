@@ -417,6 +417,21 @@ TEST("every engine trains, and a fit on the returned engine draws other trees", 
     }
 }
 
+TEST("a result that no fit filled returns the default engine type", "[unit]")
+{
+    // The updated engine is meant to seed the next fit, so an unfilled result must hand back Parameter's default type.
+    using training::internal::trainer::isPhilox;
+    cls::training::Result c;
+    reg::training::Result r;
+    const engines::EnginePtr ce = c.get(cls::training::updatedEngine);
+    const engines::EnginePtr re = r.get(reg::training::updatedEngine);
+    REQUIRE(ce);
+    REQUIRE(re);
+    REQUIRE(isPhilox<cpu>(ce));
+    REQUIRE(isPhilox<cpu>(re));
+    REQUIRE(isPhilox<cpu>(cls::training::Parameter(2).engine));
+}
+
 TEST("the tree engine scores as the legacy kernels do", "[unit]")
 {
     const Dataset c  = makeData(6000, 10, 3, 8);

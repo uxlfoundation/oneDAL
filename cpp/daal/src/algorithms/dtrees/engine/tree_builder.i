@@ -267,8 +267,6 @@ public:
         double center      = 0; // regression: the node's mean as its parent estimates it, rounded (MseCost)
         Candidate split;
         NodeCarry<Record, cpu> * carry = nullptr; // owned; nullptr: the root lists and no histograms
-        RecordStats<Record, cpu> stats;           // from the parent's partition, if hasStats
-        bool hasStats = false;
     };
 
     struct TreeContext
@@ -359,33 +357,16 @@ public:
         Cost cost         = makeCost(*scratch);
         uint64_t nSamples = 0;
         if constexpr (!isClassification) cost.setCenter(item.center);
-        bool pure = false;
-        if (item.hasStats)
+        cost.startParent();
+        for (size_t i = 0; i < item.n; ++i)
         {
-            nSamples = item.stats.nSamples;
-            if constexpr (isClassification)
-                cost.setParent(item.stats.classWeights, item.stats.w);
-            else
-                cost.setParent(item.stats.w, item.stats.s, item.stats.dev);
-            cost.finishParent();
-            if constexpr (isClassification)
-                pure = isPure(cost, records, item.n);
-            else
-                pure = !item.stats.differs;
+            nSamples += recordCount<cpu>(records[i]); // 1 per record in the weighted layouts, which keep no count
+            addParent(cost, records[i]);
         }
-        else
-        {
-            cost.startParent();
-            for (size_t i = 0; i < item.n; ++i)
-            {
-                nSamples += recordCount<cpu>(records[i]); // 1 per record in the weighted layouts, which keep no count
-                addParent(cost, records[i]);
-            }
-            cost.finishParent();
-            // Purity is decided exactly: impurity computed from sums can round to a small positive value
-            // for a pure node, which would then split on zero gain.
-            pure = isPure(cost, records, item.n);
-        }
+        cost.finishParent();
+        // Purity is decided exactly: impurity computed from sums can round to a small positive value
+        // for a pure node, which would then split on zero gain.
+        const bool pure = isPure(cost, records, item.n);
 
         TreeNode & node = ctx.nodes[item.node];
         node            = TreeNode();
@@ -484,36 +465,13 @@ public:
         const Record * in    = ctx.records.buffer(item.depth) + item.start;
         Record * out         = ctx.records.buffer(item.depth + 1) + item.start;
         const size_t nChunks = hist::chunkCount<cpu>(item.n, _params.chunkRows, _params.maxChunks);
-        // The children's node statistics, left and right per chunk; one chunk uses the local pair.
-        const bool sums = _params.partitionStats && (!isClassification || _params.nClasses <= recordStatsClasses);
-        RecordStats<Record, cpu> local[2];
-        TArray<RecordStats<Record, cpu>, cpu> parts;
-        if (sums && nChunks > 1) DAAL_CHECK_MALLOC(parts.reset(2 * nChunks));
-        RecordStats<Record, cpu> * stats = !sums ? nullptr : nChunks > 1 ? parts.get() : local;
-        for (size_t i = 0; stats && i < (nChunks > 1 ? 2 * nChunks : 2); ++i)
-        {
-            stats[i]        = RecordStats<Record, cpu>();
-            stats[i].center = children[i % 2]->center;
-        }
         if (!split.byBin)
-            s = partition(in, out, item.n, split.nLeft, nChunks, ValueRoute { _data.x->data(), _data.nFeatures, split }, stats);
+            s = partition(in, out, item.n, split.nLeft, nChunks, ValueRoute { _data.x->data(), _data.nFeatures, split });
         else if (_data.bins->binBytes() == 1)
-            s = partitionByBin<uint8_t>(in, out, item.n, nChunks, split, targets, stats);
+            s = partitionByBin<uint8_t>(in, out, item.n, nChunks, split, targets);
         else
-            s = partitionByBin<uint16_t>(in, out, item.n, nChunks, split, targets, stats);
+            s = partitionByBin<uint16_t>(in, out, item.n, nChunks, split, targets);
         DAAL_CHECK_STATUS_VAR(s);
-        if (stats)
-        {
-            for (size_t c = 1; c < nChunks; ++c)
-            {
-                stats[0].merge(stats[2 * c], _params.nClasses);
-                stats[1].merge(stats[2 * c + 1], _params.nClasses);
-            }
-            left.stats     = stats[0];
-            right.stats    = stats[1];
-            left.hasStats  = true;
-            right.hasStats = true;
-        }
 
         TreeNode & node       = ctx.nodes[item.node];
         node.feature          = int32_t(split.feature);
@@ -587,36 +545,30 @@ private:
     };
 
     /// Stable partition of n records into out, the nLeft left ones first. Several chunks count their left
-    /// records in parallel, then each scatters from its offsets in chunk order. stats, if given, holds the left
-    /// and right RecordStats of each chunk.
+    /// records in parallel, then each scatters from its offsets in chunk order.
     template <typename Route>
-    services::Status partition(const Record * in, Record * out, size_t n, size_t nLeft, size_t nChunks, const Route & route,
-                               RecordStats<Record, cpu> * stats) const
+    services::Status partition(const Record * in, Record * out, size_t n, size_t nLeft, size_t nChunks, const Route & route) const
     {
         const size_t distance = _prefetch.rows(n, 1);
         // nLeft is the split search's count under the same routing; only a too-large nLeft runs past out + n.
-        auto scatter = [&](size_t begin, size_t end, size_t iLeft, size_t iRight, RecordStats<Record, cpu> * sides) {
+        auto scatter = [&](size_t begin, size_t end, size_t iLeft, size_t iRight) {
             prefetchedLoop<cpu>(
                 end - begin, distance, [&](size_t i) { DAAL_PREFETCH_READ_T0(route.address(in[begin + i].row)); },
                 [&](size_t i) {
                     const Record & r = in[begin + i];
                     if (route.left(r.row))
-                    {
                         out[iLeft++] = r;
-                        if (sides) sides[0].add(r);
-                    }
                     else
                     {
                         DAAL_ASSERT(iRight < n);
                         out[iRight++] = r;
-                        if (sides) sides[1].add(r);
                     }
                 });
             return iLeft;
         };
         if (nChunks <= 1)
         {
-            if (scatter(0, n, 0, nLeft, stats) != nLeft) return services::Status(services::ErrorIncorrectInternalFunctionParameter);
+            if (scatter(0, n, 0, nLeft) != nLeft) return services::Status(services::ErrorIncorrectInternalFunctionParameter);
             return services::Status();
         }
         TArray<size_t, cpu> lefts(nChunks + 1);
@@ -635,7 +587,7 @@ private:
         daal::threader_for(nChunks, 1, [&](size_t c) {
             size_t begin, end;
             hist::chunkRange<cpu>(n, nChunks, c, begin, end);
-            scatter(begin, end, lefts[c], nLeft + begin - lefts[c], stats ? stats + 2 * c : nullptr);
+            scatter(begin, end, lefts[c], nLeft + begin - lefts[c]);
         });
         return services::Status();
     }
@@ -734,14 +686,14 @@ private:
 
     template <typename BinT>
     services::Status partitionByBin(const Record * in, Record * out, size_t n, size_t nChunks, const Candidate & split,
-                                    const hist::Target<Record, cpu> (&targets)[2], RecordStats<Record, cpu> * stats) const
+                                    const hist::Target<Record, cpu> (&targets)[2]) const
     {
         const BinRoute<BinT> route(*_data.bins, split);
-        if (!targets[0].planes && !targets[1].planes) return partition(in, out, n, split.nLeft, nChunks, route, stats);
+        if (!targets[0].planes && !targets[1].planes) return partition(in, out, n, split.nLeft, nChunks, route);
         const size_t f = split.feature;
         return hist::fusedPartition<Record, BinT>(
             in, out, n, split.nLeft, *_data.bins, split.feature, [&](const BinT * b) { return route.leftBin(b[f]); }, targets, _params.nClasses,
-            nChunks, _prefetch, stats);
+            nChunks, _prefetch);
     }
 
     static void setResponse(Scratch & s, size_t i, const Record & r)

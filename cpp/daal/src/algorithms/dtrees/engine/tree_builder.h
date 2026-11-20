@@ -73,9 +73,6 @@ struct TreeParams
     // Partition passes build the children's histograms. With counter draws it does not change the trees; tests
     // turn it off to show it.
     bool fusePartition = true;
-    // Partitions sum the children's node statistics (RecordStats), so a child skips its pass over its records;
-    // tests turn it off to compare with that pass.
-    bool partitionStats = true;
 };
 
 /// Bins per feature that denseThreshold multiplies. With exact bins on every non-constant feature a

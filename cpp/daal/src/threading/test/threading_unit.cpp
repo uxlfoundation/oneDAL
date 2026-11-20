@@ -37,13 +37,11 @@
 #include <atomic>
 #include <cstdint>
 #include <limits>
-#include <memory>
 #include <mutex>
 #include <utility>
 #include <vector>
 
 #include "oneapi/dal/test/engine/common.hpp"
-#include "services/env_detect.h"
 #include "src/threading/threading.h"
 
 namespace daal::test

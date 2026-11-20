@@ -82,11 +82,6 @@ public:
         return impl_->getState();
     }
 
-    /// The DAAL engine, for kernels that take one.
-    const daal::algorithms::engines::EnginePtr& get_daal_engine() const {
-        return host_engine_;
-    }
-
 private:
     daal::algorithms::engines::EnginePtr host_engine_;
     daal::algorithms::engines::internal::BatchBaseImpl* impl_;
