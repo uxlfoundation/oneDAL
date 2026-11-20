@@ -34,6 +34,7 @@
 #include "src/externals/service_blas.h"
 #include "src/externals/service_spblas.h"
 #include "src/services/service_data_utils.h"
+#include "src/algorithms/kmeans/kmeans_lloyd_helper.h"
 
 namespace daal
 {
@@ -210,6 +211,10 @@ struct PostProcessing<lloydCSR, algorithmFPType, cpu>
             clSq[k] = sum * 0.5;
         }
 
+        TArrayScalable<algorithmFPType, cpu> centroidsT(p * nClusters);
+        DAAL_CHECK(centroidsT.get(), services::ErrorMemoryAllocationFailed);
+        transposeCentroids<algorithmFPType, cpu>(inClusters, nClusters, p, centroidsT.get());
+
         SafeStatus safeStat;
         CSRNumericTableIface * ntDataCsr = dynamic_cast<CSRNumericTableIface *>(const_cast<NumericTable *>(ntData));
         DAAL_CHECK(ntDataCsr, services::ErrorEmptyCSRNumericTable);
@@ -232,27 +237,19 @@ struct PostProcessing<lloydCSR, algorithmFPType, cpu>
             DAAL_CHECK_BLOCK_STATUS_THR(assignBlock);
             int * assignments = assignBlock.get();
 
-            const char transa           = 'n';
-            const DAAL_INT _n           = blockSize;
-            const DAAL_INT _p           = p;
-            const DAAL_INT _c           = nClusters;
-            const algorithmFPType alpha = 1.0;
-            const algorithmFPType beta  = 0.0;
-            const char matdescra[6]     = { 'G', 0, 0, 'F', 0, 0 };
-
-            SpBlasInst<algorithmFPType, cpu>::xxcsrmm(&transa, &_n, &_c, &_p, &alpha, matdescra, data, (DAAL_INT *)colIdx, (DAAL_INT *)rowIdx,
-                                                      inClusters, &_p, &beta, x_clusters, &_n);
+            csrRowsTimesCentroids<algorithmFPType, cpu>(blockSize, nClusters, data, colIdx, rowIdx, centroidsT.get(), x_clusters);
 
             for (size_t i = 0; i < blockSize; i++)
             {
-                algorithmFPType minGoalVal = clustersSq[0] - x_clusters[i];
-                size_t minIdx              = 0;
+                const algorithmFPType * const products = x_clusters + i * nClusters;
+                algorithmFPType minGoalVal             = clustersSq[0] - products[0];
+                size_t minIdx                          = 0;
 
                 for (size_t j = 0; j < nClusters; j++)
                 {
-                    if (minGoalVal > clustersSq[j] - x_clusters[i + j * blockSize])
+                    if (minGoalVal > clustersSq[j] - products[j])
                     {
-                        minGoalVal = clustersSq[j] - x_clusters[i + j * blockSize];
+                        minGoalVal = clustersSq[j] - products[j];
                         minIdx     = j;
                     }
                 }
