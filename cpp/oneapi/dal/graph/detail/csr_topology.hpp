@@ -21,6 +21,10 @@
 #include "oneapi/dal/graph/common.hpp"
 #include "oneapi/dal/graph/detail/container.hpp"
 
+#ifdef ONEDAL_DATA_PARALLEL
+#include <sycl/sycl.hpp>
+#endif
+
 namespace oneapi::dal::preview::detail {
 
 template <typename IndexType>
@@ -124,14 +128,60 @@ public:
         -> const_vertex_edge_iterator {
         return _cols_ptr + _rows[vertex + 1];
     }
+
+#ifdef ONEDAL_DATA_PARALLEL
+    inline void set_topology(const sycl::queue& queue,
+                             vertex_size_type vertex_count,
+                             edge_size_type edge_count,
+                             const edge_type* device_offsets,
+                             const vertex_type* device_neighbors,
+                             edge_size_type neighbors_count) {
+        _vertex_count = vertex_count;
+        _edge_count = edge_count;
+        _rows = edge_set::wrap(queue, device_offsets, vertex_count + 1);
+        _cols = vertex_set::wrap(queue, device_neighbors, neighbors_count);
+        _rows_ptr = _rows.get_data();
+        _cols_ptr = _cols.get_data();
+        _degrees_ptr = nullptr;
+    }
+
+    topology<IndexType> to_device(sycl::queue& queue) const {
+        topology<IndexType> result;
+        result._vertex_count = _vertex_count;
+        result._edge_count = _edge_count;
+
+        const auto rows_count = _vertex_count + 1;
+        const auto cols_count = _cols.get_count();
+
+        auto device_rows = edge_set::empty(queue, rows_count, sycl::usm::alloc::device);
+        auto device_cols = vertex_set::empty(queue, cols_count, sycl::usm::alloc::device);
+
+        auto e1 = queue.memcpy(device_rows.get_mutable_data(),
+                               _rows.get_data(),
+                               rows_count * sizeof(edge_type));
+        auto e2 = queue.memcpy(device_cols.get_mutable_data(),
+                               _cols.get_data(),
+                               cols_count * sizeof(vertex_type));
+        e1.wait_and_throw();
+        e2.wait_and_throw();
+
+        result._rows = device_rows;
+        result._cols = device_cols;
+        result._rows_ptr = result._rows.get_data();
+        result._cols_ptr = result._cols.get_data();
+        result._degrees_ptr = nullptr;
+        return result;
+    }
+#endif
+
     vertex_set _cols;
     vertex_set _degrees;
     edge_set _rows;
     vertex_edge_set _rows_vertex;
 
-    const vertex_type* _cols_ptr;
-    const vertex_type* _degrees_ptr;
-    const edge_type* _rows_ptr;
+    const vertex_type* _cols_ptr = nullptr;
+    const vertex_type* _degrees_ptr = nullptr;
+    const edge_type* _rows_ptr = nullptr;
 
     std::int64_t _vertex_count = 0;
     std::int64_t _edge_count = 0;
