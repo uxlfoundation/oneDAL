@@ -188,6 +188,26 @@ windows_parameters_rejected_test = analysistest.make(
     },
 )
 
+# --- Windows import libraries ---
+
+def _windows_implib_test_impl(ctx):
+    env = analysistest.begin(ctx)
+    links = [a for a in analysistest.target_actions(env) if a.mnemonic.startswith("CppLink")]
+    asserts.true(env, links, "no link action found")
+    for action in links:
+        implibs = [arg for arg in action.argv if arg.startswith("/IMPLIB:")]
+        if ctx.attr.dll:
+            asserts.equals(env, 1, len(implibs), "the DLL link names its import library")
+            asserts.false(env, "/IMPLIB:ignored" in implibs, "the import library has a real path")
+        else:
+            asserts.equals(env, [], implibs, "an executable link writes no import library")
+    return analysistest.end(env)
+
+windows_implib_test = analysistest.make(
+    _windows_implib_test_impl,
+    attrs = {"dll": attr.bool(mandatory = True)},
+)
+
 # --- release tree layout (Linux) ---
 
 _RELEASE_FILES = [
