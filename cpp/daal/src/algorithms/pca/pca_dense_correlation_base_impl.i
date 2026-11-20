@@ -15,10 +15,6 @@
 * limitations under the License.
 *******************************************************************************/
 
-#ifndef __PCA_DENSE_CORRELATION_BASE_IMPL_I__
-#define __PCA_DENSE_CORRELATION_BASE_IMPL_I__
-
-#include "src/algorithms/pca/pca_dense_base_impl.i"
 #include "src/algorithms/pca/pca_dense_correlation_base.h"
 #include "src/externals/service_lapack.h"
 #include "src/externals/service_math.h"
@@ -371,5 +367,3 @@ services::Status PCACorrelationBase<algorithmFPType, cpu>::sortEigenvectorsDesce
 } // namespace pca
 } // namespace algorithms
 } // namespace daal
-
-#endif

@@ -25,6 +25,9 @@ namespace pca
 {
 namespace internal
 {
+// Instantiated in pca_dense_base_fpt_cpu.cpp; without this MSVC warns C4661 here.
+extern template class PCADenseBase<DAAL_FPTYPE, DAAL_CPU>;
+
 template class DAAL_EXPORT PCACorrelationBase<DAAL_FPTYPE, DAAL_CPU>;
 } // namespace internal
 } // namespace pca

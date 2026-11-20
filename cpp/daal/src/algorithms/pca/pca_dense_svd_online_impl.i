@@ -24,7 +24,6 @@
 #ifndef __PCA_DENSE_SVD_ONLINE_IMPL_I__
 #define __PCA_DENSE_SVD_ONLINE_IMPL_I__
 
-#include "src/algorithms/pca/pca_dense_base_impl.i"
 #include "src/externals/service_math.h"
 #include "src/externals/service_memory.h"
 #include "src/data_management/service_numeric_table.h"

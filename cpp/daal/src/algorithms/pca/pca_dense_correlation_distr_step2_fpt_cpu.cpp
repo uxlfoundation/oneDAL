@@ -34,6 +34,10 @@ namespace pca
 
 namespace internal
 {
+// Instantiated in pca_dense_base_fpt_cpu.cpp and pca_dense_correlation_base_fpt_cpu.cpp; avoids MSVC C4661.
+extern template class PCADenseBase<DAAL_FPTYPE, DAAL_CPU>;
+extern template class PCACorrelationBase<DAAL_FPTYPE, DAAL_CPU>;
+
 template class DistributedContainer<step2Master, DAAL_FPTYPE, correlationDense, DAAL_CPU>;
 
 template class PCACorrelationKernel<distributed, DAAL_FPTYPE, DAAL_CPU>;

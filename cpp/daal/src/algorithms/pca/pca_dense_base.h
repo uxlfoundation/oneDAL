@@ -38,7 +38,7 @@ namespace internal
 using namespace daal::internal;
 
 template <typename algorithmFPType, CpuType cpu>
-class DAAL_EXPORT PCADenseBase : public Kernel
+class PCADenseBase : public Kernel
 {
 public:
     services::Status signFlipEigenvectors(NumericTable & eigenvectors) const;
