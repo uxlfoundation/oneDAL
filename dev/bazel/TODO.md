@@ -56,13 +56,17 @@
   | Windows | :heavy_check_mark: | :heavy_check_mark: |                    | :heavy_check_mark: | :heavy_check_mark: |
 
   Intel `icx`/`icpx` is preferred whenever it is on `PATH`; `CC` overrides the
-  choice. Linux Clang builds `//:release`, but no CI job selects it, so
-  regressions in that flag set are only found by hand. Windows `clang-cl` is
-  the ARM64 lane of `ci-win.yml`.
+  choice. Linux Clang builds `//:release` (`--release_dpc=false`, `--cpu=avx2`)
+  and runs the `pca` host tests in the `LinuxBazelClang` job of `ci.yml`.
+  Windows `clang-cl` is the ARM64 lane of `ci-win.yml`.
 
 - [ ] **Windows DPC++ execution.** Windows release artifacts can include the
-  DPC++ libraries, but the examples and tests that create a SYCL queue are not
-  run there yet; that needs device and runtime validation on the CI images.
+  DPC++ libraries. The nightly Windows Bazel job is configured to run the `pca`
+  DPC++ tests on the Intel OpenCL CPU runtime (`opencl:cpu`). That execution is
+  not validated: the runtime install and the `opencl:cpu` check pass, but the
+  test link fails (run 44460598549), so no `pca` test has run there yet. The
+  other examples and tests that create a SYCL queue are not run there and need
+  device and runtime validation on the CI images.
 
 - [ ] **Toolchain flag tables as data.** The compile action configs, the default
   compile flags and the marker features are shared by
@@ -73,9 +77,12 @@
 
 - [ ] **Hermetic toolchain.** The compiler, archiver, linker and strip tool are
   absolute paths found with `repo_ctx.which()` at configure time. A build
-  therefore depends on the host `PATH`, and nothing invalidates the action cache
-  when the compiler behind that path changes. Registering a downloaded toolchain
-  would fix both.
+  therefore depends on the host `PATH`. The toolchain repository writes
+  `tool_identity.txt` (the `--version` and, on Linux, the sha256 of each tool) into
+  the compile, archive and link inputs and watches the tool binaries, so a
+  compiler changed behind the same path re-runs the configuration and misses the
+  action cache instead of reusing stale objects. Registering a downloaded
+  toolchain would remove the `PATH` dependency too.
 
 - [ ] **Remove the last helper script.** `toolchains/tools/dpc_link_win.ps1`
   and its `.tpl.bat` launcher do two things to the DPC++ link line on Windows:
@@ -86,16 +93,29 @@
   DLL links no longer need the first part, since `dev/bazel/cc/link.bzl`
   archives their objects into `<name>_objects.lib`; DPC++ executables still
   pass their objects directly. Script-free options, all needing a Windows DPC++
-  run to validate: archive the objects of executables the same way, convert the
-  `.res` with `cvtres` into an object that joins that archive, or link through
-  `lld-link` (`-fuse-ld=lld`), which has no line limit.
+  run to validate: archive the objects of executables the same way, or link
+  through `lld-link` (`-fuse-ld=lld`), which has no line limit. Converting the
+  `.res` with `cvtres` into an object of that archive was tried once and failed;
+  finding (1) below says that failure is not isolated.
+  Findings from PR #4042 (Azure 66390, 66418): (1) hypothesis, not isolated:
+  the `.res` before `/link` is likely what makes icx honour `/IMPLIB`. Main's
+  working link has it there; the run that put a cvtres object after `/link`
+  (66390) gave no `<name>.if.lib`, but it also replaced the `.res` with that
+  object, so the two changes are not separated. (2) Bazel rejects
+  a `.res` as a compilation output (`wrong extension ... objects: o, obj, opb,
+  bc`, 66418), so it cannot reach a feature that emits objects before `/link`.
+  (3) Untried: a link variable or feature that emits only the `.res` before
+  `/link`. `user_link_flags` already names it, after `/link`; `additional_inputs`
+  only stages it. The wrapper's comment gives LNK2001 `_DllMainCRTStartup` as
+  the reason for the `.res` before `/link`.
 
-- [ ] **No inherited shell environment.** Three actions still run with
-  `use_default_shell_env = True`: the Windows `cmd.exe` copy in `release.bzl`,
-  the resource compile in `cc.bzl` (`rc.exe`/`llvm-rc` resolved from `PATH`, not
-  from the toolchain) and the Windows archive merge in `cc/link.bzl`. Taking the
-  rc tool from the toolchain config, as the archiver is via
-  `cc_common.get_tool_for_action`, removes the second. A CI check on the Starlark
-  AST (not a regex) that lists these sites as exceptions would stop the count
-  from growing back; `buildifier` as a required check and a stored aquery diff of
-  `//:release` across the release matrix belong to the same CI policy step.
+- [ ] **No inherited shell environment.** Two actions still run with
+  `use_default_shell_env = True`: the Windows `cmd.exe` copy in `release.bzl`
+  and the resource compile in `cc.bzl` (`rc.exe`/`llvm-rc` resolved from `PATH`,
+  not from the toolchain). Taking the rc tool from the toolchain config, as the
+  archiver is via `cc_common.get_tool_for_action`, removes the second. The
+  Windows archive merge in `cc/link.bzl` now takes the toolchain's env.
+  `dev/bazel/tests/check_starlark_policy.py` (pre-commit hook `starlark-policy`) lists the two
+  sites as exceptions and fails on a new one. Still open in the same CI policy
+  step: `buildifier` as a required check (the tree is not formatted yet) and a
+  stored aquery diff of `//:release` across the release matrix.

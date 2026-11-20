@@ -268,6 +268,51 @@ def get_no_canonical_prefixes_opt(repo_ctx, cc):
     return opt
 
 
+TOOL_IDENTITY_FILE = "tool_identity.txt"
+
+def write_tool_identity(repo_ctx, tool_paths, version_tools = []):
+    """Writes `tool_identity.txt`, which names the version and content of the host tools.
+
+    The tools are absolute paths outside the execroot, so Bazel cannot hash them as action
+    inputs: an upgraded compiler at the same path would reuse cached objects. Each toolchain
+    adds this file to its compile, archive and link inputs, so its digest joins every action
+    key, and `watch` re-runs the repository rule when one of the tools changes.
+
+    Args:
+        repo_ctx: the repository context.
+        tool_paths: absolute paths of the tools; empty entries are skipped.
+        version_tools: the subset whose `--version` output is recorded.
+
+    Returns:
+        The name of the written file.
+    """
+    lines = []
+    repo_root = str(repo_ctx.path(".")) + "/"
+    sha256sum = None if "windows" in repo_ctx.os.name else repo_ctx.which("sha256sum")
+    for tool in tool_paths:
+        if not tool:
+            continue
+        path = repo_ctx.path(tool)
+        if not path.exists:
+            continue
+        # A downloaded tool lives in this repository and is refetched with it; Bazel
+        # refuses to watch a path under the repository being fetched.
+        if not str(path).startswith(repo_root):
+            repo_ctx.watch(path)
+        # No path: the downloaded gcc lives in the output base, and a path would tie
+        # the action keys to it, so caches would not carry across machines.
+        lines.append("tool: " + path.basename)
+        if sha256sum:
+            result = repo_ctx.execute([sha256sum, str(path)])
+            if result.return_code == 0:
+                lines.append("sha256: " + result.stdout.split(" ")[0])
+        if tool in version_tools:
+            result = repo_ctx.execute([str(path), "--version"])
+            # The first lines carry the version; the rest is the install path and license text.
+            lines += ["version: " + l for l in (result.stdout or result.stderr).splitlines()[:2]]
+    repo_ctx.file(TOOL_IDENTITY_FILE, "\n".join(lines) + "\n")
+    return TOOL_IDENTITY_FILE
+
 def get_toolchain_identifier(reqs):
     return "{}-{}-{}-{}".format(reqs.os_id, reqs.target_arch_id,
                                 reqs.compiler_id, reqs.compiler_version)

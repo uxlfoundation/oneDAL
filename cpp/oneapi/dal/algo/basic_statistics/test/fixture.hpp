@@ -100,7 +100,8 @@ public:
     void online_general_checks(const te::dataframe& data_fr,
                                std::shared_ptr<te::dataframe> weights_fr,
                                bs::result_option_id compute_mode,
-                               std::int64_t nBlocks) {
+                               std::int64_t nBlocks,
+                               double tol = 1e-2) {
         const auto use_weights = bool(weights_fr);
         CAPTURE(use_weights, compute_mode);
         const auto bs_desc = get_descriptor(compute_mode);
@@ -121,7 +122,7 @@ public:
                                                        weights_table[i]);
             }
             auto compute_result = this->finalize_compute(bs_desc, partial_result);
-            check_compute_result(compute_mode, data, weights, compute_result);
+            check_compute_result(compute_mode, data, weights, compute_result, tol);
             check_for_exception_for_non_requested_results(compute_mode, compute_result);
         }
         else {
@@ -129,7 +130,7 @@ public:
                 partial_result = this->partial_compute(bs_desc, partial_result, input_table[i]);
             }
             auto compute_result = this->finalize_compute(bs_desc, partial_result);
-            check_compute_result(compute_mode, data, weights, compute_result);
+            check_compute_result(compute_mode, data, weights, compute_result, tol);
             check_for_exception_for_non_requested_results(compute_mode, compute_result);
         }
     }
@@ -137,13 +138,14 @@ public:
     void check_compute_result(bs::result_option_id compute_mode,
                               const table& data,
                               const table& weights,
-                              const result_t& result) {
+                              const result_t& result,
+                              double tol = 1e-2) {
         SECTION("result tables' shape is expected") {
             check_result_shape(compute_mode, data, result);
         }
 
         SECTION("check results against reference") {
-            check_vs_reference(compute_mode, data, weights, result);
+            check_vs_reference(compute_mode, data, weights, result, tol);
         }
     }
 
@@ -229,7 +231,8 @@ public:
     void check_vs_reference(bs::result_option_id compute_mode,
                             const table& data,
                             const table& weights,
-                            const result_t& result) {
+                            const result_t& result,
+                            double tol = 1e-2) {
         using limits_t = std::numeric_limits<double>;
         constexpr auto maximum = limits_t::max();
         constexpr double zero = 0.0, one = 1.0;
@@ -294,43 +297,43 @@ public:
         }
         if (compute_mode.test(result_options::min)) {
             const table ref = homogen_table::wrap(ref_min.get_array(), 1l, column_count);
-            check_if_close(result.get_min(), ref, "Min");
+            check_if_close(result.get_min(), ref, "Min", tol);
         }
         if (compute_mode.test(result_options::max)) {
             const table ref = homogen_table::wrap(ref_max.get_array(), 1l, column_count);
-            check_if_close(result.get_max(), ref, "Max");
+            check_if_close(result.get_max(), ref, "Max", tol);
         }
         if (compute_mode.test(result_options::sum)) {
             const table ref = homogen_table::wrap(ref_sum.get_array(), 1l, column_count);
-            check_if_close(result.get_sum(), ref, "Sum");
+            check_if_close(result.get_sum(), ref, "Sum", tol);
         }
         if (compute_mode.test(result_options::sum_squares)) {
             const table ref = homogen_table::wrap(ref_sum2.get_array(), 1l, column_count);
-            check_if_close(result.get_sum_squares(), ref, "Sum squares");
+            check_if_close(result.get_sum_squares(), ref, "Sum squares", tol);
         }
         if (compute_mode.test(result_options::sum_squares_centered)) {
             const table ref = homogen_table::wrap(ref_sum2cent.get_array(), 1l, column_count);
-            check_if_close(result.get_sum_squares_centered(), ref, "Sum squares centered");
+            check_if_close(result.get_sum_squares_centered(), ref, "Sum squares centered", tol);
         }
         if (compute_mode.test(result_options::mean)) {
             const table ref = homogen_table::wrap(ref_mean.get_array(), 1l, column_count);
-            check_if_close(result.get_mean(), ref, "Mean");
+            check_if_close(result.get_mean(), ref, "Mean", tol);
         }
         if (compute_mode.test(result_options::second_order_raw_moment)) {
             const table ref = homogen_table::wrap(ref_sorm.get_array(), 1l, column_count);
-            check_if_close(result.get_second_order_raw_moment(), ref, "SORM");
+            check_if_close(result.get_second_order_raw_moment(), ref, "SORM", tol);
         }
         if (compute_mode.test(result_options::variance)) {
             const table ref = homogen_table::wrap(ref_varc.get_array(), 1l, column_count);
-            check_if_close(result.get_variance(), ref, "Variance");
+            check_if_close(result.get_variance(), ref, "Variance", tol);
         }
         if (compute_mode.test(result_options::standard_deviation)) {
             const table ref = homogen_table::wrap(ref_stdev.get_array(), 1l, column_count);
-            check_if_close(result.get_standard_deviation(), ref, "Std");
+            check_if_close(result.get_standard_deviation(), ref, "Std", tol);
         }
         if (compute_mode.test(result_options::variation)) {
             const table ref = homogen_table::wrap(ref_vart.get_array(), 1l, column_count);
-            check_if_close(result.get_variation(), ref, "Variation");
+            check_if_close(result.get_variation(), ref, "Variation", tol);
         }
     }
 

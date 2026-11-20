@@ -28,6 +28,7 @@ load("@onedal//dev/bazel/toolchains:common.bzl",
     "get_default_compiler_options",
     "get_starlark_list_dict",
     "get_toolchain_identifier",
+    "write_tool_identity",
 )
 
 def _create_dpc_link_wrapper(repo_ctx, dpcc_path):
@@ -287,6 +288,11 @@ def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
         "-fsycl-device-code-split={}".format(dpcc_code_split),
     ]) if tools.is_dpc_found else []
 
+    tool_identity = write_tool_identity(
+        repo_ctx,
+        [tools.cc, tools.cc_link, tools.ar],
+        version_tools = [tools.cc],
+    )
     repo_ctx.template(
         "BUILD",
         Label("@onedal//dev/bazel/toolchains:cc_toolchain_win_llvm.tpl.BUILD"),
@@ -306,9 +312,9 @@ def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
             "%{host_cpu_constraint}": ARCH_ID_TO_PLATFORM_CPU[reqs_llvm.host_arch_id],
             "%{target_cpu_constraint}": ARCH_ID_TO_PLATFORM_CPU[reqs_llvm.target_arch_id],
             "%{supports_param_files}": "1",
-            "%{compiler_deps}": get_starlark_list([]),
-            "%{ar_deps}": get_starlark_list([]),
-            "%{linker_deps}": get_starlark_list([]),
+            "%{compiler_deps}": get_starlark_list([":" + tool_identity]),
+            "%{ar_deps}": get_starlark_list([":" + tool_identity]),
+            "%{linker_deps}": get_starlark_list([":" + tool_identity]),
             "%{cc_path}": tools.cc,
             "%{dpcc_path}": tools.dpcc,
             "%{cc_link_path}": tools.cc_link,
