@@ -18,6 +18,7 @@
 #include "src/algorithms/pca/pca_dense_correlation_base.h"
 #include "src/externals/service_lapack.h"
 #include "src/externals/service_math.h"
+#include "src/threading/threading.h"
 
 namespace daal
 {
@@ -192,14 +193,15 @@ services::Status PCACorrelationBase<algorithmFPType, cpu>::computeCorrelationEig
     // SYEVR branch
     // In this case, we compute only nComponents eigenvectors and then sort them in descending order
     // inside the 'computeEigenvectorsInplaceSyevr' function
-    // TODO: The 0.25 threshold is a temporary heuristic.
-    // It should be replaced with a tunable parameter exposed through
-    // the parameters.
+    // With MKL on full-rank data, syevr on a subset beats syevd up to about
+    // nComponents / nFeatures = 0.25 / cbrt(nThreads); syevd scales better with threads.
     // TODO: nComponents should also be limited by min(nRows, nFeatures)
     // (the effective rank of the data) to avoid requesting more components
     // than the data can support. This requires passing nRows into this
     // function, which currently only receives the correlation matrix.
-    if (nComponents < 0.25 * nFeatures)
+    const double componentsRatio = static_cast<double>(nComponents) / static_cast<double>(nFeatures);
+    const double nThreads        = static_cast<double>(threader_get_threads_number());
+    if (64.0 * componentsRatio * componentsRatio * componentsRatio * nThreads < 1.0)
     {
         services::Status s = computeEigenvectorsInplaceSyevr(nFeatures, nComponents, matrixArray, fullEigenvaluesArray);
         DAAL_CHECK_STATUS_VAR(s);

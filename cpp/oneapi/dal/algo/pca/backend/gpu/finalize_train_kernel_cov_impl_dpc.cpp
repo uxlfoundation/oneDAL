@@ -112,24 +112,27 @@ result_t finalize_train_kernel_cov_impl<Float>::operator()(const descriptor_t& d
         data_to_compute = corr;
     }
 
-    auto [eigvals, syevd_event] =
-        syevd_computation(q, data_to_compute, { cov_event, corr_event, vars_event });
+    auto [eigvals, eigvecs, trace, syevd_event] =
+        compute_eigenpairs(q,
+                           data_to_compute,
+                           component_count,
+                           { cov_event, corr_event, vars_event });
 
     // Compute noise variance on the host (CPU) since it's a simple operation and
     // doesn't benefit much from parallelization on the device (GPU/accelerator).
     // This avoids unnecessary overhead from device-side execution.
     if (desc.get_result_options().test(result_options::noise_variance)) {
-        auto noise_variance =
-            compute_noise_variance(q, eigvals, column_count, component_count, { syevd_event });
+        auto noise_variance = compute_noise_variance(q,
+                                                     eigvals,
+                                                     column_count,
+                                                     component_count,
+                                                     trace,
+                                                     { syevd_event });
         result.set_noise_variance(noise_variance);
     }
 
     auto [reordered_eigvals, reordered_eigenvectors] =
-        reorder_eigenpairs_descending(q,
-                                      eigvals,
-                                      data_to_compute,
-                                      component_count,
-                                      { syevd_event });
+        reorder_eigenpairs_descending(q, eigvals, eigvecs, component_count, { syevd_event });
 
     if (desc.get_result_options().test(result_options::eigenvalues)) {
         result.set_eigenvalues(
