@@ -20,7 +20,8 @@ A feature that needs even one different flag belongs in the platform file.
 """
 
 load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
-load("@rules_cc//cc:cc_toolchain_config_lib.bzl",
+load(
+    "@rules_cc//cc:cc_toolchain_config_lib.bzl",
     "action_config",
     "feature",
     "flag_group",
@@ -293,8 +294,10 @@ def _default_compile_flags_feature(attr):
             _flag_set_if(
                 all_compile_actions,
                 attr.compile_flags_pedantic_cc,
-                with_features = [with_feature_set(features = ["pedantic"],
-                                                  not_features = ["dpc++"])],
+                with_features = [with_feature_set(
+                    features = ["pedantic"],
+                    not_features = ["dpc++"],
+                )],
             ),
             _flag_set_if(
                 all_compile_actions,

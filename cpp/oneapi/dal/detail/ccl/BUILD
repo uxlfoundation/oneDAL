@@ -15,5 +15,5 @@ dal_module(
     extra_deps = [
         "@ccl//:ccl",
         "@mpi//:mpi",
-    ]
+    ],
 )

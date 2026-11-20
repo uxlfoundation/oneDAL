@@ -117,6 +117,7 @@ def _generate_nuspec_impl(ctx):
     """Expand deploy/nuget/inteldal.nuspec.tpl as prepare_dal_nuget.sh does."""
     vi = get_version_info(ctx)
     t = target(ctx)
+
     # Same ids as prepare_dal_nuget.sh: x64 keeps linux, win-x64, osx-x64 (Make has no macOS ARM64).
     # ARM64 and RISC-V get their own ids, so they never publish under an x64 name.
     if t.is_windows:
@@ -184,12 +185,11 @@ def _generate_pkgconfig_impl(ctx):
         # The debug CRT renames the oneDAL libraries and switches the CRT flag and TBB variant.
         is_rt_debug = t.msvc_runtime_debug
         d = "d" if is_rt_debug else ""
+
         # The same libraries as the `_WIN32` branch of pkg-config.cpp. Doubled braces survive
         # this format(); the template's format() inserts the result verbatim.
         onedal_libs = (
-            "${{libdir}}/onedal{d}.lib ${{libdir}}/onedal_core{d}.lib ${{libdir}}/onedal_thread{d}.lib"
-            if ctx.attr.static else
-            "${{libdir}}/onedal{d}_dll.lib ${{libdir}}/onedal_core{d}_dll.lib"
+            "${{libdir}}/onedal{d}.lib ${{libdir}}/onedal_core{d}.lib ${{libdir}}/onedal_thread{d}.lib" if ctx.attr.static else "${{libdir}}/onedal{d}_dll.lib ${{libdir}}/onedal_core{d}_dll.lib"
         ).format(d = d)
         ctx.actions.write(
             output = out,

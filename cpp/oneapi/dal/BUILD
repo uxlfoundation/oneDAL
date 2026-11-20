@@ -1,19 +1,22 @@
-package(default_visibility = ["//visibility:public"])
-load("@onedal//dev/bazel:dal.bzl",
-    "dal_module",
+load(
+    "@onedal//dev/bazel:dal.bzl",
     "dal_collect_modules",
+    "dal_collect_test_suites",
+    "dal_dynamic_lib",
+    "dal_generate_cpu_dispatcher",
+    "dal_module",
     "dal_public_includes",
     "dal_static_lib",
-    "dal_dynamic_lib",
     "dal_test_suite",
-    "dal_collect_test_suites",
-    "dal_generate_cpu_dispatcher",
 )
-load("@onedal//dev/bazel/config:selects.bzl",
+load(
+    "@onedal//dev/bazel/config:selects.bzl",
     "parameters_lib_disabled",
     "parameters_lib_enabled",
     "parameters_lib_target_compatible_with",
 )
+
+package(default_visibility = ["//visibility:public"])
 
 _PARAMETER_MODULES = [
     "@onedal//cpp/oneapi/dal/algo:parameters",
@@ -26,7 +29,6 @@ _PARAMETER_MODULES_DPC = [
 ]
 
 _DAL_LIB_TAGS = ["dal"] + parameters_lib_disabled(["parameters"])
-
 
 dal_generate_cpu_dispatcher(
     name = "cpu_dispatcher",
@@ -150,13 +152,22 @@ dal_dynamic_lib(
     # Windows DPC link takes MKL through the SYCL import libraries
     # `@mkl//:mkl_dpc` contributes, again matching Make.
     lib_tags = select({
-        "@platforms//os:windows": ["dal", "mkl_embed"],
-        "//conditions:default": ["dal", "mkl_embed"],
+        "@platforms//os:windows": [
+            "dal",
+            "mkl_embed",
+        ],
+        "//conditions:default": [
+            "dal",
+            "mkl_embed",
+        ],
     }) + parameters_lib_disabled(["parameters"]),
     # Windows accepts the "parameters" tag: Make folds those objects into onedal_dpc.dll; a static archive would not export them.
     # Linux drops it and the daal/mkl_embed tags: Make links dynamic MKL and keeps parameters in their own .so.
     dpc_lib_tags = select({
-        "@platforms//os:windows": ["dal", "parameters"],
+        "@platforms//os:windows": [
+            "dal",
+            "parameters",
+        ],
         "//conditions:default": ["dal"],
     }) + parameters_lib_disabled(["parameters"]),
     dal_deps = [
@@ -202,11 +213,17 @@ dal_dynamic_lib(
     # On Windows, DAAL/MKL stay behind onedal_core's import library; only
     # parameter and oneAPI objects belong in this DLL. Keep Linux unchanged.
     lib_tags = select({
-        "@platforms//os:windows": ["parameters", "dal"],
+        "@platforms//os:windows": [
+            "parameters",
+            "dal",
+        ],
         "//conditions:default": ["parameters"],
     }),
     dpc_lib_tags = select({
-        "@platforms//os:windows": ["parameters", "dal"],
+        "@platforms//os:windows": [
+            "parameters",
+            "dal",
+        ],
         "//conditions:default": ["parameters"],
     }),
     dal_deps = [
@@ -263,13 +280,16 @@ filegroup(
 dal_test_suite(
     name = "common_tests",
     framework = "catch2",
-    srcs = glob([
-        "test/*.cpp",
-    ], exclude=[
-        "test/mpi_*.cpp",
-        "test/ccl_*.cpp"
-    ]),
-    dal_deps = [ ":common" ],
+    srcs = glob(
+        [
+            "test/*.cpp",
+        ],
+        exclude = [
+            "test/mpi_*.cpp",
+            "test/ccl_*.cpp",
+        ],
+    ),
+    dal_deps = [":common"],
 )
 
 dal_test_suite(
@@ -278,7 +298,7 @@ dal_test_suite(
     mpi_ranks = 2,
     framework = "catch2",
     srcs = glob([
-        "test/mpi_*.cpp"
+        "test/mpi_*.cpp",
     ]),
     dal_deps = [
         ":common",
@@ -290,9 +310,9 @@ dal_test_suite(
     ccl = True,
     mpi_ranks = 2,
     framework = "catch2",
-    compile_as = [ "dpc++" ],
+    compile_as = ["dpc++"],
     srcs = glob([
-        "test/ccl_*.cpp"
+        "test/ccl_*.cpp",
     ]),
     dal_deps = [
         ":common",

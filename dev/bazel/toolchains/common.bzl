@@ -16,10 +16,11 @@
 
 load(
     "@onedal//dev/bazel:flags.bzl",
-    "get_default_flags",
     "get_cpu_flags",
+    "get_default_flags",
 )
-load("@rules_cc//cc/private/toolchain:lib_cc_configure.bzl",
+load(
+    "@rules_cc//cc/private/toolchain:lib_cc_configure.bzl",
     "auto_configure_fail",
     "get_starlark_list",
 )
@@ -62,6 +63,7 @@ def detect_compiler(repo_ctx, os_id):
     if not "CC" in repo_ctx.os.environ:
         return detect_default_compiler(repo_ctx, os_id)
     compiler_path = repo_ctx.os.environ["CC"]
+
     # TODO: detect the compiler by running it rather than by its name.
     if "gcc" in compiler_path:
         return "gcc"
@@ -196,7 +198,7 @@ def detect_target_arch(repo_ctx, host_arch_id):
     return arch_id or _detect_target_flag_arch(repo_ctx) or host_arch_id
 
 def get_starlark_list_dict(dictionary):
-    entries = [ "\"{}\": [{}]".format(k, get_starlark_list(v)) for k, v in dictionary.items() ]
+    entries = ["\"{}\": [{}]".format(k, get_starlark_list(v)) for k, v in dictionary.items()]
     return ",\n    ".join(entries)
 
 def get_cxx_inc_directories(repo_ctx, cc, lang_flag, additional_flags = []):
@@ -210,7 +212,7 @@ def get_cxx_inc_directories(repo_ctx, cc, lang_flag, additional_flags = []):
         return []
     index1 = result.stderr.find("\n", index0)
     inc_dirs = result.stderr[index1:index2].strip()
-    return [ _prepare_include_path(repo_ctx, p) for p in inc_dirs.split("\n") if p.strip() ]
+    return [_prepare_include_path(repo_ctx, p) for p in inc_dirs.split("\n") if p.strip()]
 
 def _null_device(repo_ctx):
     return "NUL" if "windows" in repo_ctx.os.name else "/dev/null"
@@ -228,7 +230,6 @@ def is_compiler_option_supported(repo_ctx, cc, option):
     return (result.stderr.find(option) == -1 and
             result.stderr.find("warning:") == -1)
 
-
 def is_linker_option_supported(repo_ctx, cc, option, pattern):
     """Checks that `option` is supported by the C linker."""
     result = repo_ctx.execute([
@@ -240,16 +241,13 @@ def is_linker_option_supported(repo_ctx, cc, option, pattern):
     ])
     return result.stderr.find(pattern) == -1
 
-
 def add_compiler_option_if_supported(repo_ctx, cc, option):
     """Returns `[option]` if supported, `[]` otherwise."""
     return [option] if is_compiler_option_supported(repo_ctx, cc, option) else []
 
-
 def add_linker_option_if_supported(repo_ctx, cc, option, pattern):
     """Returns `[option]` if supported, `[]` otherwise."""
     return [option] if is_linker_option_supported(repo_ctx, cc, option, pattern) else []
-
 
 def get_no_canonical_prefixes_opt(repo_ctx, cc):
     # Paths a compiler rewrites in the .d files break Bazel's check that every header is an input.
@@ -266,7 +264,6 @@ def get_no_canonical_prefixes_opt(repo_ctx, cc):
             "-no-canonical-prefixes",
         )
     return opt
-
 
 TOOL_IDENTITY_FILE = "tool_identity.txt"
 
@@ -295,10 +292,12 @@ def write_tool_identity(repo_ctx, tool_paths, version_tools = []):
         path = repo_ctx.path(tool)
         if not path.exists:
             continue
+
         # A downloaded tool lives in this repository and is refetched with it; Bazel
         # refuses to watch a path under the repository being fetched.
         if not str(path).startswith(repo_root):
             repo_ctx.watch(path)
+
         # No path: the downloaded gcc lives in the output base, and a path would tie
         # the action keys to it, so caches would not carry across machines.
         lines.append("tool: " + path.basename)
@@ -308,21 +307,25 @@ def write_tool_identity(repo_ctx, tool_paths, version_tools = []):
                 lines.append("sha256: " + result.stdout.split(" ")[0])
         if tool in version_tools:
             result = repo_ctx.execute([str(path), "--version"])
+
             # The first lines carry the version; the rest is the install path and license text.
             lines += ["version: " + l for l in (result.stdout or result.stderr).splitlines()[:2]]
     repo_ctx.file(TOOL_IDENTITY_FILE, "\n".join(lines) + "\n")
     return TOOL_IDENTITY_FILE
 
 def get_toolchain_identifier(reqs):
-    return "{}-{}-{}-{}".format(reqs.os_id, reqs.target_arch_id,
-                                reqs.compiler_id, reqs.compiler_version)
+    return "{}-{}-{}-{}".format(
+        reqs.os_id,
+        reqs.target_arch_id,
+        reqs.compiler_id,
+        reqs.compiler_version,
+    )
 
-
-def get_default_compiler_options(repo_ctx, reqs, cc, is_dpcc=False, category="common"):
+def get_default_compiler_options(repo_ctx, reqs, cc, is_dpcc = False, category = "common"):
     options = _get_unfiltered_default_compiler_options(reqs, is_dpcc, category)
     return _filter_out_unsupported_compiler_options(repo_ctx, cc, options)
 
-def get_cpu_specific_options(reqs, is_dpcc=False):
+def get_cpu_specific_options(reqs, is_dpcc = False):
     compiler_id = reqs.dpc_compiler_id if is_dpcc else reqs.compiler_id
     return get_cpu_flags(reqs.target_arch_id, reqs.os_id, compiler_id)
 
@@ -352,7 +355,6 @@ def _filter_out_unsupported_compiler_options(repo_ctx, cc, options):
         else:
             filtered_options += add_compiler_option_if_supported(repo_ctx, cc, option)
     return filtered_options
-
 
 def _prepare_include_path(repo_ctx, path):
     """Returns the absolute include path, without the macOS framework suffix."""

@@ -1,19 +1,22 @@
-load("@onedal//dev/bazel:release.bzl",
+load(
+    "@onedal//dev/bazel:release.bzl",
     "release",
     "release_all",
     "release_include",
 )
-load("@onedal//dev/bazel/config:selects.bzl",
-    "parameters_lib_enabled",
-    "parameters_lib_separate_value",
-    "release_dpc_parameters_lib_enabled",
-)
-load("@onedal//dev/bazel:scripts.bzl",
+load(
+    "@onedal//dev/bazel:scripts.bzl",
     "generate_cmake_config",
     "generate_modulefile",
     "generate_nuspec",
     "generate_pkgconfig",
     "generate_vars_sh",
+)
+load(
+    "@onedal//dev/bazel/config:selects.bzl",
+    "parameters_lib_enabled",
+    "parameters_lib_separate_value",
+    "release_dpc_parameters_lib_enabled",
 )
 
 package(default_visibility = ["//visibility:public"])
@@ -144,21 +147,21 @@ release(
     name = "release",
     include = [
         release_include(
-            hdrs = [ "@onedal//cpp/daal:public_includes" ],
+            hdrs = ["@onedal//cpp/daal:public_includes"],
             skip_prefix = "cpp/daal/include",
         ),
         release_include(
-            hdrs = [ "@onedal//cpp/daal:kernel_defines" ],
+            hdrs = ["@onedal//cpp/daal:kernel_defines"],
             add_prefix = "services/internal",
         ),
         # Ships after `public_includes` so the OS-specific header replaces the
         # generic one it shadows (`daal_win.h` -> `include/daal.h`).
         release_include(
-            hdrs = [ "@onedal//cpp/daal:os_specific_includes" ],
+            hdrs = ["@onedal//cpp/daal:os_specific_includes"],
             skip_prefix = "cpp/daal/include",
         ),
         release_include(
-            hdrs = [ ":release_oneapi_includes" ],
+            hdrs = [":release_oneapi_includes"],
             skip_prefix = "cpp",
         ),
     ],
