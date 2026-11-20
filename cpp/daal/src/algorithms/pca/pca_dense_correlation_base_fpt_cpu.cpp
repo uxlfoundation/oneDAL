@@ -15,7 +15,6 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include "src/algorithms/pca/pca_dense_base_impl.i"
 #include "src/algorithms/pca/pca_dense_correlation_base_impl.i"
 
 namespace daal
