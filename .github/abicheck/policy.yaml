@@ -1,0 +1,62 @@
+#===============================================================================
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+# Reclassify rules for the abicheck gate (ci.yml). Why: .github/abicheck/README.md.
+reclassify:
+  # WEAK inline and template symbols hidden by #3604; GLOBAL removals still break.
+  - kind: func_removed_elf_only
+    binding: weak
+    symbol_pattern: '.*'
+    to: risk
+    reason: WEAK inline function hidden by #3604.
+  - kind: func_visibility_changed
+    binding: weak
+    symbol_pattern: '.*'
+    to: risk
+    reason: WEAK inline function hidden by #3604 (headers depth).
+  - kind: var_removed_elf_only
+    binding: weak
+    symbol_pattern: '.*'
+    to: risk
+    reason: WEAK template static data member hidden by #3604.
+  # libonedal_thread internals with no installed header (#3471, #3987).
+  - kind: func_removed_elf_only
+    symbol_pattern: '_daal_(static_)?threader_for.*'
+    to: risk
+    reason: libonedal_thread C entry points, accepted in #3471; abi_check.sh skips libonedal_thread.so.
+  - kind: func_removed_elf_only
+    symbol_pattern: '_Z18getCurrentThreadIdv|_ZN20thread_pinner_impl_t.*'
+    to: risk
+    reason: libonedal_thread internals hidden by #3987.
+  - kind: var_removed_elf_only
+    symbol_pattern: 'IMPL|_ZT[IVS]20thread_pinner_impl_t'
+    to: risk
+    reason: thread_pinner_impl_t typeinfo/vtable and IMPL global hidden by #3987.
+  # Header-only oneapi::dal::detail helpers changed after 2026.0.0 (clang AST sees inline bodies).
+  - kind: header_only_function_params_changed
+    symbol_pattern: 'threader_for|threader_for_simple|threader_func|make_default_metadata(_from_arrays)?'
+    to: risk
+    reason: detail helpers changed in #3471 (int64 indices) and #3702 (alloc kind).
+  - kind: inline_function_removed
+    symbol_pattern: 'threader_(for|func)_(int64|blocked_size)|make_default_metadata_from_arrays_impl|get_responses_impl'
+    to: risk
+    reason: detail helpers removed in #3471, #3702 and #3950.
+  - kind: func_variadic_added
+    symbol_pattern: 'make_default_metadata_from_arrays'
+    to: risk
+    reason: header-only detail template made variadic in #3702; no exported symbol.
+# A rule no finding matches is reported as unused, to be deleted at rotation.
+unused_rules: warn
