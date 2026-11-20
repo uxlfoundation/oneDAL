@@ -1,0 +1,64 @@
+diff --git a/cpp/daal/src/algorithms/objective_function/cross_entropy_loss/cross_entropy_loss_dense_default_batch_impl.i b/cpp/daal/src/algorithms/objective_function/cross_entropy_loss/cross_entropy_loss_dense_default_batch_impl.i
+index 3faf91d4b..192e113d0 100644
+--- a/cpp/daal/src/algorithms/objective_function/cross_entropy_loss/cross_entropy_loss_dense_default_batch_impl.i
++++ b/cpp/daal/src/algorithms/objective_function/cross_entropy_loss/cross_entropy_loss_dense_default_batch_impl.i
+@@ -324,8 +324,6 @@ services::Status CrossEntropyLossKernel<algorithmFPType, method, cpu>::doCompute
+         DAAL_CHECK_MALLOC(values.get());
+     }
+ 
+-    DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nRowsInBlock, nClasses);
+-    TlsMem<algorithmFPType, cpu> tlsLogP(nRowsInBlock * nClasses);
+     TArrayScalable<algorithmFPType, cpu> grads;
+     if (gradientNT)
+     {
+@@ -333,7 +331,15 @@ services::Status CrossEntropyLossKernel<algorithmFPType, method, cpu>::doCompute
+         grads.reset(nDataBlocks * nBeta);
+         DAAL_CHECK_MALLOC(grads.get());
+     }
+-    TlsMem<algorithmFPType, cpu> tlsSoftmaxSum(nClasses);
++    /* Per-block buffers, not TLS: MKL calls inside the block body may run nested TBB parallel regions,
++       and the waiting thread can pick up another block and overwrite its thread-local data */
++    TArrayScalable<algorithmFPType, cpu> softmaxSumsBuf;
++    if (parameter->interceptFlag && gradientNT)
++    {
++        DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nDataBlocks, nClasses);
++        softmaxSumsBuf.reset(nDataBlocks * nClasses);
++        DAAL_CHECK_MALLOC(softmaxSumsBuf.get());
++    }
+     const algorithmFPType div = static_cast<algorithmFPType>(1) / static_cast<algorithmFPType>(n);
+     const bool bL1            = parameter->penaltyL1 > 0;
+     const bool bL2            = parameter->penaltyL2 > 0;
+@@ -367,8 +373,7 @@ services::Status CrossEntropyLossKernel<algorithmFPType, method, cpu>::doCompute
+ 
+             if (interceptFlag && gradientNT)
+             {
+-                softmaxSums = tlsSoftmaxSum.local();
+-                DAAL_CHECK_THR(softmaxSums, services::ErrorMemoryAllocationFailed);
++                softmaxSums = softmaxSumsBuf.get() + iBlock * nClasses;
+                 softmax(fPtrLocal, fPtrLocal, nRowsToProcess, nClasses, softmaxSums, yLocal);
+             }
+             else
+@@ -381,15 +386,18 @@ services::Status CrossEntropyLossKernel<algorithmFPType, method, cpu>::doCompute
+             {
+                 DAAL_PROFILER_TASK(crossEntropy.computeValueResult);
+ 
+-                algorithmFPType * const logP = tlsLogP.local();
+-                DAAL_CHECK_THR(logP, services::ErrorMemoryAllocationFailed);
+-                daal::internal::MathInst<algorithmFPType, cpu>::vLog(nRowsToProcess * nClasses, fPtrLocal, logP);
++                TArrayScalable<algorithmFPType, cpu> logP(nRowsToProcess);
++                DAAL_CHECK_THR(logP.get(), services::ErrorMemoryAllocationFailed);
++                for (size_t i = 0; i < nRowsToProcess; ++i)
++                {
++                    logP[i] = fPtrLocal[i * nClasses + static_cast<size_t>(yLocal[i])];
++                }
++                daal::internal::MathInst<algorithmFPType, cpu>::vLog(nRowsToProcess, logP.get(), logP.get());
+ 
+                 algorithmFPType localValue(0);
+                 for (size_t i = 0; i < nRowsToProcess; ++i)
+                 {
+-                    const size_t label = static_cast<size_t>(yLocal[i]);
+-                    localValue += logP[i * nClasses + label];
++                    localValue += logP[i];
+                 }
+                 values[iBlock] = localValue;
+             }

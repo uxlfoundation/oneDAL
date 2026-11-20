@@ -1,0 +1,170 @@
+diff --git a/cpp/daal/src/algorithms/low_order_moments/low_order_moments_estimates_online.i b/cpp/daal/src/algorithms/low_order_moments/low_order_moments_estimates_online.i
+index ed888b10d..99cc33dd5 100644
+--- a/cpp/daal/src/algorithms/low_order_moments/low_order_moments_estimates_online.i
++++ b/cpp/daal/src/algorithms/low_order_moments/low_order_moments_estimates_online.i
+@@ -428,24 +428,36 @@ Status compute_estimates(NumericTable * dataTable, PartialResult * partialResult
+         if (_cd.nVectors > 0)
+         {
+             algorithmFPType nVectorsM1 = (algorithmFPType)(_cd.nVectors - 1);
++            /* The variance of one row is NaN after the merge above, while its centered sum of squares is exactly 0 */
++            const bool singleRow = (_cd.nVectors == 1);
+             if (!isOnline)
+             {
+-                PRAGMA_OMP_SIMD
+-                PRAGMA_VECTOR_ALWAYS
+-                for (size_t i = 0; i < _cd.nFeatures; i++)
++                if (singleRow)
+                 {
+-                    _sumSqCen[i] = _cd.variance[i] * nVectorsM1;
++                    daal::services::internal::service_memset<algorithmFPType, cpu>(_sumSqCen, algorithmFPType(0), _cd.nFeatures);
++                }
++                else
++                {
++                    PRAGMA_OMP_SIMD
++                    PRAGMA_VECTOR_ALWAYS
++                    for (size_t i = 0; i < _cd.nFeatures; i++)
++                    {
++                        _sumSqCen[i] = _cd.variance[i] * nVectorsM1;
++                    }
+                 }
+             }
+             else /* isOnline */
+             {
+                 if (nObs == 0)
+                 {
+-                    PRAGMA_OMP_SIMD
+-                    PRAGMA_VECTOR_ALWAYS
+-                    for (size_t i = 0; i < _cd.nFeatures; i++)
++                    if (!singleRow)
+                     {
+-                        _sumSqCen[i] += _cd.variance[i] * nVectorsM1;
++                        PRAGMA_OMP_SIMD
++                        PRAGMA_VECTOR_ALWAYS
++                        for (size_t i = 0; i < _cd.nFeatures; i++)
++                        {
++                            _sumSqCen[i] += _cd.variance[i] * nVectorsM1;
++                        }
+                     }
+                 }
+                 else /* if (nObs != 0) */
+@@ -454,16 +466,31 @@ Status compute_estimates(NumericTable * dataTable, PartialResult * partialResult
+                     algorithmFPType invNVectors     = 1.0 / (algorithmFPType)_cd.nVectors;
+                     algorithmFPType coeff           = (algorithmFPType)(nObs * _cd.nVectors) / (algorithmFPType)(nObs + _cd.nVectors);
+ 
+-                    PRAGMA_OMP_SIMD
+-                    PRAGMA_VECTOR_ALWAYS
+-                    for (size_t i = 0; i < _cd.nFeatures; i++)
++                    if (singleRow)
++                    {
++                        PRAGMA_OMP_SIMD
++                        PRAGMA_VECTOR_ALWAYS
++                        for (size_t i = 0; i < _cd.nFeatures; i++)
++                        {
++                            algorithmFPType mean1 = _cd.prevSums[i] * invPrevNVectors;
++                            algorithmFPType mean2 = _sums[i] - _cd.prevSums[i];
++
++                            _sumSqCen[i] += coeff * (mean1 * mean1 + mean2 * mean2 - 2 * mean1 * mean2);
++                        }
++                    }
++                    else
+                     {
+-                        algorithmFPType mean1 = _cd.prevSums[i] * invPrevNVectors;
+-                        algorithmFPType mean2 = (_sums[i] - _cd.prevSums[i]) * invNVectors;
++                        PRAGMA_OMP_SIMD
++                        PRAGMA_VECTOR_ALWAYS
++                        for (size_t i = 0; i < _cd.nFeatures; i++)
++                        {
++                            algorithmFPType mean1 = _cd.prevSums[i] * invPrevNVectors;
++                            algorithmFPType mean2 = (_sums[i] - _cd.prevSums[i]) * invNVectors;
+ 
+-                        algorithmFPType ssqdm2 = _cd.variance[i] * nVectorsM1;
++                            algorithmFPType ssqdm2 = _cd.variance[i] * nVectorsM1;
+ 
+-                        _sumSqCen[i] += (ssqdm2 + coeff * (mean1 * mean1 + mean2 * mean2 - 2 * mean1 * mean2));
++                            _sumSqCen[i] += (ssqdm2 + coeff * (mean1 * mean1 + mean2 * mean2 - 2 * mean1 * mean2));
++                        }
+                     }
+                 } /* if (nObs != 0) */
+             } /* isOnline */
+diff --git a/cpp/daal/src/algorithms/low_order_moments/low_order_moments_impl.i b/cpp/daal/src/algorithms/low_order_moments/low_order_moments_impl.i
+index b4bcd1e2d..08dfd513a 100644
+--- a/cpp/daal/src/algorithms/low_order_moments/low_order_moments_impl.i
++++ b/cpp/daal/src/algorithms/low_order_moments/low_order_moments_impl.i
+@@ -567,24 +567,36 @@ void computeSumOfSquaredDiffsFromMean(size_t nFeatures, size_t nVectors, size_t
+     if (nVectors > 0)
+     {
+         const algorithmFPType nVectorsM1 = (algorithmFPType)(nVectors - 1);
++        /* The sample variance of one row is 0 / 0, while its centered sum of squares is exactly 0 */
++        const bool singleRow = (nVectors == 1);
+         if (!isOnline)
+         {
+-            PRAGMA_OMP_SIMD
+-            PRAGMA_VECTOR_ALWAYS
+-            for (size_t i = 0; i < nFeatures; i++)
++            if (singleRow)
+             {
+-                sumSqCen[i] = variance[i] * nVectorsM1;
++                daal::services::internal::service_memset<algorithmFPType, cpu>(sumSqCen, algorithmFPType(0), nFeatures);
++            }
++            else
++            {
++                PRAGMA_OMP_SIMD
++                PRAGMA_VECTOR_ALWAYS
++                for (size_t i = 0; i < nFeatures; i++)
++                {
++                    sumSqCen[i] = variance[i] * nVectorsM1;
++                }
+             }
+             return;
+         }
+ 
+         if (prevNVectors == 0)
+         {
+-            PRAGMA_OMP_SIMD
+-            PRAGMA_VECTOR_ALWAYS
+-            for (size_t i = 0; i < nFeatures; i++)
++            if (!singleRow)
+             {
+-                sumSqCen[i] += variance[i] * nVectorsM1;
++                PRAGMA_OMP_SIMD
++                PRAGMA_VECTOR_ALWAYS
++                for (size_t i = 0; i < nFeatures; i++)
++                {
++                    sumSqCen[i] += variance[i] * nVectorsM1;
++                }
+             }
+         }
+         else
+@@ -593,14 +605,27 @@ void computeSumOfSquaredDiffsFromMean(size_t nFeatures, size_t nVectors, size_t
+             const algorithmFPType invNVectors     = 1.0 / (algorithmFPType)nVectors;
+             const algorithmFPType coeff           = (algorithmFPType)(prevNVectors * nVectors) / (algorithmFPType)(prevNVectors + nVectors);
+ 
+-            for (size_t i = 0; i < nFeatures; i++)
++            if (singleRow)
++            {
++                for (size_t i = 0; i < nFeatures; i++)
++                {
++                    algorithmFPType mean1 = prevSums[i] * invPrevNVectors;
++                    algorithmFPType mean2 = sums[i] - prevSums[i];
++
++                    sumSqCen[i] += coeff * (mean1 * mean1 + mean2 * mean2 - 2.0 * mean1 * mean2);
++                }
++            }
++            else
+             {
+-                algorithmFPType mean1 = prevSums[i] * invPrevNVectors;
+-                algorithmFPType mean2 = (sums[i] - prevSums[i]) * invNVectors;
++                for (size_t i = 0; i < nFeatures; i++)
++                {
++                    algorithmFPType mean1 = prevSums[i] * invPrevNVectors;
++                    algorithmFPType mean2 = (sums[i] - prevSums[i]) * invNVectors;
+ 
+-                algorithmFPType ssqdm2 = variance[i] * nVectorsM1;
++                    algorithmFPType ssqdm2 = variance[i] * nVectorsM1;
+ 
+-                sumSqCen[i] += (ssqdm2 + coeff * (mean1 * mean1 + mean2 * mean2 - 2.0 * mean1 * mean2));
++                    sumSqCen[i] += (ssqdm2 + coeff * (mean1 * mean1 + mean2 * mean2 - 2.0 * mean1 * mean2));
++                }
+             }
+         }
+     }

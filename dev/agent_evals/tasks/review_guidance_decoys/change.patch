@@ -1,0 +1,289 @@
+From d1f98a9e72ceab726ada12d8fceeb1d691946cfb Mon Sep 17 00:00:00 2001
+From: Dev Contributor <dev@example.com>
+Date: Sat, 26 Sep 2026 10:12:00 -0700
+Subject: [PATCH] covariance: reject constant columns when computing
+ correlation
+
+Correlation is undefined for a column with zero variance. Add a DAAL
+ConstantColumnsKernel that finds such columns with a single parallel pass
+over the data, and call it from the oneAPI CPU covariance kernel so that a
+clear invalid_argument is raised instead of NaNs in the output.
+---
+ .../covariance_constant_columns_fpt_cpu.cpp   |  38 +++++
+ .../covariance_constant_columns_impl.i        | 145 ++++++++++++++++++
+ .../algorithms/covariance/covariance_kernel.h |  14 ++
+ .../backend/cpu/compute_kernel_dense.cpp      |  29 ++++
+ 4 files changed, 226 insertions(+)
+ create mode 100644 cpp/daal/src/algorithms/covariance/covariance_constant_columns_fpt_cpu.cpp
+ create mode 100644 cpp/daal/src/algorithms/covariance/covariance_constant_columns_impl.i
+
+diff --git a/cpp/daal/src/algorithms/covariance/covariance_constant_columns_fpt_cpu.cpp b/cpp/daal/src/algorithms/covariance/covariance_constant_columns_fpt_cpu.cpp
+new file mode 100644
+index 0000000..5951ed5
+--- /dev/null
++++ b/cpp/daal/src/algorithms/covariance/covariance_constant_columns_fpt_cpu.cpp
+@@ -0,0 +1,38 @@
++/* file: covariance_constant_columns_fpt_cpu.cpp */
++/*******************************************************************************
++* Copyright contributors to the oneDAL project
++*
++* Licensed under the Apache License, Version 2.0 (the "License");
++* you may not use this file except in compliance with the License.
++* You may obtain a copy of the License at
++*
++*     http://www.apache.org/licenses/LICENSE-2.0
++*
++* Unless required by applicable law or agreed to in writing, software
++* distributed under the License is distributed on an "AS IS" BASIS,
++* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++* See the License for the specific language governing permissions and
++* limitations under the License.
++*******************************************************************************/
++
++/*
++//++
++//  Instantiation of the constant columns detection kernel.
++//--
++*/
++
++#include "src/algorithms/covariance/covariance_constant_columns_impl.i"
++
++namespace daal
++{
++namespace algorithms
++{
++namespace covariance
++{
++namespace internal
++{
++template class DAAL_EXPORT ConstantColumnsKernel<DAAL_FPTYPE, DAAL_CPU>;
++} // namespace internal
++} // namespace covariance
++} // namespace algorithms
++} // namespace daal
+diff --git a/cpp/daal/src/algorithms/covariance/covariance_constant_columns_impl.i b/cpp/daal/src/algorithms/covariance/covariance_constant_columns_impl.i
+new file mode 100644
+index 0000000..814b7fc
+--- /dev/null
++++ b/cpp/daal/src/algorithms/covariance/covariance_constant_columns_impl.i
+@@ -0,0 +1,145 @@
++/* file: covariance_constant_columns_impl.i */
++/*******************************************************************************
++* Copyright 2026 Intel Corporation
++*
++* Licensed under the Apache License, Version 2.0 (the "License");
++* you may not use this file except in compliance with the License.
++* You may obtain a copy of the License at
++*
++*     http://www.apache.org/licenses/LICENSE-2.0
++*
++* Unless required by applicable law or agreed to in writing, software
++* distributed under the License is distributed on an "AS IS" BASIS,
++* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++* See the License for the specific language governing permissions and
++* limitations under the License.
++*******************************************************************************/
++
++/*
++//++
++//  Detection of constant (zero-variance) columns of the input data.
++//--
++*/
++
++#pragma once
++
++#include <mutex>
++
++#include "src/algorithms/covariance/covariance_kernel.h"
++#include "src/algorithms/service_error_handling.h"
++#include "src/data_management/service_numeric_table.h"
++#include "src/services/service_arrays.h"
++#include "src/services/service_data_utils.h"
++#include "src/threading/threading.h"
++
++using namespace daal::internal;
++using namespace daal::services::internal;
++
++namespace daal
++{
++namespace algorithms
++{
++namespace covariance
++{
++namespace internal
++{
++/// Thread-local running minimum and maximum of every column of the input data.
++template <typename algorithmFPType, CpuType cpu>
++class ColumnRange
++{
++public:
++    explicit ColumnRange(size_t nFeatures) : _nFeatures(nFeatures), _min(nFeatures), _max(nFeatures)
++    {
++        if (!isValid()) return;
++        for (size_t j = 0; j < _nFeatures; ++j)
++        {
++            _min[j] = MaxVal<algorithmFPType>::get();
++            _max[j] = -MaxVal<algorithmFPType>::get();
++        }
++    }
++
++    bool isValid() const { return _min.get() && _max.get(); }
++
++    const algorithmFPType * min() const { return _min.get(); }
++    const algorithmFPType * max() const { return _max.get(); }
++
++    /// Updates the running minimum and maximum with a block of nRows rows.
++    void update(const algorithmFPType * block, size_t nRows)
++    {
++        algorithmFPType * minPtr = _min.get();
++        algorithmFPType * maxPtr = _max.get();
++        for (size_t i = 0; i < nRows; ++i)
++        {
++            PRAGMA_OMP_SIMD
++            PRAGMA_VECTOR_ALWAYS
++            for (size_t j = 0; j < _nFeatures; ++j)
++            {
++                const algorithmFPType value = block[i * _nFeatures + j];
++                minPtr[j]                   = (value < minPtr[j]) ? value : minPtr[j];
++                maxPtr[j]                   = (value > maxPtr[j]) ? value : maxPtr[j];
++            }
++        }
++    }
++
++private:
++    size_t _nFeatures;
++    TArray<algorithmFPType, cpu> _min;
++    TArray<algorithmFPType, cpu> _max;
++};
++
++template <typename algorithmFPType, CpuType cpu>
++services::Status ConstantColumnsKernel<algorithmFPType, cpu>::compute(const NumericTable * dataTable, int * isConstant)
++{
++    const size_t nFeatures = dataTable->getNumberOfColumns();
++    const size_t nRows     = dataTable->getNumberOfRows();
++    const size_t blockSize = 256;
++    const size_t nBlocks   = nRows / blockSize + !!(nRows % blockSize);
++
++    TArray<algorithmFPType, cpu> colMin(nFeatures);
++    TArray<algorithmFPType, cpu> colMax(nFeatures);
++    DAAL_CHECK_MALLOC(colMin.get() && colMax.get());
++    for (size_t j = 0; j < nFeatures; ++j)
++    {
++        colMin[j] = MaxVal<algorithmFPType>::get();
++        colMax[j] = -MaxVal<algorithmFPType>::get();
++    }
++
++    daal::tls<ColumnRange<algorithmFPType, cpu> *> tlsRange([=]() { return new ColumnRange<algorithmFPType, cpu>(nFeatures); });
++
++    SafeStatus safeStat;
++
++    std::mutex mergeMutex;
++
++    daal::threader_for(nBlocks, nBlocks, [&](size_t iBlock) {
++        const size_t startRow     = iBlock * blockSize;
++        const size_t nRowsInBlock = (iBlock == nBlocks - 1) ? nRows % blockSize : blockSize;
++
++        ColumnRange<algorithmFPType, cpu> * localRange = tlsRange.local();
++        DAAL_CHECK_MALLOC_THR(localRange && localRange->isValid());
++
++        ReadRows<algorithmFPType, cpu> dataBD(const_cast<NumericTable *>(dataTable), startRow, nRowsInBlock);
++        DAAL_CHECK_BLOCK_STATUS_THR(dataBD);
++        localRange->update(dataBD.get(), nRowsInBlock);
++
++        std::lock_guard<std::mutex> lock(mergeMutex);
++        for (size_t j = 0; j < nFeatures; ++j)
++        {
++            colMin[j] = (localRange->min()[j] < colMin[j]) ? localRange->min()[j] : colMin[j];
++            colMax[j] = (localRange->max()[j] > colMax[j]) ? localRange->max()[j] : colMax[j];
++        }
++    });
++
++    tlsRange.reduce([](ColumnRange<algorithmFPType, cpu> * localRange) { delete localRange; });
++    DAAL_CHECK_SAFE_STATUS();
++
++    for (size_t j = 0; j < nFeatures; ++j)
++    {
++        isConstant[j] = (colMax[j] == colMin[j]) ? 1 : 0;
++    }
++    return services::Status();
++}
++
++} // namespace internal
++} // namespace covariance
++} // namespace algorithms
++} // namespace daal
+diff --git a/cpp/daal/src/algorithms/covariance/covariance_kernel.h b/cpp/daal/src/algorithms/covariance/covariance_kernel.h
+index d8cf577..c452e94 100644
+--- a/cpp/daal/src/algorithms/covariance/covariance_kernel.h
++++ b/cpp/daal/src/algorithms/covariance/covariance_kernel.h
+@@ -90,6 +90,20 @@ public:
+                                      NumericTable * meanTable, const Parameter * parameter, const Hyperparameter * hyperparameter = nullptr);
+ };
+ 
++/// Marks the columns of the input table that hold the same value in every row.
++/// Correlation is undefined for such columns because their variance is zero.
++///
++/// @tparam algorithmFPType     Data type used for the computations: double or float.
++/// @tparam cpu                 Variant of the CPU instruction set: SSE2, AVX2, AVX512, ARM SVE, etc.
++template <typename algorithmFPType, CpuType cpu>
++class ConstantColumnsKernel : public daal::algorithms::Kernel
++{
++public:
++    /// @param[in]  dataTable   Input data table of size nRows x nFeatures
++    /// @param[out] isConstant  Array of size nFeatures; isConstant[j] is set to 1 if column j is constant, to 0 otherwise
++    services::Status compute(const NumericTable * dataTable, int * isConstant);
++};
++
+ } // namespace internal
+ } // namespace covariance
+ } // namespace algorithms
+diff --git a/cpp/oneapi/dal/algo/covariance/backend/cpu/compute_kernel_dense.cpp b/cpp/oneapi/dal/algo/covariance/backend/cpu/compute_kernel_dense.cpp
+index ddd6b34..ca3af96 100644
+--- a/cpp/oneapi/dal/algo/covariance/backend/cpu/compute_kernel_dense.cpp
++++ b/cpp/oneapi/dal/algo/covariance/backend/cpu/compute_kernel_dense.cpp
+@@ -43,6 +43,30 @@ template <typename Float, daal::internal::CpuType Cpu>
+ using daal_covariance_kernel_t = daal_covariance::internal::
+     CovarianceDenseBatchKernel<Float, daal_covariance::Method::defaultDense, Cpu>;
+ 
++template <typename Float, daal::internal::CpuType Cpu>
++using daal_constant_columns_kernel_t = daal_covariance::internal::ConstantColumnsKernel<Float, Cpu>;
++
++/// Throws if any column of the input holds the same value in every row
++template <typename Float>
++static void check_no_constant_columns(const context_cpu& ctx,
++                                      const daal::data_management::NumericTablePtr& daal_data,
++                                      std::int64_t component_count) {
++    auto arr_is_constant = array<int>::zeros(component_count);
++
++    interop::status_to_exception(
++        interop::call_daal_kernel<Float, daal_constant_columns_kernel_t>(
++            ctx,
++            daal_data.get(),
++            arr_is_constant.get_mutable_data()));
++
++    const int* is_constant = arr_is_constant.get_data();
++    for (std::int64_t i = 0; i < component_count; ++i) {
++        if (is_constant[i]) {
++            throw invalid_argument("Correlation matrix is undefined for a constant column");
++        }
++    }
++}
++
+ template <typename Float, typename Task>
+ static compute_result<Task> call_daal_spmd_kernel(const context_cpu& ctx,
+                                                   const detail::descriptor_base<Task>& desc,
+@@ -131,6 +155,11 @@ static compute_result<Task> call_daal_kernel(const context_cpu& ctx,
+ 
+     const auto daal_data = interop::convert_to_daal_table<Float>(data);
+ 
++    // Correlation is undefined for zero-variance columns: reject such input up front
++    if (desc.get_result_options().test(result_options::cov_matrix)) {
++        check_no_constant_columns<Float>(ctx, daal_data, component_count);
++    }
++
+     auto arr_means = array<Float>::empty(component_count);
+     const auto daal_means = interop::convert_to_daal_homogen_table(arr_means, 1, component_count);
+ 
+-- 
+2.43.0
+

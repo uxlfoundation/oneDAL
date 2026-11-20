@@ -1,0 +1,1876 @@
+From 2605943d16ca84cc0db24ab2c4b99fca0f89a896 Mon Sep 17 00:00:00 2001
+From: Dev Contributor <dev@example.com>
+Date: Wed, 30 Sep 2026 11:54:40 -0700
+Subject: [PATCH] Add number of iterations made by SVM into training result
+
+---
+ cpp/daal/include/algorithms/svm/svm_model.h   | 122 ++-------
+ .../algorithms/svm/svm_model_builder.h        |  13 +-
+ .../data/homogen_numeric_table.h              |   3 +
+ .../kernel_function_rbf_dense_default_impl.i  |   3 +-
+ .../multiclassclassifier_predict_kernel.h     |   7 +-
+ .../multiclassclassifier_predict_mccwu_impl.i |   2 +-
+ ...ulticlassclassifier_predict_mccwu_kernel.h |   4 +-
+ ...ticlassclassifier_predict_votebased_impl.i |   8 +-
+ .../multiclassclassifier_svm_model.h          | 114 --------
+ .../multiclassclassifier_train_kernel.h       |   4 +-
+ ...classclassifier_train_oneagainstone_impl.i |  17 +-
+ ...assclassifier_train_oneagainstone_kernel.h |   2 +-
+ cpp/daal/src/algorithms/svm/svm_model.cpp     | 113 ++++++++
+ .../algorithms/svm/svm_model_builder_fpt.cpp  |  54 ++++
+ cpp/daal/src/algorithms/svm/svm_model_fpt.cpp |  48 ++--
+ cpp/daal/src/algorithms/svm/svm_model_impl.h  | 256 ++++++++++++++++++
+ cpp/daal/src/algorithms/svm/svm_train.cpp     |   6 -
+ .../src/algorithms/svm/svm_train_boser_impl.i |  23 +-
+ .../algorithms/svm/svm_train_boser_kernel.h   |   8 +-
+ cpp/daal/src/algorithms/svm/svm_train_fpt.cpp |   7 +-
+ .../src/algorithms/svm/svm_train_result.h     |  35 ++-
+ .../algorithms/svm/svm_train_thunder_impl.i   |   6 +-
+ .../algo/svm/backend/cpu/infer_cls_kernel.cpp |  38 ++-
+ .../algo/svm/backend/cpu/infer_reg_kernel.cpp |  10 +-
+ .../algo/svm/backend/cpu/train_cls_kernel.cpp |  32 +--
+ .../algo/svm/backend/cpu/train_reg_kernel.cpp |   5 +-
+ .../dal/algo/svm/backend/model_conversion.hpp |  50 ++--
+ .../dal/algo/svm/backend/model_impl.hpp       |   5 +-
+ cpp/oneapi/dal/algo/svm/common.cpp            |  10 +
+ cpp/oneapi/dal/algo/svm/common.hpp            |   9 +
+ cpp/oneapi/dal/algo/svm/train_types.cpp       |  10 +
+ cpp/oneapi/dal/algo/svm/train_types.hpp       |   9 +
+ .../svm/svm_two_class_boser_csr_batch.cpp     |   4 +
+ .../svm/svm_two_class_boser_dense_batch.cpp   |   4 +
+ .../svm/svm_two_class_thunder_csr_batch.cpp   |   4 +
+ .../svm/svm_two_class_thunder_dense_batch.cpp |   4 +
+ .../svm_multi_class_thunder_dense_batch.cpp   |   2 +
+ .../svm/svm_two_class_smo_dense_batch.cpp     |   2 +
+ .../svm/svm_two_class_thunder_dense_batch.cpp |   2 +
+ 39 files changed, 689 insertions(+), 366 deletions(-)
+ delete mode 100755 cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_svm_model.h
+ create mode 100644 cpp/daal/src/algorithms/svm/svm_model.cpp
+ create mode 100644 cpp/daal/src/algorithms/svm/svm_model_builder_fpt.cpp
+ create mode 100644 cpp/daal/src/algorithms/svm/svm_model_impl.h
+
+diff --git a/cpp/daal/include/algorithms/svm/svm_model.h b/cpp/daal/include/algorithms/svm/svm_model.h
+index e9b613896..aabd4984c 100644
+--- a/cpp/daal/include/algorithms/svm/svm_model.h
++++ b/cpp/daal/include/algorithms/svm/svm_model.h
+@@ -107,135 +107,61 @@ namespace interface1
+ class DAAL_EXPORT Model : public classifier::Model
+ {
+ public:
+-    DECLARE_MODEL(Model, classifier::Model);
+-
+-    /**
+-     * Constructs the SVM model
+-     * \tparam modelFPType  Data type to store SVM model data, double or float
+-     * \param[in] dummy     Dummy variable for the templated constructor
+-     * \param[in] nColumns  Number of features in input data
+-     * \param[in] layout    Data layout of the numeric table of support vectors
+-     * \DAAL_DEPRECATED_USE{ Model::create }
+-     */
+-    template <typename modelFPType>
+-    Model(modelFPType dummy, size_t nColumns, data_management::NumericTableIface::StorageLayout layout = data_management::NumericTableIface::aos)
+-        : _bias(0.0)
+-    {
+-        using namespace data_management;
+-        if (layout == NumericTableIface::csrArray)
+-        {
+-            modelFPType * dummyPtr = NULL;
+-            _SV                    = CSRNumericTable::create(dummyPtr, NULL, NULL, nColumns);
+-        }
+-        else
+-        {
+-            _SV = HomogenNumericTable<modelFPType>::create(NULL, nColumns, 0);
+-        }
+-        _SVCoeff   = HomogenNumericTable<modelFPType>::create(NULL, 1, 0);
+-        _SVIndices = HomogenNumericTable<int>::create(NULL, 1, 0);
+-    }
+-
+-    /**
+-     * Constructs the SVM model
+-     * \tparam modelFPType  Data type to store SVM model data, double or float
+-     * \param[in] nColumns  Number of features in input data
+-     * \param[in] layout    Data layout of the numeric table of support vectors
+-     * \param[out] stat     Status of the model construction
+-     * \return SVM model
+-     */
+-    template <typename modelFPType>
+-    DAAL_EXPORT static services::SharedPtr<Model> create(
+-        size_t nColumns, data_management::NumericTableIface::StorageLayout layout = data_management::NumericTableIface::aos,
+-        services::Status * stat = NULL);
+-
+-    /**
+-     * Empty constructor for deserialization
+-     * \DAAL_DEPRECATED_USE{ Model::create }
+-     */
+-    Model() : _SV(), _SVCoeff(), _bias(0.0), _SVIndices() {}
+-
+-    /**
+-     * Constructs empty SVM model for deserialization
+-     * \param[out] stat     Status of the model construction
+-     * \return Empty SVM model for deserialization
+-     */
+-    static services::SharedPtr<Model> create(services::Status * stat = NULL)
+-    {
+-        services::SharedPtr<Model> modelPtr(new Model());
+-        if (!modelPtr)
+-        {
+-            if (stat) stat->add(services::ErrorMemoryAllocationFailed);
+-        }
+-        return modelPtr;
+-    }
++    DECLARE_MODEL(Model, classifier::Model)
+ 
+     virtual ~Model() {}
+ 
+     /**
+      * Returns support vectors constructed during the training of the SVM model
+-     * \return Array of support vectors
++     * \return Array of support vectors of size MxN for two-class SVM,
++     *         where M is the number of support vectors and P is the number of features in training data
+      */
+-    data_management::NumericTablePtr getSupportVectors() { return _SV; }
++    virtual data_management::NumericTablePtr getSupportVectors() const = 0;
+ 
+     /**
+      * Returns indices of the support vectors constructed during the training of the SVM model
+-     * \return Array of support vectors indices
++     * \return Array of support vectors indices of size Mx1 for two-class SVM, where M is the number of support vectors
+      */
+-    data_management::NumericTablePtr getSupportIndices() { return _SVIndices; }
++    virtual data_management::NumericTablePtr getSupportIndices() const = 0;
+ 
+     /**
+      * Returns classification coefficients constructed during the training of the SVM model
+-     * \return Array of classification coefficients
++     * \return Array of classification coefficients of size Mx1 for two-class SVM, where M is the number of support vectors
+      */
+-    data_management::NumericTablePtr getClassificationCoefficients() { return _SVCoeff; }
++    virtual data_management::NumericTablePtr getClassificationCoefficients() const = 0;
+ 
+     /**
+-     * Returns the bias constructed during the training of the SVM model
++     * Returns the bias constructed during the training of the two-class SVM model
+      * \return Bias
+      */
+-    virtual double getBias() { return _bias; }
++    virtual double getBias() const = 0;
++
++    /**
++     * Sets the bias constructed during the training of the two-class SVM model
++     * \param[in] bias Bias
++     */
++    virtual void setBias(double bias) = 0;
+ 
+     /**
+-     * Sets the bias for the SVM model
+-     * \param bias  Bias of the model
++     * Returns biases constructed during the training of the two-class or multi-class SVM model
++     * \return Array of biases of size 1x1 for two-class SVM
+      */
+-    virtual void setBias(double bias) { _bias = bias; }
++    virtual data_management::NumericTablePtr getBiases() const = 0;
+ 
+     /**
+-     *  Retrieves the number of features in the dataset was used on the training stage
+-     *  \return Number of features in the dataset was used on the training stage
++     * Returns the number of iterations performed during the training of the SVM model
++     * \return Array that stores the number of iterations performed by the algorithm, size 1x1 for two-class SVM
+      */
+-    size_t getNumberOfFeatures() const override { return (_SV ? _SV->getNumberOfColumns() : 0); }
+-
+-protected:
+-    data_management::NumericTablePtr _SV;        /*!< \private Support vectors */
+-    data_management::NumericTablePtr _SVCoeff;   /*!< \private Classification coefficients */
+-    double _bias;                                /*!< \private Bias of the distance function D(x) = w*Phi(x) + bias */
+-    data_management::NumericTablePtr _SVIndices; /*!< \private Indices of the support vectors in training data set */
+-
+-    template <typename modelFPType>
+-    DAAL_EXPORT Model(modelFPType dummy, size_t nColumns, data_management::NumericTableIface::StorageLayout layout, services::Status & st);
+-
+-    template <typename Archive, bool onDeserialize>
+-    services::Status serialImpl(Archive * arch)
+-    {
+-        services::Status st = classifier::Model::serialImpl<Archive, onDeserialize>(arch);
+-        if (!st) return st;
+-        arch->setSharedPtrObj(_SV);
+-        arch->setSharedPtrObj(_SVCoeff);
+-        arch->set(_bias);
+-
+-        arch->setSharedPtrObj(_SVIndices);
+-
+-        return st;
+-    }
++    virtual data_management::NumericTablePtr getNumberOfIterations() const = 0;
+ };
+ typedef services::SharedPtr<Model> ModelPtr;
++typedef services::SharedPtr<const Model> ModelConstPtr;
+ /** @} */
+ } // namespace interface1
+ using interface2::Parameter;
+ using interface1::Model;
+ using interface1::ModelPtr;
++using interface1::ModelConstPtr;
+ 
+ } // namespace svm
+ /** @} */
+diff --git a/cpp/daal/include/algorithms/svm/svm_model_builder.h b/cpp/daal/include/algorithms/svm/svm_model_builder.h
+index d6ef15929..e7732b13c 100755
+--- a/cpp/daal/include/algorithms/svm/svm_model_builder.h
++++ b/cpp/daal/include/algorithms/svm/svm_model_builder.h
+@@ -68,16 +68,7 @@ public:
+      * \param[in] nFeatures        Number of features in training data
+      * \param[in] nSupportVectors  Number of support vectors in model
+      */
+-    ModelBuilder(size_t nFeatures, size_t nSupportVectors)
+-        : _modelPtr(Model::create<modelFPType>(nFeatures)), _nFeatures(nFeatures), _nSupportVectors(nSupportVectors)
+-    {
+-        _supportV  = _modelPtr->getSupportVectors();
+-        _supportI  = _modelPtr->getSupportIndices();
+-        _supportCC = _modelPtr->getClassificationCoefficients();
+-        _supportV->resize(nSupportVectors);
+-        _supportI->resize(nSupportVectors);
+-        _supportCC->resize(nSupportVectors);
+-    }
++    ModelBuilder(size_t nFeatures, size_t nSupportVectors);
+ 
+     /**
+      *  Method to set support vectors to model via random access iterator
+@@ -131,7 +122,7 @@ public:
+      *  Method to set bias term to model
+      *  \param[in] bias The value to be set
+      */
+-    void setBias(modelFPType bias) { _modelPtr->setBias(bias); }
++    void setBias(modelFPType bias);
+ 
+     /**
+      *  Get built model
+diff --git a/cpp/daal/include/data_management/data/homogen_numeric_table.h b/cpp/daal/include/data_management/data/homogen_numeric_table.h
+index e40169855..742592744 100644
+--- a/cpp/daal/include/data_management/data/homogen_numeric_table.h
++++ b/cpp/daal/include/data_management/data/homogen_numeric_table.h
+@@ -715,6 +715,7 @@ protected:
+                         services::Status & st)
+         : NumericTable(nColumns, nRows, featuresEqual, st)
+     {
++        if (!st) return; // failed to construct base class
+         _layout = aos;
+         st |= setArray(ptr, nRows);
+ 
+@@ -727,6 +728,7 @@ protected:
+                         const DataType & constValue, services::Status & st)
+         : NumericTable(nColumns, nRows, featuresEqual, st)
+     {
++        if (!st) return; // failed to construct base class
+         _layout = aos;
+         st |= setArray(ptr, nRows);
+ 
+@@ -740,6 +742,7 @@ protected:
+                         services::Status & st)
+         : NumericTable(nColumns, nRows, featuresEqual, st)
+     {
++        if (!st) return; // failed to construct base class
+         _layout = aos;
+ 
+         NumericTableFeature df;
+diff --git a/cpp/daal/src/algorithms/kernel_function/kernel_function_rbf_dense_default_impl.i b/cpp/daal/src/algorithms/kernel_function/kernel_function_rbf_dense_default_impl.i
+index 0a73fa693..7320beecb 100755
+--- a/cpp/daal/src/algorithms/kernel_function/kernel_function_rbf_dense_default_impl.i
++++ b/cpp/daal/src/algorithms/kernel_function/kernel_function_rbf_dense_default_impl.i
+@@ -65,8 +65,7 @@ services::Status KernelImplRBF<defaultDense, algorithmFPType, cpu>::computeInter
+     //compute
+     const algorithmFPType invSqrSigma = (algorithmFPType)(1.0 / (par->sigma * par->sigma));
+     algorithmFPType factor            = 0.0;
+-    PRAGMA_OMP_SIMD
+-    PRAGMA_VECTOR_ALWAYS
++    PRAGMA_OMP_SIMD_ARGS(reduction(+ : factor))
+     for (size_t i = 0; i < nFeatures; i++)
+     {
+         algorithmFPType diff = (dataA1[i] - dataA2[i]);
+diff --git a/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_predict_kernel.h b/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_predict_kernel.h
+index 845173b43..d7f6a27bb 100644
+--- a/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_predict_kernel.h
++++ b/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_predict_kernel.h
+@@ -29,7 +29,7 @@
+ #include "algorithms/model.h"
+ #include "algorithms/algorithm.h"
+ #include "algorithms/multi_class_classifier/multi_class_classifier_predict_types.h"
+-#include "src/algorithms/multiclassclassifier/multiclassclassifier_svm_model.h"
++#include "src/algorithms/svm/svm_model_impl.h"
+ #include "src/services/service_defines.h"
+ #include "src/services/service_arrays.h"
+ 
+@@ -46,13 +46,12 @@ namespace internal
+ using namespace daal::data_management;
+ using namespace daal::internal;
+ using namespace daal::services::internal;
+-using namespace multi_class_classifier::internal;
+ 
+ template <prediction::Method pmethod, training::Method tmethod, typename algorithmFPType, CpuType cpu>
+ struct MultiClassClassifierPredictKernel : public Kernel
+ {
+-    services::Status compute(const NumericTable * a, const daal::algorithms::Model * m, SvmModel * svmModel, NumericTable * pred, NumericTable * df,
+-                             const daal::algorithms::Parameter * par);
++    services::Status compute(const NumericTable * a, const daal::algorithms::Model * m, svm::internal::ModelImpl * svmModel, NumericTable * pred,
++                             NumericTable * df, const daal::algorithms::Parameter * par);
+ };
+ 
+ template <typename algorithmFPType, CpuType cpu>
+diff --git a/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_predict_mccwu_impl.i b/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_predict_mccwu_impl.i
+index 6fee32126..795f2b098 100755
+--- a/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_predict_mccwu_impl.i
++++ b/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_predict_mccwu_impl.i
+@@ -55,7 +55,7 @@ namespace internal
+ {
+ template <typename algorithmFPType, CpuType cpu>
+ services::Status MultiClassClassifierPredictKernel<multiClassClassifierWu, training::oneAgainstOne, algorithmFPType, cpu>::compute(
+-    const NumericTable * a, const daal::algorithms::Model * m, SvmModel * svmModel, NumericTable * pred, NumericTable * df,
++    const NumericTable * a, const daal::algorithms::Model * m, svm::internal::ModelImpl * svmModel, NumericTable * pred, NumericTable * df,
+     const daal::algorithms::Parameter * par)
+ {
+     Model * model                              = static_cast<Model *>(const_cast<daal::algorithms::Model *>(m));
+diff --git a/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_predict_mccwu_kernel.h b/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_predict_mccwu_kernel.h
+index 6d482b572..272adc0ac 100644
+--- a/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_predict_mccwu_kernel.h
++++ b/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_predict_mccwu_kernel.h
+@@ -141,8 +141,8 @@ private:
+ template <typename algorithmFPType, CpuType cpu>
+ struct MultiClassClassifierPredictKernel<multiClassClassifierWu, training::oneAgainstOne, algorithmFPType, cpu> : public Kernel
+ {
+-    services::Status compute(const NumericTable * a, const daal::algorithms::Model * m, SvmModel * svmModel, NumericTable * pred, NumericTable * df,
+-                             const daal::algorithms::Parameter * par);
++    services::Status compute(const NumericTable * a, const daal::algorithms::Model * m, svm::internal::ModelImpl * svmModel, NumericTable * pred,
++                             NumericTable * df, const daal::algorithms::Parameter * par);
+ };
+ 
+ } // namespace internal
+diff --git a/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_predict_votebased_impl.i b/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_predict_votebased_impl.i
+index 63f945210..922200174 100644
+--- a/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_predict_votebased_impl.i
++++ b/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_predict_votebased_impl.i
+@@ -47,8 +47,8 @@ using namespace daal::services::internal;
+ template <typename algorithmFPType, CpuType cpu>
+ struct MultiClassClassifierPredictKernel<voteBased, training::oneAgainstOne, algorithmFPType, cpu> : public Kernel
+ {
+-    Status compute(const NumericTable * a, const daal::algorithms::Model * m, SvmModel * svmModel, NumericTable * pred, NumericTable * df,
+-                   const daal::algorithms::Parameter * par);
++    Status compute(const NumericTable * a, const daal::algorithms::Model * m, svm::internal::ModelImpl * svmModel, NumericTable * pred,
++                   NumericTable * df, const daal::algorithms::Parameter * par);
+ };
+ 
+ /** Base class for threading subtask */
+@@ -303,8 +303,8 @@ private:
+ template <typename algorithmFPType, CpuType cpu>
+ Status MultiClassClassifierPredictKernel<voteBased, training::oneAgainstOne, algorithmFPType, cpu>::compute(const NumericTable * a,
+                                                                                                             const daal::algorithms::Model * m,
+-                                                                                                            SvmModel * svmModel, NumericTable * pred,
+-                                                                                                            NumericTable * df,
++                                                                                                            svm::internal::ModelImpl * svmModel,
++                                                                                                            NumericTable * pred, NumericTable * df,
+                                                                                                             const daal::algorithms::Parameter * par)
+ {
+     Model * model                              = static_cast<Model *>(const_cast<daal::algorithms::Model *>(m));
+diff --git a/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_svm_model.h b/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_svm_model.h
+deleted file mode 100755
+index 258b5d438..000000000
+--- a/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_svm_model.h
++++ /dev/null
+@@ -1,114 +0,0 @@
+-/* file: multiclassclassifier_svm_model.h */
+-/*******************************************************************************
+-* Copyright 2021 Intel Corporation
+-*
+-* Licensed under the Apache License, Version 2.0 (the "License");
+-* you may not use this file except in compliance with the License.
+-* You may obtain a copy of the License at
+-*
+-*     http://www.apache.org/licenses/LICENSE-2.0
+-*
+-* Unless required by applicable law or agreed to in writing, software
+-* distributed under the License is distributed on an "AS IS" BASIS,
+-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-* See the License for the specific language governing permissions and
+-* limitations under the License.
+-*******************************************************************************/
+-
+-/*
+-//++
+-//  Implementation of the class defining the SVM model.
+-//--
+-*/
+-
+-#ifndef __MULTICLASSCLASSIFIER_SVM_MODEL_H__
+-#define __MULTICLASSCLASSIFIER_SVM_MODEL_H__
+-
+-#include "src/algorithms/svm/svm_train_result.h"
+-
+-namespace daal
+-{
+-namespace algorithms
+-{
+-namespace multi_class_classifier
+-{
+-namespace internal
+-{
+-class DAAL_EXPORT SvmModel : public classifier::Model
+-{
+-public:
+-    template <typename modelFPType>
+-    DAAL_EXPORT static services::SharedPtr<SvmModel> create(
+-        const size_t nClasses, const size_t nColumns,
+-        const data_management::NumericTableIface::StorageLayout layout = data_management::NumericTableIface::aos, services::Status * stat = NULL)
+-
+-    {
+-        DAAL_DEFAULT_CREATE_IMPL_EX(SvmModel, (modelFPType)0.0, nClasses, nColumns, layout);
+-    }
+-
+-    virtual ~SvmModel() {}
+-
+-    data_management::NumericTablePtr getSupportVectors() { return _SV; }
+-
+-    data_management::NumericTablePtr getSupportIndices() { return _SVIndices; }
+-
+-    data_management::NumericTablePtr getCoefficients() { return _SVCoeff; }
+-
+-    data_management::NumericTablePtr getBiases() { return _biases; }
+-
+-    void setSupportVectors(data_management::NumericTablePtr sv) { _SV = sv; }
+-    void setSupportIndices(data_management::NumericTablePtr svIndices) { _SVIndices = svIndices; }
+-    void setCoefficients(data_management::NumericTablePtr coeffs) { _SVCoeff = coeffs; }
+-    void setBiases(data_management::NumericTablePtr biases) { _biases = biases; }
+-
+-    size_t getNumberOfFeatures() const override { return (_SV ? _SV->getNumberOfColumns() : 0); }
+-
+-protected:
+-    data_management::NumericTablePtr _SV;
+-    data_management::NumericTablePtr _SVCoeff;
+-    data_management::NumericTablePtr _biases;
+-    data_management::NumericTablePtr _SVIndices;
+-
+-    template <typename Archive, bool onDeserialize>
+-    services::Status serialImpl(Archive * arch)
+-    {
+-        services::Status st = classifier::Model::serialImpl<Archive, onDeserialize>(arch);
+-        if (!st) return st;
+-        arch->setSharedPtrObj(_SV);
+-        arch->setSharedPtrObj(_SVCoeff);
+-        arch->setSharedPtrObj(_biases);
+-        arch->setSharedPtrObj(_SVIndices);
+-        return st;
+-    }
+-
+-    template <typename modelFPType>
+-    SvmModel(modelFPType dummy, const size_t nClasses, const size_t nColumns, const data_management::NumericTableIface::StorageLayout layout,
+-             services::Status & st)
+-    {
+-        using namespace data_management;
+-        const size_t nModels = (nClasses * (nClasses - 1)) >> 1;
+-        if (layout == NumericTableIface::csrArray)
+-        {
+-            _SV = CSRNumericTable::create<modelFPType>(nullptr, nullptr, nullptr, nColumns, size_t(0), CSRNumericTable::oneBased, &st);
+-        }
+-        else
+-        {
+-            _SV = HomogenNumericTable<modelFPType>::create(nColumns, 0, NumericTable::doNotAllocate, &st);
+-        }
+-        if (!st) return;
+-        _SVCoeff = HomogenNumericTable<modelFPType>::create(nClasses - 1, 0, NumericTable::doNotAllocate, &st);
+-        if (!st) return;
+-        _SVIndices = HomogenNumericTable<int>::create(1, 0, NumericTable::doNotAllocate, &st);
+-        if (!st) return;
+-        _biases = HomogenNumericTable<modelFPType>::create(1, nModels, NumericTable::doAllocate, &st);
+-    }
+-};
+-
+-using SvmModelPtr = services::SharedPtr<SvmModel>;
+-
+-} // namespace internal
+-} // namespace multi_class_classifier
+-} // namespace algorithms
+-} // namespace daal
+-
+-#endif
+diff --git a/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_train_kernel.h b/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_train_kernel.h
+index dadfb121c..de76aaa88 100644
+--- a/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_train_kernel.h
++++ b/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_train_kernel.h
+@@ -28,7 +28,7 @@
+ #include "algorithms/model.h"
+ #include "algorithms/algorithm.h"
+ #include "algorithms/multi_class_classifier/multi_class_classifier_train_types.h"
+-#include "src/algorithms/multiclassclassifier/multiclassclassifier_svm_model.h"
++#include "src/algorithms/svm/svm_model_impl.h"
+ 
+ #include "src/services/service_defines.h"
+ 
+@@ -58,7 +58,7 @@ template <Method method, typename AlgorithmFPtype, CpuType cpu>
+ struct MultiClassClassifierTrainKernel : public Kernel
+ {
+     services::Status compute(const NumericTable * a0, const NumericTable * a1, const NumericTable * a2, daal::algorithms::Model * r,
+-                             multi_class_classifier::internal::SvmModel * svmModel, const KernelParameter & par);
++                             svm::internal::ModelImpl * svmModel, const KernelParameter & par);
+ };
+ 
+ } // namespace internal
+diff --git a/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_train_oneagainstone_impl.i b/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_train_oneagainstone_impl.i
+index d1031d99d..adf6062e0 100644
+--- a/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_train_oneagainstone_impl.i
++++ b/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_train_oneagainstone_impl.i
+@@ -31,6 +31,7 @@
+ #include "src/threading/threading.h"
+ #include "src/algorithms/service_sort.h"
+ #include "src/algorithms/service_error_handling.h"
++#include "src/algorithms/svm/svm_train_result.h"
+ #include "src/externals/service_blas.h"
+ 
+ namespace daal
+@@ -47,15 +48,11 @@ using namespace daal::internal;
+ using namespace daal::services::internal;
+ using namespace daal::data_management;
+ using namespace daal::services;
+-using namespace multi_class_classifier::internal;
+-using namespace svm::training::internal;
+ 
+ template <typename algorithmFPType, CpuType cpu>
+-services::Status MultiClassClassifierTrainKernel<oneAgainstOne, algorithmFPType, cpu>::compute(const NumericTable * xTable,
+-                                                                                               const NumericTable * yTable,
+-                                                                                               const NumericTable * wTable,
+-                                                                                               daal::algorithms::Model * m, SvmModel * svmModel,
+-                                                                                               const KernelParameter & par)
++services::Status MultiClassClassifierTrainKernel<oneAgainstOne, algorithmFPType, cpu>::compute(
++    const NumericTable * xTable, const NumericTable * yTable, const NumericTable * wTable, daal::algorithms::Model * m,
++    svm::internal::ModelImpl * svmModel, const KernelParameter & par)
+ {
+     Status s;
+ 
+@@ -179,7 +176,7 @@ services::Status MultiClassClassifierTrainKernel<oneAgainstOne, algorithmFPType,
+                 isSVData[originalIndex]    = true;
+             }
+             auto biasesTable = svmModel->getBiases();
+-            WriteOnlyColumns<algorithmFPType, cpu> mtBiases(biasesTable.get(), 0, imodel, 1);
++            WriteOnlyColumns<double, cpu> mtBiases(biasesTable.get(), 0, imodel, 1);
+             DAAL_CHECK_BLOCK_STATUS_THR(mtBiases);
+             *mtBiases.get() = svmModelPtr->getBias();
+         }
+@@ -238,10 +235,10 @@ services::Status MultiClassClassifierTrainKernel<oneAgainstOne, algorithmFPType,
+             }
+             DAAL_ASSERT(inxSV == nSV);
+         }
+-        NumericTablePtr coeffOutTable = svmModel->getCoefficients();
++        NumericTablePtr coeffOutTable = svmModel->getClassificationCoefficients();
+         DAAL_CHECK_STATUS(s, coeffOutTable->resize(nSV));
+ 
+-        using SvmResultTask = SaveResultTask<algorithmFPType, cpu>;
++        using SvmResultTask = svm::training::internal::SaveResultTask<algorithmFPType, cpu>;
+         DAAL_CHECK_STATUS(s, SvmResultTask::setSVByIndices(xTable, supportIndicesTable, svmModel->getSupportVectors()));
+         WriteOnlyRows<algorithmFPType, cpu> mtCoefficientsOut(coeffOutTable.get(), 0, coeffOutTable->getNumberOfRows());
+         DAAL_CHECK_BLOCK_STATUS(mtCoefficientsOut);
+diff --git a/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_train_oneagainstone_kernel.h b/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_train_oneagainstone_kernel.h
+index f7c259812..860c01fde 100644
+--- a/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_train_oneagainstone_kernel.h
++++ b/cpp/daal/src/algorithms/multiclassclassifier/multiclassclassifier_train_oneagainstone_kernel.h
+@@ -211,7 +211,7 @@ class MultiClassClassifierTrainKernel<oneAgainstOne, algorithmFPType, cpu> : pub
+ {
+ public:
+     services::Status compute(const NumericTable * xTable, const NumericTable * yTable, const NumericTable * wTable, daal::algorithms::Model * m,
+-                             multi_class_classifier::internal::SvmModel * svmModel, const KernelParameter & par);
++                             svm::internal::ModelImpl * svmModel, const KernelParameter & par);
+ 
+ protected:
+     services::Status computeDataSize(size_t nVectors, size_t nFeatures, size_t nClasses, const NumericTable * xTable, const algorithmFPType * y,
+diff --git a/cpp/daal/src/algorithms/svm/svm_model.cpp b/cpp/daal/src/algorithms/svm/svm_model.cpp
+new file mode 100644
+index 000000000..d1acb74e1
+--- /dev/null
++++ b/cpp/daal/src/algorithms/svm/svm_model.cpp
+@@ -0,0 +1,113 @@
++/* file: svm_model.cpp */
++/*******************************************************************************
++* Copyright contributors to the oneDAL project
++*
++* Licensed under the Apache License, Version 2.0 (the "License");
++* you may not use this file except in compliance with the License.
++* You may obtain a copy of the License at
++*
++*     http://www.apache.org/licenses/LICENSE-2.0
++*
++* Unless required by applicable law or agreed to in writing, software
++* distributed under the License is distributed on an "AS IS" BASIS,
++* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++* See the License for the specific language governing permissions and
++* limitations under the License.
++*******************************************************************************/
++
++/*
++//++
++//  Implementation of the class defining the SVM model.
++//--
++*/
++#include "src/algorithms/svm/svm_model_impl.h"
++#include "src/data_management/service_numeric_table.h"
++#include "src/services/service_defines.h"
++
++namespace daal
++{
++namespace algorithms
++{
++namespace svm
++{
++namespace internal
++{
++ModelInternal::ModelInternal() : _nIterations(), _SV(), _SVCoeff(), _SVIndices(), _biases() {}
++
++data_management::NumericTablePtr ModelInternal::getSupportVectors() const
++{
++    return _SV;
++}
++
++void ModelInternal::setSupportVectors(data_management::NumericTablePtr & supportVectors)
++{
++    _SV = supportVectors;
++}
++
++data_management::NumericTablePtr ModelInternal::getSupportIndices() const
++{
++    return _SVIndices;
++}
++
++void ModelInternal::setSupportIndices(data_management::NumericTablePtr & supportIndices)
++{
++    _SVIndices = supportIndices;
++}
++
++data_management::NumericTablePtr ModelInternal::getClassificationCoefficients() const
++{
++    return _SVCoeff;
++}
++
++void ModelInternal::setClassificationCoefficients(data_management::NumericTablePtr & classificationCoefficients)
++{
++    _SVCoeff = classificationCoefficients;
++}
++
++double ModelInternal::getBias() const
++{
++    return _biases->getValue<double>(0, 0);
++}
++
++void ModelInternal::setBias(double bias)
++{
++    daal::internal::WriteOnlyRows<int, DAAL_BASE_CPU> mtIterations(_nIterations.get(), 0, 1);
++    if (mtIterations.get() == nullptr) return;
++    int * const iterations = mtIterations.get();
++    iterations[0]          = static_cast<int>(_nIterations);
++}
++
++data_management::NumericTablePtr ModelInternal::getBiases() const
++{
++    return _biases;
++}
++
++void ModelInternal::setBiases(data_management::NumericTablePtr & biases)
++{
++    _biases = biases;
++}
++
++size_t ModelInternal::getNumberOfFeatures() const
++{
++    if (_SV) return _SV->getNumberOfColumns();
++    return 0;
++}
++
++data_management::NumericTablePtr ModelInternal::getNumberOfIterations() const
++{
++    return _nIterations;
++}
++
++void ModelInternal::setNumberOfIterations(data_management::NumericTablePtr & nIterations)
++{
++    _nIterations = nIterations;
++}
++
++} // namespace internal
++namespace interface1
++{
++__DAAL_REGISTER_SERIALIZATION_CLASS2(Model, svm::internal::ModelImpl, SERIALIZATION_SVM_MODEL_ID);
++}
++} // namespace svm
++} // namespace algorithms
++} // namespace daal
+diff --git a/cpp/daal/src/algorithms/svm/svm_model_builder_fpt.cpp b/cpp/daal/src/algorithms/svm/svm_model_builder_fpt.cpp
+new file mode 100644
+index 000000000..3f6d91f81
+--- /dev/null
++++ b/cpp/daal/src/algorithms/svm/svm_model_builder_fpt.cpp
+@@ -0,0 +1,54 @@
++/* file: svm_model_builder_fpt.cpp */
++/*******************************************************************************
++* Copyright contributors to the oneDAL project
++*
++* Licensed under the Apache License, Version 2.0 (the "License");
++* you may not use this file except in compliance with the License.
++* You may obtain a copy of the License at
++*
++*     http://www.apache.org/licenses/LICENSE-2.0
++*
++* Unless required by applicable law or agreed to in writing, software
++* distributed under the License is distributed on an "AS IS" BASIS,
++* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++* See the License for the specific language governing permissions and
++* limitations under the License.
++*******************************************************************************/
++
++#include "algorithms/svm/svm_model_builder.h"
++#include "src/algorithms/svm/svm_model_impl.h"
++
++namespace daal
++{
++namespace algorithms
++{
++namespace svm
++{
++namespace interface1
++{
++template <typename modelFPType>
++ModelBuilder<modelFPType>::ModelBuilder(size_t nFeatures, size_t nSupportVectors) : _s(), _nFeatures(nFeatures), _nSupportVectors(nSupportVectors)
++{
++    _modelPtr.reset(new svm::internal::ModelImpl(modelFPType(0), 2, nFeatures, data_management::NumericTable::soa, _s));
++    if (!_s || !_modelPtr) return;
++    _supportV  = _modelPtr->getSupportVectors();
++    _supportI  = _modelPtr->getSupportIndices();
++    _supportCC = _modelPtr->getClassificationCoefficients();
++    _supportV->resize(nSupportVectors);
++    _supportI->resize(nSupportVectors);
++    _supportCC->resize(nSupportVectors);
++}
++
++template <typename modelFPType>
++void ModelBuilder<modelFPType>::setBias(modelFPType bias)
++{
++    _modelPtr->setBias(bias);
++}
++
++template DAAL_EXPORT ModelBuilder<DAAL_FPTYPE>::ModelBuilder(size_t, size_t);
++template DAAL_EXPORT void ModelBuilder<DAAL_FPTYPE>::setBias(DAAL_FPTYPE);
++
++} // namespace interface1
++} // namespace svm
++} // namespace algorithms
++} // namespace daal
+diff --git a/cpp/daal/src/algorithms/svm/svm_model_fpt.cpp b/cpp/daal/src/algorithms/svm/svm_model_fpt.cpp
+index 202312442..131d0b61c 100644
+--- a/cpp/daal/src/algorithms/svm/svm_model_fpt.cpp
++++ b/cpp/daal/src/algorithms/svm/svm_model_fpt.cpp
+@@ -17,11 +17,11 @@
+ 
+ /*
+ //++
+-//  Implementation of the class defining the SVM model.
++//  Implementation of the constructor of the class defining the SVM model.
+ //--
+ */
+ 
+-#include "algorithms/svm/svm_model.h"
++#include "src/algorithms/svm/svm_model_impl.h"
+ #include "data_management/data/homogen_numeric_table.h"
+ #include "data_management/data/csr_numeric_table.h"
+ 
+@@ -31,19 +31,19 @@ namespace algorithms
+ {
+ namespace svm
+ {
+-namespace interface1
++namespace internal
+ {
+-namespace dm  = daal::data_management;
+-namespace dmi = daal::data_management::internal;
+-template <typename modelFPType>
+-services::SharedPtr<Model> Model::create(size_t nColumns, data_management::NumericTableIface::StorageLayout layout, services::Status * stat)
+-{
+-    DAAL_DEFAULT_CREATE_IMPL_EX(Model, (modelFPType)0.0, nColumns, layout);
+-}
++namespace dm = daal::data_management;
+ 
+ template <typename modelFPType>
+-Model::Model(modelFPType dummy, size_t nColumns, data_management::NumericTableIface::StorageLayout layout, services::Status & st) : _bias(0.0)
++ModelInternal::ModelInternal(modelFPType dummy, size_t nClasses, size_t nColumns, data_management::NumericTableIface::StorageLayout layout,
++                             services::Status & st)
+ {
++    if (nClasses < 2)
++    {
++        st.add(services::ErrorIncorrectNumberOfClasses);
++        return;
++    }
+     if (layout == dm::NumericTableIface::csrArray)
+     {
+         _SV = dm::CSRNumericTable::create<modelFPType>(NULL, NULL, NULL, nColumns, 0, dm::CSRNumericTable::oneBased, &st);
+@@ -52,19 +52,35 @@ Model::Model(modelFPType dummy, size_t nColumns, data_management::NumericTableIf
+     {
+         _SV = dm::HomogenNumericTable<modelFPType>::create(NULL, nColumns, 0, &st);
+     }
+-    _SVCoeff = dm::HomogenNumericTable<modelFPType>::create(NULL, 1, 0, &st);
++    if (!st) return;
++    _SVCoeff = dm::HomogenNumericTable<modelFPType>::create(NULL, nClasses - 1, 0, &st);
+     if (!st) return;
+     _SVIndices = dm::HomogenNumericTable<int>::create(NULL, 1, 0, &st);
++    if (!st) return;
++    bool overflow = false;
++    DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION_BOOL(size_t, nClasses, (nClasses - 1) / 2, overflow);
++    if (overflow)
++    {
++        st.add(services::ErrorBufferSizeIntegerOverflow);
++        return;
++    }
++    const size_t nModels = nClasses * (nClasses - 1) / 2;
++    _biases              = dm::HomogenNumericTable<double>::create(1, nModels, dm::NumericTable::doAllocate, &st);
++    if (!st) return;
++    _nIterations = dm::HomogenNumericTable<int>::create(1, nModels, dm::NumericTable::doAllocate, &st);
+ 
+     return;
+ }
+ 
+-template DAAL_EXPORT services::SharedPtr<Model> Model::create<DAAL_FPTYPE>(size_t nColumns, data_management::NumericTableIface::StorageLayout layout,
+-                                                                           services::Status * stat);
++template <typename modelFPType>
++ModelInternal::ModelInternal(modelFPType dummy, size_t nColumns, data_management::NumericTableIface::StorageLayout layout, services::Status & st)
++    : ModelInternal(dummy, 2, nColumns, layout, st)
++{}
+ 
+-template DAAL_EXPORT Model::Model(DAAL_FPTYPE, size_t, dm::NumericTableIface::StorageLayout, services::Status &);
++template DAAL_EXPORT ModelInternal::ModelInternal(DAAL_FPTYPE, size_t, size_t, dm::NumericTableIface::StorageLayout, services::Status &);
++template DAAL_EXPORT ModelInternal::ModelInternal(DAAL_FPTYPE, size_t, dm::NumericTableIface::StorageLayout, services::Status &);
+ 
+-} // namespace interface1
++} // namespace internal
+ } // namespace svm
+ } // namespace algorithms
+ } // namespace daal
+diff --git a/cpp/daal/src/algorithms/svm/svm_model_impl.h b/cpp/daal/src/algorithms/svm/svm_model_impl.h
+new file mode 100644
+index 000000000..91a807ae8
+--- /dev/null
++++ b/cpp/daal/src/algorithms/svm/svm_model_impl.h
+@@ -0,0 +1,256 @@
++/* file: svm_model_impl.h */
++/*******************************************************************************
++* Copyright contributors to the oneDAL project
++*
++* Licensed under the Apache License, Version 2.0 (the "License");
++* you may not use this file except in compliance with the License.
++* You may obtain a copy of the License at
++*
++*     http://www.apache.org/licenses/LICENSE-2.0
++*
++* Unless required by applicable law or agreed to in writing, software
++* distributed under the License is distributed on an "AS IS" BASIS,
++* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++* See the License for the specific language governing permissions and
++* limitations under the License.
++*******************************************************************************/
++
++#ifndef __SVM_MODEL_IMPL_H__
++#define __SVM_MODEL_IMPL_H__
++
++#include "algorithms/svm/svm_model.h"
++#include "src/algorithms/classifier/classifier_model_impl.h"
++#include "src/services/serialization_utils.h"
++
++namespace daal
++{
++namespace algorithms
++{
++namespace svm
++{
++namespace internal
++{
++using namespace data_management;
++
++/**
++ * \brief Class that implements the methods for models trained with the SVM algorithm
++ */
++class ModelInternal
++{
++public:
++    /**
++     * Constructs multi-class SVM model implemenatation
++     * \param[in] dummy    Data type dummy variable for the templated constructor.
++     *                     Defines the data type of the model coefficients and support vectors.
++     * \param[in] nClasses Number of classes in the training data
++     * \param[in] nColumns Number of columns in the training data
++     * \param[in] layout   Storage layout of the numeric table with support vectors.
++     *                     Provide NumericTableIface::csrArray for sparse tables.
++     * \param[out] st      Status of the model construction
++     */
++    template <typename modelFPType>
++    ModelInternal(modelFPType dummy, size_t nClasses, size_t nColumns, data_management::NumericTableIface::StorageLayout layout,
++                  services::Status & st);
++
++    /**
++     * Constructs two-class SVM or regression SVM model implemenatation
++     * \param[in] dummy    Data type dummy variable for the templated constructor.
++     *                     Defines the data type of the model coefficients and support vectors.
++     * \param[in] nColumns Number of columns in the training data
++     * \param[in] layout   Storage layout of the numeric table with support vectors.
++     *                     Provide NumericTableIface::csrArray for sparse tables.
++     * \param[out] st      Status of the model construction
++     */
++    template <typename modelFPType>
++    ModelInternal(modelFPType dummy, size_t nColumns, data_management::NumericTableIface::StorageLayout layout, services::Status & st);
++
++    ModelInternal();
++
++    virtual ~ModelInternal() {}
++
++    /**
++     * Returns support vectors constructed during the training of the SVM model
++     * \return Array of support vectors
++     */
++    data_management::NumericTablePtr getSupportVectors() const;
++
++    void setSupportVectors(data_management::NumericTablePtr & supportVectors);
++
++    /**
++     * Returns indices of the support vectors constructed during the training of the SVM model
++     * \return Array of support vectors indices
++     */
++    data_management::NumericTablePtr getSupportIndices() const;
++
++    void setSupportIndices(data_management::NumericTablePtr & supportIndices);
++
++    /**
++     * Returns classification coefficients constructed during the training of the SVM model
++     * \return Array of classification coefficients
++     */
++    data_management::NumericTablePtr getClassificationCoefficients() const;
++
++    void setClassificationCoefficients(data_management::NumericTablePtr & classificationCoefficients);
++
++    /**
++     * Returns the bias constructed during the training of the SVM model
++     * \return Bias
++     */
++    double getBias() const;
++
++    void setBias(double bias);
++
++    data_management::NumericTablePtr getBiases() const;
++
++    void setBiases(data_management::NumericTablePtr & biases);
++
++    /**
++     *  Retrieves the number of features in the dataset was used on the training stage
++     *  \return Number of features in the dataset was used on the training stage
++     */
++    size_t getNumberOfFeatures() const;
++
++    /**
++     * Returns the number of iterations performed during the training of the SVM model
++     * \return Number of iterations
++     */
++    data_management::NumericTablePtr getNumberOfIterations() const;
++
++    void setNumberOfIterations(data_management::NumericTablePtr & nIterations);
++
++protected:
++    data_management::NumericTablePtr _SV;          /* Support vectors */
++    data_management::NumericTablePtr _SVCoeff;     /* Classification coefficients */
++    data_management::NumericTablePtr _biases;      /* Biases of the distance function D(x) = w*Phi(x) + bias
++                                                       _biases[i] holds the bias for the i-th model in the multiclass SVM */
++    data_management::NumericTablePtr _SVIndices;   /* Indices of the support vectors in training data set */
++    data_management::NumericTablePtr _nIterations; /* Number of iterations performed during the training
++                                                       _nIterations[i] holds the number of iterations for the i-th model in the multiclass SVM */
++};
++
++/**
++ * \brief Class that connects the interface svm::Model and implementation ModelInternal
++ */
++class ModelImpl : public svm::Model, protected svm::internal::ModelInternal
++{
++public:
++    typedef svm::internal::ModelInternal ImplType;
++    typedef algorithms::classifier::internal::ModelImpl ClassifierImplType;
++
++    /**
++     * Constructs the SVM model
++     * \param[in] dummy    Data type dummy variable for the templated constructor.
++     *                     Defines the data type of the model coefficients and support vectors.
++     * \param[in] nClasses Number of classes in the training data
++     * \param[in] nColumns Number of columns in the training data
++     * \param[in] layout   Storage layout of the numeric table with support vectors.
++     *                     Provide NumericTableIface::csrArray for sparse tables.
++     * \param[out] st      Status of the model construction
++     */
++    template <typename modelFPType>
++    ModelImpl(modelFPType dummy, size_t nClasses, size_t nColumns, data_management::NumericTableIface::StorageLayout layout, services::Status & st)
++        : ImplType(dummy, nClasses, nColumns, layout, st)
++    {}
++
++    /**
++     * Constructs the two-class or regression SVM model
++     * \param[in] dummy    Data type dummy variable for the templated constructor.
++     *                     Defines the data type of the model coefficients and support vectors.
++     *
++     * \param[in] nColumns Number of columns in the training data
++     * \param[in] layout   Storage layout of the numeric table with support vectors.
++     *                     Provide NumericTableIface::csrArray for sparse tables.
++     * \param[out] st      Status of the model construction
++     */
++    template <typename modelFPType>
++    ModelImpl(modelFPType dummy, size_t nColumns, data_management::NumericTableIface::StorageLayout layout, services::Status & st)
++        : ImplType(dummy, nColumns, layout, st)
++    {}
++
++    /**
++    * Empty constructor for deserialization
++    */
++    ModelImpl() : ImplType() {}
++
++    /**
++     * Returns support vectors constructed during the training of the SVM model
++     * \return Array of support vectors
++     */
++    data_management::NumericTablePtr getSupportVectors() const override { return ImplType::getSupportVectors(); }
++
++    void setSupportVectors(data_management::NumericTablePtr & supportVectors) { ImplType::setSupportVectors(supportVectors); }
++
++    /**
++     * Returns indices of the support vectors constructed during the training of the SVM model
++     * \return Array of support vectors indices
++     */
++    data_management::NumericTablePtr getSupportIndices() const override { return ImplType::getSupportIndices(); }
++
++    void setSupportIndices(data_management::NumericTablePtr & supportIndices) { ImplType::setSupportIndices(supportIndices); }
++
++    /**
++     * Returns classification coefficients constructed during the training of the SVM model
++     * \return Array of classification coefficients
++     */
++    data_management::NumericTablePtr getClassificationCoefficients() const override { return ImplType::getClassificationCoefficients(); }
++
++    void setClassificationCoefficients(data_management::NumericTablePtr & classificationCoefficients)
++    {
++        ImplType::setClassificationCoefficients(classificationCoefficients);
++    }
++
++    /**
++     * Returns the bias constructed during the training of the SVM model
++     * \return Bias
++     */
++    double getBias() const override { return ImplType::getBias(); }
++
++    void setBias(double bias) override { ImplType::setBias(bias); }
++
++    /**
++     * Returns biases constructed during the training of the two-class or multi-class SVM model
++     * \return Array of biases
++     */
++    data_management::NumericTablePtr getBiases() const override { return ImplType::getBiases(); }
++
++    void setBiases(data_management::NumericTablePtr & biases) { ImplType::setBiases(biases); }
++
++    /**
++     *  Retrieves the number of features in the dataset was used on the training stage
++     *  \return Number of features in the dataset was used on the training stage
++     */
++    size_t getNumberOfFeatures() const override { return ImplType::getNumberOfFeatures(); }
++
++    /**
++     * Returns the number of iterations performed during the training of the SVM model
++     * \return Number of iterations
++     */
++    data_management::NumericTablePtr getNumberOfIterations() const override { return ImplType::getNumberOfIterations(); }
++
++    void setNumberOfIterations(data_management::NumericTablePtr & nIterations) { ImplType::setNumberOfIterations(nIterations); }
++
++protected:
++    template <typename Archive, bool onDeserialize>
++    services::Status serialImpl(Archive * arch)
++    {
++        ClassifierImplType * classifierImpl = dynamic_cast<ClassifierImplType *>(this);
++        if (!classifierImpl) return services::Status(services::ErrorIncorrectTypeOfModel);
++        services::Status st = classifierImpl->serialImpl<Archive, onDeserialize>(arch);
++        if (!st) return st;
++        arch->setSharedPtrObj(_SV);
++        arch->setSharedPtrObj(_SVCoeff);
++        arch->setSharedPtrObj(_biases);
++        arch->setSharedPtrObj(_nIterations);
++
++        arch->setSharedPtrObj(_SVIndices);
++
++        return st;
++    }
++};
++
++} // namespace internal
++} // namespace svm
++} // namespace algorithms
++} // namespace daal
++
++#endif
+diff --git a/cpp/daal/src/algorithms/svm/svm_train.cpp b/cpp/daal/src/algorithms/svm/svm_train.cpp
+index dcd541590..7304df7ca 100644
+--- a/cpp/daal/src/algorithms/svm/svm_train.cpp
++++ b/cpp/daal/src/algorithms/svm/svm_train.cpp
+@@ -34,12 +34,6 @@ namespace algorithms
+ {
+ namespace svm
+ {
+-namespace interface1
+-{
+-__DAAL_REGISTER_SERIALIZATION_CLASS(Model, SERIALIZATION_SVM_MODEL_ID);
+-
+-}
+-
+ namespace interface2
+ {
+ services::Status Parameter::check() const
+diff --git a/cpp/daal/src/algorithms/svm/svm_train_boser_impl.i b/cpp/daal/src/algorithms/svm/svm_train_boser_impl.i
+index 1b419a7d8..39a3cd216 100644
+--- a/cpp/daal/src/algorithms/svm/svm_train_boser_impl.i
++++ b/cpp/daal/src/algorithms/svm/svm_train_boser_impl.i
+@@ -72,15 +72,17 @@ services::Status SVMTrainImpl<boser, algorithmFPType, cpu>::compute(const Numeri
+     if (!s) return s;
+     DAAL_CHECK_STATUS(s, task.init(svmPar.C, wTable, yTable));
+     DAAL_CHECK_STATUS(s, task.compute(svmPar));
+-    DAAL_CHECK_STATUS(s, task.setResultsToModel(xTable, *static_cast<Model *>(r)));
++    svm::internal::ModelImpl * model = dynamic_cast<svm::internal::ModelImpl *>(r);
++    DAAL_CHECK(model, services::Status(services::ErrorIncorrectTypeOfModel));
++    DAAL_CHECK_STATUS(s, task.setResultsToModel(xTable, *model));
+     return s;
+ }
+ 
+ template <typename algorithmFPType, CpuType cpu>
+-services::Status SVMTrainTask<algorithmFPType, cpu>::setResultsToModel(const NumericTablePtr & xTable, Model & model) const
++services::Status SVMTrainTask<algorithmFPType, cpu>::setResultsToModel(const NumericTablePtr & xTable, svm::internal::ModelImpl & model) const
+ {
+     SaveResultTask<algorithmFPType, cpu> saveResult(_nVectors, _y.get(), const_cast<algorithmFPType *>(_alpha.get()), _grad.get(),
+-                                                    SvmType::classification, _cache);
++                                                    SvmType::classification, _cache, _nIterations);
+     return saveResult.compute(xTable, model, _cw.get());
+ }
+ 
+@@ -103,6 +105,7 @@ services::Status SVMTrainTask<algorithmFPType, cpu>::compute(const KernelParamet
+             if (!findMaximumViolatingPair(nActiveVectors, tau, Bi, Bj, delta, ma, Ma, curEps, s)) break;
+             s = update(nActiveVectors, Bi, Bj, delta);
+         }
++        _nIterations = iter;
+         return s;
+     }
+ 
+@@ -118,8 +121,17 @@ services::Status SVMTrainTask<algorithmFPType, cpu>::compute(const KernelParamet
+         {
+             /* Check the optimality condition for the task with excluded variables */
+             if (unshrink && nActiveVectors < _nVectors) s = reconstructGradient(nActiveVectors);
+-            if (!s || !findMaximumViolatingPair(nActiveVectors, tau, Bi, Bj, delta, ma, Ma, curEps, s)) return s;
+-            if (curEps < eps) return s; /* Here if the optimality condition holds for the excluded variables */
++            if (!s || !findMaximumViolatingPair(nActiveVectors, tau, Bi, Bj, delta, ma, Ma, curEps, s))
++            {
++                _nIterations = iter;
++                return s;
++            }
++            if (curEps < eps)
++            {
++                /* Here if the optimality condition holds for the excluded variables */
++                _nIterations = iter;
++                return s;
++            }
+             shrinkingIter = 0;
+         }
+         s = update(nActiveVectors, Bi, Bj, delta);
+@@ -142,6 +154,7 @@ services::Status SVMTrainTask<algorithmFPType, cpu>::compute(const KernelParamet
+             }
+         }
+     }
++    _nIterations = iter;
+     if (s) return s;
+     if (nActiveVectors < _nVectors) s = reconstructGradient(nActiveVectors);
+     return s;
+diff --git a/cpp/daal/src/algorithms/svm/svm_train_boser_kernel.h b/cpp/daal/src/algorithms/svm/svm_train_boser_kernel.h
+index 3c881971f..840200a91 100755
+--- a/cpp/daal/src/algorithms/svm/svm_train_boser_kernel.h
++++ b/cpp/daal/src/algorithms/svm/svm_train_boser_kernel.h
+@@ -29,8 +29,7 @@
+ #include "src/algorithms/svm/svm_train_common.h"
+ #include "src/data_management/service_micro_table.h"
+ #include "data_management/data/numeric_table.h"
+-#include "algorithms/model.h"
+-#include "services/daal_defines.h"
++#include "src/algorithms/svm/svm_model_impl.h"
+ #include "src/algorithms/svm/svm_train_boser_cache.i"
+ 
+ namespace daal
+@@ -50,7 +49,7 @@ struct SVMTrainTask
+ {
+     static const size_t kernelFunctionBlockSize = 1024; /* Size of the block of kernel function elements */
+ 
+-    SVMTrainTask(size_t nVectors) : _cache(nullptr), _nVectors(nVectors) {}
++    SVMTrainTask(size_t nVectors) : _cache(nullptr), _nVectors(nVectors), _nIterations(0) {}
+ 
+     Status init(algorithmFPType C, const NumericTablePtr & wTable, NumericTable & yTable);
+ 
+@@ -60,7 +59,7 @@ struct SVMTrainTask
+     Status compute(const KernelParameter & svmPar);
+ 
+     /* Write support vectors and classification coefficients into model */
+-    Status setResultsToModel(const NumericTablePtr & xTable, Model & model) const;
++    Status setResultsToModel(const NumericTablePtr & xTable, svm::internal::ModelImpl & model) const;
+ 
+     ~SVMTrainTask();
+ 
+@@ -93,6 +92,7 @@ protected:
+     TArray<algorithmFPType, cpu> _kernelDiag;            //diagonal elements of the matrix Q (kernel(x[i], x[i]))
+     TArray<char, cpu> _flags;                            //array of flags I_LOW and I_UP
+     SVMCacheIface<boser, algorithmFPType, cpu> * _cache; //caches matrix Q (kernel(x[i], x[j])) values
++    size_t _nIterations;
+ };
+ 
+ template <typename algorithmFPType, CpuType cpu>
+diff --git a/cpp/daal/src/algorithms/svm/svm_train_fpt.cpp b/cpp/daal/src/algorithms/svm/svm_train_fpt.cpp
+index 8e78aad37..af8e9c4f9 100644
+--- a/cpp/daal/src/algorithms/svm/svm_train_fpt.cpp
++++ b/cpp/daal/src/algorithms/svm/svm_train_fpt.cpp
+@@ -22,6 +22,7 @@
+ */
+ 
+ #include "algorithms/svm/svm_train_types.h"
++#include "src/algorithms/svm/svm_model_impl.h"
+ 
+ namespace daal
+ {
+@@ -45,8 +46,10 @@ DAAL_EXPORT services::Status Result::allocate(const daal::algorithms::Input * in
+     const classifier::training::Input * algInput = static_cast<const classifier::training::Input *>(input);
+ 
+     services::Status st;
+-    set(classifier::training::model, svm::Model::create<algorithmFPType>(algInput->get(classifier::training::data)->getNumberOfColumns(),
+-                                                                         algInput->get(classifier::training::data)->getDataLayout(), &st));
++    set(classifier::training::model,
++        daal::algorithms::svm::ModelPtr(new svm::internal::ModelImpl(algorithmFPType(0), 2 /* number of classes */,
++                                                                     algInput->get(classifier::training::data)->getNumberOfColumns(),
++                                                                     algInput->get(classifier::training::data)->getDataLayout(), st)));
+     return st;
+ }
+ 
+diff --git a/cpp/daal/src/algorithms/svm/svm_train_result.h b/cpp/daal/src/algorithms/svm/svm_train_result.h
+index d4556ac7b..19b5b38d4 100644
+--- a/cpp/daal/src/algorithms/svm/svm_train_result.h
++++ b/cpp/daal/src/algorithms/svm/svm_train_result.h
+@@ -31,6 +31,7 @@
+ #include "src/data_management/service_numeric_table.h"
+ #include "src/services/service_utils.h"
+ #include "src/services/service_data_utils.h"
++#include "src/algorithms/svm/svm_model_impl.h"
+ #include "src/algorithms/svm/svm_train_cache.h"
+ #include "src/algorithms/svm/svm_train_common.h"
+ #include "src/services/service_profiler.h"
+@@ -57,18 +58,27 @@ class SaveResultTask
+ {
+ public:
+     SaveResultTask(const size_t nVectors, const algorithmFPType * y, algorithmFPType * alpha, const algorithmFPType * grad, const SvmType task,
+-                   SVMCacheCommonIface<algorithmFPType, cpu> * cache)
+-        : _nVectors(nVectors), _y(y), _alpha(alpha), _grad(grad), _task(task), _cache(cache)
++                   SVMCacheCommonIface<algorithmFPType, cpu> * cache, const size_t nIterations)
++        : _nVectors(nVectors), _y(y), _alpha(alpha), _grad(grad), _task(task), _cache(cache), _nIterations(nIterations)
+     {}
+ 
+-    services::Status compute(const NumericTablePtr & xTable, Model & model, const algorithmFPType * cw) const
++    services::Status compute(const NumericTablePtr & xTable, svm::internal::ModelImpl & model, const algorithmFPType * cw) const
+     {
+         DAAL_PROFILER_TASK(saveResult);
+ 
+         services::Status s;
+ 
+         /* Calculate bias and write it into model */
+-        model.setBias(double(calculateBias(cw)));
++        WriteOnlyRows<double, cpu> mtBiases(model.getBiases().get(), 0, 1);
++        DAAL_CHECK_BLOCK_STATUS(mtBiases);
++        double * const biases = mtBiases.get();
++        biases[0]             = calculateBias(cw);
++
++        /* Write number of iterations into model */
++        WriteOnlyRows<int, cpu> mtIterations(model.getNumberOfIterations().get(), 0, 1);
++        DAAL_CHECK_BLOCK_STATUS(mtIterations);
++        int * const iterations = mtIterations.get();
++        iterations[0]          = static_cast<int>(_nIterations);
+ 
+         if (_task == SvmType::regression || _task == SvmType::nu_regression)
+         {
+@@ -127,7 +137,7 @@ protected:
+      * \param[in]  nSV          Number of support vectors
+      * \param[out] model        Resulting model
+      */
+-    services::Status setSVCoefficients(size_t nSV, Model & model) const
++    services::Status setSVCoefficients(size_t nSV, svm::internal::ModelImpl & model) const
+     {
+         const algorithmFPType zero(0.0);
+         NumericTablePtr svCoeffTable = model.getClassificationCoefficients();
+@@ -155,7 +165,7 @@ protected:
+      * \param[in]  nSV          Number of support vectors
+      * \param[out] model        Resulting model
+      */
+-    services::Status setSVIndices(size_t nSV, Model & model) const
++    services::Status setSVIndices(size_t nSV, svm::internal::ModelImpl & model) const
+     {
+         NumericTablePtr svIndicesTable = model.getSupportIndices();
+         services::Status s;
+@@ -363,12 +373,13 @@ protected:
+     }
+ 
+ private:
+-    const size_t _nVectors;                             //Number of observations in the input data set
+-    const algorithmFPType * _y;                         //Array of labels
+-    algorithmFPType * _alpha;                           //Array of coefficients
+-    const algorithmFPType * _grad;                      //Array of coefficients
+-    const SvmType _task;                                //Classification or regression task
+-    SVMCacheCommonIface<algorithmFPType, cpu> * _cache; //Caches matrix Q (kernel(x[i], x[j])) values
++    const size_t _nVectors;                             // Number of observations in the input data set
++    const algorithmFPType * _y;                         // Array of labels
++    algorithmFPType * _alpha;                           // Array of coefficients
++    const algorithmFPType * _grad;                      // Array of coefficients
++    const SvmType _task;                                // Classification or regression task
++    SVMCacheCommonIface<algorithmFPType, cpu> * _cache; // Caches matrix Q (kernel(x[i], x[j])) values
++    const size_t _nIterations;                          // Number of iterations performed by the training algorithm
+ };
+ 
+ } // namespace internal
+diff --git a/cpp/daal/src/algorithms/svm/svm_train_thunder_impl.i b/cpp/daal/src/algorithms/svm/svm_train_thunder_impl.i
+index b68b6a595..c960e89cf 100644
+--- a/cpp/daal/src/algorithms/svm/svm_train_thunder_impl.i
++++ b/cpp/daal/src/algorithms/svm/svm_train_thunder_impl.i
+@@ -170,8 +170,10 @@ services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::compute(const Nume
+     }
+ 
+     cachePtr->clear();
+-    SaveResultTask<algorithmFPType, cpu> saveResult(nVectors, y, alpha, grad, svmType, cachePtr.get());
+-    DAAL_CHECK_STATUS(status, saveResult.compute(xTable, *static_cast<Model *>(r), cw));
++    SaveResultTask<algorithmFPType, cpu> saveResult(nVectors, y, alpha, grad, svmType, cachePtr.get(), iter);
++    svm::internal::ModelImpl * model = dynamic_cast<svm::internal::ModelImpl *>(r);
++    DAAL_CHECK(model, services::Status(services::ErrorIncorrectTypeOfModel));
++    DAAL_CHECK_STATUS(status, saveResult.compute(xTable, *model, cw));
+ 
+     return status;
+ }
+diff --git a/cpp/oneapi/dal/algo/svm/backend/cpu/infer_cls_kernel.cpp b/cpp/oneapi/dal/algo/svm/backend/cpu/infer_cls_kernel.cpp
+index ac681178f..4a9ae957f 100644
+--- a/cpp/oneapi/dal/algo/svm/backend/cpu/infer_cls_kernel.cpp
++++ b/cpp/oneapi/dal/algo/svm/backend/cpu/infer_cls_kernel.cpp
+@@ -64,12 +64,19 @@ static infer_result<Task> call_multiclass_daal_kernel(const context_cpu& ctx,
+     auto arr_response = array<Float>::empty(row_count * 1);
+ 
+     const auto daal_data = interop::convert_to_daal_table<Float>(data);
+-    const model_interop* interop_model = dal::detail::get_impl(trained_model).get_interop();
+-    if (!interop_model) {
+-        throw dal::internal_error(
+-            dal::detail::error_messages::input_model_does_not_match_kernel_function());
+-    }
+-    auto daal_model = static_cast<const model_interop_cls*>(interop_model)->get_model();
++    const auto daal_support_vectors =
++        interop::convert_to_daal_table<Float>(trained_model.get_support_vectors());
++    const auto daal_coeffs = interop::convert_to_daal_table<Float>(trained_model.get_coeffs());
++    const auto daal_biases = interop::convert_to_daal_table<double>(trained_model.get_biases());
++    const auto daal_iterations =
++        interop::convert_to_daal_table<int>(trained_model.get_iteration_counts());
++
++    auto daal_model = daal_model_builder{}
++                          .set_support_vectors(daal_support_vectors)
++                          .set_coeffs(daal_coeffs)
++                          .set_biases(daal_biases)
++                          .set_iteration_counts(daal_iterations);
++
+     const std::int64_t model_count = class_count * (class_count - 1) / 2;
+     using svm_batch_t = typename daal_svm::prediction::Batch<Float>;
+ 
+@@ -85,13 +92,17 @@ static infer_result<Task> call_multiclass_daal_kernel(const context_cpu& ctx,
+     const auto daal_decision_function =
+         interop::convert_to_daal_homogen_table(arr_decision_function, row_count, model_count);
+ 
+-    auto daal_svm_model =
+-        daal_multiclass_internal::SvmModel::create<Float>(class_count, column_count);
++    const auto daal_layout = daal_data->getDataLayout();
++    daal::services::Status status;
++    auto daal_svm_model_ptr =
++        new daal_svm::internal::ModelImpl(Float(0), class_count, column_count, daal_layout, status);
++    daal_svm::ModelPtr daal_svm_model(daal_svm_model_ptr);
++    interop::status_to_exception(status);
+     interop::status_to_exception(
+         interop::call_daal_kernel<Float, daal_multiclass_kernel_t>(ctx,
+                                                                    daal_data.get(),
+-                                                                   daal_model.get(),
+-                                                                   daal_svm_model.get(),
++                                                                   &daal_model,
++                                                                   daal_svm_model_ptr,
+                                                                    daal_response.get(),
+                                                                    daal_decision_function.get(),
+                                                                    &daal_multiclass_parameter));
+@@ -118,13 +129,12 @@ static infer_result<Task> call_binary_daal_kernel(const context_cpu& ctx,
+         interop::convert_to_daal_table<Float>(trained_model.get_support_vectors());
+     const auto daal_coeffs = interop::convert_to_daal_table<Float>(trained_model.get_coeffs());
+ 
+-    const auto biases = trained_model.get_biases();
+-    const auto biases_acc = row_accessor<const Float>{ biases }.pull();
+-    const double bias = biases_acc[0];
++    const auto daal_biases = interop::convert_to_daal_table<double>(trained_model.get_biases());
++
+     auto daal_model = daal_model_builder{}
+                           .set_support_vectors(daal_support_vectors)
+                           .set_coeffs(daal_coeffs)
+-                          .set_bias(bias);
++                          .set_biases(daal_biases);
+ 
+     auto arr_decision_function = array<Float>::empty(row_count * 1);
+     const auto daal_decision_function =
+diff --git a/cpp/oneapi/dal/algo/svm/backend/cpu/infer_reg_kernel.cpp b/cpp/oneapi/dal/algo/svm/backend/cpu/infer_reg_kernel.cpp
+index dea04cc23..575000f11 100644
+--- a/cpp/oneapi/dal/algo/svm/backend/cpu/infer_reg_kernel.cpp
++++ b/cpp/oneapi/dal/algo/svm/backend/cpu/infer_reg_kernel.cpp
+@@ -49,15 +49,15 @@ static infer_result<Task> call_daal_kernel(const context_cpu& ctx,
+     const auto daal_support_vectors =
+         interop::convert_to_daal_table<Float>(trained_model.get_support_vectors());
+     const auto daal_coeffs = interop::convert_to_daal_table<Float>(trained_model.get_coeffs());
+-
+-    const auto biases = trained_model.get_biases();
+-    const auto biases_acc = row_accessor<const Float>{ biases }.pull();
+-    const double bias = biases_acc[0];
++    const auto daal_biases = interop::convert_to_daal_table<double>(trained_model.get_biases());
++    const auto daal_iterations =
++        interop::convert_to_daal_table<int>(trained_model.get_iteration_counts());
+ 
+     auto daal_model = daal_model_builder{}
+                           .set_support_vectors(daal_support_vectors)
+                           .set_coeffs(daal_coeffs)
+-                          .set_bias(bias);
++                          .set_biases(daal_biases)
++                          .set_iteration_counts(daal_iterations);
+ 
+     auto kernel_impl = detail::get_kernel_function_impl(desc);
+     if (!kernel_impl) {
+diff --git a/cpp/oneapi/dal/algo/svm/backend/cpu/train_cls_kernel.cpp b/cpp/oneapi/dal/algo/svm/backend/cpu/train_cls_kernel.cpp
+index e30e18fc5..1265f6f25 100644
+--- a/cpp/oneapi/dal/algo/svm/backend/cpu/train_cls_kernel.cpp
++++ b/cpp/oneapi/dal/algo/svm/backend/cpu/train_cls_kernel.cpp
+@@ -18,7 +18,6 @@
+ #include <daal/src/algorithms/svm/svm_train_thunder_kernel.h>
+ #include <daal/src/algorithms/svm/svm_train_internal.h>
+ #include <daal/src/algorithms/multiclassclassifier/multiclassclassifier_train_kernel.h>
+-#include <daal/src/algorithms/multiclassclassifier/multiclassclassifier_svm_model.h>
+ 
+ #include "algorithms/svm/svm_train.h"
+ 
+@@ -40,7 +39,6 @@ using dal::backend::context_cpu;
+ namespace daal_svm = daal::algorithms::svm;
+ namespace daal_classifier = daal::algorithms::classifier;
+ namespace daal_multiclass = daal::algorithms::multi_class_classifier;
+-namespace daal_multiclass_internal = daal_multiclass::internal;
+ 
+ namespace interop = dal::backend::interop;
+ 
+@@ -113,8 +111,11 @@ static train_result<Task> call_multiclass_daal_kernel(const context_cpu& ctx,
+         daal_multiclass::Model::create(column_count, &daal_multiclass_parameter_public);
+ 
+     const auto daal_layout = daal_data->getDataLayout();
+-    auto daal_svm_model =
+-        daal_multiclass_internal::SvmModel::create<Float>(class_count, column_count, daal_layout);
++    daal::services::Status status;
++    auto daal_svm_model_ptr =
++        new daal_svm::internal::ModelImpl(Float(0), class_count, column_count, daal_layout, status);
++    daal_svm::ModelPtr daal_svm_model(daal_svm_model_ptr);
++    interop::status_to_exception(status);
+     using svm_batch_t =
+         typename daal_svm::training::internal::Batch<Float, to_daal_method<Method>::value>;
+     auto svm_batch = daal::services::SharedPtr<svm_batch_t>(new svm_batch_t());
+@@ -128,7 +129,7 @@ static train_result<Task> call_multiclass_daal_kernel(const context_cpu& ctx,
+                                                                    daal_responses.get(),
+                                                                    daal_weights.get(),
+                                                                    daal_model.get(),
+-                                                                   daal_svm_model.get(),
++                                                                   daal_svm_model_ptr,
+                                                                    daal_multiclass_parameter));
+     const std::int64_t n_sv = daal_svm_model->getSupportIndices()->getNumberOfRows();
+     if (n_sv == 0) {
+@@ -136,18 +137,9 @@ static train_result<Task> call_multiclass_daal_kernel(const context_cpu& ctx,
+     }
+     auto table_support_indices =
+         interop::convert_from_daal_homogen_table<Float>(daal_svm_model->getSupportIndices());
+-    const auto trained_model = std::make_shared<ModelImpl>(new model_interop_cls{ daal_model });
+-    trained_model->class_count = class_count;
++    const auto trained_model = convert_from_daal_model<Task, Float>(*daal_svm_model);
+ 
+-    auto trained_model_svm = convert_from_daal_multiclass_model<Task, Float>(daal_svm_model);
+-
+-    trained_model->support_vectors = trained_model_svm.get_support_vectors();
+-    trained_model->biases = trained_model_svm.get_biases();
+-    trained_model->coeffs = trained_model_svm.get_coeffs();
+-
+-    auto m = dal::detail::make_private<model<Task>>(trained_model);
+-
+-    return train_result<Task>().set_model(m).set_support_indices(table_support_indices);
++    return train_result<Task>().set_model(trained_model).set_support_indices(table_support_indices);
+ }
+ 
+ template <typename Float, typename Method, typename Task>
+@@ -171,7 +163,13 @@ static train_result<Task> call_binary_daal_kernel(const context_cpu& ctx,
+     const auto daal_responses = interop::convert_to_daal_table<Float>(new_responses);
+ 
+     const auto daal_layout = daal_data->getDataLayout();
+-    auto daal_model = daal_svm::Model::create<Float>(column_count, daal_layout);
++    daal::services::Status status;
++    daal_svm::ModelPtr daal_model(new daal_svm::internal::ModelImpl(Float(0),
++                                                                    2 /* class_count */,
++                                                                    column_count,
++                                                                    daal_layout,
++                                                                    status));
++    interop::status_to_exception(status);
+     interop::status_to_exception(dal::backend::dispatch_by_cpu(ctx, [&](auto cpu) {
+         return daal_svm_kernel_t<
+                    Float,
+diff --git a/cpp/oneapi/dal/algo/svm/backend/cpu/train_reg_kernel.cpp b/cpp/oneapi/dal/algo/svm/backend/cpu/train_reg_kernel.cpp
+index 02b8023e1..8ea4ef0cd 100644
+--- a/cpp/oneapi/dal/algo/svm/backend/cpu/train_reg_kernel.cpp
++++ b/cpp/oneapi/dal/algo/svm/backend/cpu/train_reg_kernel.cpp
+@@ -97,7 +97,10 @@ static train_result<Task> call_daal_kernel(const context_cpu& ctx,
+         create_daal_parameter<Task>(desc, is_dense);
+ 
+     const auto daal_layout = daal_data->getDataLayout();
+-    auto daal_model = daal_svm::Model::create<Float>(column_count, daal_layout);
++    daal::services::Status status;
++    daal_svm::ModelPtr daal_model(
++        new daal_svm::internal::ModelImpl(Float(0), 2, column_count, daal_layout, status));
++    interop::status_to_exception(status);
+     interop::status_to_exception(dal::backend::dispatch_by_cpu(ctx, [&](auto cpu) {
+         return daal_svm_kernel_t<
+                    Float,
+diff --git a/cpp/oneapi/dal/algo/svm/backend/model_conversion.hpp b/cpp/oneapi/dal/algo/svm/backend/model_conversion.hpp
+index 7a1b79b45..a4df06b50 100644
+--- a/cpp/oneapi/dal/algo/svm/backend/model_conversion.hpp
++++ b/cpp/oneapi/dal/algo/svm/backend/model_conversion.hpp
+@@ -16,9 +16,8 @@
+ 
+ #pragma once
+ 
+-#include <daal/include/algorithms/svm/svm_model.h>
++#include <daal/src/algorithms/svm/svm_model_impl.h>
+ #include <daal/include/algorithms/multi_class_classifier/multi_class_classifier_model.h>
+-#include <daal/src/algorithms/multiclassclassifier/multiclassclassifier_svm_model.h>
+ 
+ #include "oneapi/dal/backend/interop/common.hpp"
+ #include "oneapi/dal/algo/svm/backend/model_impl.hpp"
+@@ -28,24 +27,28 @@ namespace oneapi::dal::svm::backend {
+ 
+ namespace interop = dal::backend::interop;
+ namespace daal_svm = daal::algorithms::svm;
+-namespace daal_multiclass_internal = daal_multiclass::internal;
+ 
+-struct daal_model_builder : public daal::algorithms::svm::Model {
++struct daal_model_builder : public daal::algorithms::svm::internal::ModelImpl {
+     daal_model_builder() = default;
+     virtual ~daal_model_builder() {}
+ 
+     auto& set_support_vectors(daal::data_management::NumericTablePtr support_vectors) {
+-        _SV = support_vectors;
++        setSupportVectors(support_vectors);
+         return *this;
+     }
+ 
+     auto& set_coeffs(daal::data_management::NumericTablePtr coeffs) {
+-        _SVCoeff = coeffs;
++        setClassificationCoefficients(coeffs);
+         return *this;
+     }
+ 
+-    auto& set_bias(double bias) {
+-        _bias = bias;
++    auto& set_biases(daal::data_management::NumericTablePtr biases) {
++        setBiases(biases);
++        return *this;
++    }
++
++    auto& set_iteration_counts(daal::data_management::NumericTablePtr n_iterations) {
++        setNumberOfIterations(n_iterations);
+         return *this;
+     }
+ };
+@@ -56,16 +59,16 @@ inline auto convert_from_daal_model(daal_svm::Model& daal_model) {
+         interop::convert_from_daal_table<Float>(daal_model.getSupportVectors());
+     auto table_classification_coeffs =
+         interop::convert_from_daal_homogen_table<Float>(daal_model.getClassificationCoefficients());
+-    const double bias = daal_model.getBias();
+-    auto arr_biases = array<Float>::full(1, static_cast<Float>(bias));
++    auto table_biases = interop::convert_from_daal_homogen_table<double>(daal_model.getBiases());
++    auto table_iterations =
++        interop::convert_from_daal_homogen_table<int>(daal_model.getNumberOfIterations());
+ 
+-    auto model =
+-        dal::svm::model<Task>()
+-            .set_support_vectors(table_support_vectors)
+-            .set_coeffs(table_classification_coeffs)
+-            .set_biases(dal::detail::homogen_table_builder{}.reset(arr_biases, 1, 1).build());
++    auto model = dal::svm::model<Task>()
++                     .set_support_vectors(table_support_vectors)
++                     .set_coeffs(table_classification_coeffs)
++                     .set_biases(table_biases)
++                     .set_iteration_counts(table_iterations);
+ 
+-    dal::detail::get_impl(model).bias = bias;
+     return model;
+ }
+ 
+@@ -83,19 +86,4 @@ inline array<T> convert_from_daal_table_to_array(const daal::data_management::Nu
+     return arr;
+ }
+ 
+-template <typename Task, typename Float>
+-inline auto convert_from_daal_multiclass_model(
+-    const daal_multiclass_internal::SvmModelPtr& daal_model) {
+-    auto table_biases = interop::convert_from_daal_homogen_table<Float>(daal_model->getBiases());
+-    auto table_coeffs =
+-        interop::convert_from_daal_homogen_table<Float>(daal_model->getCoefficients());
+-    auto table_support_vectors =
+-        interop::convert_from_daal_table<Float>(daal_model->getSupportVectors());
+-
+-    return dal::svm::model<Task>()
+-        .set_support_vectors(table_support_vectors)
+-        .set_coeffs(table_coeffs)
+-        .set_biases(table_biases);
+-}
+-
+ } // namespace oneapi::dal::svm::backend
+diff --git a/cpp/oneapi/dal/algo/svm/backend/model_impl.hpp b/cpp/oneapi/dal/algo/svm/backend/model_impl.hpp
+index 1f910bef2..1f0903beb 100644
+--- a/cpp/oneapi/dal/algo/svm/backend/model_impl.hpp
++++ b/cpp/oneapi/dal/algo/svm/backend/model_impl.hpp
+@@ -43,6 +43,7 @@ public:
+     double first_class_response;
+     double second_class_response;
+     std::int64_t class_count = 2;
++    table iteration_counts;
+ 
+     model_impl() = default;
+     model_impl(const model_impl&) = delete;
+@@ -58,7 +59,7 @@ public:
+     }
+ 
+     void serialize(dal::detail::output_archive& ar) const override {
+-        ar(support_vectors, coeffs, bias, biases);
++        ar(support_vectors, coeffs, bias, biases, iteration_counts);
+ 
+         if constexpr (std::is_same_v<Task, task::classification> ||
+                       std::is_same_v<Task, task::nu_classification>) {
+@@ -69,7 +70,7 @@ public:
+     }
+ 
+     void deserialize(dal::detail::input_archive& ar) override {
+-        ar(support_vectors, coeffs, bias, biases);
++        ar(support_vectors, coeffs, bias, biases, iteration_counts);
+ 
+         if constexpr (std::is_same_v<Task, task::classification> ||
+                       std::is_same_v<Task, task::nu_classification>) {
+diff --git a/cpp/oneapi/dal/algo/svm/common.cpp b/cpp/oneapi/dal/algo/svm/common.cpp
+index 360dd5ffa..e0c064d6b 100644
+--- a/cpp/oneapi/dal/algo/svm/common.cpp
++++ b/cpp/oneapi/dal/algo/svm/common.cpp
+@@ -210,6 +210,11 @@ const table& model<Task>::get_biases() const {
+     return impl_->biases;
+ }
+ 
++template <typename Task>
++const table& model<Task>::get_iteration_counts() const {
++    return impl_->iteration_counts;
++}
++
+ template <typename Task>
+ std::int64_t model<Task>::get_support_vector_count() const {
+     return impl_->support_vectors.get_row_count();
+@@ -245,6 +250,11 @@ void model<Task>::set_biases_impl(const table& value) {
+     impl_->biases = value;
+ }
+ 
++template <typename Task>
++void model<Task>::set_iteration_counts_impl(const table& value) {
++    impl_->iteration_counts = value;
++}
++
+ template <typename Task>
+ void model<Task>::set_first_class_response_impl(std::int64_t value) {
+     impl_->first_class_response = value;
+diff --git a/cpp/oneapi/dal/algo/svm/common.hpp b/cpp/oneapi/dal/algo/svm/common.hpp
+index 645575ff5..ce1a7b263 100644
+--- a/cpp/oneapi/dal/algo/svm/common.hpp
++++ b/cpp/oneapi/dal/algo/svm/common.hpp
+@@ -454,6 +454,14 @@ public:
+         return *this;
+     }
+ 
++    /// The number of iterations performed by the SVM training algorithm
++    const table &get_iteration_counts() const;
++
++    auto &set_iteration_counts(const table &value) {
++        set_iteration_counts_impl(value);
++        return *this;
++    }
++
+     /// The first unique value in class labels.
+     /// Used with :expr:`task::classification` and
+     /// :expr:`task::nu_classification`.
+@@ -505,6 +513,7 @@ protected:
+     void set_coeffs_impl(const table &);
+     void set_bias_impl(double);
+     void set_biases_impl(const table &);
++    void set_iteration_counts_impl(const table &);
+     void set_first_class_response_impl(std::int64_t);
+     void set_second_class_response_impl(std::int64_t);
+ 
+diff --git a/cpp/oneapi/dal/algo/svm/train_types.cpp b/cpp/oneapi/dal/algo/svm/train_types.cpp
+index 8e0b26c14..2022d2760 100644
+--- a/cpp/oneapi/dal/algo/svm/train_types.cpp
++++ b/cpp/oneapi/dal/algo/svm/train_types.cpp
+@@ -116,6 +116,11 @@ std::int64_t train_result<Task>::get_support_vector_count() const {
+     return impl_->trained_model.get_support_vector_count();
+ }
+ 
++template <typename Task>
++const table& train_result<Task>::get_iteration_counts() const {
++    return impl_->trained_model.get_iteration_counts();
++}
++
+ template <typename Task>
+ void train_result<Task>::set_model_impl(const model<Task>& value) {
+     impl_->trained_model = value;
+@@ -146,6 +151,11 @@ void train_result<Task>::set_biases_impl(const table& value) {
+     impl_->trained_model.set_biases(value);
+ }
+ 
++template <typename Task>
++void train_result<Task>::set_iteration_counts_impl(const table& value) {
++    impl_->trained_model.set_iteration_counts(value);
++}
++
+ template class ONEDAL_EXPORT train_input<task::classification>;
+ template class ONEDAL_EXPORT train_result<task::classification>;
+ template class ONEDAL_EXPORT train_input<task::nu_classification>;
+diff --git a/cpp/oneapi/dal/algo/svm/train_types.hpp b/cpp/oneapi/dal/algo/svm/train_types.hpp
+index 640366d5b..e36eb343f 100644
+--- a/cpp/oneapi/dal/algo/svm/train_types.hpp
++++ b/cpp/oneapi/dal/algo/svm/train_types.hpp
+@@ -182,6 +182,14 @@ public:
+         return *this;
+     }
+ 
++    /// The number of iterations performed by the SVM training algorithm
++    const table &get_iteration_counts() const;
++
++    auto &set_iteration_counts(const table &value) {
++        set_iteration_counts_impl(value);
++        return *this;
++    }
++
+ protected:
+     void set_model_impl(const model<Task> &);
+     void set_support_vectors_impl(const table &);
+@@ -189,6 +197,7 @@ protected:
+     void set_coeffs_impl(const table &);
+     void set_bias_impl(double);
+     void set_biases_impl(const table &);
++    void set_iteration_counts_impl(const table &);
+ 
+ private:
+     dal::detail::pimpl<detail::train_result_impl<Task>> impl_;
+diff --git a/examples/daal/cpp/source/svm/svm_two_class_boser_csr_batch.cpp b/examples/daal/cpp/source/svm/svm_two_class_boser_csr_batch.cpp
+index f94cc857d..99f3dfa16 100644
+--- a/examples/daal/cpp/source/svm/svm_two_class_boser_csr_batch.cpp
++++ b/examples/daal/cpp/source/svm/svm_two_class_boser_csr_batch.cpp
+@@ -128,6 +128,10 @@ void printResults() {
+     testLabelsDataSource.loadDataBlock();
+     NumericTablePtr testGroundTruth = testLabelsDataSource.getNumericTable();
+ 
++    printNumericTable(trainingResult->get(classifier::training::model)->getNumberOfIterations(),
++                      "Number of iterations used by the training algorithm:",
++                      1);
++
+     printNumericTables<int, float>(testGroundTruth,
+                                    predictionResult->get(classifier::prediction::prediction),
+                                    "Ground truth\t",
+diff --git a/examples/daal/cpp/source/svm/svm_two_class_boser_dense_batch.cpp b/examples/daal/cpp/source/svm/svm_two_class_boser_dense_batch.cpp
+index 2fdfaa37e..b0c67c37e 100644
+--- a/examples/daal/cpp/source/svm/svm_two_class_boser_dense_batch.cpp
++++ b/examples/daal/cpp/source/svm/svm_two_class_boser_dense_batch.cpp
+@@ -130,6 +130,10 @@ void printResults() {
+                                                       DataSource::doDictionaryFromContext);
+     testLabelSource.loadDataBlock();
+ 
++    printNumericTable(trainingResult->get(classifier::training::model)->getNumberOfIterations(),
++                      "Number of iterations used by the training algorithm:",
++                      1);
++
+     printNumericTables<int, float>(testLabelSource.getNumericTable(),
+                                    predictionResult->get(classifier::prediction::prediction),
+                                    "Ground truth\t",
+diff --git a/examples/daal/cpp/source/svm/svm_two_class_thunder_csr_batch.cpp b/examples/daal/cpp/source/svm/svm_two_class_thunder_csr_batch.cpp
+index f508a0912..f6dc40177 100644
+--- a/examples/daal/cpp/source/svm/svm_two_class_thunder_csr_batch.cpp
++++ b/examples/daal/cpp/source/svm/svm_two_class_thunder_csr_batch.cpp
+@@ -128,6 +128,10 @@ void printResults() {
+     /* Retrieve the data from input file */
+     testLabelsDataSource.loadDataBlock();
+ 
++    printNumericTable(trainingResult->get(classifier::training::model)->getNumberOfIterations(),
++                      "Number of iterations used by the training algorithm:",
++                      1);
++
+     printNumericTables<int, float>(testLabelsDataSource.getNumericTable(),
+                                    predictionResult->get(classifier::prediction::prediction),
+                                    "Ground truth\t",
+diff --git a/examples/daal/cpp/source/svm/svm_two_class_thunder_dense_batch.cpp b/examples/daal/cpp/source/svm/svm_two_class_thunder_dense_batch.cpp
+index c975b82a1..0ebc1d73e 100644
+--- a/examples/daal/cpp/source/svm/svm_two_class_thunder_dense_batch.cpp
++++ b/examples/daal/cpp/source/svm/svm_two_class_thunder_dense_batch.cpp
+@@ -129,6 +129,10 @@ void printResults() {
+                                                       DataSource::doDictionaryFromContext);
+     testLabelSource.loadDataBlock();
+ 
++    printNumericTable(trainingResult->get(classifier::training::model)->getNumberOfIterations(),
++                      "Number of iterations used by the training algorithm:",
++                      1);
++
+     printNumericTables<int, float>(testLabelSource.getNumericTable(),
+                                    predictionResult->get(classifier::prediction::prediction),
+                                    "Ground truth\t",
+diff --git a/examples/oneapi/cpp/source/svm/svm_multi_class_thunder_dense_batch.cpp b/examples/oneapi/cpp/source/svm/svm_multi_class_thunder_dense_batch.cpp
+index 50c054a0f..e1b87de9d 100644
+--- a/examples/oneapi/cpp/source/svm/svm_multi_class_thunder_dense_batch.cpp
++++ b/examples/oneapi/cpp/source/svm/svm_multi_class_thunder_dense_batch.cpp
+@@ -35,6 +35,8 @@ int main(int argc, char const *argv[]) {
+     const auto svm_desc = dal::svm::descriptor{ kernel_desc }.set_class_count(5).set_c(1.0);
+     const auto result_train = dal::train(svm_desc, x_train, y_train);
+ 
++    std::cout << "Number of training iterations:\n"
++              << result_train.get_iteration_counts() << std::endl;
+     std::cout << "Biases:\n" << result_train.get_biases() << std::endl;
+     std::cout << "Coeffs indices:\n" << result_train.get_coeffs() << std::endl;
+ 
+diff --git a/examples/oneapi/cpp/source/svm/svm_two_class_smo_dense_batch.cpp b/examples/oneapi/cpp/source/svm/svm_two_class_smo_dense_batch.cpp
+index 97c77cc16..64b9c004a 100644
+--- a/examples/oneapi/cpp/source/svm/svm_two_class_smo_dense_batch.cpp
++++ b/examples/oneapi/cpp/source/svm/svm_two_class_smo_dense_batch.cpp
+@@ -44,6 +44,8 @@ int main(int argc, char const *argv[]) {
+ 
+     const auto result_train = dal::train(svm_desc, x_train, y_train);
+ 
++    std::cout << "Number of training iterations:\n"
++              << result_train.get_iteration_counts() << std::endl;
+     std::cout << "Biases:\n" << result_train.get_biases() << std::endl;
+     std::cout << "Support indices:\n" << result_train.get_support_indices() << std::endl;
+ 
+diff --git a/examples/oneapi/cpp/source/svm/svm_two_class_thunder_dense_batch.cpp b/examples/oneapi/cpp/source/svm/svm_two_class_thunder_dense_batch.cpp
+index 4e18d0615..13d64acb4 100644
+--- a/examples/oneapi/cpp/source/svm/svm_two_class_thunder_dense_batch.cpp
++++ b/examples/oneapi/cpp/source/svm/svm_two_class_thunder_dense_batch.cpp
+@@ -42,6 +42,8 @@ int main(int argc, char const *argv[]) {
+ 
+     const auto result_train = dal::train(svm_desc, x_train, y_train);
+ 
++    std::cout << "Number of training iterations:\n"
++              << result_train.get_iteration_counts() << std::endl;
+     std::cout << "Biases:\n" << result_train.get_biases() << std::endl;
+     std::cout << "Support indices:\n" << result_train.get_support_indices() << std::endl;
+ 
+-- 
+2.43.0
+

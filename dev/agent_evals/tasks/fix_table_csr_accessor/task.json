@@ -1,0 +1,25 @@
+{
+  "id": "fix_table_csr_accessor",
+  "family": "fix",
+  "base": "3314f3d206fb26a41f84377a9cef827ba185b058^",
+  "grader": "test_pass",
+  "gate": [
+    "strict_pass"
+  ],
+  "hidden_from": "3314f3d2",
+  "hidden_files": [
+    "cpp/oneapi/dal/table/test/csr_accessor.cpp"
+  ],
+  "targets": [
+    "//cpp/oneapi/dal/table:test_csr_accessor_host"
+  ],
+  "prompt": "Bug report: `csr_accessor<T>::pull(range)` on a `csr_table` returns inconsistent CSR blocks. Observed on CPU (host policy) with a small 4x4 table with 7 non-zeros:\n\n- Pulling the whole table (`{0, -1}`) in the table's own indexing returns a row-offsets array with `row_count` elements instead of `row_count + 1`.\n- Pulling one-based data from a table stored with `sparse_indexing::zero_based` (and vice versa) returns row offsets that are off by one relative to the requested indexing.\n- Pulling a row sub-range (e.g. rows `{1, 3}`) returns values from the wrong position when the accessor's value type differs from the table's (e.g. table of `float`, accessor of `double`), and column indices from the wrong position when the accessor's indexing differs from the table's.\n\nExpected: for any row range, any combination of table/accessor indexing and any supported value types, `pull` returns `nnz(range)` values and column indices and `rows + 1` row offsets, all expressed in the accessor's requested indexing, and does not copy data when no conversion is needed. Find and fix the root cause(s) in the library. `bazel` is on PATH; this machine has no GPU. Do not weaken or delete existing tests.",
+  "regression_targets": [
+    "//cpp/oneapi/dal/table:test_csr_host",
+    "//cpp/oneapi/dal/table:test_csr_serialization_host",
+    "//cpp/oneapi/dal/table:test_row_accessor_host",
+    "//cpp/oneapi/dal/table:test_homogen_host",
+    "//cpp/oneapi/dal/table:test_convert_host",
+    "//cpp/oneapi/dal/table:test_table_adapter_host"
+  ]
+}

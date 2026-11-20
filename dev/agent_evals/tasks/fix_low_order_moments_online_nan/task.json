@@ -1,0 +1,25 @@
+{
+  "id": "fix_low_order_moments_online_nan",
+  "family": "fix",
+  "base": "783953fb1a6dacb774ab8dec6fcd4377b8248a6d^",
+  "grader": "test_pass",
+  "gate": [
+    "strict_pass"
+  ],
+  "source_pr": 3875,
+  "hidden_from": "783953fb1a6dacb774ab8dec6fcd4377b8248a6d",
+  "hidden_files": [
+    "cpp/oneapi/dal/algo/basic_statistics/test/online.cpp",
+    "cpp/oneapi/dal/algo/basic_statistics/test/online_csr.cpp"
+  ],
+  "oracle_patch": "oracle.patch",
+  "targets": [
+    "//cpp/oneapi/dal/algo/basic_statistics:test_online_host",
+    "//cpp/oneapi/dal/algo/basic_statistics:test_online_csr_host"
+  ],
+  "regression_targets": [
+    "//cpp/oneapi/dal/algo/basic_statistics:test_batch_host",
+    "//cpp/oneapi/dal/algo/basic_statistics:test_badargs_host"
+  ],
+  "prompt": "Fix the following bug in this repository (oneDAL). Build and run the C++ tests with `bazel` (on PATH); this machine has no GPU and no oneAPI compiler, so use the `*_host` targets. Do not weaken or delete existing tests.\n\n# basic_statistics online: sum_squares_centered, variance and standard deviation are NaN for the whole stream after a one-row block\n\nWhen the online interface of `basic_statistics` (CPU) is fed a block with one row, the centered sum of squares, the variance, the standard deviation and the variation of the whole stream come back as NaN, even when the earlier blocks had more rows. The result is wrong for the dense and the CSR input, and it does not depend on the order of the blocks: a stream of one-row blocks is enough to trigger it.\n\nReproducer (dense, two features, two rows fed as two one-row blocks, `result_options::sum_squares_centered | result_options::variance`):\n\n```cpp\nconst float data[] = { 1, 2, 3, 6 };   // rows [1, 2] and [3, 6]\nbs::partial_compute_result<> partial;\nfor (std::int64_t row = 0; row < 2; ++row) {\n    partial = partial_compute(desc, partial, homogen_table::wrap(data + 2 * row, 1, 2));\n}\nauto result = finalize_compute(desc, partial);\n// expected: sum_squares_centered = [2, 8], variance = [2, 8]\n// actual:   sum_squares_centered = [nan, nan], variance = [nan, nan]\n```\n\nThe same happens with the CSR method (`bs::method::sparse`) with the same values in explicit CSR blocks, and with a split whose last block has one row. Results for streams whose blocks all have two or more rows are correct and must stay unchanged. The reference is a plain two-pass computation on the same numbers (the sample variance divides by n - 1 over the whole stream).\n\nExpected behaviour: the result is finite and equal to the two-pass reference on every stream, including one-row blocks at any position. Report the root cause in the commit message or in your final answer."
+}
