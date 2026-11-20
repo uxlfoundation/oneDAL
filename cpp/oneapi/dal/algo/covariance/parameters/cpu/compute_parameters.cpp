@@ -15,13 +15,9 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include <algorithm>
-#include <daal/include/services/daal_defines.h>
-#include <daal/src/services/service_defines.h>
-
 #include "oneapi/dal/detail/common.hpp"
-#include "oneapi/dal/detail/parameters/system_parameters.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
+#include "oneapi/dal/detail/parameters/common.hpp"
 
 #include "oneapi/dal/backend/common.hpp"
 #include "oneapi/dal/backend/dispatcher.hpp"
@@ -31,14 +27,6 @@
 #include "oneapi/dal/algo/covariance/compute_types.hpp"
 
 #include "oneapi/dal/algo/covariance/parameters/cpu/compute_parameters.hpp"
-
-#if defined(TARGET_X86_64)
-#define CPU_EXTENSION dal::detail::cpu_extension::avx512
-#elif defined(TARGET_ARM)
-#define CPU_EXTENSION dal::detail::cpu_extension::sve
-#elif defined(TARGET_RISCV64)
-#define CPU_EXTENSION dal::detail::cpu_extension::rv64
-#endif
 
 namespace oneapi::dal::covariance::parameters {
 
@@ -62,29 +50,7 @@ std::int64_t propose_block_size(const context_cpu& ctx,
                                 const dal::detail::system_parameters& sys_params,
                                 const std::int64_t row_count,
                                 const std::int64_t column_count) {
-    if (!daal_check_is_intel_cpu()) {
-        /// The constants are defined as the values that show the best performance results
-        /// in the series of performance measurements with the varying block sizes and dataset sizes.
-        std::int64_t block_size = 140l;
-        if (ctx.get_enabled_cpu_extensions() == CPU_EXTENSION) {
-            /// Here if AVX512 extensions are available on CPU
-            if (5000l < row_count && row_count <= 50000l) {
-                block_size = 1024l;
-            }
-        }
-        return block_size;
-    }
-
-    const std::int64_t l2_size = sys_params.get_l2_cache_size();
-    const std::int64_t thread_count = sys_params.get_max_number_of_threads();
-
-    /// Half of the L2 cache is reserved for a block of the data
-    const double h1 = 0.5 * l2_size / (column_count * sizeof(Float));
-    /// At least one block per thread
-    const double h2 = double(row_count) / thread_count;
-
-    const auto block_size = static_cast<std::int64_t>(std::clamp(std::min(h1, h2), 64.0, 8192.0));
-    return dal::backend::down_pow2(block_size);
+    return dal::detail::covariance_block_size<Float>(ctx, sys_params, row_count, column_count);
 }
 
 std::int64_t propose_max_cols_batched(const context_cpu& ctx, const std::int64_t row_count) {
