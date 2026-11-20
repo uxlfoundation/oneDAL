@@ -56,17 +56,19 @@
   | Windows | :heavy_check_mark: | :heavy_check_mark: |                    | :heavy_check_mark: | :heavy_check_mark: |
 
   Intel `icx`/`icpx` is preferred whenever it is on `PATH`; `CC` overrides the
-  choice. Linux Clang builds `//:release` (`--release_dpc=false`, `--cpu=avx2`)
-  and runs the `pca` host tests in the `LinuxBazelClang` job of `ci.yml`.
-  Windows `clang-cl` is the ARM64 lane of `ci-win.yml`.
+  choice. Linux Clang is checked per PR by `bazel build --nobuild //:release`
+  with `CC=clang` in the clang leg of `LinuxBazelNoOneAPI` in `ci.yml`, when the
+  PR touches Bazel files. nightly-test builds the release with clang in full
+  (`--release_dpc=false`, `--cpu=avx2`). Windows `clang-cl` is the ARM64 lane of
+  `ci-win.yml`.
 
 - [ ] **Windows DPC++ execution.** Windows release artifacts can include the
-  DPC++ libraries. The nightly Windows Bazel job is configured to run the `pca`
-  DPC++ tests on the Intel OpenCL CPU runtime (`opencl:cpu`). That execution is
-  not validated: the runtime install and the `opencl:cpu` check pass, but the
-  test link fails (run 44460598549), so no `pca` test has run there yet. The
-  other examples and tests that create a SYCL queue are not run there and need
-  device and runtime validation on the CI images.
+  DPC++ libraries, but the examples and tests that create a SYCL queue are not
+  run there yet; that needs device and runtime validation on the CI images. The
+  `pca` DPC++ smoke test on the Intel OpenCL CPU runtime was removed from
+  nightly-test.yml: its test link fails (run 44460598549), so it waits on the
+  `.res`/`/IMPLIB` link fix below. It gets re-added with `continue-on-error`
+  once that fix lands.
 
 - [ ] **Toolchain flag tables as data.** The compile action configs, the default
   compile flags and the marker features are shared by

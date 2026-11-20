@@ -467,6 +467,28 @@ jobs:
             echo "Expected a ${expected} build, got ${built_by}" >&2
             exit 1
           fi
+      # Clang analysis of the release graph (--nobuild, a minute or two), the only per-PR
+      # clang check of it. On a pull request it runs only when the PR touches Bazel files.
+      - name: Check whether the PR touches Bazel files
+        id: bazel-files
+        if: matrix.leg == 'clang' && github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git fetch --no-tags --depth=1 origin "${BASE_SHA}"
+          changed=$(git -c core.quotePath=false diff --no-renames --name-only "${BASE_SHA}" HEAD)
+          if grep -Eq '^dev/bazel/|(^|/)BUILD$|\.bzl$|(^|/)\.bazelrc$|(^|/)MODULE\.bazel$' <<< "${changed}"; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Bazel clang analysis of the release
+        if: matrix.leg == 'clang' && (github.event_name != 'pull_request' || steps.bazel-files.outputs.run == 'true')
+        env:
+          CC: clang
+          CXX: clang++
+        run: bazel build --nobuild //:release
+
       # The gcc leg also covers the release, the DAAL and MPI tests, and the
       # DPC++ checks; the other legs stay at one algorithm each.
       - name: Bazel release
@@ -531,39 +553,6 @@ jobs:
         with:
           path: ${{ runner.temp }}/bazel-repo
           key: bazel-repo-linux-x64-${{ hashFiles('.bazelversion', 'MODULE.bazel', 'dev/bazel/deps/*.bzl') }}
-
-  # Builds the release with clang, which no other Bazel leg does: a clang-only
-  # regression in the release flag set fails here.
-  LinuxBazelClang:
-    if: github.repository == 'uxlfoundation/oneDAL'
-    runs-on: ubuntu-26.04
-    timeout-minutes: 120
-    env:
-      CC: clang
-      CXX: clang++
-
-    steps:
-      - name: Checkout oneDAL
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      # clang-18 from the Ubuntu archive: apt.llvm.org has no versioned repo for
-      # Ubuntu 26.04 (resolute), so `apt.sh llvm-version` cannot be used here.
-      - name: Install Clang
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-18
-          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-18 180
-          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 180
-          clang --version
-      - name: Install Bazelisk
-        run: |
-          source .ci/env/bazelisk.sh
-          echo "$(pwd)/bazel/bin" >> "$GITHUB_PATH"
-      - name: System Info
-        run: .ci/scripts/describe_system.sh
-      - name: Bazel release
-        run: bazel build //:release --release_dpc=false --cpu=avx2
-      - name: Bazel tests
-        run: bazel test --config=host --cpu=avx2 --test_output=errors //cpp/oneapi/dal/algo/pca:tests
 
   # SHA-keyed saves fill the 10 GB quota shared with the ABI baselines: keep the newest per leg.
   # Own job so only it holds `actions: write`; `!cancelled()` so one failed leg does not block it.

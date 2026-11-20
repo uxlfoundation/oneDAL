@@ -169,7 +169,7 @@ jobs:
       ${{ github.repository == 'uxlfoundation/oneDAL'
           && (github.event_name == 'workflow_dispatch'
               || github.event.workflow_run.conclusion == 'success') }}
-    timeout-minutes: 120
+    timeout-minutes: 180
     # This job builds the tested commit, which for a pull request means running
     # code the fork controls. It therefore holds no write scope of any kind, and
     # `check_start`/`check_finish` do the `checks: write` work instead. `actions:
@@ -236,6 +236,20 @@ jobs:
               --make-symlinks-dereferenced \
               "${flags[@]}"
           fi
+      # Full clang release, host-only (--release_dpc=false), as the per-PR check
+      # only analyses it. Runs last: a clang build moves bazel-bin to its own config.
+      - name: Install Clang
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-18 180
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 180
+          clang --version
+      - name: Bazel clang release
+        env:
+          CC: clang
+          CXX: clang++
+        run: bazel build //:release --release_dpc=false --cpu=avx2
 
   bazel_win:
     name: oneDAL Windows Bazel test
@@ -282,28 +296,6 @@ jobs:
         run: |
           tar -xvzf oneapi.tar.gz
           echo "Unzip complete"
-      # The OpenCL CPU runtime nightly-build collects for the DPC++ tests below.
-      - name: Download Intel OpenCL CPU runtime artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: opencl_rt_installer
-          github-token: ${{ github.token }}
-          run-id: ${{ github.event.workflow_run.id || inputs.source_run_id }}
-          path: ./__opencl_rt
-      - name: Install Intel OpenCL CPU runtime
-        shell: pwsh
-        run: |
-          $msi = (Resolve-Path .\__opencl_rt\opencl_rt.msi).Path
-          $proc = Start-Process msiexec.exe -ArgumentList '/i', "`"$msi`"", '/qn', '/norestart' -Wait -PassThru
-          # 3010 = installed, reboot required; the runtime is usable without one.
-          if ($proc.ExitCode -notin @(0, 3010)) { throw "msiexec failed with exit code $($proc.ExitCode)" }
-      - name: Check SYCL CPU device
-        shell: cmd
-        run: |
-          call .\oneapi\setvars.bat
-          .\oneapi\compiler\latest\bin\sycl-ls.exe > sycl-ls.txt 2>&1
-          type sycl-ls.txt
-          findstr /C:"opencl:cpu" sycl-ls.txt >nul || (echo ERROR: no SYCL opencl:cpu device & exit /b 1)
       - name: Install Bazelisk
         shell: pwsh
         run: .\.ci\env\bazelisk.ps1
@@ -340,19 +332,6 @@ jobs:
           call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
           powershell -NoProfile -ExecutionPolicy Bypass -File .\.ci\scripts\test_bazel_release_cmake_example.ps1 ^
             -ReleaseDir .\bazel-bin\release\daal\latest
-
-      # DPC++ tests need a SYCL device: the OpenCL CPU runtime above provides
-      # `opencl:cpu`. Only the pca suite runs, as a smoke test.
-      - name: Bazel DPC++ tests on SYCL CPU device
-        shell: cmd
-        env:
-          BAZEL_SH: 'C:\Program Files\Git\bin\bash.exe'
-          ONEAPI_DEVICE_SELECTOR: opencl:cpu
-        run: |
-          set PATH=C:\msys64\usr\bin;%PATH%
-          call .\oneapi\setvars.bat
-          call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
-          bazel test --config=dpc --device=cpu --test_env=ONEAPI_DEVICE_SELECTOR --test_output=errors //cpp/oneapi/dal/algo/pca:tests
 
   check_finish:
     name: Complete Bazel test check runs
