@@ -1769,6 +1769,77 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     this->check_same_result(reference, compute_with_block(block_size));
 }
 
+// 64 columns take the GEMM distance matrix; the offset checks that the data are centered first.
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan gpu: wide euclidean data match float64 on the host",
+                     "[hdbscan][batch][gpu]",
+                     hdbscan_bf_types) {
+    SKIP_IF(this->get_policy().is_cpu());
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    constexpr std::int64_t per_cluster = 500;
+    constexpr std::int64_t cluster_count = 4;
+    constexpr std::int64_t column_count = 64;
+    constexpr std::int64_t row_count = per_cluster * cluster_count;
+    const Float offset = GENERATE(Float(0), Float(1.0e3));
+    CAPTURE(offset);
+    auto data = te::make_blobs<Float>(per_cluster,
+                                      cluster_count,
+                                      column_count,
+                                      /*separation=*/Float(4.0),
+                                      /*spread=*/Float(2.0));
+    for (auto& v : data) {
+        v += offset;
+    }
+    const auto x = homogen_table::wrap(data.data(), row_count, column_count);
+
+    const auto desc =
+        this->template get_method_descriptor<hdbscan::method::brute_force>(25, 10)
+            .set_result_options(result_options::responses | result_options::single_linkage_tree);
+    const auto [host, device] = this->compare_device_with_float64_host(desc, x);
+    REQUIRE(device.get_cluster_count() == cluster_count);
+    check_same_hierarchy(this->get_single_linkage_tree(device),
+                         this->get_single_linkage_tree(host),
+                         row_count,
+                         te::get_tolerance<Float>(1e-3, 1e-7));
+}
+
+// Above 256 neighbors the block tree takes core distances from the GEMM search, which needs
+// centered data when the points lie far from the origin.
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan gpu: block tree core distances above 256 neighbors match float64",
+                     "[hdbscan][batch][gpu]",
+                     hdbscan_bf_types) {
+    SKIP_IF(this->get_policy().is_cpu());
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    constexpr std::int64_t per_cluster = 1000;
+    constexpr std::int64_t cluster_count = 2;
+    constexpr std::int64_t column_count = 4;
+    constexpr std::int64_t row_count = per_cluster * cluster_count;
+    auto data = te::make_blobs<Float>(per_cluster,
+                                      cluster_count,
+                                      column_count,
+                                      /*separation=*/Float(20.0),
+                                      /*spread=*/Float(2.0));
+    for (auto& v : data) {
+        v += Float(1.0e3);
+    }
+    const auto x = homogen_table::wrap(data.data(), row_count, column_count);
+
+    const auto desc =
+        this->template get_method_descriptor<hdbscan::method::kd_tree>(100, 300).set_result_options(
+            result_options::responses | result_options::single_linkage_tree);
+    const auto [host, device] = this->compare_device_with_float64_host(desc, x);
+    REQUIRE(device.get_cluster_count() == cluster_count);
+    check_same_hierarchy(this->get_single_linkage_tree(device),
+                         this->get_single_linkage_tree(host),
+                         row_count,
+                         te::get_tolerance<Float>(1e-3, 1e-7));
+}
+
 // Thousands of rows give the GPU block tree three levels and a partial last leaf.
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan gpu: the block tree search matches the cpu for every Lp metric",
