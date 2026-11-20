@@ -1,46 +1,31 @@
 ## Description
 
 <!--
-Add a comprehensive description of proposed changes
+Add a comprehensive description and describe the impact of proposed changes
 
-List associated issue number(s) if exist(s)
+List associated issue number(s) and documentation or benchmark PR(s), if any.
+-->
 
-List associated documentation and benchmarks PR(s) if needed
+## AI assistance
+
+<!--
+Which AI tools were used and for which parts of the change, or "None".
+For example: "Copilot generated the kernel loop; I wrote the tests and rewrote the comments."
 -->
 
 ---
 
 <!--
-PR should start as a draft, then move to ready for review state
-after CI is passed and all applicable checkboxes are closed.
-This approach ensures that reviewers don't spend extra time asking for regular requirements.
-
-You can remove a checkbox as not applicable only if it doesn't relate to this PR in any way.
-For example, a PR with docs update doesn't require checkboxes for performance
-while a PR with any change in actual code should list checkboxes and
-justify how this code change is expected to affect performance (or justification should be self-evident).
+Start the PR as a draft and mark it ready for review once CI passes and every box is ticked.
+Each item is worded so it can be ticked truthfully on any PR, so don't delete items.
 -->
 
-<details>
-<summary>Checklist:</summary>
+**Checklist**
 
-**Completeness and readability**
-
-- [ ] I have commented my code, particularly in hard-to-understand areas.
-- [ ] I have updated the documentation to reflect the changes or created a separate PR with updates and provided its number in the description, if necessary.
-- [ ] Git commit message contains an appropriate signed-off-by string _(see [CONTRIBUTING.md](https://github.com/uxlfoundation/scikit-learn-intelex/blob/main/CONTRIBUTING.md#pull-requests) for details)_.
-- [ ] I have resolved any merge conflicts that might occur with the base branch.
-
-**Testing**
-
-- [ ] I have run it locally and tested the changes extensively.
+- [ ] I have reviewed the full diff myself and can explain the changes to each file.
+- [ ] The description is concise and clearly communicates the impact of the changes.
+- [ ] Code is commented as necessary and long blocks have been rewritten to be concise.
+- [ ] This PR contains one logical change and unrelated fixes and large work have been split into separate PRs as needed.
+- [ ] Tests, benchmarks and docs are extended where the change needs it, and no existing test was weakened or removed to make CI pass.
 - [ ] All CI jobs are green or I have provided justification why they aren't.
-- [ ] I have extended testing suite if new functionality was introduced in this PR.
-
-**Performance**
-
-- [ ] I have measured performance for affected algorithms using [scikit-learn_bench](https://github.com/IntelPython/scikit-learn_bench) and provided at least a summary table with measured data, if performance change is expected.
-- [ ] I have provided justification why performance and/or quality metrics have changed or why changes are not expected.
-- [ ] I have extended the benchmarking suite and provided a corresponding scikit-learn_bench PR if new measurable functionality was introduced in this PR.
-
-</details>
+- [ ] If a performance change is expected, I have measured the affected algorithms using [scikit-learn_bench](https://github.com/IntelPython/scikit-learn_bench) and provided at least a summary table with measured data.
