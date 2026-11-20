@@ -1151,7 +1151,7 @@ jobs:
       path: $(ONEAPI_DIR)
     displayName: 'Restore oneAPI Base Toolkit'
     continueOnError: true
-  - script: .ci\env\install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS) $(ONEAPI_DIR)
+  - script: .ci\scripts\install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS) $(ONEAPI_DIR)
     displayName: 'TBB installation'
   - template: .ci/pipeline/build-and-test-win.yml@sklearnex
   - task: PublishPipelineArtifact@1
