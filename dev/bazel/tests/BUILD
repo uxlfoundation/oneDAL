@@ -17,6 +17,7 @@ load("@onedal//dev/bazel/tests:analysis.bzl",
     "release_parameters_no_test",
     "release_parameters_yes_test",
     "soname_test",
+    "windows_implib_test",
     "windows_parameters_rejected_test",
 )
 
@@ -66,6 +67,29 @@ release_parameters_no_test(
 windows_parameters_rejected_test(
     name = "windows_parameters_rejected_test",
     target_under_test = "@config//:validate_build_parameters_lib",
+)
+
+# Only DLL links write an import library; executables would share ignored.lib/.exp (LNK1104).
+windows_implib_test(
+    name = "windows_dll_implib_test",
+    target_under_test = "@onedal//cpp/daal:core_dynamic",
+    dll = True,
+    target_compatible_with = ["@platforms//os:windows"],
+)
+
+windows_implib_test(
+    name = "windows_exe_implib_test",
+    target_under_test = "@onedal//cpp/oneapi/dal/table:detail_test_metadata_utils_host",
+    dll = False,
+    target_compatible_with = ["@platforms//os:windows"],
+)
+
+test_suite(
+    name = "windows_implib_tests",
+    tests = [
+        ":windows_dll_implib_test",
+        ":windows_exe_implib_test",
+    ],
 )
 
 # The release tree holds the versioned libraries and their symlinks, the metadata files and no
