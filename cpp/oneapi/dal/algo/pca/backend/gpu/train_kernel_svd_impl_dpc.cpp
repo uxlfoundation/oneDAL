@@ -134,7 +134,7 @@ result_t train_kernel_svd_impl<Float>::operator()(const descriptor_t& desc, cons
     if (desc.get_result_options().test(result_options::singular_values)) {
         if (zscore) {
             result.set_singular_values(
-                homogen_table::wrap(eigenvalues.flatten(), 1, component_count));
+                homogen_table::wrap(eigenvalues.flatten(q_), 1, component_count));
         }
         else {
             result.set_singular_values(homogen_table::wrap(S.flatten(q_), 1, component_count));

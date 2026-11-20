@@ -75,6 +75,36 @@ TEMPLATE_LIST_TEST_M(pca_batch_test,
 }
 
 TEMPLATE_LIST_TEST_M(pca_batch_test,
+                     "pca GPU results are on device",
+                     "[pca][integration][batch]",
+                     pca_types) {
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->get_policy().is_cpu());
+#ifdef ONEDAL_DATA_PARALLEL
+    const auto normalization = GENERATE(pca::normalization::none, pca::normalization::zscore);
+    const te::dataframe data =
+        GENERATE_DATAFRAME(te::dataframe_builder{ 100, 10 }.fill_uniform(-0.2, 1.5));
+    const table x = data.get_table(this->get_policy(), this->get_homogen_table_id());
+
+    const auto pca_desc =
+        this->get_descriptor(0)
+            .set_normalization_mode(normalization)
+            .set_result_options(pca::result_options::eigenvectors |
+                                pca::result_options::eigenvalues | pca::result_options::vars |
+                                pca::result_options::means | pca::result_options::singular_values |
+                                pca::result_options::explained_variances_ratio);
+    const auto result = this->train(pca_desc, x);
+
+    te::check_if_table_on_device(result.get_eigenvectors());
+    te::check_if_table_on_device(result.get_eigenvalues());
+    te::check_if_table_on_device(result.get_variances());
+    te::check_if_table_on_device(result.get_means());
+    te::check_if_table_on_device(result.get_singular_values());
+    te::check_if_table_on_device(result.get_explained_variances_ratio());
+#endif
+}
+
+TEMPLATE_LIST_TEST_M(pca_batch_test,
                      "pca common flow higgs",
                      "[external-dataset][pca][integration][batch]",
                      pca_types) {
