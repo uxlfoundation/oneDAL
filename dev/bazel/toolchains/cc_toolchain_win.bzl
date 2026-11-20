@@ -238,11 +238,16 @@ def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
                 if repo_ctx.path(inc).exists:
                     _add_builtin_include_dir(inc)
 
-    # clang-cl's builtin headers live in its resource dir, which INCLUDE does not cover.
-    if compiler_id == "clang":
-        resource_dir = repo_ctx.execute([tools.cc, "-print-resource-dir"])
-        if resource_dir.return_code == 0:
-            _add_builtin_include_dir("{}/include".format(resource_dir.stdout.strip()))
+    # The compiler reports its own headers by its resolved path, which a link in CMPLR_ROOT can
+    # hide from realpath (a toolkit restored from a CI cache); ask the compiler for it.
+    resource_dir = repo_ctx.execute([tools.cc, "-print-resource-dir"])
+    if resource_dir.return_code == 0:
+        resource = resource_dir.stdout.strip().replace("\\", "/")
+        _add_builtin_include_dir("{}/include".format(resource))
+        # `<root>/lib/clang/<N>` is the resource dir; icx keeps its overrides in `<root>/opt`.
+        opt_inc = "{}/opt/compiler/include".format(resource.rsplit("/", 3)[0])
+        if repo_ctx.path(opt_inc).exists:
+            _add_builtin_include_dir(opt_inc)
 
     reqs_llvm = struct(
         os_id = "win",
@@ -358,9 +363,42 @@ def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
             # Template values land in double-quoted strings, where a backslash starts an escape.
             "%{env_include}": repo_ctx.os.environ.get("INCLUDE", "").replace("\\", "/"),
             "%{env_lib}": repo_ctx.os.environ.get("LIB", "").replace("\\", "/"),
-            "%{env_path}": repo_ctx.os.environ.get("PATH", "").replace("\\", "/"),
+            "%{env_path}": _action_path(repo_ctx, tools.cc).replace("\\", "/"),
         },
     )
+
+# Environment variables (set by setvars.bat / vcvarsall.bat) whose directories the actions need on PATH.
+_ACTION_PATH_ROOT_VARS = ["ONEAPI_ROOT", "CMPLR_ROOT", "VCINSTALLDIR", "VSINSTALLDIR", "WindowsSdkDir", "SystemRoot"]
+
+def _action_path(repo_ctx, cc_path):
+    """PATH for the compile and link actions: the toolchain directories only.
+
+    The whole configure-time PATH would make every action key depend on the CI image; a
+    JDK update on the Azure image invalidated the entire Windows disk cache (2026-11-13).
+
+    @param repo_ctx  Repository context of the toolchain rule.
+    @param cc_path   The resolved compiler; its directory holds sibling tools such as llvm-rc.
+    @return          The PATH entries under the toolchain roots and the compiler's directory,
+                     or all of PATH when no root variable is set.
+    """
+    env = {key.lower(): value for key, value in repo_ctx.os.environ.items()}
+    roots = [_norm_path(env.get(var.lower(), "")) for var in _ACTION_PATH_ROOT_VARS]
+    roots = [root for root in roots if root]
+    entries = [entry for entry in env.get("path", "").split(";") if entry]
+    if not roots:
+        return ";".join(entries)
+    roots.append(_norm_path(str(repo_ctx.path(cc_path).dirname)))
+    kept = [entry for entry in entries if _under_any(_norm_path(entry), roots)]
+    return ";".join(kept)
+
+def _norm_path(path):
+    return path.replace("/", "\\").rstrip("\\").lower()
+
+def _under_any(path, roots):
+    for root in roots:
+        if path == root or path.startswith(root + "\\"):
+            return True
+    return False
 
 def _is_clang_requested(repo_ctx):
     """Return True if the Windows toolchain should use upstream LLVM clang-cl."""

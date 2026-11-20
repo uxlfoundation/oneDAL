@@ -113,11 +113,12 @@ if [[ ${compiler} =~ "clang" && "${cross_compile}" == "yes" ]] ; then
   fi
 fi
 
-sudo apt-get update
-sudo apt-get -y install build-essential gcc gfortran
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/retry.sh"
+retry sudo apt-get update
+retry sudo apt-get -y install build-essential gcc gfortran
 blas_src_dir=${blas_src_dir:-$OPENBLAS_DEFAULT_SOURCE_DIR}
 if [[ ! -d "${blas_src_dir}" ]] ; then
-  git clone --depth=1 --branch "${BLAS_VERSION}" https://github.com/OpenMathLib/OpenBLAS "${blas_src_dir}"
+  retry git clone --depth=1 --branch "${BLAS_VERSION}" https://github.com/OpenMathLib/OpenBLAS "${blas_src_dir}"
 fi
 
 CoreCount=$(nproc --all)

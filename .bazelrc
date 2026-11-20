@@ -27,12 +27,12 @@ test --test_env=FI_PROVIDER_PATH
 # Bazel 9 gives tests a strict environment by default.
 test --test_env=LD_LIBRARY_PATH
 
-# MSVC env for the Windows actions. Windows only, as every --action_env value is part of
-# every action key and Linux keys would then depend on the shell's PATH.
+# MSVC env for the Windows actions; every --action_env value is part of every action key, so
+# PATH stays out (the toolchain passes its own dirs) and the shell actions get Bazel's fixed one.
 common --enable_platform_specific_config
 build:windows --action_env=INCLUDE
 build:windows --action_env=LIB
-build:windows --action_env=PATH
+build:windows --incompatible_strict_action_env
 
 # Windows stores the variable as `Path` (cmd) or `PATH` (MSYS bash); forward both.
 test --test_env=PATH
@@ -143,6 +143,8 @@ build:type \
 # --experimental_disk_cache_gc_max_size, as the cache path and size differ per runner.
 common:ci --announce_rc
 common:ci --experimental_disk_cache_gc_idle_delay=0s
+# github.com and anaconda.org return 5xx in waves that outlast the default 5 attempts.
+common:ci --experimental_repository_downloader_retries=10
 common:ci --test_output=errors
 
 try-import %workspace%/user.bazelrc

@@ -149,18 +149,6 @@ jobs:
         run: |
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/dpc --build-system cmake
-      # Miniforge is necessary in order to get Intel MPI from conda-forge for MPI samples
-      - name: Install Miniforge
-        run: .ci/env/apt.sh miniforge
-      - name: daal/cpp/mpi samples
-        run: |
-            source /opt/intel/oneapi/setvars.sh
-            .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
-      - name: oneapi/cpp/mpi samples
-        run: |
-            source /opt/intel/oneapi/setvars.sh
-            .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface oneapi/cpp/mpi --conda-env ci-env --build-system cmake
-
   LinuxABICheck:
     name: ABI Conformance(avx2)
     needs: LinuxMakeDPCPP
@@ -264,17 +252,6 @@ jobs:
           export TBBROOT="${CONDA_PREFIX}"
           export MKLROOT="${CONDA_PREFIX}"
           .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target onedal_c --jobs 20
-      - name: Make onedal_dpc
-        run: |
-          source "${CONDA_SH}"
-          conda install -y -n "${CONDA_ENV}" -c conda-forge \
-              mkl-dpcpp mkl-devel-dpcpp \
-              dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt \
-              onedpl-devel
-          conda activate "${CONDA_ENV}"
-          export TBBROOT="${CONDA_PREFIX}"
-          export MKLROOT="${CONDA_PREFIX}"
-          .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target onedal_dpc --jobs 20
       - name: daal/cpp examples
         run: |
           source "${CONDA_SH}"
@@ -289,13 +266,6 @@ jobs:
           export TBBROOT="${CONDA_PREFIX}"
           export MKLROOT="${CONDA_PREFIX}"
           .ci/scripts/test.sh --test-kind examples --build-dir "${RELEASE_DIR}" --compiler gnu --interface oneapi/cpp --build-system cmake
-      - name: oneapi/dpc examples
-        run: |
-          source "${CONDA_SH}"
-          conda activate "${CONDA_ENV}"
-          export TBBROOT="${CONDA_PREFIX}"
-          export MKLROOT="${CONDA_PREFIX}"
-          .ci/scripts/test.sh --test-kind examples --build-dir "${RELEASE_DIR}" --compiler icx --interface oneapi/dpc --build-system cmake
       - name: daal/cpp/mpi samples
         run: |
           source "${CONDA_SH}"
@@ -356,9 +326,11 @@ jobs:
         run: bazel test --cpu=avx2 //cpp/oneapi/dal/algo/pca:tests
       - name: Bazel example
         run: bazel test --cpu=avx2 //examples/oneapi/cpp:pca
+      # `shutdown` runs the disk-cache GC; when the server does not stop in time (exit 36) the
+      # cache is saved without that pass, which the next run tolerates.
       - name: Trim the Bazel disk cache
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: bazel shutdown
+        run: bazel shutdown || echo "::warning::bazel shutdown exited with $?; the disk cache is saved without the GC pass"
       - name: Save the Bazel disk cache
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -514,9 +486,11 @@ jobs:
             build --cpu=avx2 //cpp/oneapi/dal/algo/kmeans:test_batch_dpc
           expect_failure config_dpc.log "configured without it" \
             test --cpu=avx2 --config=dpc //cpp/oneapi/dal/algo/kmeans:tests
+      # `shutdown` runs the disk-cache GC; when the server does not stop in time (exit 36) the
+      # cache is saved without that pass, which the next run tolerates.
       - name: Trim the Bazel disk cache
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: bazel shutdown
+        run: bazel shutdown || echo "::warning::bazel shutdown exited with $?; the disk cache is saved without the GC pass"
       - name: Save the Bazel disk cache
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
