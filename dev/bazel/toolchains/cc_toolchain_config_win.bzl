@@ -36,6 +36,7 @@ load("@onedal//dev/bazel/toolchains:cc_toolchain_config_common.bzl",
     "common",
     "all_compile_actions",
     "all_link_actions",
+    "dynamic_library_link_actions",
     "lto_index_actions",
     "COMMON_ATTRS",
 )
@@ -172,11 +173,13 @@ def _impl(ctx):
         name = "has_configured_linker_path",
         enabled = True,
     )
+    # Bazel sets interface_library_output_path to "ignored" on executable links, so a test that
+    # exports symbols would write ignored.lib/.exp in the exec root, racing the parallel links.
     interface_library_output_flags_feature = feature(
         name = "interface_library_output_flags",
         enabled = True,
         flag_sets = [flag_set(
-            actions = all_link_actions + lto_index_actions,
+            actions = dynamic_library_link_actions,
             flag_groups = [flag_group(
                 flags = ["/IMPLIB:%{interface_library_output_path}"],
                 expand_if_available = "interface_library_output_path",
@@ -503,22 +506,12 @@ def _impl(ctx):
         name = "shared_flag",
         flag_sets = [
             flag_set(
-                actions = [
-                    ACTION_NAMES.cpp_link_dynamic_library,
-                    ACTION_NAMES.cpp_link_nodeps_dynamic_library,
-                    ACTION_NAMES.lto_index_for_dynamic_library,
-                    ACTION_NAMES.lto_index_for_nodeps_dynamic_library,
-                ],
+                actions = dynamic_library_link_actions,
                 flag_groups = [flag_group(flags = ["/DLL"])],
                 with_features = [with_feature_set(not_features = ["dpc++"])],
             ),
             flag_set(
-                actions = [
-                    ACTION_NAMES.cpp_link_dynamic_library,
-                    ACTION_NAMES.cpp_link_nodeps_dynamic_library,
-                    ACTION_NAMES.lto_index_for_dynamic_library,
-                    ACTION_NAMES.lto_index_for_nodeps_dynamic_library,
-                ],
+                actions = dynamic_library_link_actions,
                 flag_groups = [flag_group(flags = ["-LD"])],
                 with_features = [with_feature_set(features = ["dpc++"])],
             ),
