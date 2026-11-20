@@ -9,9 +9,11 @@ dal_module(
     auto = True,
     dal_deps = [
         "@onedal//cpp/oneapi/dal:core",
+        "@onedal//cpp/oneapi/dal/backend/primitives:blas",
         "@onedal//cpp/oneapi/dal/backend/primitives:common",
         "@onedal//cpp/oneapi/dal/backend/primitives:distance",
         "@onedal//cpp/oneapi/dal/backend/primitives:selection",
+        "@onedal//cpp/oneapi/dal/backend/primitives:stat",
     ],
     extra_deps = [
         "@onedal//cpp/daal/src/algorithms/dbscan:kernel",
