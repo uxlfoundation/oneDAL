@@ -532,6 +532,39 @@ jobs:
           path: ${{ runner.temp }}/bazel-repo
           key: bazel-repo-linux-x64-${{ hashFiles('.bazelversion', 'MODULE.bazel', 'dev/bazel/deps/*.bzl') }}
 
+  # Builds the release with clang, which no other Bazel leg does: a clang-only
+  # regression in the release flag set fails here.
+  LinuxBazelClang:
+    if: github.repository == 'uxlfoundation/oneDAL'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 120
+    env:
+      CC: clang
+      CXX: clang++
+
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # clang-18 from the Ubuntu archive: apt.llvm.org has no versioned repo for
+      # Ubuntu 26.04 (resolute), so `apt.sh llvm-version` cannot be used here.
+      - name: Install Clang
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-18 180
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 180
+          clang --version
+      - name: Install Bazelisk
+        run: |
+          source .ci/env/bazelisk.sh
+          echo "$(pwd)/bazel/bin" >> "$GITHUB_PATH"
+      - name: System Info
+        run: .ci/scripts/describe_system.sh
+      - name: Bazel release
+        run: bazel build //:release --release_dpc=false --cpu=avx2
+      - name: Bazel tests
+        run: bazel test --config=host --cpu=avx2 --test_output=errors //cpp/oneapi/dal/algo/pca:tests
+
   # SHA-keyed saves fill the 10 GB quota shared with the ABI baselines: keep the newest per leg.
   # Own job so only it holds `actions: write`; `!cancelled()` so one failed leg does not block it.
   prune-bazel-disk-cache:
