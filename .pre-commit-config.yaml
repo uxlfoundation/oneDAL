@@ -29,6 +29,14 @@ repos:
       - id: editorconfig-checker
   - repo: local
     hooks:
+      # use_default_shell_env and sandbox/cache opt-outs break hermeticity
+      # (dev/bazel/AGENTS.md); the reviewed exceptions are in the script's ALLOWED.
+      - id: starlark-policy
+        name: Starlark hermeticity policy
+        language: python
+        entry: python3 dev/bazel/tests/check_starlark_policy.py
+        pass_filenames: false
+        files: (\.bzl|(^|/)BUILD(\.bazel)?|check_starlark_policy\.py)$
       # Bazel compiles the per-cpu kernel TUs (*_cpu.cpp, *_fpt_cpu.cpp) once
       # per ISA against the static daal_kernel_defines.h, which defines every
       # ISA, so that a --cpu change does not rebuild them (see

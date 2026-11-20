@@ -47,6 +47,45 @@ TEMPLATE_LIST_TEST_M(basic_statistics_online_csr_test,
     this->online_csr_general_checks(data, compute_mode, n_blocks);
 }
 
+// Both columns sit near 1e8 and column 1 is stored in every fourth row only, so the centered
+// sums must merge around the block means instead of coming from the sums.
+TEMPLATE_LIST_TEST_M(basic_statistics_online_csr_test,
+                     "basic_statistics online CSR merge with a large offset",
+                     "[basic_statistics][integration][online]",
+                     online_csr_types) {
+    using float_t = std::tuple_element_t<0, TestType>;
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF((!std::is_same_v<float_t, double>));
+    // The CPU CSR kernel copies the input to a dense array first: https://github.com/uxlfoundation/oneDAL/pull/4037
+    SKIP_IF(this->get_policy().is_cpu());
+    constexpr std::int64_t row_count = 3000, column_count = 2;
+    const te::dataframe df =
+        te::dataframe_builder{ row_count, column_count }.fill_uniform(-1, 1, 7777).build();
+    // The offset is added in double: float cannot hold a deviation of 1 at 1e8.
+    std::vector<float_t> dense(df.get_array().get_data(),
+                               df.get_array().get_data() + row_count * column_count);
+    for (std::int64_t i = 0; i < row_count; ++i) {
+        dense[i * column_count] += float_t(1e8);
+        dense[i * column_count + 1] =
+            (i % 4 == 0) ? dense[i * column_count + 1] + float_t(1e8) : float_t(0);
+    }
+    const auto data =
+        te::dense_to_sparse_csr(dense.data(), row_count, column_count, sparse_indexing::one_based);
+
+    const auto mode = result_options::sum_squares_centered | result_options::variance;
+    const auto desc =
+        bs::descriptor<float_t, bs::method::sparse, bs::task::compute>{}.set_result_options(mode);
+    dal::basic_statistics::partial_compute_result<> partial;
+    for (const auto& block : te::split_csr_by_rows<float_t>(data, 3)) {
+        partial = this->partial_compute(desc, partial, block);
+    }
+    this->check_compute_result(mode,
+                               homogen_table::wrap(dense.data(), row_count, column_count),
+                               table{},
+                               this->finalize_compute(desc, partial),
+                               1e-6);
+}
+
 // A one-row block used to make the online variance NaN.
 TEMPLATE_LIST_TEST_M(basic_statistics_online_csr_test,
                      "basic_statistics online CSR flow with one-row blocks",

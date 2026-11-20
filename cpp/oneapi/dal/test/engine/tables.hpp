@@ -17,6 +17,7 @@
 #pragma once
 
 #include <algorithm>
+#include <vector>
 
 #include "oneapi/dal/test/engine/common.hpp"
 #include "oneapi/dal/table/common.hpp"
@@ -109,6 +110,20 @@ inline void check_if_tables_equal_approx(const table& actual,
 
     check_if_metadata_equal(actual.get_metadata(), reference.get_metadata());
     check_if_table_content_equal_approx<Float>(actual, reference, tolerance);
+}
+
+/// Copies the table values to host memory, so later writes to the table do not change the copy.
+/// `row_accessor` alone is not enough: for a host table it can return a view of the table's data.
+///
+/// @tparam Data The type to read the values as
+/// @param  t    The table to copy; an empty table gives an empty vector
+template <typename Data>
+inline std::vector<Data> copy_table_values(const table& t) {
+    if (!t.has_data()) {
+        return {};
+    }
+    const auto ary = row_accessor<const Data>{ t }.pull();
+    return std::vector<Data>(ary.get_data(), ary.get_data() + ary.get_count());
 }
 
 template <typename T>
