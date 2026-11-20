@@ -14,32 +14,36 @@
 # limitations under the License.
 #===============================================================================
 
-load("@onedal//dev/bazel:utils.bzl",
+load(
+    "@onedal//dev/bazel:utils.bzl",
     "paths",
 )
-
-load("@rules_cc//cc:defs.bzl", "cc_library")
-load("@onedal//dev/bazel/config:config.bzl",
+load(
+    "@onedal//dev/bazel/cc:common.bzl",
+    onedal_cc_common = "common",
+)
+load(
+    "@onedal//dev/bazel/cc:compile.bzl",
+    onedal_cc_compile = "compile",
+)
+load(
+    "@onedal//dev/bazel/cc:link.bzl",
+    onedal_cc_link = "link",
+)
+load(
+    "@onedal//dev/bazel/config:config.bzl",
     "CPU_ATTRS",
     "ConfigFlagInfo",
     "TARGET_ATTRS",
     "VERSION_ATTRS",
     "get_cpu_info",
+    "get_version_info",
     "target",
     "validate_build_parameters_lib",
-    "get_version_info",
 )
+load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load("@onedal//dev/bazel/cc:common.bzl",
-    onedal_cc_common = "common",
-)
-load("@onedal//dev/bazel/cc:compile.bzl",
-    onedal_cc_compile = "compile",
-)
-load("@onedal//dev/bazel/cc:link.bzl",
-    onedal_cc_link = "link",
-)
 
 _CODE_COVERAGE_ATTRS = {
     "_code_coverage": attr.label(default = "@config//:code_coverage", providers = [ConfigFlagInfo]),
@@ -75,7 +79,7 @@ def _copy_windows_runtime_files(ctx, files):
         outputs.append(out)
     return outputs
 
-def _init_cc_rule(ctx, features=[], disable_features=[]):
+def _init_cc_rule(ctx, features = [], disable_features = []):
     toolchain = ctx.toolchains["@bazel_tools//tools/cpp:toolchain_type"]
     cc_toolchain = toolchain.cc
     feature_config = cc_common.configure_features(
@@ -126,6 +130,7 @@ def _coverage_options(ctx, cc_toolchain, feature_config):
     compiler_id = cc_toolchain.compiler.split("-")[0]
     if not target(ctx).is_linux:
         fail("--code_coverage=true requires Linux (detected target OS is not Linux)")
+
     # `CC=icpx` is detected as `icpx`; it is the same Intel driver as `icx`.
     if compiler_id not in ("icx", "icpx"):
         fail("--code_coverage=true requires host compiler ID 'icx' or 'icpx' " +
@@ -135,6 +140,7 @@ def _coverage_options(ctx, cc_toolchain, feature_config):
         feature_configuration = feature_config,
         feature_name = "dpc++",
     )
+
     # Make adds -coverage to every ICX compilation and to dynamic links.
     # DPC++ compilations are unchanged; DPC++ dynamic links use -Xscoverage.
     return struct(
@@ -180,8 +186,10 @@ def _check_msvc_runtime(target_info, feature_config):
              "feature. The debug MSVC runtime is implemented for the icx and " +
              "clang-cl toolchains only, and --features must not contradict " +
              "--msvc_runtime; select the runtime with --msvc_runtime (--config=mdd).")
-            .format("debug" if flag_debug else "release",
-                    "enables" if feature_enabled else "does not enable"),
+                .format(
+                "debug" if flag_debug else "release",
+                "enables" if feature_enabled else "does not enable",
+            ),
         )
 
 def _msvc_runtime_suffix(ctx):
@@ -224,8 +232,8 @@ def _cc_module_impl(ctx):
              "all object files are compiled as PIC")
     tagged_linking_contexts = onedal_cc_common.collect_tagged_linking_contexts(ctx.attr.deps)
     if ctx.attr.override_deps_lib_tag:
-        tagged_linking_contexts = onedal_cc_common. \
-            override_tags(tagged_linking_contexts, ctx.attr.lib_tag)
+        tagged_linking_contexts = onedal_cc_common \
+            .override_tags(tagged_linking_contexts, ctx.attr.lib_tag)
     if compilation_outputs.objects or compilation_outputs.pic_objects:
         # Dependents link the objects, so the per-module shared library is never needed.
         linking_context, linking_out = cc_common.create_linking_context_from_compilation_outputs(
@@ -237,6 +245,7 @@ def _cc_module_impl(ctx):
             user_link_flags = coverage.link_flags,
             disallow_dynamic_library = True,
         )
+
         # The module's coverage link flags would otherwise leak into every dependent link,
         # while executables and tests add their own.
         linking_context = _without_coverage_link_flags(linking_context, coverage.link_flags)
@@ -263,14 +272,14 @@ _cc_module = rule(
     implementation = _cc_module_impl,
     attrs = {
         "lib_tag": attr.string(),
-        "override_deps_lib_tag": attr.bool(default=False),
-        "srcs": attr.label_list(allow_files=True),
-        "hdrs": attr.label_list(allow_files=True),
-        "private_hdrs": attr.label_list(allow_files=True),
-        "export_hdrs": attr.bool(default=True),
+        "override_deps_lib_tag": attr.bool(default = False),
+        "srcs": attr.label_list(allow_files = True),
+        "hdrs": attr.label_list(allow_files = True),
+        "private_hdrs": attr.label_list(allow_files = True),
+        "export_hdrs": attr.bool(default = True),
         # Set for DPC++ library modules (see dal.bzl `_dal_module`): their
         # objects are compiled without MKL_ILP64, as Make's DPC objects are.
-        "drop_mkl_ilp64": attr.bool(default=False),
+        "drop_mkl_ilp64": attr.bool(default = False),
         "deps": attr.label_list(),
         "copts": attr.string_list(),
         "defines": attr.string_list(),
@@ -289,7 +298,7 @@ _cc_module = rule(
     fragments = ["cpp"],
 )
 
-def cc_module(name, hdrs=[], deps=[], target_compatible_with=[], **kwargs):
+def cc_module(name, hdrs = [], deps = [], target_compatible_with = [], **kwargs):
     # With --release_dpc=false, the default when the toolchain has no DPC++ compiler, skip
     # DPC++ modules and everything that depends on them.
     if "dpc++" in kwargs.get("features", []):
@@ -297,6 +306,7 @@ def cc_module(name, hdrs=[], deps=[], target_compatible_with=[], **kwargs):
             "@config//:release_dpc_disabled": ["@config//:dpc_needs_icpx_in_PATH"],
             "//conditions:default": [],
         })
+
     # cc_common.compile restricts the extensions of `public_hdrs`; cc_library does not.
     if hdrs:
         cc_library(
@@ -309,9 +319,8 @@ def cc_module(name, hdrs=[], deps=[], target_compatible_with=[], **kwargs):
             ":__{}_headers__".format(name),
         ] if hdrs else []),
         target_compatible_with = target_compatible_with,
-        **kwargs,
+        **kwargs
     )
-
 
 def _validate_build_parameters_lib(ctx):
     validate_build_parameters_lib(ctx.attr._build_parameters_lib[ConfigFlagInfo].flag, target(ctx).is_windows)
@@ -322,7 +331,9 @@ def _cc_static_lib_impl(ctx):
     toolchain, feature_config = _init_cc_rule(ctx)
     compilation_context = onedal_cc_common.collect_and_merge_compilation_contexts(ctx.attr.deps)
     linking_contexts = onedal_cc_common.collect_and_filter_linking_contexts(
-        ctx.attr.deps, ctx.attr.lib_tags)
+        ctx.attr.deps,
+        ctx.attr.lib_tags,
+    )
     rt_suffix = _msvc_runtime_suffix(ctx)
     linking_context, static_lib = onedal_cc_link.static(
         owner = ctx.label,
@@ -334,7 +345,7 @@ def _cc_static_lib_impl(ctx):
         is_windows = is_windows,
     )
     default_info = DefaultInfo(
-        files = depset([ static_lib ]),
+        files = depset([static_lib]),
     )
     cc_info = CcInfo(
         compilation_context = compilation_context,
@@ -364,13 +375,12 @@ _cc_static_lib = rule(
         "lib_tags": attr.string_list(),
         # Transitioned: the deps (and their own deps) are compiled export-free
         # when `static_export_free` is set.
-        "deps": attr.label_list(mandatory=True, cfg=_static_export_free_transition),
-        "static_export_free": attr.bool(default=False),
+        "deps": attr.label_list(mandatory = True, cfg = _static_export_free_transition),
+        "static_export_free": attr.bool(default = False),
     } | TARGET_ATTRS | _PARAMETERS_LIB_ATTRS,
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
     fragments = ["cpp"],
 )
-
 
 def cc_static_lib(name, **kwargs):
     # Only Windows archives are export-free; see the transition above.
@@ -411,15 +421,19 @@ def _compile_windows_resource(ctx, cc_toolchain, rc_file, rc_headers, defines, o
 def _cc_dynamic_lib_impl(ctx):
     is_windows = target(ctx).is_windows
     _validate_build_parameters_lib(ctx)
+
     # No do_not_link_dynamic_dependencies: released libraries need their DT_NEEDED entries
     # (TBB, libstdc++), and a DLL needs the import libraries of the DLLs it uses.
     toolchain, feature_config = _init_cc_rule(ctx)
     coverage = _coverage_options(ctx, toolchain, feature_config)
     compilation_context = onedal_cc_common.collect_and_merge_compilation_contexts(ctx.attr.deps)
     linking_contexts = onedal_cc_common.collect_and_filter_linking_contexts(
-        ctx.attr.deps, ctx.attr.lib_tags)
+        ctx.attr.deps,
+        ctx.attr.lib_tags,
+    )
 
     vi = get_version_info(ctx)
+
     # The CRT suffix goes before the ABI version, as in Make: `onedal_cored.4.dll`.
     rt_name = ctx.attr.lib_name + _msvc_runtime_suffix(ctx)
     link_name = "{}.{}".format(rt_name, vi.binary_major) if is_windows else rt_name
@@ -431,6 +445,7 @@ def _cc_dynamic_lib_impl(ctx):
         for script in ctx.files.linker_scripts
     ]
     exclude_libs_flags = [] if is_windows else ["-Wl,--exclude-libs=ALL"]
+
     # Make links the version resource into every Windows DLL (dll.res, makefile:586, 870, 874).
     # Only this DLL links it, so it is kept out of the returned linking context.
     res_files = []
@@ -456,6 +471,7 @@ def _cc_dynamic_lib_impl(ctx):
         is_windows = is_windows,
         additional_inputs = ctx.files.linker_scripts + res_files,
     )
+
     # On Windows `<name>.<major>.dll` and `<name>.<major>.if.lib`; the release rule renames the latter.
     default_info = DefaultInfo(
         files = depset(dynamic_outputs.files),
@@ -471,13 +487,13 @@ cc_dynamic_lib = rule(
     attrs = {
         "lib_name": attr.string(),
         "lib_tags": attr.string_list(),
-        "deps": attr.label_list(mandatory=True),
-        "def_file": attr.label(allow_single_file=True),
+        "deps": attr.label_list(mandatory = True),
+        "def_file": attr.label(allow_single_file = True),
         "linkopts": attr.string_list(
             default = [],
             doc = "Additional linker flags (e.g. --exclude-libs for MKL symbol hiding).",
         ),
-        "linker_scripts": attr.label_list(allow_files=True),
+        "linker_scripts": attr.label_list(allow_files = True),
         "rc_file": attr.label(
             allow_single_file = [".rc"],
             doc = "Windows resource script for the version resource (Make's dll.rc).",
@@ -492,7 +508,6 @@ cc_dynamic_lib = rule(
     fragments = ["cpp"],
 )
 
-
 def _cc_exec_impl(ctx):
     if not ctx.attr.deps:
         fail("'{}' has no deps, so there is nothing to link".format(ctx.label))
@@ -500,7 +515,9 @@ def _cc_exec_impl(ctx):
     coverage = _coverage_options(ctx, toolchain, feature_config)
     tagged_linking_contexts = onedal_cc_common.collect_tagged_linking_contexts(ctx.attr.deps)
     linking_contexts = onedal_cc_common.filter_tagged_linking_contexts(
-        tagged_linking_contexts, ctx.attr.lib_tags)
+        tagged_linking_contexts,
+        ctx.attr.lib_tags,
+    )
     executable = onedal_cc_link.executable(
         owner = ctx.label,
         name = ctx.label.name,
@@ -539,11 +556,11 @@ cc_test = rule(
     attrs = {
         "lib_tags": attr.string_list(),
         # On the edges, so the test binary and its logs stay in the top-level output directory.
-        "deps": attr.label_list(cfg=_test_link_mode_transition),
-        "data": attr.label_list(allow_files=True, cfg=_test_link_mode_transition),
+        "deps": attr.label_list(cfg = _test_link_mode_transition),
+        "data": attr.label_list(allow_files = True, cfg = _test_link_mode_transition),
         "user_link_flags": attr.string_list(),
-        "build_from_sources": attr.bool(default=False),
-        "_is_test": attr.bool(default=True),
+        "build_from_sources": attr.bool(default = False),
+        "_is_test": attr.bool(default = True),
     } | TARGET_ATTRS | _CODE_COVERAGE_ATTRS,
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
     fragments = ["cpp"],
@@ -555,9 +572,9 @@ cc_executable = rule(
     attrs = {
         "lib_tags": attr.string_list(),
         "deps": attr.label_list(),
-        "data": attr.label_list(allow_files=True),
+        "data": attr.label_list(allow_files = True),
         "user_link_flags": attr.string_list(),
-        "_is_test": attr.bool(default=False),
+        "_is_test": attr.bool(default = False),
     } | TARGET_ATTRS | _CODE_COVERAGE_ATTRS,
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
     fragments = ["cpp"],

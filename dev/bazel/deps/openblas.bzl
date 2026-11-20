@@ -23,7 +23,7 @@ openblas_repo = repos.prebuilt_libs_repo_rule(
     ],
     # No libgfortran.a: .ci/env/openblas.sh builds with NO_FORTRAN=1, and Make links only this.
     libs = [
-            "lib/libopenblas.a",
+        "lib/libopenblas.a",
     ],
     build_template = "@onedal//dev/bazel/deps:openblas.tpl.BUILD",
     # `.ci/env/openblas.bat` builds a static OpenBLAS, so no `win_bins` (Make: OPENBLASDIR.libia.win).

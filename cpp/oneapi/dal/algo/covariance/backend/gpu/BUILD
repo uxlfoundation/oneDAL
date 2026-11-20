@@ -1,8 +1,10 @@
-package(default_visibility = ["//visibility:public"])
-load("@onedal//dev/bazel:dal.bzl",
+load(
+    "@onedal//dev/bazel:dal.bzl",
     "dal_module",
     "dal_test_suite",
 )
+
+package(default_visibility = ["//visibility:public"])
 
 dal_module(
     name = "gpu",
@@ -16,5 +18,5 @@ dal_module(
     ],
     extra_deps = [
         "@onedal//cpp/daal/src/algorithms/covariance:kernel",
-    ]
+    ],
 )

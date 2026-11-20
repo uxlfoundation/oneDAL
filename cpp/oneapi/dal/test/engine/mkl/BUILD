@@ -1,8 +1,10 @@
-package(default_visibility = ["//visibility:public"])
-load("@onedal//dev/bazel:dal.bzl",
+load(
+    "@onedal//dev/bazel:dal.bzl",
     "dal_test_module",
     "dal_test_suite",
 )
+
+package(default_visibility = ["//visibility:public"])
 
 dal_test_module(
     name = "mkl",
@@ -11,9 +13,11 @@ dal_test_module(
         "@onedal//cpp/oneapi:include_root",
     ],
     extra_deps = [{
-        "@config//:backend_ref": [ "@openblas//:openblas",
-                                    ],
-        "//conditions:default": [ "@mkl//:mkl_core", 
-                                ],
-        }],
+        "@config//:backend_ref": [
+            "@openblas//:openblas",
+        ],
+        "//conditions:default": [
+            "@mkl//:mkl_core",
+        ],
+    }],
 )

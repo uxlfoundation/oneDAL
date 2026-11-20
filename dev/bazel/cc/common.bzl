@@ -14,19 +14,19 @@
 # limitations under the License.
 #===============================================================================
 
+load(
+    "@onedal//dev/bazel:utils.bzl",
+    "sets",
+    "utils",
+)
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-
-load("@onedal//dev/bazel:utils.bzl",
-    "utils",
-    "sets",
-)
 
 _ModuleInfo = provider(
     fields = [
         "compilation_context",
         "tagged_linking_contexts",
-    ]
+    ],
 )
 
 def _collect_compilation_contexts(deps):
@@ -38,9 +38,9 @@ def _collect_compilation_contexts(deps):
     return dep_compilation_contexts
 
 def _merge_compilation_contexts(compilation_contexts):
-    cc_infos = [CcInfo(compilation_context=x) for x in compilation_contexts]
+    cc_infos = [CcInfo(compilation_context = x) for x in compilation_contexts]
     return cc_common.merge_cc_infos(
-        direct_cc_infos = cc_infos
+        direct_cc_infos = cc_infos,
     ).compilation_context
 
 def _collect_and_merge_compilation_contexts(deps):
@@ -102,6 +102,7 @@ def _unpack_linking_contexts(linking_contexts):
     dynamic_libs_to_link = []
     static_libs_to_link = []
     additional_inputs = []
+
     # The object order must follow the linking contexts.
     for linking_context in linking_contexts:
         for linker_input in linking_context.linker_inputs.to_list():

@@ -1,7 +1,8 @@
-load("@onedal//dev/bazel:dal.bzl",
-    "dal_module",
-    "dal_example_suite",
+load(
+    "@onedal//dev/bazel:dal.bzl",
     "dal_algo_example_suite",
+    "dal_example_suite",
+    "dal_module",
 )
 
 filegroup(
@@ -18,7 +19,7 @@ filegroup(
 dal_module(
     name = "example_util",
     hdrs = glob(["source/example_util/*.hpp"]),
-    includes = [ "source" ],
+    includes = ["source"],
 )
 
 _TEST_DEPS = [
@@ -31,7 +32,7 @@ _DATA_DEPS = [
 
 dal_example_suite(
     name = "table",
-    compile_as = [ "dpc++" ],
+    compile_as = ["dpc++"],
     srcs = glob(["source/table/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/oneapi/dal/table",
@@ -42,7 +43,7 @@ dal_example_suite(
 
 dal_example_suite(
     name = "kmeans_init",
-    compile_as = [ "dpc++" ],
+    compile_as = ["dpc++"],
     srcs = glob(["source/kmeans_init/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/oneapi/dal/algo:kmeans",
@@ -54,7 +55,7 @@ dal_example_suite(
 
 dal_example_suite(
     name = "misc",
-    compile_as = [ "dpc++" ],
+    compile_as = ["dpc++"],
     srcs = glob(["source/misc/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/oneapi/dal:io",
@@ -81,7 +82,7 @@ dal_algo_example_suite(
         "rbf_kernel",
         "svm",
     ],
-    compile_as = [ "dpc++" ],
+    compile_as = ["dpc++"],
     data = _DATA_DEPS,
     extra_deps = _TEST_DEPS,
 )
