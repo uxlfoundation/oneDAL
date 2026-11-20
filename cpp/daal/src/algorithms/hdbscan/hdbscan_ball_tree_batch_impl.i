@@ -535,6 +535,11 @@ static services::Status computeCoreDistAndMstBallTree(const algorithmFPType * da
     });
     DAAL_CHECK_SAFE_STATUS();
 
+    if (nCols >= primMinCols)
+    {
+        return primMst<algorithmFPType, cpu>(data, nRows, nCols, coreDistances, distFunc, invAlpha, mstFrom, mstTo, mstWeights, edgesAdded);
+    }
+
     // Per-node minimum core distances
     TArrayScalable<algorithmFPType, cpu> minCoreDistNodeVec(totalTreeNodes);
     algorithmFPType * minCoreDistNode = minCoreDistNodeVec.get();
