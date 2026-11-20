@@ -22,7 +22,7 @@
 */
 
 #include "src/algorithms/dtrees/forest/classification/df_classification_train_container.h"
-#include "src/algorithms/dtrees/forest/classification/df_classification_train_dense_default_impl.i"
+#include "src/algorithms/dtrees/forest/classification/df_classification_train_impl.i"
 #include "src/algorithms/dtrees/forest/classification/df_classification_train_kernel.h"
 
 namespace daal

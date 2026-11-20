@@ -331,6 +331,25 @@ endif
 ONEDPLDIR := $(subst \,/,$(DPL_ROOT))
 ONEDPL.include := $(ONEDPLDIR)/include
 
+#============================= SIMD sort folders ===================================
+
+# Optional header-only SIMD sort library per architecture. Without it, DAAL
+# sorts fall back to the scalar implementation.
+ifeq ($(IA_is_intel64),yes)
+SIMDSORT.subdir := src
+SIMDSORT.header := x86simdsort-static-incl.h
+endif
+
+ifneq ($(SIMDSORT.header),)
+SIMDSORTDIR := $(if $(SIMD_SORT_ROOT),$(subst \,/,$(SIMD_SORT_ROOT)),$(DIR)/__deps/simd_sort)
+ifneq ($(wildcard $(SIMDSORTDIR)/$(SIMDSORT.subdir)/$(SIMDSORT.header)),)
+SIMDSORT.include := $(SIMDSORTDIR)/$(SIMDSORT.subdir)
+-DSIMDSORT := -DDAAL_USE_SIMD_SORT
+else
+$(warning Can`t find $(SIMDSORT.header) in $(SIMDSORTDIR)/$(SIMDSORT.subdir), building without SIMD sort: run dev/download_simd_sort.sh or set SIMD_SORT_ROOT to enable it)
+endif
+endif
+
 #======================= Option to use stdlib allocators ==============================
 
 ifeq ($(STDALLOC), yes)
@@ -479,7 +498,7 @@ CORE.srcdirs  := $(CORE.SERV.srcdir) $(CORE.srcdir)                  \
                  $(CPPDIR.daal)/src/data_management
 
 CORE.incdirs.common := $(RELEASEDIR.include) $(CPPDIR.daal) $(WORKDIR)
-CORE.incdirs.thirdp := $(daaldep.math_backend.incdir) $(VTUNESDK.include) $(ONEDPL.include) $(TBBDIR.include)
+CORE.incdirs.thirdp := $(daaldep.math_backend.incdir) $(VTUNESDK.include) $(ONEDPL.include) $(SIMDSORT.include) $(TBBDIR.include)
 CORE.incdirs := $(CORE.incdirs.common) $(CORE.incdirs.thirdp)
 
 $(info CORE.incdirs: $(CORE.incdirs))
@@ -541,7 +560,7 @@ $(WORKDIR.lib)/$(core_y):                   $(daaldep.math_backend.shared_link_d
                                             $(CORE.tmpdir_y)/$(core_y:%.$y=%_link.txt) ; $(LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 
 $(CORE.objs_a): $(CORE.tmpdir_a)/inc_a_folders.txt
-$(CORE.objs_a): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-sections) $(-Zl) $(-sanitize) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER) $(-DSTDALLOC) $(-DGCOV_BUILD)
+$(CORE.objs_a): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-sections) $(-Zl) $(-sanitize) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER) $(-DSTDALLOC) $(-DSIMDSORT) $(-DGCOV_BUILD)
 $(CORE.objs_a): COPT += -D__TBB_NO_IMPLICIT_LINKAGE -DDAAL_NOTHROW_EXCEPTIONS \
                         -DDAAL_HIDE_DEPRECATED -DTBB_USE_ASSERT=0 -D_ENABLE_ATOMIC_ALIGNMENT_FIX \
                         $(if $(CHECK_DLL_SIG),-DDAAL_CHECK_DLL_SIG)
@@ -550,7 +569,7 @@ $(CORE.objs_a): COPT += @$(CORE.tmpdir_a)/inc_a_folders.txt
 $(eval $(call append_uarch_copt,$(CORE.objs_a)))
 
 $(CORE.objs_y): $(CORE.tmpdir_y)/inc_y_folders.txt
-$(CORE.objs_y): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-sections) $(-Zl) $(-visibility) $(-sanitize) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER) $(-DSTDALLOC) $(-DGCOV_BUILD)
+$(CORE.objs_y): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-sections) $(-Zl) $(-visibility) $(-sanitize) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER) $(-DSTDALLOC) $(-DSIMDSORT) $(-DGCOV_BUILD)
 $(CORE.objs_y): COPT += -D__DAAL_IMPLEMENTATION \
                         -D__TBB_NO_IMPLICIT_LINKAGE -DDAAL_NOTHROW_EXCEPTIONS \
                         -DDAAL_HIDE_DEPRECATED -DTBB_USE_ASSERT=0 -D_ENABLE_ATOMIC_ALIGNMENT_FIX \

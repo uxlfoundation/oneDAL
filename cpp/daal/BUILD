@@ -120,9 +120,13 @@ daal_module(
         "src/externals/**/*.h",
         "src/algorithms/*.h",
     ]),
+    # Builds with --simd_sort=false or a non-x86 target never fetch @simd_sort.
     deps = [
         ":includes",
-    ],
+    ] + select({
+        "@config//:simd_sort_enabled": [ "@simd_sort//:headers" ],
+        "//conditions:default": [],
+    }),
 )
 
 daal_module(
@@ -385,9 +389,12 @@ dal_collect_test_suites(
     name = "tests",
     root = "@onedal//cpp/daal/src/algorithms",
     modules = [
-        "dtrees/gbt/regression"
+        "dtrees/engine",
+        "dtrees/forest/test",
+        "dtrees/gbt/regression",
     ],
     tests = [
+        "@onedal//cpp/daal/src/externals/test:tests",
         "@onedal//cpp/daal/src/threading/test:tests",
     ],
 )

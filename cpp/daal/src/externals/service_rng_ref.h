@@ -33,6 +33,7 @@
 
     #include "src/externals/service_rng_common.h"
     #include "services/error_indexes.h"
+    #include <cstdint>
     #include <random>
 
     // RNGs
@@ -116,14 +117,13 @@ public:
             _gen.seed(_seed[0]);
         }
     }
-    State(const State & other) : _gen(0), _brngId(other._brngId), _seedSize(other._seedSize), _seed(nullptr), _nSkip(other._nSkip)
+    // Copies the generator itself: re-seeding and discarding _nSkip values would cost the stream's position.
+    State(const State & other) : _gen(other._gen), _brngId(other._brngId), _seedSize(other._seedSize), _seed(nullptr), _nSkip(other._nSkip)
     {
         if (_seedSize > 0 && other._seed != nullptr)
         {
             _seed = (unsigned int *)daal::services::daal_malloc(sizeof(unsigned int) * _seedSize);
             daal::services::daal_memcpy_s(_seed, _seedSize * elSize, other._seed, other._seedSize * elSize);
-            _gen.seed(_seed[0]);
-            _gen.discard(_nSkip);
         }
     }
     ~State()
@@ -174,17 +174,41 @@ public:
     size_t rngSeedSize() { return _seedSize; }
     size_t skipSize() { return _nSkip; }
 
+    /// The engine as the distributions draw from it. It counts the values they take, which can be more than
+    /// one per draw (two per double, rejection in others), so that _nSkip, and every copy made from it,
+    /// follows the generator exactly.
+    struct Counted
+    {
+        using result_type = typename Gen::result_type;
+        static constexpr result_type min() { return Gen::min(); }
+        static constexpr result_type max() { return Gen::max(); }
+        result_type operator()()
+        {
+            ++n;
+            return gen();
+        }
+        Gen & gen;
+        size_t & n;
+    };
+
+    /// Integers in [a, b) from one 32-bit value each, floor(value * (b - a) / 2^32), as MKL's standard method
+    /// takes one value per draw, so that callers can bound a stream's use by its draw count. Wider ranges
+    /// take std::uniform_int_distribution.
     template <typename T>
     int iUniform(const size_t n, T * r, const T a, const T b, const int method)
     {
         int errcode = 0;
         if (rngSeedSize() == 0 || rngSeed() == nullptr) return services::ErrorNullInput;
-        std::uniform_int_distribution<T> distrib(a, b - 1);
-        for (size_t i = 0; i < n; i++)
+        Counted c { _gen, _nSkip };
+        const uint64_t range = uint64_t(int64_t(b) - int64_t(a));
+        static_assert(Gen::min() == 0 && Gen::max() == 0xFFFFFFFFu, "one 32-bit value per draw");
+        if (range <= (uint64_t(1) << 32))
         {
-            r[i] = distrib(_gen);
+            for (size_t i = 0; i < n; i++) r[i] = T(int64_t(a) + int64_t((uint64_t(c()) * range) >> 32));
+            return errcode;
         }
-        _nSkip += n;
+        std::uniform_int_distribution<T> distrib(a, b - 1);
+        for (size_t i = 0; i < n; i++) r[i] = distrib(c);
         return errcode;
     }
     template <typename T>
@@ -192,12 +216,9 @@ public:
     {
         int errcode = 0;
         if (rngSeedSize() == 0 || rngSeed() == nullptr) return services::ErrorNullInput;
+        Counted c { _gen, _nSkip };
         std::uniform_real_distribution<T> distrib(a, b);
-        for (size_t i = 0; i < n; i++)
-        {
-            r[i] = distrib(_gen);
-        }
-        _nSkip += n;
+        for (size_t i = 0; i < n; i++) r[i] = distrib(c);
         return errcode;
     }
     template <typename T>
@@ -206,12 +227,9 @@ public:
         int errcode = 0;
         if (rngSeedSize() == 0 || rngSeed() == nullptr) return services::ErrorNullInput;
         if (!std::is_floating_point<T>::value) return services::ErrorDataTypeNotSupported;
+        Counted c { _gen, _nSkip };
         std::normal_distribution<T> distrib(a, sigma);
-        for (size_t i = 0; i < n; i++)
-        {
-            r[i] = distrib(_gen);
-        }
-        _nSkip += n;
+        for (size_t i = 0; i < n; i++) r[i] = distrib(c);
         return errcode;
     }
     template <typename T>
@@ -220,12 +238,9 @@ public:
         int errcode = 0;
         if (rngSeedSize() == 0 || rngSeed() == nullptr) return services::ErrorNullInput;
         if (!std::is_integral<T>::value) return services::ErrorDataTypeNotSupported;
+        Counted c { _gen, _nSkip };
         std::bernoulli_distribution distrib(p);
-        for (size_t i = 0; i < n; i++)
-        {
-            r[i] = distrib(_gen);
-        }
-        _nSkip += n;
+        for (size_t i = 0; i < n; i++) r[i] = distrib(c);
         return errcode;
     }
 
@@ -297,6 +312,20 @@ public:
         int errcode = 0;
         _stream->discard(nSkip);
         return errcode;
+    }
+
+    // std::discard takes one count, so only skips that fit one word are supported.
+    int skipAheadEx(size_t nWords, const DAAL_UINT64 * nSkip)
+    {
+        if (!fitsOneWord(nWords, nSkip)) return __DAAL_SKIP_AHEAD_METHOD_ERRCODE;
+        if (nWords) _stream->discard(size_t(nSkip[0]));
+        return 0;
+    }
+
+    int copyState(void * srcState)
+    {
+        _stream->assign(srcState);
+        return 0;
     }
 
     void * getState() { return _stream; }

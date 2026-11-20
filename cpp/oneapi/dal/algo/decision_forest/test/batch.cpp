@@ -477,6 +477,61 @@ DF_BATCH_CLS_TEST("df cls base check with non default params") {
     this->infer_base_checks(desc, data_test, this->get_homogen_table_id(), model, checker_list);
 }
 
+DF_BATCH_CLS_TEST("df cls every oob output agrees with the per-observation errors") {
+    SKIP_IF(this->is_gpu()); // checks the CPU forest trainer's OOB outputs
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+
+    const auto [data, data_test, class_count, checker_list] = this->get_cls_dataframe_base();
+
+    auto desc = this->get_default_descriptor();
+
+    desc.set_class_count(class_count);
+    desc.set_error_metric_mode(error_metric_mode::out_of_bag_error |
+                               error_metric_mode::out_of_bag_error_per_observation |
+                               error_metric_mode::out_of_bag_error_accuracy |
+                               error_metric_mode::out_of_bag_error_decision_function);
+
+    const auto result = this->train_base_checks(desc, data, this->get_homogen_table_id());
+
+    const auto y = dal::row_accessor<const double>(
+                       data.get_table(this->get_homogen_table_id(),
+                                      range(data.get_column_count() - 1, data.get_column_count())))
+                       .pull();
+    const double err = dal::row_accessor<const double>(result.get_oob_err()).pull()[0];
+    const double accuracy =
+        dal::row_accessor<const double>(result.get_oob_err_accuracy()).pull()[0];
+    const auto per_obs =
+        dal::row_accessor<const double>(result.get_oob_err_per_observation()).pull();
+    const auto decision =
+        dal::row_accessor<const double>(result.get_oob_err_decision_function()).pull();
+
+    // Rows in no tree's OOB set have error -1 and an all-zero decision row; the others have the vote
+    // shares, whose first largest entry is the OOB prediction.
+    std::int64_t predicted = 0;
+    double wrong = 0;
+    for (std::int64_t i = 0; i < per_obs.get_count(); ++i) {
+        double sum = 0;
+        std::int64_t best = 0;
+        for (std::int64_t c = 0; c < class_count; ++c) {
+            sum += decision[i * class_count + c];
+            best = decision[i * class_count + c] > decision[i * class_count + best] ? c : best;
+        }
+        if (per_obs[i] < 0) {
+            REQUIRE(per_obs[i] == -1.0);
+            REQUIRE(sum == 0.0);
+            continue;
+        }
+        REQUIRE(std::abs(sum - 1.0) < 1e-6);
+        REQUIRE(per_obs[i] == (best != std::int64_t(y[i]) ? 1.0 : 0.0));
+        ++predicted;
+        wrong += per_obs[i];
+    }
+    REQUIRE(predicted > 0);
+    REQUIRE(std::abs(err - wrong / double(predicted)) < 1e-6);
+    REQUIRE(std::abs(accuracy - (1.0 - err)) < 1e-6);
+}
+
 DF_BATCH_CLS_TEST("df cls oob accuracy requested alone") {
     SKIP_IF(this->is_gpu()); // the GPU kernel does not compute the OOB accuracy
     SKIP_IF(this->not_available_on_device());
@@ -616,6 +671,57 @@ DF_BATCH_REG_TEST("df reg base check with non default params") {
     const auto train_result = this->train_base_checks(desc, data, this->get_homogen_table_id());
     const auto model = train_result.get_model();
     this->infer_base_checks(desc, data_test, this->get_homogen_table_id(), model, checker_list);
+}
+
+DF_BATCH_REG_TEST("df reg every oob output agrees with the per-observation errors") {
+    SKIP_IF(this->is_gpu()); // checks the CPU forest trainer's OOB outputs
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+
+    const auto [data, data_test, checker_list] = this->get_reg_dataframe_base();
+
+    auto desc = this->get_default_descriptor();
+
+    desc.set_error_metric_mode(
+        error_metric_mode::out_of_bag_error | error_metric_mode::out_of_bag_error_per_observation |
+        error_metric_mode::out_of_bag_error_r2 | error_metric_mode::out_of_bag_error_prediction);
+
+    const auto result = this->train_base_checks(desc, data, this->get_homogen_table_id());
+
+    const auto y = dal::row_accessor<const double>(
+                       data.get_table(this->get_homogen_table_id(),
+                                      range(data.get_column_count() - 1, data.get_column_count())))
+                       .pull();
+    const double err = dal::row_accessor<const double>(result.get_oob_err()).pull()[0];
+    const double r2 = dal::row_accessor<const double>(result.get_oob_err_r2()).pull()[0];
+    const auto per_obs =
+        dal::row_accessor<const double>(result.get_oob_err_per_observation()).pull();
+    const auto prediction = dal::row_accessor<const double>(result.get_oob_err_prediction()).pull();
+
+    // Rows in no tree's OOB set have error -1 and prediction 0; the others have the squared error of
+    // their OOB prediction. R2 compares the OOB rows' errors with their deviations from the mean of y.
+    double mean = 0;
+    for (std::int64_t i = 0; i < y.get_count(); ++i) {
+        mean += y[i] / double(y.get_count());
+    }
+    std::int64_t predicted = 0;
+    double sse = 0, sst = 0;
+    for (std::int64_t i = 0; i < per_obs.get_count(); ++i) {
+        if (per_obs[i] < 0) {
+            REQUIRE(per_obs[i] == -1.0);
+            REQUIRE(prediction[i] == 0.0);
+            continue;
+        }
+        const double e = (prediction[i] - y[i]) * (prediction[i] - y[i]);
+        REQUIRE(std::abs(per_obs[i] - e) <= 1e-5 * e + 1e-9);
+        ++predicted;
+        sse += per_obs[i];
+        sst += (y[i] - mean) * (y[i] - mean);
+    }
+    REQUIRE(predicted > 0);
+    REQUIRE(sst > 0);
+    REQUIRE(std::abs(err - sse / double(predicted)) <= 1e-5 * err + 1e-9);
+    REQUIRE(std::abs(r2 - (1.0 - sse / sst)) <= 1e-5);
 }
 
 DF_BATCH_REG_TEST("df reg oob r2 for constant responses") {

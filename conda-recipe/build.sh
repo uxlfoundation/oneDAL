@@ -21,6 +21,11 @@ fi
 
 export DPL_ROOT=$PREFIX
 
+# Conda packages ship only the x86-simd-sort runtime-dispatch header, not the static headers oneDAL uses.
+if [ -z "${SIMD_SORT_ROOT:-}" ]; then
+    ./dev/download_simd_sort.sh
+fi
+
 # Use isolated TBBROOT staging so we don't create files under $PREFIX that may
 # accidentally end up in output packages.
 # conda-forge tbb-devel may expose only versioned SONAMEs (libtbb.so.<N>,

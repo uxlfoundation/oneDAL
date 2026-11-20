@@ -321,6 +321,22 @@ config_setting(
     },
 )
 
+# x86-simd-sort for DAAL sorts on x86-64. Disabling it skips fetching @simd_sort.
+config_bool_flag(
+    name = "simd_sort",
+    build_setting_default = True,
+)
+
+config_setting(
+    name = "simd_sort_enabled",
+    flag_values = {
+        ":simd_sort": "True",
+    },
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+    ],
+)
+
 unsupported_config(
     name = "stdalloc_non_linux_error",
     message = "--stdalloc=true is supported only when targeting Linux",

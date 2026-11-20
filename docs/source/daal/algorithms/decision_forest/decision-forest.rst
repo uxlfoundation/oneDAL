@@ -57,6 +57,14 @@ This subset is computed for each feature at the initialization stage of the algo
 each value from initially provided data is substituted with the value of the corresponding bin.
 The bins are continuous intervals between the selected splits.
 
+On CPU, the bin borders of a feature are computed from a uniform random sample of up to 4,194,304 training rows,
+or from all rows of smaller tables. A feature with at most ``maxBins`` distinct values gets one bin per value, so
+its splits are exact. Nodes with fewer than twice ``maxBins`` observations are split exactly, as in the
+``defaultDense`` method, rather than from bins. When every feature that is not constant has one bin per value, as
+for integer, one-hot, genotype or pixel data, bins give the exact splits at any node size, so the bound is twice the
+mean number of bins of those features instead, which makes small nodes faster to split. Every node is split exactly,
+without bins, when ``maxBins`` is above 65536 or a categorical feature has more than 65535 categories.
+
 Split Criteria
 ++++++++++++++
 
@@ -155,6 +163,10 @@ To create a *bootstrap* set and choose feature indices in the
 performant way, the training algorithm requires the source of
 random numbers, capable to produce sequences of random numbers in
 parallel.
+
+On CPU, with the default ``philox4x32x10`` engine, training with the same seed gives the same forest on every run
+and for any number of threads. With other engines the forest can differ between runs, because the trees' nodes are
+built in parallel in an order that varies. For a given seed, forests differ from those of earlier releases.
 
 Initialization of the engine in the decision forest is based on
 the scheme below:
@@ -261,6 +273,9 @@ workflow described in :ref:`classification_usage_model`.
 Training
 --------
 
+The training table can have at most :math:`2^{31} - 1` rows; a larger table fails with
+``ErrorIncorrectNumberOfObservations``.
+
 At the training stage, decision forest regression has the following parameters:
 
 .. tabularcolumns::  |\Y{0.2}|\Y{0.2}|\Y{0.6}|
@@ -282,14 +297,14 @@ At the training stage, decision forest regression has the following parameters:
      - Used only with ``method="hist"`` and CPU only. Selects the algorithm
        used to calculate bin edges. ``quantiles`` results in bins with a similar
        amount of training data points. ``averages`` divides the range of values
-       observed in the training data set into equal-width bins of size `(max -
+       observed in the binning sample into equal-width bins of size `(max -
        min) / maxBins`.
    * - ``bootstrap``
      - ``true``
      - If true, the training set for a tree is a bootstrap of the whole training set.
        If false, the whole training set is used to build trees.
    * - ``engine``
-     - ``SharePtr<engines::mt2203::Batch>()>``
+     - ``SharedPtr<engines::philox4x32x10::Batch>()>``
      - Pointer to the random number generator engine.
 
        The random numbers produced by this engine are used to choose the bootstrap set,
@@ -325,12 +340,19 @@ At the training stage, decision forest regression has the following parameters:
 
        For CPU:
 
-       - ``defaultDense`` - default performance-oriented method
-       - ``hist`` - inexact histogram computation method
+       - ``defaultDense`` - exact method: every node considers every boundary between distinct values of
+         its selected features, as scikit-learn does. Slower than ``hist`` on large data.
+       - ``hist`` - :ref:`inexact histogram computation method <df_inexact_hist_method>`, the method for
+         large numbers of observations
 
        For GPU:
 
        - ``hist`` - :ref:`inexact histogram computation method <df_inexact_hist_method>`
+   * - ``memorySavingMode``
+     - ``false``
+     - Has no effect. The training data and its bins are kept once, and a dense row-major table in the training
+       precision is read in place rather than copied, so its memory stays where the caller placed it. In earlier
+       releases this parameter selected sort-based splits, which is the ``defaultDense`` method.
    * - ``minBinSize``
      - :math:`5`
      - Used only with ``method="hist"``. Minimal number of observations in a bin.
@@ -339,10 +361,12 @@ At the training stage, decision forest regression has the following parameters:
      - Minimum amount of impurity decrease required to split a node; it can be any non-negative number.
    * - ``minObservationsInLeafNode``
      - :math:`1` for classification, :math:`5` for regression
-     - Minimum number of observations in the leaf node.
+     - Minimum number of observations in the leaf node. Observations are distinct training rows: a row that
+       bootstrap draws more than once counts once.
    * - ``minObservationsInSplitNode``
      - :math:`2`
-     - Minimum number of samples required to split an internal node; it can be any non-negative number.
+     - Minimum number of observations required to split an internal node, counted as for
+       ``minObservationsInLeafNode``; it can be any non-negative number.
    * - ``minWeightFractionInLeafNode``
      - :math:`0.0`
      - Minimum weighted fraction of the sum total of weights of all the input observations required to be at a leaf node,
@@ -442,6 +466,12 @@ Performance Considerations
 
 To get the best performance of the decision forest variable
 importance computation, use the Mean Decrease Impurity (MDI) rather
-than the Mean Decrease Accuracy (MDA) method.
+than the Mean Decrease Accuracy (MDA) method. MDA predicts every
+out-of-bag observation once for each feature in each tree, so its cost
+grows with the number of features; MDI comes from the trees as they
+are trained.
+
+On CPU, use the ``hist`` method for large numbers of observations; ``defaultDense``
+sorts the values of every node and is slower on large data.
 
 .. include:: ../../../opt-notice.rst

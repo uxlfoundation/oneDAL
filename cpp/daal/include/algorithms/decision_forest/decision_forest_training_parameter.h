@@ -29,6 +29,7 @@
 #include "data_management/data/data_serialize.h"
 #include "services/daal_defines.h"
 #include "algorithms/engines/mt2203/mt2203.h"
+#include "algorithms/engines/philox4x32x10/philox4x32x10.h"
 
 namespace daal
 {
@@ -143,7 +144,7 @@ public:
                                                   than the threshold then the node is not split anymore.*/
     VariableImportanceMode varImportance;  /*!< Variable importance computation mode */
     DAAL_UINT64 resultsToCompute;          /*!< 64 bit integer flag that indicates the results to compute */
-    bool memorySavingMode;                 /*!< If true then use memory saving (but slower) mode */
+    bool memorySavingMode;                 /*!< No effect. Earlier releases selected sort-based splits, now the defaultDense method */
     bool bootstrap;                        /*!< If true then training set for a tree is a bootstrap of the whole training set */
     size_t minObservationsInSplitNode;     /*!< Minimal number of observations in a split node. Default 2 */
     double minWeightFractionInLeafNode;    /*!< The minimum weighted fraction of the sum total of weights (of all the input observations)
