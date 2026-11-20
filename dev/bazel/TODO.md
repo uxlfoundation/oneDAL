@@ -56,13 +56,17 @@
   | Windows | :heavy_check_mark: | :heavy_check_mark: |                    | :heavy_check_mark: | :heavy_check_mark: |
 
   Intel `icx`/`icpx` is preferred whenever it is on `PATH`; `CC` overrides the
-  choice. Linux Clang builds `//:release`, but no CI job selects it, so
-  regressions in that flag set are only found by hand. Windows `clang-cl` is
-  the ARM64 lane of `ci-win.yml`.
+  choice. Linux Clang builds `//:release` (`--release_dpc=false`, `--cpu=avx2`)
+  and runs the `pca` host tests in the `LinuxBazelClang` job of `ci.yml`.
+  Windows `clang-cl` is the ARM64 lane of `ci-win.yml`.
 
 - [ ] **Windows DPC++ execution.** Windows release artifacts can include the
-  DPC++ libraries, but the examples and tests that create a SYCL queue are not
-  run there yet; that needs device and runtime validation on the CI images.
+  DPC++ libraries. The nightly Windows Bazel job is configured to run the `pca`
+  DPC++ tests on the Intel OpenCL CPU runtime (`opencl:cpu`). That execution is
+  not validated: the runtime install and the `opencl:cpu` check pass, but the
+  test link fails (run 44460598549), so no `pca` test has run there yet. The
+  other examples and tests that create a SYCL queue are not run there and need
+  device and runtime validation on the CI images.
 
 - [ ] **Toolchain flag tables as data.** The compile action configs, the default
   compile flags and the marker features are shared by
@@ -89,9 +93,21 @@
   DLL links no longer need the first part, since `dev/bazel/cc/link.bzl`
   archives their objects into `<name>_objects.lib`; DPC++ executables still
   pass their objects directly. Script-free options, all needing a Windows DPC++
-  run to validate: archive the objects of executables the same way, convert the
-  `.res` with `cvtres` into an object that joins that archive, or link through
-  `lld-link` (`-fuse-ld=lld`), which has no line limit.
+  run to validate: archive the objects of executables the same way, or link
+  through `lld-link` (`-fuse-ld=lld`), which has no line limit. Converting the
+  `.res` with `cvtres` into an object of that archive was tried once and failed;
+  finding (1) below says that failure is not isolated.
+  Findings from PR #4042 (Azure 66390, 66418): (1) hypothesis, not isolated:
+  the `.res` before `/link` is likely what makes icx honour `/IMPLIB`. Main's
+  working link has it there; the run that put a cvtres object after `/link`
+  (66390) gave no `<name>.if.lib`, but it also replaced the `.res` with that
+  object, so the two changes are not separated. (2) Bazel rejects
+  a `.res` as a compilation output (`wrong extension ... objects: o, obj, opb,
+  bc`, 66418), so it cannot reach a feature that emits objects before `/link`.
+  (3) Untried: a link variable or feature that emits only the `.res` before
+  `/link`. `user_link_flags` already names it, after `/link`; `additional_inputs`
+  only stages it. The wrapper's comment gives LNK2001 `_DllMainCRTStartup` as
+  the reason for the `.res` before `/link`.
 
 - [ ] **No inherited shell environment.** Two actions still run with
   `use_default_shell_env = True`: the Windows `cmd.exe` copy in `release.bzl`
