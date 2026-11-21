@@ -18,7 +18,10 @@
 
 #include "oneapi/dal/test/engine/fixtures.hpp"
 
+#include "oneapi/dal/algo/hdbscan/backend/gpu/compute_pipeline.hpp"
 #include "oneapi/dal/algo/hdbscan/backend/gpu/kernel_impl.hpp"
+#include "oneapi/dal/table/row_accessor.hpp"
+#include "oneapi/dal/test/engine/blobs.hpp"
 
 namespace oneapi::dal::hdbscan::backend::test {
 
@@ -139,6 +142,49 @@ TEST("hdbscan gpu: compute_core_distances returns a completed event", "[hdbscan]
     const auto core_host = core.to_host(q);
     for (std::int64_t i = 0; i < n; ++i) {
         REQUIRE(core_host.get_data()[i] == 1.0f);
+    }
+}
+
+// The matrix-free path is chosen only when the matrix does not fit, so it is called directly here,
+// with tiles of 37 rows to cover several tiles and a partial last one.
+TEST("hdbscan gpu: the GEMM tile MST matches the matrix MST", "[hdbscan][gpu]") {
+    DECLARE_TEST_POLICY(policy);
+    auto& q = policy.get_queue();
+    constexpr std::int64_t per_cluster = 250;
+    constexpr std::int64_t cluster_count = 4;
+    constexpr std::int64_t column_count = 64;
+    constexpr std::int64_t row_count = per_cluster * cluster_count;
+    auto data =
+        dal::test::engine::make_blobs<float>(per_cluster, cluster_count, column_count, 4.0f, 2.0f);
+    for (auto& v : data) {
+        v += 1.0e3f;
+    }
+    const auto x = homogen_table::wrap(data.data(), row_count, column_count);
+    const double alpha = GENERATE(1.0, 1.5);
+    CAPTURE(alpha);
+    const auto desc =
+        hdbscan::descriptor<float, hdbscan::method::brute_force>(25, 10)
+            .set_alpha(alpha)
+            .set_distance_block_size(37)
+            .set_result_options(result_options::responses | result_options::single_linkage_tree);
+
+    const auto tiles = backend::compute_with_gemm_tiles<float>(q, desc, x, false);
+    const auto matrix = backend::compute_with_matrix<float>(q, desc, x, false);
+    REQUIRE(tiles.get_cluster_count() == cluster_count);
+    REQUIRE(tiles.get_cluster_count() == matrix.get_cluster_count());
+
+    const auto tree_t = row_accessor<const float>(tiles.get_single_linkage_tree()).pull();
+    const auto tree_m = row_accessor<const float>(matrix.get_single_linkage_tree()).pull();
+    REQUIRE(tree_t.get_count() == tree_m.get_count());
+    for (std::int64_t e = 0; e < row_count - 1; e++) {
+        CAPTURE(e);
+        REQUIRE(std::abs(tree_t[4 * e + 2] - tree_m[4 * e + 2]) <=
+                1e-4f * std::max(1.0f, tree_m[4 * e + 2]));
+    }
+    const auto labels_t = row_accessor<const std::int32_t>(tiles.get_responses()).pull();
+    const auto labels_m = row_accessor<const std::int32_t>(matrix.get_responses()).pull();
+    for (std::int64_t i = 0; i < row_count; i++) {
+        REQUIRE(labels_t[i] == labels_m[i]);
     }
 }
 

@@ -66,6 +66,16 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
     const size_t nRows = ntData->getNumberOfRows();
     const size_t nCols = ntData->getNumberOfColumns();
 
+    // Norm-expanded euclidean distances (the brute force matrix, the ball radii) lose data far from the origin.
+    TArrayScalable<algorithmFPType, cpu> centeredValues;
+    NumericTablePtr centered;
+    if (pairwiseDistance == algorithms::internal::PairwiseDistanceType::euclidean && nRows > 0 && nCols > 0)
+    {
+        const services::Status centeringStatus = algorithms::internal::copyCentered<algorithmFPType, cpu>(*ntData, centeredValues, centered);
+        DAAL_CHECK_STATUS_VAR(centeringStatus);
+        ntData = centered.get();
+    }
+
     if (nRows < 2 || minClusterSize < 2)
     {
         WriteOnlyRows<int, cpu> assignBlock(ntAssignments, 0, nRows);
@@ -109,10 +119,12 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
     TArrayScalable<algorithmFPType, cpu> distMatrixVec(nRows * nRows);
     algorithmFPType * distMatrix = distMatrixVec.get();
     DAAL_CHECK_MALLOC(distMatrix);
+    // Faulting in and unmapping 4 KB pages took about two thirds of a 20000-row fit.
+    services::internal::service_advise_huge_pages(distMatrix, nRows * nRows * sizeof(algorithmFPType));
 
     using algorithms::internal::PairwiseDistanceType;
     using algorithms::internal::EuclideanDistances;
-    using algorithms::internal::CosineDistances;
+    using algorithms::internal::ZeroRowCosineDistances;
 
     // Euclidean and cosine use the GEMM-based PairwiseDistances; the other metrics use the
     // functors in hdbscan_distance_utils.h.
@@ -128,26 +140,11 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
     }
     else if (pairwiseDistance == PairwiseDistanceType::cosine)
     {
-        CosineDistances<algorithmFPType, cpu> dist(*ntData, *ntData);
+        // A zero-norm row is at distance 1 from every other row, as in scikit-learn; round-off can
+        // also move the diagonal off zero.
+        ZeroRowCosineDistances<algorithmFPType, cpu> dist(*ntData, *ntData);
         DAAL_CHECK_STATUS_VAR(dist.init());
         DAAL_CHECK_STATUS_VAR(dist.computeFull(distMatrix));
-        // A zero-norm row makes 1 - dot/(aa*bb) divide by zero. scikit-learn
-        // normalizes it to the zero vector instead, which puts it at distance 1
-        // from every other row; round-off can also move the diagonal off zero.
-        for (size_t i = 0; i < nRows; i++)
-        {
-            const algorithmFPType * row = data + i * nCols;
-            bool isZero                 = true;
-            for (size_t d = 0; d < nCols && isZero; d++) isZero = (row[d] == algorithmFPType(0));
-            if (isZero)
-            {
-                for (size_t j = 0; j < nRows; j++)
-                {
-                    distMatrix[i * nRows + j] = algorithmFPType(1);
-                    distMatrix[j * nRows + i] = algorithmFPType(1);
-                }
-            }
-        }
         for (size_t i = 0; i < nRows; i++) distMatrix[i * nRows + i] = algorithmFPType(0);
     }
     else if (pairwiseDistance == PairwiseDistanceType::manhattan)
@@ -163,7 +160,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
     else if (pairwiseDistance == PairwiseDistanceType::minkowski)
     {
         MinkowskiDist<algorithmFPType> mk(minkowskiDegree);
-        fillFullDistMatrix<algorithmFPType, cpu>(data, nRows, nCols, mk, distMatrix);
+        fillFullDistMatrix<algorithmFPType, cpu, true>(data, nRows, nCols, mk, distMatrix);
     }
     else
     {

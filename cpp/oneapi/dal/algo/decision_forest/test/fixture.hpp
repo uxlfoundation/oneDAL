@@ -19,6 +19,7 @@
 
 #include "oneapi/dal/test/engine/fixtures.hpp"
 #include "oneapi/dal/test/engine/math.hpp"
+#include "oneapi/dal/test/engine/tables.hpp"
 
 #include <cmath>
 #include <list>
@@ -527,6 +528,29 @@ public:
             REQUIRE(result.get_var_importance().get_row_count() == 1);
             REQUIRE(result.get_var_importance().get_column_count() == data.get_column_count() - 1);
         }
+    }
+
+    /// On GPU, checks that the requested OOB errors and variable importance are returned in USM.
+    ///
+    /// @param desc   The descriptor the result was trained with
+    /// @param result The train result to check
+    void check_train_results_on_device(const df::descriptor<Float, Method, Task>& desc,
+                                       const df::train_result<Task>& result) {
+#ifdef ONEDAL_DATA_PARALLEL
+        if (!this->is_gpu()) {
+            return;
+        }
+        if (check_mask_flag(desc.get_error_metric_mode(), error_metric_mode::out_of_bag_error)) {
+            te::check_if_table_on_device(result.get_oob_err());
+        }
+        if (check_mask_flag(desc.get_error_metric_mode(),
+                            error_metric_mode::out_of_bag_error_per_observation)) {
+            te::check_if_table_on_device(result.get_oob_err_per_observation());
+        }
+        if (variable_importance_mode::none != desc.get_variable_importance_mode()) {
+            te::check_if_table_on_device(result.get_var_importance());
+        }
+#endif
     }
 
     void check_infer_shapes(const df::descriptor<Float, Method, Task>& desc,

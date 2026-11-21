@@ -305,6 +305,23 @@ TEMPLATE_LIST_TEST_M(selection_by_rows_test,
     this->test_selection(data_array, rows, cols, k);
 }
 
+TEMPLATE_LIST_TEST_M(selection_by_rows_test,
+                     "selection test on wide random rows",
+                     "[block select][small]",
+                     selection_types) {
+    SKIP_IF(!this->get_policy().has_native_float64());
+    using float_t = TestType;
+    // Long enough for the unrolled loads, with a remainder past the last full step.
+    std::int64_t rows = 9;
+    std::int64_t cols = GENERATE(1000, 4099);
+    std::int64_t k = GENERATE(1, 5, 16);
+    const auto df = GENERATE_DATAFRAME(te::dataframe_builder{ rows, cols }.fill_uniform(-0.2, 0.5));
+    const table df_table = df.get_table(this->get_homogen_table_id());
+    const auto df_rows = row_accessor<const float_t>(df_table).pull(this->get_queue(), { 0, -1 });
+    auto data_array = ndarray<float_t, 2>::wrap(df_rows.get_data(), { rows, cols });
+    this->test_selection(data_array, rows, cols, k);
+}
+
 // The input holds more than 2^31 - 1 elements, so every row past the int32 boundary is read
 // through a 64-bit offset. About 26 GB of device memory with the quick-select scratch, hence
 // the `[weekly]` tag.
