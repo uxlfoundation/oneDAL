@@ -93,8 +93,8 @@ but decreases algorithm accuracy, where :math:`n_r` is number of rows, :math:`n_
 and :math:`n_f` is number of selected features.
 
 On CPU, the bin borders of a feature are computed from a uniform random sample of up to 4,194,304 rows, or from all
-rows of smaller tables, and a feature with at most ``max_bins`` distinct values gets one bin per value, so its
-splits are exact. Nodes with fewer than twice ``max_bins`` rows are split exactly, as in the *dense* method. When
+rows of smaller tables. A feature with at most ``max_bins`` distinct values gets one bin per value, so its splits are
+exact, as long as every value appears in the sample, which is always the case for the smaller tables. Nodes with fewer than twice ``max_bins`` rows are split exactly, as in the *dense* method. When
 every feature that is not constant has one bin per value, as for integer, one-hot, genotype or pixel data, bins give
 the exact splits at any node size, so the bound is twice the mean number of bins of those features instead, which
 makes small nodes faster to split. With ``max_bins`` above 65536, every node is split exactly, without bins.
@@ -102,10 +102,10 @@ makes small nodes faster to split. With ``max_bins`` above 65536, every node is 
 Reproducibility
 +++++++++++++++
 
-On CPU, with the default ``philox4x32x10`` engine, training with the same seed gives the same forest on every run
-and for any number of threads. With other engines the forest can differ between runs, because the nodes of the
-trees are built in parallel in an order that varies. For a given seed, forests differ from those of earlier
-releases.
+On CPU, with the default ``philox4x32x10`` engine and the oneMKL or OpenRNG random number backend, training with the
+same seed gives the same forest on every run and for any number of threads. With other engines, or with the reference
+random number backend, the forest can differ between runs, because the nodes of the trees are built in parallel in an
+order that varies. For a given seed, forests differ from those of earlier releases.
 
 Split strategy
 ++++++++++++++

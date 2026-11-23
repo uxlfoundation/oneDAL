@@ -336,9 +336,10 @@ TEST("the binning sample and the bins do not depend on the thread count, for eve
         services::Environment::getInstance()->setNumberOfThreads(1);
         Built<baseCpu> one;
         build(*x, params, 99, one, brng);
-        services::Environment::getInstance()->setNumberOfThreads(saved);
+        services::Environment::getInstance()->setNumberOfThreads(4);
         Built<baseCpu> many;
         build(*x, params, 99, many, brng);
+        services::Environment::getInstance()->setNumberOfThreads(saved);
         REQUIRE(one.status.ok());
         REQUIRE(many.status.ok());
         requireConsistent(many.bins, t.data);
@@ -365,7 +366,6 @@ TEST("a sample sorted in merged chunks bins as one sorted on one thread", "[unit
     services::Environment::getInstance()->setNumberOfThreads(1);
     Built<baseCpu> one;
     build(*x, params, 3, one);
-    services::Environment::getInstance()->setNumberOfThreads(saved);
     REQUIRE(one.status.ok());
     REQUIRE(one.binned);
     requireConsistent(one.bins, data);
@@ -376,12 +376,14 @@ TEST("a sample sorted in merged chunks bins as one sorted on one thread", "[unit
     std::sort(col.begin(), col.end());
     for (size_t j = 1; j < params.maxBins; ++j) REQUIRE(one.bins.borders(0)[j - 1] == col[(j * n + params.maxBins - 1) / params.maxBins - 1]);
 
+    services::Environment::getInstance()->setNumberOfThreads(4);
     forEachCpu([&](auto cpu) {
         Built<decltype(cpu)::value> many;
         build(*x, params, 3, many);
         REQUIRE(many.status.ok());
         requireEqual(one.bins, many.bins);
     });
+    services::Environment::getInstance()->setNumberOfThreads(saved);
 }
 
 TEST("binning groups hold at most one feature per thread and fit the scratch budget", "[unit]")

@@ -80,6 +80,7 @@ public:
     virtual void clone(void * dest) const                                                                     = 0;
     virtual StateIface * clone() const                                                                        = 0;
     virtual void assign(const void * src)                                                                     = 0;
+    virtual int copyFrom(const StateIface * src)                                                              = 0;
     virtual void discard(size_t nSkip)                                                                        = 0;
 };
 
@@ -164,6 +165,18 @@ public:
             _gen.discard(_nSkip);
         }
     }
+    // Live-state copy: assign() serves loadState, whose saved blob has no generator and must be rebuilt
+    // by re-seeding and discarding _nSkip values; here the source is a live State, so _gen is copied.
+    int copyFrom(const StateIface * src) final
+    {
+        const State * srcState = static_cast<const State *>(src);
+        if (_seedSize != srcState->_seedSize || !_seed || !srcState->_seed) return services::ErrorIncorrectParameter;
+        daal::services::daal_memcpy_s(_seed, _seedSize * elSize, srcState->_seed, srcState->_seedSize * elSize);
+        _brngId = srcState->_brngId;
+        _nSkip  = srcState->_nSkip;
+        _gen    = srcState->_gen;
+        return 0;
+    }
     void discard(size_t nSkip) final
     {
         _nSkip += nSkip;
@@ -200,11 +213,12 @@ public:
         int errcode = 0;
         if (rngSeedSize() == 0 || rngSeed() == nullptr) return services::ErrorNullInput;
         Counted c { _gen, _nSkip };
-        const uint64_t range = uint64_t(int64_t(b) - int64_t(a));
+        // Unsigned modular arithmetic: b - a and a + offset are in range, so the wrapped sums are exact for any T.
+        const uint64_t range = uint64_t(b) - uint64_t(a);
         static_assert(Gen::min() == 0 && Gen::max() == 0xFFFFFFFFu, "one 32-bit value per draw");
         if (range <= (uint64_t(1) << 32))
         {
-            for (size_t i = 0; i < n; i++) r[i] = T(int64_t(a) + int64_t((uint64_t(c()) * range) >> 32));
+            for (size_t i = 0; i < n; i++) r[i] = T(uint64_t(a) + ((uint64_t(c()) * range) >> 32));
             return errcode;
         }
         std::uniform_int_distribution<T> distrib(a, b - 1);
@@ -322,11 +336,7 @@ public:
         return 0;
     }
 
-    int copyState(void * srcState)
-    {
-        _stream->assign(srcState);
-        return 0;
-    }
+    int copyState(void * srcState) { return _stream->copyFrom(static_cast<const StateIface *>(srcState)); }
 
     void * getState() { return _stream; }
 

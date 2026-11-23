@@ -164,9 +164,10 @@ performant way, the training algorithm requires the source of
 random numbers, capable to produce sequences of random numbers in
 parallel.
 
-On CPU, with the default ``philox4x32x10`` engine, training with the same seed gives the same forest on every run
-and for any number of threads. With other engines the forest can differ between runs, because the trees' nodes are
-built in parallel in an order that varies. For a given seed, forests differ from those of earlier releases.
+On CPU, with the default ``philox4x32x10`` engine and the oneMKL or OpenRNG random number backend, training with the
+same seed gives the same forest on every run and for any number of threads. With other engines, or with the reference
+random number backend, the forest can differ between runs, because the trees' nodes are built in parallel in an order
+that varies. For a given seed, forests differ from those of earlier releases.
 
 Initialization of the engine in the decision forest is based on
 the scheme below:

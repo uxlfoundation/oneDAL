@@ -704,6 +704,10 @@ DF_BATCH_REG_TEST("df reg every oob output agrees with the per-observation error
     for (std::int64_t i = 0; i < y.get_count(); ++i) {
         mean += y[i] / double(y.get_count());
     }
+    // The kernel squares its double OOB mean and stores the mean rounded to Float, so the error recomputed
+    // from the stored prediction is off by up to the rounding's first-order term plus its square.
+    using Float = std::tuple_element_t<0, TestType>;
+    constexpr double eps = std::numeric_limits<Float>::epsilon();
     std::int64_t predicted = 0;
     double sse = 0, sst = 0;
     for (std::int64_t i = 0; i < per_obs.get_count(); ++i) {
@@ -712,8 +716,11 @@ DF_BATCH_REG_TEST("df reg every oob output agrees with the per-observation error
             REQUIRE(prediction[i] == 0.0);
             continue;
         }
-        const double e = (prediction[i] - y[i]) * (prediction[i] - y[i]);
-        REQUIRE(std::abs(per_obs[i] - e) <= 1e-5 * e + 1e-9);
+        const double residual = prediction[i] - y[i];
+        const double e = residual * residual;
+        const double rounding = eps * std::abs(prediction[i]) *
+                                (2 * std::abs(residual) + eps * std::abs(prediction[i]));
+        REQUIRE(std::abs(per_obs[i] - e) <= 1e-5 * e + rounding + 1e-9);
         ++predicted;
         sse += per_obs[i];
         sst += (y[i] - mean) * (y[i] - mean);

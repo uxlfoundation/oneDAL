@@ -5,8 +5,8 @@ load("@onedal//dev/bazel:dal.bzl", "dal_test_suite")
 daal_module(
     name = "kernel",
     auto = False,
-    hdrs = glob(["*.h", "*.i"], allow_empty = True),
-    srcs = glob(["*.cpp"], allow_empty = True),
+    hdrs = glob(["*.h", "*.i"]),
+    srcs = glob(["*.cpp"]),
     deps = [
         "@onedal//cpp/daal:core",
         # DecisionTreeTable, the model's tree format

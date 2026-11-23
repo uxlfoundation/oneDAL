@@ -391,6 +391,8 @@ TEST("the nodes of one tree run on more threads than there are trees", "[unit]")
     // Runners cap the trees in flight, not the node tasks: other threads still build the tree's nodes. Each node
     // takes 5 us, about 0.3 s for the tree on one thread, so idle threads have time to join; half of them must.
     ThreadCountGuard threads(8);
+    // The arena holds min(8, CPUs) threads; a two-CPU runner can show two evaluators at most.
+    const size_t nThreads = std::min<size_t>(services::Environment::getInstance()->getNumberOfThreads(), threader_get_max_threads_number());
     const TreeShape big { size_t(1) << 16, 30 };
     MockBuilder builder(big, 1);
     builder.nodeWork = std::chrono::microseconds(5);
@@ -398,8 +400,8 @@ TEST("the nodes of one tree run on more threads than there are trees", "[unit]")
     params.nTrees = 1;
     Executor<MockBuilder, cpu> executor(builder, params);
     REQUIRE(executor.run().ok());
-    CAPTURE(builder.evaluators.size());
-    REQUIRE(builder.evaluators.size() >= 4);
+    CAPTURE(builder.evaluators.size(), nThreads);
+    REQUIRE(builder.evaluators.size() >= (nThreads >= 4 ? nThreads / 2 : nThreads));
 }
 
 TEST("a failed split stops the fit and every started tree is ended", "[unit]")

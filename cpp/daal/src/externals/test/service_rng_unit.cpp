@@ -16,6 +16,7 @@
 
 /// Unit tests for the multi-word skip-ahead, the in-place state copy and the draw accounting of the RNG backends.
 
+#include <chrono>
 #include <cstdint>
 #include <vector>
 
@@ -159,6 +160,20 @@ TEST("a copy of a used stream continues it", "[unit]")
         Stream copy(a);
         REQUIRE(nextInts(copy, 16) == nextInts(a, 16));
     }
+}
+
+TEST("copyState does not replay the source's draws", "[unit]")
+{
+    // Re-seeding and discarding to the source's position costs about 0.2 s per copy here on the reference
+    // backend's std::mt19937, so 64 copies take seconds that way and microseconds as a state copy.
+    Stream a(11, __DAAL_BRNG_PHILOX4X32X10);
+    Stream b(11, __DAAL_BRNG_PHILOX4X32X10);
+    REQUIRE(a.skipAhead(size_t(1) << 28) == 0);
+    const auto start = std::chrono::steady_clock::now();
+    for (int i = 0; i < 64; ++i) REQUIRE(b.copyState(a.getState()) == 0);
+    const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+    REQUIRE(seconds < 1.0);
+    REQUIRE(nextInts(b, 16) == nextInts(a, 16));
 }
 
 TEST("integer draws take one engine value each", "[unit]")
