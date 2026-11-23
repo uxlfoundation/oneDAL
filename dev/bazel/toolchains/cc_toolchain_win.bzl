@@ -368,7 +368,7 @@ def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
     )
 
 # Environment variables (set by setvars.bat / vcvarsall.bat) whose directories the actions need on PATH.
-_ACTION_PATH_ROOT_VARS = ["ONEAPI_ROOT", "CMPLR_ROOT", "VCINSTALLDIR", "VSINSTALLDIR", "WindowsSdkDir", "SystemRoot"]
+_ACTION_PATH_ROOT_VARS = ["ONEAPI_ROOT", "CMPLR_ROOT", "VCINSTALLDIR", "VSINSTALLDIR", "WindowsSdkDir"]
 
 def _action_path(repo_ctx, cc_path):
     """PATH for the compile and link actions: the toolchain directories only.
@@ -378,8 +378,8 @@ def _action_path(repo_ctx, cc_path):
 
     @param repo_ctx  Repository context of the toolchain rule.
     @param cc_path   The resolved compiler; its directory holds sibling tools such as llvm-rc.
-    @return          The PATH entries under the toolchain roots and the compiler's directory,
-                     or all of PATH when no root variable is set.
+    @return          The PATH entries under the toolchain roots, SystemRoot and the compiler's
+                     directory, or all of PATH when no toolchain root variable is set.
     """
     env = {key.lower(): value for key, value in repo_ctx.os.environ.items()}
     roots = [_norm_path(env.get(var.lower(), "")) for var in _ACTION_PATH_ROOT_VARS]
@@ -387,7 +387,10 @@ def _action_path(repo_ctx, cc_path):
     entries = [entry for entry in env.get("path", "").split(";") if entry]
     if not roots:
         return ";".join(entries)
+    # SystemRoot is set in every Windows session, so it does not decide the fallback above.
+    roots.append(_norm_path(env.get("systemroot", "")))
     roots.append(_norm_path(str(repo_ctx.path(cc_path).dirname)))
+    roots = [root for root in roots if root]
     kept = [entry for entry in entries if _under_any(_norm_path(entry), roots)]
     return ";".join(kept)
 

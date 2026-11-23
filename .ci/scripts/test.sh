@@ -247,6 +247,8 @@ for link_mode in "${link_modes[@]}"; do
         else
             mkdir Build
         fi
+        # A failed earlier configuration skips the cleanup below and would leave its executables here.
+        rm -rf _cmake_results
 
         if [ "${backend}" == "ref" ] ; then
             ref_backend="ON"

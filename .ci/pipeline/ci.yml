@@ -839,7 +839,7 @@ jobs:
       publishLocation: 'pipeline'
     displayName: 'Publish Windows release execution log'
   - script: |
-      call %TEMP%\oneapi\setvars.bat --force
+      call $(ONEAPI_DIR)\setvars.bat --force
       "$(BAZELISK_EXE)" --output_user_root="$(BAZEL_OUTPUT_USER_ROOT)" test //dev/bazel/tests:windows_implib_tests --verbose_failures
     displayName: 'Windows link analysis checks'
   - script: |

@@ -81,6 +81,12 @@ onedal_cc_toolchain = repository_rule(
         "BAZEL_VC",
         "BAZEL_VS",
         "VCINSTALLDIR",
+        # The roots that filter the Windows action PATH (cc_toolchain_win.bzl _action_path).
+        "ONEAPI_ROOT",
+        "CMPLR_ROOT",
+        "VSINSTALLDIR",
+        "WindowsSdkDir",
+        "SystemRoot",
         # Windows host-arch detection (see detect_host_arch in common.bzl); the
         # toolchain repo must re-evaluate when these change.
         "PROCESSOR_ARCHITECTURE",

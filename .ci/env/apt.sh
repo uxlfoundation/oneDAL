@@ -157,7 +157,7 @@ function install_miniforge {
     esac
 
     # A truncated download fails the digest check, so the check is inside the retried step.
-    retry fetch_miniforge
+    retry fetch_miniforge || exit $?
 
     sudo bash "${installer}" -b -p /usr/share/miniconda
     sudo chown -R "$(id -u):$(id -g)" /usr/share/miniconda
