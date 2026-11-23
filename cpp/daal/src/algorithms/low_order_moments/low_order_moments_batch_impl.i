@@ -55,11 +55,11 @@ services::Status LowOrderMomentsBatchKernel<algorithmFPType, method, cpu>::compu
     {
         switch (parameter->estimatesToCompute)
         {
-        case estimatesMinMax: return csr::computeBatch<algorithmFPType, method, cpu, estimatesMinMax>(dataTable, result);
-        case estimatesMeanVariance: return csr::computeBatch<algorithmFPType, method, cpu, estimatesMeanVariance>(dataTable, result);
+        case estimatesMinMax: return csr::estimates_minmax::computeBatch<algorithmFPType, method, cpu>(dataTable, result);
+        case estimatesMeanVariance: return csr::estimates_meanvariance::computeBatch<algorithmFPType, method, cpu>(dataTable, result);
         default /* estimatesAll */: break;
         }
-        return csr::computeBatch<algorithmFPType, method, cpu, estimatesAll>(dataTable, result);
+        return csr::estimates_all::computeBatch<algorithmFPType, method, cpu>(dataTable, result);
     }
 
     LowOrderMomentsBatchTask<algorithmFPType, cpu> task(dataTable, result);

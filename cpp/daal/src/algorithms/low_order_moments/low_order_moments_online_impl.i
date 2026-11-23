@@ -57,12 +57,12 @@ services::Status LowOrderMomentsOnlineKernel<algorithmFPType, method, cpu>::comp
     {
         switch (parameter->estimatesToCompute)
         {
-        case estimatesMinMax: return csr::computeOnline<algorithmFPType, method, cpu, estimatesMinMax>(dataTable, partialResult, isOnline);
+        case estimatesMinMax: return csr::estimates_minmax::computeOnline<algorithmFPType, method, cpu>(dataTable, partialResult, isOnline);
         case estimatesMeanVariance:
-            return csr::computeOnline<algorithmFPType, method, cpu, estimatesMeanVariance>(dataTable, partialResult, isOnline);
+            return csr::estimates_meanvariance::computeOnline<algorithmFPType, method, cpu>(dataTable, partialResult, isOnline);
         default /* estimatesAll */: break;
         }
-        return csr::computeOnline<algorithmFPType, method, cpu, estimatesAll>(dataTable, partialResult, isOnline);
+        return csr::estimates_all::computeOnline<algorithmFPType, method, cpu>(dataTable, partialResult, isOnline);
     }
 
     LowOrderMomentsOnlineTask<algorithmFPType, cpu> task(dataTable);

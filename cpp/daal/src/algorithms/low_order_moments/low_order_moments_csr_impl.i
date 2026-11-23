@@ -87,17 +87,6 @@ enum ColumnSlot
     slotsPerColumn = 8
 };
 
-/// Statistics that `estimates` asks of a pass over the stored values.
-///
-/// @tparam estimates  Value of Parameter::estimatesToCompute
-template <EstimatesToCompute estimates>
-struct Needs
-{
-    static constexpr bool minMax = estimates != estimatesMeanVariance;
-    static constexpr bool mean   = estimates != estimatesMinMax;
-    static constexpr bool raw    = estimates == estimatesAll;
-};
-
 /// Columns merged per task; at namespace scope so that MSVC accepts it as an array size in a lambda.
 constexpr size_t columnsPerTask = 256;
 
@@ -142,213 +131,6 @@ inline void mergeMoments(double & cA, double & meanA, double & m2A, double cB, d
 /// No row has touched the column yet in the per-column scratch of an unsorted row.
 constexpr size_t noRow = ~size_t(0);
 
-/// Welford's update of one column's running moments with the observation `x`. The count is
-/// always kept: it gives the number of implicit zeros of the column.
-///
-/// @tparam estimates  Statistics to update
-template <EstimatesToCompute estimates>
-inline void addObservation(double * const col, const double x)
-{
-    const double c = col[slotCount] + 1.0;
-    col[slotCount] = c;
-    if constexpr (Needs<estimates>::mean)
-    {
-        const double delta = x - col[slotMean];
-        col[slotMean] += delta / c;
-        col[slotM2] += delta * (x - col[slotMean]);
-        col[slotSum] += x;
-    }
-    if constexpr (Needs<estimates>::raw)
-    {
-        col[slotSumSq] += x * x;
-    }
-    if constexpr (Needs<estimates>::minMax)
-    {
-        col[slotMin] = x < col[slotMin] ? x : col[slotMin];
-        col[slotMax] = x > col[slotMax] ? x : col[slotMax];
-    }
-}
-
-/// Moments of all rows of a CSR table, from its stored values only. Each chunk runs Welford's
-/// update over its values; the chunks are merged, and the implicit zeros join as one final
-/// observation of value 0 and weight (nRows - nnz_j), as a weighted dense column would.
-///
-/// @tparam estimates       Statistics to compute; the other fields of `moments` are not meaningful
-/// @param[in]  table      The CSR table
-/// @param[in]  userSums   Precomputed column sums used for the mean, or nullptr
-/// @param[out] moments    The moments; `sum` holds `userSums` when they are given
-template <typename algorithmFPType, CpuType cpu, EstimatesToCompute estimates>
-Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatures, const algorithmFPType * userSums, Moments<cpu> & moments)
-{
-    Status st;
-    DAAL_CHECK_STATUS(st, moments.init(nFeatures));
-    moments.nRows = nRows;
-    if (nRows == 0) return st;
-
-    const size_t chunkRows = rowsPerChunk(nRows, nFeatures, table.getDataSize());
-    const size_t nChunks   = (nRows + chunkRows - 1) / chunkRows;
-    DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nFeatures, slotsPerColumn);
-    const size_t stride = nFeatures * slotsPerColumn;
-    DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nChunks, stride);
-    TArrayScalable<double, cpu> acc(nChunks * stride);
-    DAAL_CHECK_MALLOC(acc.get());
-
-    SafeStatus safeStat;
-    daal::threader_for(nChunks, 1, [&](size_t iChunk) {
-        double * const a = acc.get() + iChunk * stride;
-        PRAGMA_OMP_SIMD
-        for (size_t j = 0; j < nFeatures; j++)
-        {
-            double * const col = a + j * slotsPerColumn;
-            col[slotCount]     = 0.0;
-            col[slotMean]      = 0.0;
-            col[slotM2]        = 0.0;
-            col[slotSum]       = 0.0;
-            col[slotSumSq]     = 0.0;
-            col[slotMin]       = MaxVal<double>::get();
-            col[slotMax]       = -MaxVal<double>::get();
-        }
-
-        const size_t start = iChunk * chunkRows;
-        const size_t rows  = (start + chunkRows > nRows) ? nRows - start : chunkRows;
-        ReadRowsCSR<algorithmFPType, cpu> block(&table, start, rows);
-        DAAL_CHECK_BLOCK_STATUS_THR(block);
-        const algorithmFPType * const values = block.values();
-        const size_t * const cols            = block.cols();
-        const size_t nnz                     = block.rows()[rows] - block.rows()[0];
-        // A sparse block can report success with no buffer when converting the value type fails to allocate.
-        DAAL_CHECK_THR(nnz == 0 || (values && cols), ErrorMemoryAllocationFailed);
-
-        // Values of a column repeated in a row are summed, as in the dense row. Rows with sorted
-        // indices sum the adjacent repeats; the others go through a per-column scratch.
-        const size_t * const rowOffsets = block.rows();
-        TArrayScalable<size_t, cpu> seenRow;
-        TArrayScalable<double, cpu> pending;
-        for (size_t r = 0; r < rows; r++)
-        {
-            const size_t begin = rowOffsets[r] - rowOffsets[0];
-            const size_t end   = rowOffsets[r + 1] - rowOffsets[0];
-            bool sorted        = true;
-            for (size_t k = begin + 1; k < end && sorted; k++)
-            {
-                sorted = cols[k - 1] <= cols[k];
-            }
-            if (sorted)
-            {
-                for (size_t k = begin; k < end;)
-                {
-                    const size_t j = cols[k];
-                    double x       = values[k];
-                    while (++k < end && cols[k] == j)
-                    {
-                        x += values[k];
-                    }
-                    addObservation<estimates>(a + (j - 1) * slotsPerColumn, x);
-                }
-                continue;
-            }
-            if (!seenRow.get())
-            {
-                seenRow.reset(nFeatures);
-                pending.reset(nFeatures);
-                DAAL_CHECK_THR(seenRow.get() && pending.get(), ErrorMemoryAllocationFailed);
-                services::internal::service_memset_seq<size_t, cpu>(seenRow.get(), noRow, nFeatures);
-            }
-            for (size_t k = begin; k < end; k++)
-            {
-                const size_t j = cols[k] - 1;
-                pending[j]     = (seenRow[j] == r) ? pending[j] + values[k] : double(values[k]);
-                seenRow[j]     = r;
-            }
-            for (size_t k = begin; k < end; k++)
-            {
-                const size_t j = cols[k] - 1;
-                if (seenRow[j] != r) continue;
-                addObservation<estimates>(a + j * slotsPerColumn, pending[j]);
-                seenRow[j] = noRow;
-            }
-        }
-    });
-    DAAL_CHECK_SAFE_STATUS();
-
-    /* Merge the chunks in order, a block of columns per task, then add the implicit zeros */
-    const size_t nColumnBlocks = (nFeatures + columnsPerTask - 1) / columnsPerTask;
-    const double n             = double(nRows);
-    const double invN          = 1.0 / n;
-    daal::threader_for(nColumnBlocks, 1, [&](size_t iBlock) {
-        const size_t jBegin = iBlock * columnsPerTask;
-        const size_t width  = (jBegin + columnsPerTask > nFeatures) ? nFeatures - jBegin : columnsPerTask;
-        double c[columnsPerTask], m[columnsPerTask], m2[columnsPerTask], s[columnsPerTask];
-        double s2[columnsPerTask], lo[columnsPerTask], hi[columnsPerTask];
-
-        const double * const first = acc.get() + jBegin * slotsPerColumn;
-        PRAGMA_OMP_SIMD
-        for (size_t t = 0; t < width; t++)
-        {
-            const double * const col = first + t * slotsPerColumn;
-            c[t]                     = col[slotCount];
-            m[t]                     = col[slotMean];
-            m2[t]                    = col[slotM2];
-            s[t]                     = col[slotSum];
-            s2[t]                    = col[slotSumSq];
-            lo[t]                    = col[slotMin];
-            hi[t]                    = col[slotMax];
-        }
-        for (size_t iChunk = 1; iChunk < nChunks; iChunk++)
-        {
-            const double * const chunk = acc.get() + iChunk * stride + jBegin * slotsPerColumn;
-            PRAGMA_OMP_SIMD
-            for (size_t t = 0; t < width; t++)
-            {
-                const double * const col = chunk + t * slotsPerColumn;
-                mergeMoments(c[t], m[t], m2[t], col[slotCount], col[slotMean], col[slotM2]);
-                s[t] += col[slotSum];
-                s2[t] += col[slotSumSq];
-                lo[t] = col[slotMin] < lo[t] ? col[slotMin] : lo[t];
-                hi[t] = col[slotMax] > hi[t] ? col[slotMax] : hi[t];
-            }
-        }
-
-        PRAGMA_OMP_SIMD
-        for (size_t t = 0; t < width; t++)
-        {
-            const double zeros = n - c[t];
-            lo[t]              = (zeros > 0.0 && 0.0 < lo[t]) ? 0.0 : lo[t];
-            hi[t]              = (zeros > 0.0 && 0.0 > hi[t]) ? 0.0 : hi[t];
-            mergeMoments(c[t], m[t], m2[t], zeros, 0.0, 0.0);
-        }
-        if (userSums)
-        {
-            PRAGMA_OMP_SIMD
-            for (size_t t = 0; t < width; t++)
-            {
-                const double userMean = double(userSums[jBegin + t]) * invN;
-                m2[t] += n * (m[t] - userMean) * (m[t] - userMean);
-                m[t] = userMean;
-                s[t] = double(userSums[jBegin + t]);
-            }
-        }
-
-        double * const sum   = moments.sum.get() + jBegin;
-        double * const sumSq = moments.sumSq.get() + jBegin;
-        double * const ssc   = moments.sumSqCen.get() + jBegin;
-        double * const mean  = moments.mean.get() + jBegin;
-        double * const min   = moments.min.get() + jBegin;
-        double * const max   = moments.max.get() + jBegin;
-        PRAGMA_OMP_SIMD
-        for (size_t t = 0; t < width; t++)
-        {
-            sum[t]   = s[t];
-            sumSq[t] = s2[t];
-            ssc[t]   = m2[t];
-            mean[t]  = m[t];
-            min[t]   = lo[t];
-            max[t]   = hi[t];
-        }
-    });
-    return st;
-}
-
 /// Precomputed column sums of `sumCSR`, read from the table's basic statistics.
 template <typename algorithmFPType, CpuType cpu>
 Status readUserSums(NumericTable * dataTable, size_t nFeatures, TArray<algorithmFPType, cpu> & sums)
@@ -368,189 +150,58 @@ Status readUserSums(NumericTable * dataTable, size_t nFeatures, TArray<algorithm
     return Status();
 }
 
-/// Whether the batch kernel writes the result `id` for `estimates`, as the dense kernel does.
-///
-/// @tparam estimates  Statistics to compute
-/// @param[in] id      The result
-template <EstimatesToCompute estimates>
-constexpr bool writesResult(ResultId id)
+/* One copy of the kernels per value of Parameter::estimatesToCompute, as for the dense methods */
+
+namespace estimates_all
 {
-    return estimates == estimatesAll || (estimates == estimatesMinMax && (id == minimum || id == maximum))
-           || (estimates == estimatesMeanVariance && (id == mean || id == variance));
-}
+#define _MIN_ENABLE_
+#define _MAX_ENABLE_
+#define _SUM_ENABLE_
+#define _SUM2_ENABLE_
+#define _SUM2C_ENABLE_
+#define _MEAN_ENABLE_
+#define _SORM_ENABLE_
+#define _VARC_ENABLE_
+#define _STDEV_ENABLE_
+#define _VART_ENABLE_
 
-/// Whether the online kernel updates the partial result `id` for `estimates`, as the dense kernel does.
-///
-/// @tparam estimates  Statistics to compute
-/// @param[in] id      The partial result
-template <EstimatesToCompute estimates>
-constexpr bool writesPartialResult(PartialResultId id)
+#include "src/algorithms/low_order_moments/low_order_moments_estimates_csr.i"
+
+} // namespace estimates_all
+
+namespace estimates_minmax
 {
-    return estimates == estimatesAll || id == nObservations || (estimates == estimatesMinMax && (id == partialMinimum || id == partialMaximum))
-           || (estimates == estimatesMeanVariance && (id == partialSum || id == partialSumSquaresCentered));
-}
+#define _MIN_ENABLE_
+#define _MAX_ENABLE_
+#undef _SUM_ENABLE_
+#undef _SUM2_ENABLE_
+#undef _SUM2C_ENABLE_
+#undef _MEAN_ENABLE_
+#undef _SORM_ENABLE_
+#undef _VARC_ENABLE_
+#undef _STDEV_ENABLE_
+#undef _VART_ENABLE_
 
-/// Moments of the whole table for the batch CSR methods.
-///
-/// @tparam estimates  Statistics to compute; only their results are written
-template <typename algorithmFPType, Method method, CpuType cpu, EstimatesToCompute estimates>
-Status computeBatch(NumericTable * dataTable, Result * result)
+#include "src/algorithms/low_order_moments/low_order_moments_estimates_csr.i"
+
+} // namespace estimates_minmax
+
+namespace estimates_meanvariance
 {
-    CSRNumericTableIface * const csr = dynamic_cast<CSRNumericTableIface *>(dataTable);
-    DAAL_CHECK(csr, ErrorIncorrectTypeOfInputNumericTable);
-    const size_t nRows     = dataTable->getNumberOfRows();
-    const size_t nFeatures = dataTable->getNumberOfColumns();
+#undef _MIN_ENABLE_
+#undef _MAX_ENABLE_
+#undef _SUM_ENABLE_
+#undef _SUM2_ENABLE_
+#undef _SUM2C_ENABLE_
+#define _MEAN_ENABLE_
+#undef _SORM_ENABLE_
+#define _VARC_ENABLE_
+#undef _STDEV_ENABLE_
+#undef _VART_ENABLE_
 
-    Status st;
-    TArray<algorithmFPType, cpu> userSums;
-    if (method == sumCSR && Needs<estimates>::mean)
-    {
-        DAAL_CHECK_STATUS(st, (readUserSums<algorithmFPType, cpu>(dataTable, nFeatures, userSums)));
-    }
+#include "src/algorithms/low_order_moments/low_order_moments_estimates_csr.i"
 
-    Moments<cpu> m;
-    DAAL_CHECK_STATUS(st, (computeMoments<algorithmFPType, cpu, estimates>(*csr, nRows, nFeatures, userSums.get(), m)));
-    if (nRows == 0) return st;
-
-    WriteOnlyRows<algorithmFPType, cpu> out[lastResultId + 1];
-    algorithmFPType * res[lastResultId + 1];
-    for (size_t i = 0; i < lastResultId + 1; i++)
-    {
-        res[i] = nullptr;
-        if (!writesResult<estimates>((ResultId)i)) continue;
-        out[i].set(result->get((ResultId)i).get(), 0, 1);
-        DAAL_CHECK_BLOCK_STATUS(out[i]);
-        res[i] = out[i].get();
-    }
-
-    const double n = double(nRows);
-    PRAGMA_OMP_SIMD
-    for (size_t j = 0; j < nFeatures; j++)
-    {
-        if constexpr (Needs<estimates>::minMax)
-        {
-            res[minimum][j] = algorithmFPType(m.min[j]);
-            res[maximum][j] = algorithmFPType(m.max[j]);
-        }
-        if constexpr (Needs<estimates>::mean)
-        {
-            res[mean][j]     = algorithmFPType(m.mean[j]);
-            res[variance][j] = algorithmFPType(m.sumSqCen[j] / (n - 1.0));
-        }
-        if constexpr (Needs<estimates>::raw)
-        {
-            res[sum][j]                  = algorithmFPType(m.sum[j]);
-            res[sumSquares][j]           = algorithmFPType(m.sumSq[j]);
-            res[sumSquaresCentered][j]   = algorithmFPType(m.sumSqCen[j]);
-            res[secondOrderRawMoment][j] = algorithmFPType(m.sumSq[j] / n);
-        }
-    }
-    if constexpr (Needs<estimates>::raw)
-    {
-        MathInst<algorithmFPType, cpu>::vSqrt(nFeatures, res[variance], res[standardDeviation]);
-        PRAGMA_OMP_SIMD
-        for (size_t j = 0; j < nFeatures; j++)
-        {
-            res[variation][j] = res[standardDeviation][j] / res[mean][j];
-        }
-    }
-    return st;
-}
-
-/// Moments of one block merged into the partial result for the online CSR methods.
-///
-/// @tparam estimates  Statistics to compute; only their partial results are updated
-template <typename algorithmFPType, Method method, CpuType cpu, EstimatesToCompute estimates>
-Status computeOnline(NumericTable * dataTable, PartialResult * partialResult, bool isOnline)
-{
-    CSRNumericTableIface * const csr = dynamic_cast<CSRNumericTableIface *>(dataTable);
-    DAAL_CHECK(csr, ErrorIncorrectTypeOfInputNumericTable);
-    const size_t nRows     = dataTable->getNumberOfRows();
-    const size_t nFeatures = dataTable->getNumberOfColumns();
-
-    Status st;
-    TArray<algorithmFPType, cpu> userSums;
-    if (method == sumCSR && Needs<estimates>::mean)
-    {
-        DAAL_CHECK_STATUS(st, (readUserSums<algorithmFPType, cpu>(dataTable, nFeatures, userSums)));
-    }
-
-    Moments<cpu> m;
-    DAAL_CHECK_STATUS(st, (computeMoments<algorithmFPType, cpu, estimates>(*csr, nRows, nFeatures, userSums.get(), m)));
-
-    WriteRows<algorithmFPType, cpu> part[lastPartialResultId + 1];
-    algorithmFPType * res[lastPartialResultId + 1];
-    for (size_t i = 0; i < lastPartialResultId + 1; i++)
-    {
-        res[i] = nullptr;
-        if (!writesPartialResult<estimates>((PartialResultId)i)) continue;
-        NumericTable * t = partialResult->get((PartialResultId)i).get();
-        DAAL_CHECK(t, ErrorNullPartialResult);
-        part[i].set(t, 0, 1);
-        DAAL_CHECK_BLOCK_STATUS(part[i]);
-        res[i] = part[i].get();
-    }
-
-    const double n1 = isOnline ? double(res[nObservations][0]) : 0.0;
-    const double n2 = double(nRows);
-    if (n2 == 0.0)
-    {
-        if (!isOnline) res[nObservations][0] = 0;
-        return st;
-    }
-
-    if (n1 == 0.0)
-    {
-        PRAGMA_OMP_SIMD
-        for (size_t j = 0; j < nFeatures; j++)
-        {
-            if constexpr (Needs<estimates>::minMax)
-            {
-                res[partialMinimum][j] = algorithmFPType(m.min[j]);
-                res[partialMaximum][j] = algorithmFPType(m.max[j]);
-            }
-            if constexpr (Needs<estimates>::mean)
-            {
-                res[partialSum][j]                = algorithmFPType(m.sum[j]);
-                res[partialSumSquaresCentered][j] = algorithmFPType(m.sumSqCen[j]);
-            }
-            if constexpr (Needs<estimates>::raw)
-            {
-                res[partialSumSquares][j] = algorithmFPType(m.sumSq[j]);
-            }
-        }
-    }
-    else
-    {
-        /* Chan et al. pairwise update; (mean2 - mean1)^2 does not cancel the way the expanded form does */
-        PRAGMA_OMP_SIMD
-        for (size_t j = 0; j < nFeatures; j++)
-        {
-            if constexpr (Needs<estimates>::minMax)
-            {
-                const double min1      = res[partialMinimum][j];
-                const double max1      = res[partialMaximum][j];
-                res[partialMinimum][j] = algorithmFPType(m.min[j] < min1 ? m.min[j] : min1);
-                res[partialMaximum][j] = algorithmFPType(m.max[j] > max1 ? m.max[j] : max1);
-            }
-            if constexpr (Needs<estimates>::mean)
-            {
-                const double coeff = n1 * n2 / (n1 + n2);
-                const double sum1  = res[partialSum][j];
-                const double delta = m.mean[j] - sum1 / n1;
-                res[partialSum][j] = algorithmFPType(sum1 + m.sum[j]);
-                res[partialSumSquaresCentered][j] =
-                    algorithmFPType(double(res[partialSumSquaresCentered][j]) + m.sumSqCen[j] + coeff * delta * delta);
-            }
-            if constexpr (Needs<estimates>::raw)
-            {
-                res[partialSumSquares][j] = algorithmFPType(double(res[partialSumSquares][j]) + m.sumSq[j]);
-            }
-        }
-    }
-    res[nObservations][0] = algorithmFPType(n1 + n2);
-    return st;
-}
+} // namespace estimates_meanvariance
 
 } // namespace csr
 } // namespace internal
