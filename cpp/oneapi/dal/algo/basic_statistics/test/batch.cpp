@@ -212,6 +212,38 @@ TEMPLATE_LIST_TEST_M(basic_statistics_batch_test,
     }
 }
 
+// A full column has no implicit zeros to merge; that empty merge must not turn 1e200^2 * 0 into NaN.
+TEMPLATE_LIST_TEST_M(basic_statistics_batch_test,
+                     "basic_statistics CSR moments of a full column of huge values",
+                     "[basic_statistics][integration][batch]",
+                     basic_statistics_sparse_types) {
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->get_policy().is_gpu());
+    using float_t = std::tuple_element_t<0, TestType>;
+    SKIP_IF((std::is_same_v<float_t, float>));
+    const double huge = 1e200;
+    std::vector<float_t> values(3, float_t(huge));
+    std::vector<std::int64_t> column_indices{ 0, 0, 0 };
+    std::vector<std::int64_t> row_offsets{ 0, 1, 2, 3 };
+    const auto data = csr_table::wrap(values.data(),
+                                      column_indices.data(),
+                                      row_offsets.data(),
+                                      3,
+                                      1,
+                                      sparse_indexing::zero_based);
+    const auto desc =
+        bs::descriptor<float_t, basic_statistics::method::sparse>{}.set_result_options(
+            bs::result_option_id(dal::result_option_id_base(mask_full)));
+    const auto result = this->compute(desc, data);
+
+    const auto ssc = row_accessor<const float_t>(result.get_sum_squares_centered()).pull();
+    const auto variance = row_accessor<const float_t>(result.get_variance()).pull();
+    const auto mean = row_accessor<const float_t>(result.get_mean()).pull();
+    REQUIRE(ssc[0] == float_t(0));
+    REQUIRE(variance[0] == float_t(0));
+    REQUIRE(mean[0] == float_t(huge));
+}
+
 // Enough values for several chunks, so a reduction that depends on the thread schedule would show.
 TEMPLATE_LIST_TEST_M(basic_statistics_batch_test,
                      "basic_statistics CSR results are the same from run to run",

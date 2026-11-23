@@ -122,7 +122,9 @@ inline void mergeMoments(double & cA, double & meanA, double & m2A, double cB, d
     const double inv   = c > 0.0 ? 1.0 / c : 0.0;
     const double delta = meanB - meanA;
     meanA += delta * (cB * inv);
-    m2A += m2B + delta * delta * (cA * cB * inv);
+    // A select, not a reordered product: an empty side must not give inf * 0 under the fast FP model.
+    const double weight = cA * cB * inv;
+    m2A += m2B + (weight > 0.0 ? delta * delta * weight : 0.0);
     cA = c;
 }
 
