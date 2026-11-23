@@ -25,6 +25,7 @@
 #ifndef __SERVICE_SPBLAS_REF_H__
 #define __SERVICE_SPBLAS_REF_H__
 
+#include "services/error_handling.h"
 #include "src/externals/service_memory.h" // required for memset
 
 namespace daal
@@ -38,8 +39,8 @@ struct RefSpBlas
 {
     typedef DAAL_INT SizeType;
 
-    static void xcsrmultd(const char * transa, const DAAL_INT * m, const DAAL_INT * n, const DAAL_INT * k, fpType * a, DAAL_INT * ja, DAAL_INT * ia,
-                          fpType * b, DAAL_INT * jb, DAAL_INT * ib, fpType * c, DAAL_INT * ldc)
+    static services::Status xcsrmultd(const char * transa, const DAAL_INT * m, const DAAL_INT * n, const DAAL_INT * k, fpType * a, DAAL_INT * ja,
+                                      DAAL_INT * ia, fpType * b, DAAL_INT * jb, DAAL_INT * ib, fpType * c, DAAL_INT * ldc)
     {
         if (*transa == 'n' || *transa == 'N')
         {
@@ -49,6 +50,7 @@ struct RefSpBlas
         {
             csrmultd_transpose(m, n, k, a, ja, ia, b, jb, ib, c, ldc);
         }
+        return services::Status();
     }
 
     static void csrmultd(const DAAL_INT * m, const DAAL_INT * n, const DAAL_INT * k, fpType * a, DAAL_INT * ja, DAAL_INT * ia, fpType * b,
@@ -106,8 +108,9 @@ struct RefSpBlas
         }
     }
 
-    static void xcsrmv(const char * transa, const DAAL_INT * m, const DAAL_INT * k, const fpType * alpha, const char * matdescra, const fpType * val,
-                       const DAAL_INT * indx, const DAAL_INT * pntrb, const DAAL_INT * pntre, const fpType * x, const fpType * beta, fpType * y)
+    static services::Status xcsrmv(const char * transa, const DAAL_INT * m, const DAAL_INT * k, const fpType * alpha, const char * matdescra,
+                                   const fpType * val, const DAAL_INT * indx, const DAAL_INT * pntrb, const DAAL_INT * pntre, const fpType * x,
+                                   const fpType * beta, fpType * y)
     {
         if (*transa == 'n' || *transa == 'N')
         {
@@ -117,6 +120,7 @@ struct RefSpBlas
         {
             csrmv_transpose(m, k, alpha, matdescra, val, indx, pntrb, pntre, x, beta, y);
         }
+        return services::Status();
     }
 
     static void csrmv(const DAAL_INT * m, const DAAL_INT * k, const fpType * alpha, const char * matdescra, const fpType * val, const DAAL_INT * indx,
@@ -162,18 +166,12 @@ struct RefSpBlas
         }
     }
 
-    static void xcsrmm(const char * transa, const DAAL_INT * m, const DAAL_INT * n, const DAAL_INT * k, const fpType * alpha, const char * matdescra,
-                       const fpType * val, const DAAL_INT * indx, const DAAL_INT * pntrb, const fpType * b, const DAAL_INT * ldb, const fpType * beta,
-                       fpType * c, const DAAL_INT * ldc)
+    static services::Status xxcsrmm(const char * transa, const DAAL_INT * m, const DAAL_INT * n, const DAAL_INT * k, const fpType * alpha,
+                                    const char * matdescra, const fpType * val, const DAAL_INT * indx, const DAAL_INT * pntrb, const fpType * b,
+                                    const DAAL_INT * ldb, const fpType * beta, fpType * c, const DAAL_INT * ldc)
     {
         csrmm(m, n, k, alpha, val, indx, pntrb, b, ldb, beta, c, ldc);
-    }
-
-    static void xxcsrmm(const char * transa, const DAAL_INT * m, const DAAL_INT * n, const DAAL_INT * k, const fpType * alpha, const char * matdescra,
-                        const fpType * val, const DAAL_INT * indx, const DAAL_INT * pntrb, const fpType * b, const DAAL_INT * ldb,
-                        const fpType * beta, fpType * c, const DAAL_INT * ldc)
-    {
-        csrmm(m, n, k, alpha, val, indx, pntrb, b, ldb, beta, c, ldc);
+        return services::Status();
     }
     inline static fpType csracc(DAAL_INT row, DAAL_INT col, const fpType * val, const DAAL_INT * indx, const DAAL_INT * pntrb)
     {
