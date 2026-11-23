@@ -63,12 +63,11 @@
   `ci-win.yml`.
 
 - [ ] **Windows DPC++ execution.** Windows release artifacts can include the
-  DPC++ libraries, but the examples and tests that create a SYCL queue are not
-  run there yet; that needs device and runtime validation on the CI images. The
-  `pca` DPC++ smoke test on the Intel OpenCL CPU runtime was removed from
-  nightly-test.yml: its test link fails (run 44460598549), so it waits on the
-  `.res`/`/IMPLIB` link fix below. It gets re-added with `continue-on-error`
-  once that fix lands.
+  DPC++ libraries; nightly-test.yml runs only the `pca` DPC++ tests on the Intel
+  OpenCL CPU runtime (the link works since #4050). `test_spmd_dpc` is left out:
+  it aborts on Windows with 0xC0000409 (run 44849656754), cause not found yet.
+  Other examples and tests that create a SYCL queue still need device and
+  runtime validation on the CI images.
 
 - [ ] **Toolchain flag tables as data.** The compile action configs, the default
   compile flags and the marker features are shared by
