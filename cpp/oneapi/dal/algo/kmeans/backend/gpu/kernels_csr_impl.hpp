@@ -114,6 +114,7 @@ sycl::event transpose(sycl::queue& q,
 /// @param[in] data_squares         An array of data points squares with :expr:`row_count x 1` dimensions,
 ///                                 value at i-th position is || x_i ||^2, where x_i is i-th data point
 /// @param[in] centroids            An array of centroids with :expr:`cluster_count x column_count` dimensions
+/// @param[out] centroids_transposed Workspace for the transposed centroids with :expr:`column_count x cluster_count` dimensions
 /// @param[in] centroids_squares    An array of centroids squares with :expr:`cluster_count x 1` dimensions,
 ///                                 value at i-th position is || c_i ||^2, where c_i is i-th centroid
 /// @param[out] distances           An array of distances of dataset to each cluster with :expr:`row_count x cluster_count` dimensions
@@ -131,6 +132,7 @@ sycl::event assign_clusters(sycl::queue& q,
                             pr::sparse_matrix_handle& data_handle,
                             const pr::ndview<Float, 1>& data_squares,
                             const pr::ndview<Float, 2>& centroids,
+                            pr::ndview<Float, 2>& centroids_transposed,
                             const pr::ndview<Float, 1>& centroid_squares,
                             pr::ndview<Float, 2>& distances,
                             pr::ndview<std::int32_t, 2>& responses,
@@ -138,17 +140,10 @@ sycl::event assign_clusters(sycl::queue& q,
                             const event_vector& deps = {}) {
     ONEDAL_PROFILER_TASK(assign_clusters, q);
 
-    // Workaround. Sparse gemm cannot accept transposed dense inputs in oneMKL 2025.0.
-    // Error text:
-    // oneapi::mkl::sparse::gemm: unimplemented functionality: Only non-transpose
-    // operation is supported for dense matrix
-    // TODO: Remove separate transpore and pass centroids.t() into gemm after updating
-    //       to oneMKL that supports transposed dense input matrix.
-    auto centroids_transposed =
-        pr::ndarray<Float, 2>::empty(q,
-                                     { centroids.get_dimension(1), centroids.get_dimension(0) },
-                                     sycl::usm::alloc::device);
-
+    // oneMKL sparse gemm (still in 2026.0) throws 'unimplemented' for a transposed dense B,
+    // so the centroids go through a transposed copy instead of centroids.t().
+    ONEDAL_ASSERT(centroids_transposed.get_dimension(0) == centroids.get_dimension(1));
+    ONEDAL_ASSERT(centroids_transposed.get_dimension(1) == centroids.get_dimension(0));
     sycl::event transpose_event = transpose(q, centroids, centroids_transposed, deps);
 
     // Workaround to sparse K-means abort on PVC.

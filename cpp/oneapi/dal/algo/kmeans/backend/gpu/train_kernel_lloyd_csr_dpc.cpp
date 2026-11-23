@@ -108,6 +108,16 @@ struct train_kernel_gpu<Float, method::lloyd_csr, task::clustering> {
                                          sparse_indexing::zero_based);
         auto set_csr_data_event =
             set_csr_data(queue, data_handle, static_cast<const csr_table&>(data_gpu));
+        // Every assignment multiplies the data by the transposed centroids, row-major.
+        auto optimize_event =
+            pr::optimize_gemm<pr::ndorder::c, pr::ndorder::c>(queue,
+                                                              pr::transpose::nontrans,
+                                                              data_handle,
+                                                              cluster_count,
+                                                              { set_csr_data_event });
+        auto centroids_transposed = pr::ndarray<Float, 2>::empty(queue,
+                                                                 { column_count, cluster_count },
+                                                                 sycl::usm::alloc::device);
 
         auto arr_initial = get_initial_centroids<Float, method::lloyd_csr>(ctx, params, input);
         auto arr_centroid_squares =
@@ -119,7 +129,7 @@ struct train_kernel_gpu<Float, method::lloyd_csr, task::clustering> {
                                                        column_indices,
                                                        row_offsets,
                                                        arr_data_squares,
-                                                       { set_csr_data_event });
+                                                       { set_csr_data_event, optimize_event });
 
         auto distances = pr::ndarray<Float, 2>::empty(queue,
                                                       { row_count, cluster_count },
@@ -156,6 +166,7 @@ struct train_kernel_gpu<Float, method::lloyd_csr, task::clustering> {
                                                 data_handle,
                                                 arr_data_squares,
                                                 iter == 0 ? arr_initial : arr_centroids,
+                                                centroids_transposed,
                                                 arr_centroid_squares,
                                                 distances,
                                                 arr_responses,
@@ -231,6 +242,7 @@ struct train_kernel_gpu<Float, method::lloyd_csr, task::clustering> {
                                             data_handle,
                                             arr_data_squares,
                                             iter == 0 ? arr_initial : arr_centroids,
+                                            centroids_transposed,
                                             arr_centroid_squares,
                                             distances,
                                             arr_responses,
