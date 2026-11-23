@@ -55,8 +55,9 @@ drop = yes
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; deselect the kernel profiler: daal::internal::profiler* and the statics of its header-only
 ; predecessor, which the daal::internal regexps above do not match (they expect a namespace
-; between daal and internal), plus its C entry points. ONEDAL_VERBOSE is a diagnostic; the symbols
-; are not part of the product ABI.
+; between daal and internal), plus the threading layer's hook setter. ONEDAL_VERBOSE is a
+; diagnostic; the symbols are not part of the product ABI. The documented C entry point
+; _onedal_profiler_report is deliberately not deselected.
 
 [suppress_type]
 symbol_name_regexp = _Z+.*N4daal8internal.*profiler.*
@@ -72,10 +73,6 @@ drop = yes
 
 [suppress_function]
 symbol_name_regexp = ^_daal_threader_set_profiler_hooks$
-drop = yes
-
-[suppress_function]
-symbol_name_regexp = ^_onedal_profiler_report$
 drop = yes
 
 ; std::vector<std::string>::emplace_back was a weak instantiation leaked by the header-only
