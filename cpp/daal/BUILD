@@ -400,6 +400,7 @@ dal_collect_test_suites(
     name = "tests",
     root = "@onedal//cpp/daal/src/algorithms",
     modules = [
+        "covariance",
         "dtrees/gbt/regression",
     ],
     tests = [

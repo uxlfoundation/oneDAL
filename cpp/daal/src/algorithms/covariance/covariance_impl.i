@@ -777,35 +777,18 @@ services::Status updateCSRCrossProductAndSums(size_t nFeatures, size_t nVectors,
                                               size_t * rowOffsets, algorithmFPType * crossProduct, algorithmFPType * sums,
                                               algorithmFPType * nObservations, const Hyperparameter * hyperparameter)
 {
-    char transa             = 'T';
-    services::Status status = SpBlasInst<algorithmFPType, cpu>::xcsrmultd(
-        &transa, (DAAL_INT *)&nVectors, (DAAL_INT *)&nFeatures, (DAAL_INT *)&nFeatures, dataBlock, (DAAL_INT *)colIndices, (DAAL_INT *)rowOffsets,
-        dataBlock, (DAAL_INT *)colIndices, (DAAL_INT *)rowOffsets, crossProduct, (DAAL_INT *)&nFeatures);
+    services::Status status =
+        SpBlasInst<algorithmFPType, cpu>::xxcsrsyrkd((DAAL_INT *)&nVectors, (DAAL_INT *)&nFeatures, dataBlock, (DAAL_INT *)colIndices,
+                                                     (DAAL_INT *)rowOffsets, crossProduct, (DAAL_INT *)&nFeatures);
     DAAL_CHECK_STATUS_VAR(status);
 
     if (method != sumCSR)
     {
-        DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nVectors, sizeof(algorithmFPType));
-
-        TArray<algorithmFPType, cpu> onesArray(nVectors);
-        DAAL_CHECK_MALLOC(onesArray.get());
-
-        algorithmFPType one    = 1.0;
-        algorithmFPType * ones = onesArray.get();
-        daal::services::internal::service_memset<algorithmFPType, cpu>(ones, one, nVectors);
-
-        char matdescra[6];
-        matdescra[0] = 'G'; // general matrix
-        matdescra[3] = 'F'; // 1-based indexing
-
-        matdescra[1] = (char)0;
-        matdescra[2] = (char)0;
-        matdescra[4] = (char)0;
-        matdescra[5] = (char)0;
-        status =
-            SpBlasInst<algorithmFPType, cpu>::xcsrmv(&transa, (DAAL_INT *)&nVectors, (DAAL_INT *)&nFeatures, &one, matdescra, dataBlock,
-                                                     (DAAL_INT *)colIndices, (DAAL_INT *)rowOffsets, (DAAL_INT *)rowOffsets + 1, ones, &one, sums);
-        DAAL_CHECK_STATUS_VAR(status);
+        const size_t nnz = rowOffsets[nVectors] - rowOffsets[0];
+        for (size_t k = 0; k < nnz; k++)
+        {
+            sums[colIndices[k] - 1] += dataBlock[k];
+        }
     }
 
     nObservations[0] += (algorithmFPType)nVectors;
