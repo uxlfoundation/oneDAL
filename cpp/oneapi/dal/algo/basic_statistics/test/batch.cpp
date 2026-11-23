@@ -328,6 +328,17 @@ TEMPLATE_LIST_TEST_M(basic_statistics_batch_test,
         return std::vector<float_t>(ary.get_data(), ary.get_data() + ary.get_count());
     };
     const auto full = compute(bs::result_option_id(dal::result_option_id_base(mask_full)));
+    // The kernels of the subsets are compiled apart, so the moments agree to rounding only.
+    const double tol = std::is_same_v<float_t, float> ? 1e-5 : 1e-12;
+    const auto require_close = [&](const table& actual, const table& expected) {
+        const auto a = pull(actual), e = pull(expected);
+        REQUIRE(a.size() == e.size());
+        for (std::size_t j = 0; j < e.size(); ++j) {
+            CAPTURE(j, a[j], e[j]);
+            REQUIRE(std::abs(double(a[j]) - double(e[j])) <=
+                    tol * std::max(1.0, std::abs(double(e[j]))));
+        }
+    };
 
     SECTION("min and max") {
         const auto result = compute(result_options::min | result_options::max);
@@ -345,14 +356,14 @@ TEMPLATE_LIST_TEST_M(basic_statistics_batch_test,
 
     SECTION("mean and variance") {
         const auto result = compute(result_options::mean | result_options::variance);
-        REQUIRE(pull(result.get_mean()) == pull(full.get_mean()));
-        REQUIRE(pull(result.get_variance()) == pull(full.get_variance()));
+        require_close(result.get_mean(), full.get_mean());
+        require_close(result.get_variance(), full.get_variance());
         REQUIRE_THROWS_AS(result.get_min(), domain_error);
     }
 
     SECTION("variance only") {
         const auto result = compute(result_options::variance);
-        REQUIRE(pull(result.get_variance()) == pull(full.get_variance()));
+        require_close(result.get_variance(), full.get_variance());
     }
 }
 

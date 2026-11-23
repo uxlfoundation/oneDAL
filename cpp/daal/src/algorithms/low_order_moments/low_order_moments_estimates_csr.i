@@ -23,6 +23,9 @@
 
 /// Welford's update of one column's running moments with the observation `x`. The count is
 /// always kept: it gives the number of implicit zeros of the column.
+///
+/// @tparam online  Whether the moments go to a partial result, which carries the mean as a sum
+template <bool online>
 inline void addObservation(double * const col, const double x)
 {
     const double c = col[slotCount] + 1.0;
@@ -32,8 +35,10 @@ inline void addObservation(double * const col, const double x)
     col[slotMean] += delta / c;
     col[slotM2] += delta * (x - col[slotMean]);
 #endif
-#if defined _SUM_ENABLE_ || defined _MEAN_ENABLE_
+#if defined _SUM_ENABLE_
     col[slotSum] += x;
+#elif defined _MEAN_ENABLE_
+    if (online) col[slotSum] += x;
 #endif
 #if defined _SUM2_ENABLE_ || defined _SORM_ENABLE_
     col[slotSumSq] += x * x;
@@ -50,10 +55,11 @@ inline void addObservation(double * const col, const double x)
 /// update over its values; the chunks are merged, and the implicit zeros join as one final
 /// observation of value 0 and weight (nRows - nnz_j), as a weighted dense column would.
 ///
+/// @tparam online         Whether the moments go to a partial result
 /// @param[in]  table      The CSR table
 /// @param[in]  userSums   Precomputed column sums used for the mean, or nullptr
 /// @param[out] moments    The moments of the enabled estimates; `sum` holds `userSums` when they are given
-template <typename algorithmFPType, CpuType cpu>
+template <typename algorithmFPType, CpuType cpu, bool online>
 Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatures, const algorithmFPType * userSums, Moments<cpu> & moments)
 {
     Status st;
@@ -119,7 +125,7 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
                     {
                         x += values[k];
                     }
-                    addObservation(a + (j - 1) * slotsPerColumn, x);
+                    addObservation<online>(a + (j - 1) * slotsPerColumn, x);
                 }
                 continue;
             }
@@ -140,7 +146,7 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
             {
                 const size_t j = cols[k] - 1;
                 if (seenRow[j] != r) continue;
-                addObservation(a + j * slotsPerColumn, pending[j]);
+                addObservation<online>(a + j * slotsPerColumn, pending[j]);
                 seenRow[j] = noRow;
             }
         }
@@ -244,7 +250,7 @@ Status computeBatch(NumericTable * dataTable, Result * result)
 #endif
 
     Moments<cpu> m;
-    DAAL_CHECK_STATUS(st, (computeMoments<algorithmFPType, cpu>(*csr, nRows, nFeatures, userSums.get(), m)));
+    DAAL_CHECK_STATUS(st, (computeMoments<algorithmFPType, cpu, false>(*csr, nRows, nFeatures, userSums.get(), m)));
     if (nRows == 0) return st;
 
     WriteOnlyRows<algorithmFPType, cpu> out[lastResultId + 1];
@@ -320,7 +326,7 @@ Status computeOnline(NumericTable * dataTable, PartialResult * partialResult, bo
 #endif
 
     Moments<cpu> m;
-    DAAL_CHECK_STATUS(st, (computeMoments<algorithmFPType, cpu>(*csr, nRows, nFeatures, userSums.get(), m)));
+    DAAL_CHECK_STATUS(st, (computeMoments<algorithmFPType, cpu, true>(*csr, nRows, nFeatures, userSums.get(), m)));
 
     WriteRows<algorithmFPType, cpu> part[lastPartialResultId + 1];
     algorithmFPType * res[lastPartialResultId + 1];
