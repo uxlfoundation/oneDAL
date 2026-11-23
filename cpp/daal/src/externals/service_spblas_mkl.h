@@ -69,8 +69,9 @@ struct MklSpBlas<double, cpu>
 {
     typedef DAAL_INT SizeType;
 
-    static services::Status xcsrmultd(const char * transa, const DAAL_INT * m, const DAAL_INT * n, const DAAL_INT * k, double * a, DAAL_INT * ja,
-                                      DAAL_INT * ia, double * b, DAAL_INT * jb, DAAL_INT * ib, double * c, DAAL_INT * ldc)
+    [[nodiscard]] static services::Status xcsrmultd(const char * transa, const DAAL_INT * m, const DAAL_INT * n, const DAAL_INT * k, double * a,
+                                                    DAAL_INT * ja, DAAL_INT * ia, double * b, DAAL_INT * jb, DAAL_INT * ib, double * c,
+                                                    DAAL_INT * ldc)
     {
         sparse_matrix_t csrA = NULL;
         sparse_matrix_t csrB = NULL;
@@ -90,9 +91,9 @@ struct MklSpBlas<double, cpu>
         return sparseStatus(st);
     }
 
-    static services::Status xcsrmv(const char * transa, const DAAL_INT * m, const DAAL_INT * k, const double * alpha, const char * matdescra,
-                                   const double * val, const DAAL_INT * indx, const DAAL_INT * pntrb, const DAAL_INT * pntre, const double * x,
-                                   const double * beta, double * y)
+    [[nodiscard]] static services::Status xcsrmv(const char * transa, const DAAL_INT * m, const DAAL_INT * k, const double * alpha,
+                                                 const char * matdescra, const double * val, const DAAL_INT * indx, const DAAL_INT * pntrb,
+                                                 const DAAL_INT * pntre, const double * x, const double * beta, double * y)
     {
         struct matrix_descr descrA;
         descrA.type          = SPARSE_MATRIX_TYPE_GENERAL;
@@ -107,9 +108,10 @@ struct MklSpBlas<double, cpu>
         return sparseStatus(st);
     }
 
-    static services::Status xxcsrmm(const char * transa, const DAAL_INT * m, const DAAL_INT * n, const DAAL_INT * k, const double * alpha,
-                                    const char * matdescra, const double * val, const DAAL_INT * indx, const DAAL_INT * pntrb, const double * b,
-                                    const DAAL_INT * ldb, const double * beta, double * c, const DAAL_INT * ldc)
+    [[nodiscard]] static services::Status xxcsrmm(const char * transa, const DAAL_INT * m, const DAAL_INT * n, const DAAL_INT * k,
+                                                  const double * alpha, const char * matdescra, const double * val, const DAAL_INT * indx,
+                                                  const DAAL_INT * pntrb, const double * b, const DAAL_INT * ldb, const double * beta, double * c,
+                                                  const DAAL_INT * ldc)
     {
         int old_nthr = mkl_set_num_threads_local(1);
         struct matrix_descr descrA;
@@ -137,8 +139,8 @@ struct MklSpBlas<float, cpu>
 {
     typedef DAAL_INT SizeType;
 
-    static services::Status xcsrmultd(const char * transa, const DAAL_INT * m, const DAAL_INT * n, const DAAL_INT * k, float * a, DAAL_INT * ja,
-                                      DAAL_INT * ia, float * b, DAAL_INT * jb, DAAL_INT * ib, float * c, DAAL_INT * ldc)
+    [[nodiscard]] static services::Status xcsrmultd(const char * transa, const DAAL_INT * m, const DAAL_INT * n, const DAAL_INT * k, float * a,
+                                                    DAAL_INT * ja, DAAL_INT * ia, float * b, DAAL_INT * jb, DAAL_INT * ib, float * c, DAAL_INT * ldc)
     {
         sparse_matrix_t csrA = NULL;
         sparse_matrix_t csrB = NULL;
@@ -158,9 +160,9 @@ struct MklSpBlas<float, cpu>
         return sparseStatus(st);
     }
 
-    static services::Status xcsrmv(const char * transa, const DAAL_INT * m, const DAAL_INT * k, const float * alpha, const char * matdescra,
-                                   const float * val, const DAAL_INT * indx, const DAAL_INT * pntrb, const DAAL_INT * pntre, const float * x,
-                                   const float * beta, float * y)
+    [[nodiscard]] static services::Status xcsrmv(const char * transa, const DAAL_INT * m, const DAAL_INT * k, const float * alpha,
+                                                 const char * matdescra, const float * val, const DAAL_INT * indx, const DAAL_INT * pntrb,
+                                                 const DAAL_INT * pntre, const float * x, const float * beta, float * y)
     {
         struct matrix_descr descrA;
         descrA.type          = SPARSE_MATRIX_TYPE_GENERAL;
@@ -175,9 +177,10 @@ struct MklSpBlas<float, cpu>
         return sparseStatus(st);
     }
 
-    static services::Status xxcsrmm(const char * transa, const DAAL_INT * m, const DAAL_INT * n, const DAAL_INT * k, const float * alpha,
-                                    const char * matdescra, const float * val, const DAAL_INT * indx, const DAAL_INT * pntrb, const float * b,
-                                    const DAAL_INT * ldb, const float * beta, float * c, const DAAL_INT * ldc)
+    [[nodiscard]] static services::Status xxcsrmm(const char * transa, const DAAL_INT * m, const DAAL_INT * n, const DAAL_INT * k,
+                                                  const float * alpha, const char * matdescra, const float * val, const DAAL_INT * indx,
+                                                  const DAAL_INT * pntrb, const float * b, const DAAL_INT * ldb, const float * beta, float * c,
+                                                  const DAAL_INT * ldc)
     {
         int old_nthr = mkl_set_num_threads_local(1);
         struct matrix_descr descrA;

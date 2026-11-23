@@ -39,8 +39,9 @@ struct RefSpBlas
 {
     typedef DAAL_INT SizeType;
 
-    static services::Status xcsrmultd(const char * transa, const DAAL_INT * m, const DAAL_INT * n, const DAAL_INT * k, fpType * a, DAAL_INT * ja,
-                                      DAAL_INT * ia, fpType * b, DAAL_INT * jb, DAAL_INT * ib, fpType * c, DAAL_INT * ldc)
+    [[nodiscard]] static services::Status xcsrmultd(const char * transa, const DAAL_INT * m, const DAAL_INT * n, const DAAL_INT * k, fpType * a,
+                                                    DAAL_INT * ja, DAAL_INT * ia, fpType * b, DAAL_INT * jb, DAAL_INT * ib, fpType * c,
+                                                    DAAL_INT * ldc)
     {
         if (*transa == 'n' || *transa == 'N')
         {
@@ -108,9 +109,9 @@ struct RefSpBlas
         }
     }
 
-    static services::Status xcsrmv(const char * transa, const DAAL_INT * m, const DAAL_INT * k, const fpType * alpha, const char * matdescra,
-                                   const fpType * val, const DAAL_INT * indx, const DAAL_INT * pntrb, const DAAL_INT * pntre, const fpType * x,
-                                   const fpType * beta, fpType * y)
+    [[nodiscard]] static services::Status xcsrmv(const char * transa, const DAAL_INT * m, const DAAL_INT * k, const fpType * alpha,
+                                                 const char * matdescra, const fpType * val, const DAAL_INT * indx, const DAAL_INT * pntrb,
+                                                 const DAAL_INT * pntre, const fpType * x, const fpType * beta, fpType * y)
     {
         if (*transa == 'n' || *transa == 'N')
         {
@@ -166,9 +167,10 @@ struct RefSpBlas
         }
     }
 
-    static services::Status xxcsrmm(const char * transa, const DAAL_INT * m, const DAAL_INT * n, const DAAL_INT * k, const fpType * alpha,
-                                    const char * matdescra, const fpType * val, const DAAL_INT * indx, const DAAL_INT * pntrb, const fpType * b,
-                                    const DAAL_INT * ldb, const fpType * beta, fpType * c, const DAAL_INT * ldc)
+    [[nodiscard]] static services::Status xxcsrmm(const char * transa, const DAAL_INT * m, const DAAL_INT * n, const DAAL_INT * k,
+                                                  const fpType * alpha, const char * matdescra, const fpType * val, const DAAL_INT * indx,
+                                                  const DAAL_INT * pntrb, const fpType * b, const DAAL_INT * ldb, const fpType * beta, fpType * c,
+                                                  const DAAL_INT * ldc)
     {
         csrmm(m, n, k, alpha, val, indx, pntrb, b, ldb, beta, c, ldc);
         return services::Status();
