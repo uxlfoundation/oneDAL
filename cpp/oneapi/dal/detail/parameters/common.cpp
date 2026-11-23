@@ -56,8 +56,8 @@ std::int64_t covariance_block_size(const dal::backend::context_cpu& ctx,
             std::max<std::int64_t>(1, sys_params.get_max_number_of_threads());
 
         // Bytes one block of rows may occupy: alpha * C.
-        static const std::int64_t budget_avx512 = static_cast<std::int64_t>(alpha_avx512 * C);
-        static const std::int64_t budget_avx2 = static_cast<std::int64_t>(alpha_avx2 * C);
+        const std::int64_t budget_avx512 = static_cast<std::int64_t>(alpha_avx512 * C);
+        const std::int64_t budget_avx2 = static_cast<std::int64_t>(alpha_avx2 * C);
         const bool avx512 = ctx.get_enabled_cpu_extensions() >= dal::detail::cpu_extension::avx512;
         const std::int64_t budget = avx512 ? budget_avx512 : budget_avx2;
 
