@@ -21,26 +21,32 @@
 //--
 */
 
+/* The mean and the centered sum of squares are updated together; the raw sum of squares is on its own */
+#undef _CSR_CENTERED_ENABLE_
+#if defined _MEAN_ENABLE_ || defined _SUM2C_ENABLE_ || defined _VARC_ENABLE_ || defined _STDEV_ENABLE_ || defined _VART_ENABLE_
+    #define _CSR_CENTERED_ENABLE_
+#endif
+#undef _CSR_SUM2_ENABLE_
+#if defined _SUM2_ENABLE_ || defined _SORM_ENABLE_
+    #define _CSR_SUM2_ENABLE_
+#endif
+
 /// Welford's update of one column's running moments with the observation `x`. The count is
 /// always kept: it gives the number of implicit zeros of the column.
 ///
-/// @tparam online  Whether the moments go to a partial result, which carries the mean as a sum
-template <bool online>
+/// @tparam withSum  Whether the sum of the column is kept
+template <bool withSum>
 inline void addObservation(double * const col, const double x)
 {
     const double c = col[slotCount] + 1.0;
     col[slotCount] = c;
-#if defined _MEAN_ENABLE_ || defined _SUM2C_ENABLE_ || defined _VARC_ENABLE_ || defined _STDEV_ENABLE_ || defined _VART_ENABLE_
+#ifdef _CSR_CENTERED_ENABLE_
     const double delta = x - col[slotMean];
     col[slotMean] += delta / c;
     col[slotM2] += delta * (x - col[slotMean]);
 #endif
-#if defined _SUM_ENABLE_
-    col[slotSum] += x;
-#elif defined _MEAN_ENABLE_
-    if (online) col[slotSum] += x;
-#endif
-#if defined _SUM2_ENABLE_ || defined _SORM_ENABLE_
+    if (withSum) col[slotSum] += x;
+#ifdef _CSR_SUM2_ENABLE_
     col[slotSumSq] += x * x;
 #endif
 #ifdef _MIN_ENABLE_
@@ -67,6 +73,15 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
     moments.nRows = nRows;
     if (nRows == 0) return st;
 
+    /* The sum is a result of its own, or what an online partial result keeps for the mean */
+#if defined _SUM_ENABLE_
+    constexpr bool withSum = true;
+#elif defined _MEAN_ENABLE_
+    constexpr bool withSum = online;
+#else
+    constexpr bool withSum = false;
+#endif
+
     const size_t chunkRows = rowsPerChunk(nRows, nFeatures, table.getDataSize());
     const size_t nChunks   = (nRows + chunkRows - 1) / chunkRows;
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nFeatures, slotsPerColumn);
@@ -83,12 +98,20 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
         {
             double * const col = a + j * slotsPerColumn;
             col[slotCount]     = 0.0;
-            col[slotMean]      = 0.0;
-            col[slotM2]        = 0.0;
-            col[slotSum]       = 0.0;
-            col[slotSumSq]     = 0.0;
-            col[slotMin]       = MaxVal<double>::get();
-            col[slotMax]       = -MaxVal<double>::get();
+#ifdef _CSR_CENTERED_ENABLE_
+            col[slotMean] = 0.0;
+            col[slotM2]   = 0.0;
+#endif
+            if (withSum) col[slotSum] = 0.0;
+#ifdef _CSR_SUM2_ENABLE_
+            col[slotSumSq] = 0.0;
+#endif
+#ifdef _MIN_ENABLE_
+            col[slotMin] = MaxVal<double>::get();
+#endif
+#ifdef _MAX_ENABLE_
+            col[slotMax] = -MaxVal<double>::get();
+#endif
         }
 
         const size_t start = iChunk * chunkRows;
@@ -125,7 +148,7 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
                     {
                         x += values[k];
                     }
-                    addObservation<online>(a + (j - 1) * slotsPerColumn, x);
+                    addObservation<withSum>(a + (j - 1) * slotsPerColumn, x);
                 }
                 continue;
             }
@@ -146,7 +169,7 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
             {
                 const size_t j = cols[k] - 1;
                 if (seenRow[j] != r) continue;
-                addObservation<online>(a + j * slotsPerColumn, pending[j]);
+                addObservation<withSum>(a + j * slotsPerColumn, pending[j]);
                 seenRow[j] = noRow;
             }
         }
@@ -156,12 +179,22 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
     /* Merge the chunks in order, a block of columns per task, then add the implicit zeros */
     const size_t nColumnBlocks = (nFeatures + columnsPerTask - 1) / columnsPerTask;
     const double n             = double(nRows);
-    const double invN          = 1.0 / n;
     daal::threader_for(nColumnBlocks, 1, [&](size_t iBlock) {
         const size_t jBegin = iBlock * columnsPerTask;
         const size_t width  = (jBegin + columnsPerTask > nFeatures) ? nFeatures - jBegin : columnsPerTask;
-        double c[columnsPerTask], m[columnsPerTask], m2[columnsPerTask], s[columnsPerTask];
-        double s2[columnsPerTask], lo[columnsPerTask], hi[columnsPerTask];
+        double c[columnsPerTask], s[columnsPerTask];
+#ifdef _CSR_CENTERED_ENABLE_
+        double m[columnsPerTask], m2[columnsPerTask];
+#endif
+#ifdef _CSR_SUM2_ENABLE_
+        double s2[columnsPerTask];
+#endif
+#ifdef _MIN_ENABLE_
+        double lo[columnsPerTask];
+#endif
+#ifdef _MAX_ENABLE_
+        double hi[columnsPerTask];
+#endif
 
         const double * const first = acc.get() + jBegin * slotsPerColumn;
         PRAGMA_OMP_SIMD
@@ -169,12 +202,20 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
         {
             const double * const col = first + t * slotsPerColumn;
             c[t]                     = col[slotCount];
-            m[t]                     = col[slotMean];
-            m2[t]                    = col[slotM2];
-            s[t]                     = col[slotSum];
-            s2[t]                    = col[slotSumSq];
-            lo[t]                    = col[slotMin];
-            hi[t]                    = col[slotMax];
+#ifdef _CSR_CENTERED_ENABLE_
+            m[t]  = col[slotMean];
+            m2[t] = col[slotM2];
+#endif
+            if (withSum) s[t] = col[slotSum];
+#ifdef _CSR_SUM2_ENABLE_
+            s2[t] = col[slotSumSq];
+#endif
+#ifdef _MIN_ENABLE_
+            lo[t] = col[slotMin];
+#endif
+#ifdef _MAX_ENABLE_
+            hi[t] = col[slotMax];
+#endif
         }
         for (size_t iChunk = 1; iChunk < nChunks; iChunk++)
         {
@@ -183,11 +224,21 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
             for (size_t t = 0; t < width; t++)
             {
                 const double * const col = chunk + t * slotsPerColumn;
+#ifdef _CSR_CENTERED_ENABLE_
                 mergeMoments(c[t], m[t], m2[t], col[slotCount], col[slotMean], col[slotM2]);
-                s[t] += col[slotSum];
+#else
+                c[t] += col[slotCount];
+#endif
+                if (withSum) s[t] += col[slotSum];
+#ifdef _CSR_SUM2_ENABLE_
                 s2[t] += col[slotSumSq];
+#endif
+#ifdef _MIN_ENABLE_
                 lo[t] = col[slotMin] < lo[t] ? col[slotMin] : lo[t];
+#endif
+#ifdef _MAX_ENABLE_
                 hi[t] = col[slotMax] > hi[t] ? col[slotMax] : hi[t];
+#endif
             }
         }
 
@@ -195,37 +246,48 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
         for (size_t t = 0; t < width; t++)
         {
             const double zeros = n - c[t];
-            lo[t]              = (zeros > 0.0 && 0.0 < lo[t]) ? 0.0 : lo[t];
-            hi[t]              = (zeros > 0.0 && 0.0 > hi[t]) ? 0.0 : hi[t];
+#ifdef _MIN_ENABLE_
+            lo[t] = (zeros > 0.0 && 0.0 < lo[t]) ? 0.0 : lo[t];
+#endif
+#ifdef _MAX_ENABLE_
+            hi[t] = (zeros > 0.0 && 0.0 > hi[t]) ? 0.0 : hi[t];
+#endif
+#ifdef _CSR_CENTERED_ENABLE_
             mergeMoments(c[t], m[t], m2[t], zeros, 0.0, 0.0);
+#endif
         }
+#ifdef _CSR_CENTERED_ENABLE_
         if (userSums)
         {
+            const double invN = 1.0 / n;
             PRAGMA_OMP_SIMD
             for (size_t t = 0; t < width; t++)
             {
                 const double userMean = double(userSums[jBegin + t]) * invN;
                 m2[t] += n * (m[t] - userMean) * (m[t] - userMean);
                 m[t] = userMean;
-                s[t] = double(userSums[jBegin + t]);
+                if (withSum) s[t] = double(userSums[jBegin + t]);
             }
         }
+#endif
 
-        double * const sum   = moments.sum.get() + jBegin;
-        double * const sumSq = moments.sumSq.get() + jBegin;
-        double * const ssc   = moments.sumSqCen.get() + jBegin;
-        double * const mean  = moments.mean.get() + jBegin;
-        double * const min   = moments.min.get() + jBegin;
-        double * const max   = moments.max.get() + jBegin;
         PRAGMA_OMP_SIMD
         for (size_t t = 0; t < width; t++)
         {
-            sum[t]   = s[t];
-            sumSq[t] = s2[t];
-            ssc[t]   = m2[t];
-            mean[t]  = m[t];
-            min[t]   = lo[t];
-            max[t]   = hi[t];
+#ifdef _CSR_CENTERED_ENABLE_
+            moments.mean[jBegin + t]     = m[t];
+            moments.sumSqCen[jBegin + t] = m2[t];
+#endif
+            if (withSum) moments.sum[jBegin + t] = s[t];
+#ifdef _CSR_SUM2_ENABLE_
+            moments.sumSq[jBegin + t] = s2[t];
+#endif
+#ifdef _MIN_ENABLE_
+            moments.min[jBegin + t] = lo[t];
+#endif
+#ifdef _MAX_ENABLE_
+            moments.max[jBegin + t] = hi[t];
+#endif
         }
     });
     return st;
@@ -361,7 +423,7 @@ Status computeOnline(NumericTable * dataTable, PartialResult * partialResult, bo
 #if defined _SUM_ENABLE_ || defined _MEAN_ENABLE_
             res[partialSum][j] = algorithmFPType(m.sum[j]);
 #endif
-#if defined _SUM2_ENABLE_ || defined _SORM_ENABLE_
+#ifdef _CSR_SUM2_ENABLE_
             res[partialSumSquares][j] = algorithmFPType(m.sumSq[j]);
 #endif
 #if defined _SUM2C_ENABLE_ || defined _VARC_ENABLE_ || defined _STDEV_ENABLE_ || defined _VART_ENABLE_
@@ -392,7 +454,7 @@ Status computeOnline(NumericTable * dataTable, PartialResult * partialResult, bo
     #endif
             res[partialSum][j] = algorithmFPType(sum1 + m.sum[j]);
 #endif
-#if defined _SUM2_ENABLE_ || defined _SORM_ENABLE_
+#ifdef _CSR_SUM2_ENABLE_
             res[partialSumSquares][j] = algorithmFPType(double(res[partialSumSquares][j]) + m.sumSq[j]);
 #endif
         }
