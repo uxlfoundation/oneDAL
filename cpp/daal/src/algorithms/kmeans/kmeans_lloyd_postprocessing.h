@@ -256,8 +256,8 @@ struct PostProcessing<lloydCSR, algorithmFPType, cpu>
                 assignments[i] = minIdx;
             }
         });
-        DAAL_CHECK_SAFE_STATUS();
         tlsTask.reduce([](algorithmFPType * array) { service_scalable_free<algorithmFPType, cpu>(array); });
+        DAAL_CHECK_SAFE_STATUS();
         return Status();
     }
 
