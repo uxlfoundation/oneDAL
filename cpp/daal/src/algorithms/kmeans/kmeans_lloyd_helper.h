@@ -186,6 +186,8 @@ void transposeCentroids(const algorithmFPType * const centroids, const size_t nC
 /// @param rowIdx      One-based offsets of the rows in `values`, `nRows + 1` entries
 /// @param centroidsT  Transposed centroids, `p x nClusters`, row-major
 /// @param products    Output, `nRows x nClusters`, row-major
+// TODO: go back to mkl_sparse_?_mm once MKL keeps it sequential under
+// mkl_set_num_threads_local(1) with the TBB threading layer.
 template <typename algorithmFPType, CpuType cpu>
 void csrRowsTimesCentroids(const size_t nRows, const size_t nClusters, const algorithmFPType * const values, const size_t * const colIdx,
                            const size_t * const rowIdx, const algorithmFPType * const centroidsT, algorithmFPType * const products)
