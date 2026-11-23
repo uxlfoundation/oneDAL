@@ -33,11 +33,25 @@ dal_test_suite(
         "test/*.cpp",
     ], exclude=[
         "test/mpi_*.cpp",
-        "test/ccl_*.cpp"
+        "test/ccl_*.cpp",
+        "test/internal_*.cpp",
     ]),
     dal_deps = [
         ":kmeans",
     ],
+)
+
+# Built from sources: these tests call DAAL's internal wrappers directly.
+dal_test_suite(
+    name = "internal_tests",
+    framework = "catch2",
+    srcs = glob([
+        "test/internal_*.cpp",
+    ]),
+    dal_deps = [
+        ":kmeans",
+    ],
+    private = True,
 )
 
 dal_test_suite(
@@ -81,6 +95,7 @@ dal_test_suite(
     tests = [
         ":gpu_tests",
         ":interface_tests",
+        ":internal_tests",
     ],
 )
 
