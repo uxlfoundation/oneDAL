@@ -278,4 +278,82 @@ TEMPLATE_LIST_TEST_M(basic_statistics_batch_test,
     }
 }
 
+// A subset of the results takes its own kernel path. The table has implicit zeros, an empty
+// column, repeated column indices in and out of order, and enough rows for several chunks.
+TEMPLATE_LIST_TEST_M(basic_statistics_batch_test,
+                     "basic_statistics CSR subset of results matches the full set",
+                     "[basic_statistics][integration][batch]",
+                     basic_statistics_sparse_types) {
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->get_policy().is_gpu());
+    using float_t = std::tuple_element_t<0, TestType>;
+    constexpr std::int64_t row_count = 40000;
+    constexpr std::int64_t column_count = 4;
+
+    std::vector<float_t> values;
+    std::vector<std::int64_t> column_indices;
+    std::vector<std::int64_t> row_offsets{ 0 };
+    const auto add = [&](std::int64_t column, float_t value) {
+        values.push_back(value);
+        column_indices.push_back(column);
+    };
+    for (std::int64_t i = 0; i < row_count; ++i) {
+        add(0, float_t(3) + float_t((i * 37) % 101));
+        if (i % 5 == 0) {
+            // Column 3 is stored twice, around column 0 again: an unsorted row with repeats.
+            add(3, float_t((i * 13) % 17) - float_t(8));
+            add(0, float_t(1));
+            add(3, float_t(-2));
+        }
+        if (i % 7 == 0) {
+            add(2, float_t(-1) - float_t(i % 3));
+            add(2, float_t(-4));
+        }
+        row_offsets.push_back(std::int64_t(values.size()));
+    }
+    const auto data = csr_table::wrap(values.data(),
+                                      column_indices.data(),
+                                      row_offsets.data(),
+                                      row_count,
+                                      column_count,
+                                      sparse_indexing::zero_based);
+
+    const auto compute = [&](const bs::result_option_id& options) {
+        return this->compute(
+            bs::descriptor<float_t, basic_statistics::method::sparse>{}.set_result_options(options),
+            data);
+    };
+    const auto pull = [](const table& t) {
+        const auto ary = row_accessor<const float_t>(t).pull();
+        return std::vector<float_t>(ary.get_data(), ary.get_data() + ary.get_count());
+    };
+    const auto full = compute(bs::result_option_id(dal::result_option_id_base(mask_full)));
+
+    SECTION("min and max") {
+        const auto result = compute(result_options::min | result_options::max);
+        REQUIRE(pull(result.get_min()) == pull(full.get_min()));
+        REQUIRE(pull(result.get_max()) == pull(full.get_max()));
+        REQUIRE(pull(result.get_min()) == std::vector<float_t>{ 3, 0, -7, -10 });
+        REQUIRE(pull(result.get_max()) == std::vector<float_t>{ 104, 0, 0, 6 });
+        REQUIRE_THROWS_AS(result.get_mean(), domain_error);
+    }
+
+    SECTION("max only") {
+        const auto result = compute(result_options::max);
+        REQUIRE(pull(result.get_max()) == pull(full.get_max()));
+    }
+
+    SECTION("mean and variance") {
+        const auto result = compute(result_options::mean | result_options::variance);
+        REQUIRE(pull(result.get_mean()) == pull(full.get_mean()));
+        REQUIRE(pull(result.get_variance()) == pull(full.get_variance()));
+        REQUIRE_THROWS_AS(result.get_min(), domain_error);
+    }
+
+    SECTION("variance only") {
+        const auto result = compute(result_options::variance);
+        REQUIRE(pull(result.get_variance()) == pull(full.get_variance()));
+    }
+}
+
 } // namespace oneapi::dal::basic_statistics::test

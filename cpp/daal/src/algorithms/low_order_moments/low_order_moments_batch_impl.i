@@ -53,7 +53,13 @@ services::Status LowOrderMomentsBatchKernel<algorithmFPType, method, cpu>::compu
 
     if (method == fastCSR || method == singlePassCSR || method == sumCSR)
     {
-        return csr::computeBatch<algorithmFPType, method, cpu>(dataTable, result);
+        switch (parameter->estimatesToCompute)
+        {
+        case estimatesMinMax: return csr::computeBatch<algorithmFPType, method, cpu, estimatesMinMax>(dataTable, result);
+        case estimatesMeanVariance: return csr::computeBatch<algorithmFPType, method, cpu, estimatesMeanVariance>(dataTable, result);
+        default /* estimatesAll */: break;
+        }
+        return csr::computeBatch<algorithmFPType, method, cpu, estimatesAll>(dataTable, result);
     }
 
     LowOrderMomentsBatchTask<algorithmFPType, cpu> task(dataTable, result);

@@ -87,6 +87,17 @@ enum ColumnSlot
     slotsPerColumn = 8
 };
 
+/// Statistics that `estimates` asks of a pass over the stored values.
+///
+/// @tparam estimates  Value of Parameter::estimatesToCompute
+template <EstimatesToCompute estimates>
+struct Needs
+{
+    static constexpr bool minMax = estimates != estimatesMeanVariance;
+    static constexpr bool mean   = estimates != estimatesMinMax;
+    static constexpr bool raw    = estimates == estimatesAll;
+};
+
 /// Columns merged per task; at namespace scope so that MSVC accepts it as an array size in a lambda.
 constexpr size_t columnsPerTask = 256;
 
@@ -131,28 +142,42 @@ inline void mergeMoments(double & cA, double & meanA, double & m2A, double cB, d
 /// No row has touched the column yet in the per-column scratch of an unsorted row.
 constexpr size_t noRow = ~size_t(0);
 
-/// Welford's update of one column's running moments with the observation `x`.
+/// Welford's update of one column's running moments with the observation `x`. The count is
+/// always kept: it gives the number of implicit zeros of the column.
+///
+/// @tparam estimates  Statistics to update
+template <EstimatesToCompute estimates>
 inline void addObservation(double * const col, const double x)
 {
-    const double c     = col[slotCount] + 1.0;
-    const double delta = x - col[slotMean];
-    col[slotCount]     = c;
-    col[slotMean] += delta / c;
-    col[slotM2] += delta * (x - col[slotMean]);
-    col[slotSum] += x;
-    col[slotSumSq] += x * x;
-    col[slotMin] = x < col[slotMin] ? x : col[slotMin];
-    col[slotMax] = x > col[slotMax] ? x : col[slotMax];
+    const double c = col[slotCount] + 1.0;
+    col[slotCount] = c;
+    if constexpr (Needs<estimates>::mean)
+    {
+        const double delta = x - col[slotMean];
+        col[slotMean] += delta / c;
+        col[slotM2] += delta * (x - col[slotMean]);
+        col[slotSum] += x;
+    }
+    if constexpr (Needs<estimates>::raw)
+    {
+        col[slotSumSq] += x * x;
+    }
+    if constexpr (Needs<estimates>::minMax)
+    {
+        col[slotMin] = x < col[slotMin] ? x : col[slotMin];
+        col[slotMax] = x > col[slotMax] ? x : col[slotMax];
+    }
 }
 
 /// Moments of all rows of a CSR table, from its stored values only. Each chunk runs Welford's
 /// update over its values; the chunks are merged, and the implicit zeros join as one final
 /// observation of value 0 and weight (nRows - nnz_j), as a weighted dense column would.
 ///
+/// @tparam estimates       Statistics to compute; the other fields of `moments` are not meaningful
 /// @param[in]  table      The CSR table
 /// @param[in]  userSums   Precomputed column sums used for the mean, or nullptr
 /// @param[out] moments    The moments; `sum` holds `userSums` when they are given
-template <typename algorithmFPType, CpuType cpu>
+template <typename algorithmFPType, CpuType cpu, EstimatesToCompute estimates>
 Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatures, const algorithmFPType * userSums, Moments<cpu> & moments)
 {
     Status st;
@@ -218,7 +243,7 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
                     {
                         x += values[k];
                     }
-                    addObservation(a + (j - 1) * slotsPerColumn, x);
+                    addObservation<estimates>(a + (j - 1) * slotsPerColumn, x);
                 }
                 continue;
             }
@@ -239,7 +264,7 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
             {
                 const size_t j = cols[k] - 1;
                 if (seenRow[j] != r) continue;
-                addObservation(a + j * slotsPerColumn, pending[j]);
+                addObservation<estimates>(a + j * slotsPerColumn, pending[j]);
                 seenRow[j] = noRow;
             }
         }
@@ -334,16 +359,41 @@ Status readUserSums(NumericTable * dataTable, size_t nFeatures, TArray<algorithm
     DAAL_CHECK_BLOCK_STATUS(rows);
     sums.reset(nFeatures);
     DAAL_CHECK_MALLOC(sums.get());
+    const algorithmFPType * const src = rows.get();
     PRAGMA_OMP_SIMD
     for (size_t j = 0; j < nFeatures; j++)
     {
-        sums[j] = rows.get()[j];
+        sums[j] = src[j];
     }
     return Status();
 }
 
+/// Whether the batch kernel writes the result `id` for `estimates`, as the dense kernel does.
+///
+/// @tparam estimates  Statistics to compute
+/// @param[in] id      The result
+template <EstimatesToCompute estimates>
+constexpr bool writesResult(ResultId id)
+{
+    return estimates == estimatesAll || (estimates == estimatesMinMax && (id == minimum || id == maximum))
+           || (estimates == estimatesMeanVariance && (id == mean || id == variance));
+}
+
+/// Whether the online kernel updates the partial result `id` for `estimates`, as the dense kernel does.
+///
+/// @tparam estimates  Statistics to compute
+/// @param[in] id      The partial result
+template <EstimatesToCompute estimates>
+constexpr bool writesPartialResult(PartialResultId id)
+{
+    return estimates == estimatesAll || id == nObservations || (estimates == estimatesMinMax && (id == partialMinimum || id == partialMaximum))
+           || (estimates == estimatesMeanVariance && (id == partialSum || id == partialSumSquaresCentered));
+}
+
 /// Moments of the whole table for the batch CSR methods.
-template <typename algorithmFPType, Method method, CpuType cpu>
+///
+/// @tparam estimates  Statistics to compute; only their results are written
+template <typename algorithmFPType, Method method, CpuType cpu, EstimatesToCompute estimates>
 Status computeBatch(NumericTable * dataTable, Result * result)
 {
     CSRNumericTableIface * const csr = dynamic_cast<CSRNumericTableIface *>(dataTable);
@@ -353,51 +403,64 @@ Status computeBatch(NumericTable * dataTable, Result * result)
 
     Status st;
     TArray<algorithmFPType, cpu> userSums;
-    if (method == sumCSR)
+    if (method == sumCSR && Needs<estimates>::mean)
     {
         DAAL_CHECK_STATUS(st, (readUserSums<algorithmFPType, cpu>(dataTable, nFeatures, userSums)));
     }
 
     Moments<cpu> m;
-    DAAL_CHECK_STATUS(st, (computeMoments<algorithmFPType, cpu>(*csr, nRows, nFeatures, userSums.get(), m)));
+    DAAL_CHECK_STATUS(st, (computeMoments<algorithmFPType, cpu, estimates>(*csr, nRows, nFeatures, userSums.get(), m)));
     if (nRows == 0) return st;
 
     WriteOnlyRows<algorithmFPType, cpu> out[lastResultId + 1];
     algorithmFPType * res[lastResultId + 1];
     for (size_t i = 0; i < lastResultId + 1; i++)
     {
+        res[i] = nullptr;
+        if (!writesResult<estimates>((ResultId)i)) continue;
         out[i].set(result->get((ResultId)i).get(), 0, 1);
         DAAL_CHECK_BLOCK_STATUS(out[i]);
         res[i] = out[i].get();
     }
 
-    const double invN   = 1.0 / double(nRows);
-    const double invNM1 = 1.0 / double(nRows - 1);
+    const double n = double(nRows);
     PRAGMA_OMP_SIMD
     for (size_t j = 0; j < nFeatures; j++)
     {
-        const double meanJ           = m.mean[j];
-        const double varianceJ       = m.sumSqCen[j] * invNM1;
-        res[minimum][j]              = algorithmFPType(m.min[j]);
-        res[maximum][j]              = algorithmFPType(m.max[j]);
-        res[sum][j]                  = algorithmFPType(m.sum[j]);
-        res[sumSquares][j]           = algorithmFPType(m.sumSq[j]);
-        res[sumSquaresCentered][j]   = algorithmFPType(m.sumSqCen[j]);
-        res[mean][j]                 = algorithmFPType(meanJ);
-        res[secondOrderRawMoment][j] = algorithmFPType(m.sumSq[j] * invN);
-        res[variance][j]             = algorithmFPType(varianceJ);
+        if constexpr (Needs<estimates>::minMax)
+        {
+            res[minimum][j] = algorithmFPType(m.min[j]);
+            res[maximum][j] = algorithmFPType(m.max[j]);
+        }
+        if constexpr (Needs<estimates>::mean)
+        {
+            res[mean][j]     = algorithmFPType(m.mean[j]);
+            res[variance][j] = algorithmFPType(m.sumSqCen[j] / (n - 1.0));
+        }
+        if constexpr (Needs<estimates>::raw)
+        {
+            res[sum][j]                  = algorithmFPType(m.sum[j]);
+            res[sumSquares][j]           = algorithmFPType(m.sumSq[j]);
+            res[sumSquaresCentered][j]   = algorithmFPType(m.sumSqCen[j]);
+            res[secondOrderRawMoment][j] = algorithmFPType(m.sumSq[j] / n);
+        }
     }
-    MathInst<algorithmFPType, cpu>::vSqrt(nFeatures, res[variance], res[standardDeviation]);
-    PRAGMA_OMP_SIMD
-    for (size_t j = 0; j < nFeatures; j++)
+    if constexpr (Needs<estimates>::raw)
     {
-        res[variation][j] = res[standardDeviation][j] / res[mean][j];
+        MathInst<algorithmFPType, cpu>::vSqrt(nFeatures, res[variance], res[standardDeviation]);
+        PRAGMA_OMP_SIMD
+        for (size_t j = 0; j < nFeatures; j++)
+        {
+            res[variation][j] = res[standardDeviation][j] / res[mean][j];
+        }
     }
     return st;
 }
 
 /// Moments of one block merged into the partial result for the online CSR methods.
-template <typename algorithmFPType, Method method, CpuType cpu>
+///
+/// @tparam estimates  Statistics to compute; only their partial results are updated
+template <typename algorithmFPType, Method method, CpuType cpu, EstimatesToCompute estimates>
 Status computeOnline(NumericTable * dataTable, PartialResult * partialResult, bool isOnline)
 {
     CSRNumericTableIface * const csr = dynamic_cast<CSRNumericTableIface *>(dataTable);
@@ -407,18 +470,20 @@ Status computeOnline(NumericTable * dataTable, PartialResult * partialResult, bo
 
     Status st;
     TArray<algorithmFPType, cpu> userSums;
-    if (method == sumCSR)
+    if (method == sumCSR && Needs<estimates>::mean)
     {
         DAAL_CHECK_STATUS(st, (readUserSums<algorithmFPType, cpu>(dataTable, nFeatures, userSums)));
     }
 
     Moments<cpu> m;
-    DAAL_CHECK_STATUS(st, (computeMoments<algorithmFPType, cpu>(*csr, nRows, nFeatures, userSums.get(), m)));
+    DAAL_CHECK_STATUS(st, (computeMoments<algorithmFPType, cpu, estimates>(*csr, nRows, nFeatures, userSums.get(), m)));
 
     WriteRows<algorithmFPType, cpu> part[lastPartialResultId + 1];
     algorithmFPType * res[lastPartialResultId + 1];
     for (size_t i = 0; i < lastPartialResultId + 1; i++)
     {
+        res[i] = nullptr;
+        if (!writesPartialResult<estimates>((PartialResultId)i)) continue;
         NumericTable * t = partialResult->get((PartialResultId)i).get();
         DAAL_CHECK(t, ErrorNullPartialResult);
         part[i].set(t, 0, 1);
@@ -439,30 +504,48 @@ Status computeOnline(NumericTable * dataTable, PartialResult * partialResult, bo
         PRAGMA_OMP_SIMD
         for (size_t j = 0; j < nFeatures; j++)
         {
-            res[partialMinimum][j]            = algorithmFPType(m.min[j]);
-            res[partialMaximum][j]            = algorithmFPType(m.max[j]);
-            res[partialSum][j]                = algorithmFPType(m.sum[j]);
-            res[partialSumSquares][j]         = algorithmFPType(m.sumSq[j]);
-            res[partialSumSquaresCentered][j] = algorithmFPType(m.sumSqCen[j]);
+            if constexpr (Needs<estimates>::minMax)
+            {
+                res[partialMinimum][j] = algorithmFPType(m.min[j]);
+                res[partialMaximum][j] = algorithmFPType(m.max[j]);
+            }
+            if constexpr (Needs<estimates>::mean)
+            {
+                res[partialSum][j]                = algorithmFPType(m.sum[j]);
+                res[partialSumSquaresCentered][j] = algorithmFPType(m.sumSqCen[j]);
+            }
+            if constexpr (Needs<estimates>::raw)
+            {
+                res[partialSumSquares][j] = algorithmFPType(m.sumSq[j]);
+            }
         }
     }
     else
     {
         /* Chan et al. pairwise update; (mean2 - mean1)^2 does not cancel the way the expanded form does */
-        const double coeff = n1 * n2 / (n1 + n2);
         PRAGMA_OMP_SIMD
         for (size_t j = 0; j < nFeatures; j++)
         {
-            const double sum1  = res[partialSum][j];
-            const double delta = m.mean[j] - sum1 / n1;
-            const double min1  = res[partialMinimum][j];
-            const double max1  = res[partialMaximum][j];
-
-            res[partialMinimum][j]            = algorithmFPType(m.min[j] < min1 ? m.min[j] : min1);
-            res[partialMaximum][j]            = algorithmFPType(m.max[j] > max1 ? m.max[j] : max1);
-            res[partialSum][j]                = algorithmFPType(sum1 + m.sum[j]);
-            res[partialSumSquares][j]         = algorithmFPType(double(res[partialSumSquares][j]) + m.sumSq[j]);
-            res[partialSumSquaresCentered][j] = algorithmFPType(double(res[partialSumSquaresCentered][j]) + m.sumSqCen[j] + coeff * delta * delta);
+            if constexpr (Needs<estimates>::minMax)
+            {
+                const double min1      = res[partialMinimum][j];
+                const double max1      = res[partialMaximum][j];
+                res[partialMinimum][j] = algorithmFPType(m.min[j] < min1 ? m.min[j] : min1);
+                res[partialMaximum][j] = algorithmFPType(m.max[j] > max1 ? m.max[j] : max1);
+            }
+            if constexpr (Needs<estimates>::mean)
+            {
+                const double coeff = n1 * n2 / (n1 + n2);
+                const double sum1  = res[partialSum][j];
+                const double delta = m.mean[j] - sum1 / n1;
+                res[partialSum][j] = algorithmFPType(sum1 + m.sum[j]);
+                res[partialSumSquaresCentered][j] =
+                    algorithmFPType(double(res[partialSumSquaresCentered][j]) + m.sumSqCen[j] + coeff * delta * delta);
+            }
+            if constexpr (Needs<estimates>::raw)
+            {
+                res[partialSumSquares][j] = algorithmFPType(double(res[partialSumSquares][j]) + m.sumSq[j]);
+            }
         }
     }
     res[nObservations][0] = algorithmFPType(n1 + n2);
