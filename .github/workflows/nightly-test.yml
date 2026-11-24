@@ -366,9 +366,8 @@ jobs:
           call "%ONEAPI_ROOT%\setvars-vcvarsall.bat" %VS_VER%
           bazel test --config=host --cpu=avx2 --test_output=errors //cpp/oneapi/dal/algo/pca:tests
 
-      # DPC++ tests need a SYCL device: the OpenCL CPU runtime above provides
-      # `opencl:cpu`. Only the pca suite runs, as a smoke test. test_spmd_dpc is
-      # left out: it aborts on Windows (0xC0000409), see dev/bazel/TODO.md.
+      # pca smoke test on the OpenCL CPU runtime's `opencl:cpu` device; test_spmd_dpc
+      # aborts on Windows (0xC0000409), see dev/bazel/TODO.md.
       - name: Bazel DPC++ tests on SYCL CPU device
         shell: cmd
         env:
