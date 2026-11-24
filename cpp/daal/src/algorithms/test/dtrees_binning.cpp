@@ -37,7 +37,7 @@ TEST("IndexedFeatures quantile bins do not split equal values", "[unit][dtrees]"
 
     IndexedFeatures indexed;
     const BinParams prm(8, 5);
-    REQUIRE(indexed.init<float, daal::internal::sse2>(*nt, nullptr, &prm).ok());
+    REQUIRE(indexed.init<float, DAAL_BASE_CPU>(*nt, nullptr, &prm).ok());
 
     const IndexedFeatures::IndexType * bins = indexed.data(0);
     std::vector<IndexedFeatures::IndexType> binOfValue(nDistinct, -1);
