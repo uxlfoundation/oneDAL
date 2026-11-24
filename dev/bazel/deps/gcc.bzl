@@ -23,11 +23,15 @@ load("@onedal//dev/bazel:repos.bzl", "repos")
 # re-pinned by dev/bazel/deps/relock_conda.py (see dev/bazel/README.md).
 _GCC_VERSION = "14.3.0"
 _TRIPLE = "x86_64-conda-linux-gnu"
-_URL = "https://anaconda.org/conda-forge/{name}/{version}/download/{subdir}/{name}-{version}-{build}.conda"
+# The channel CDN first; anaconda.org answers 503 and times out in waves.
+_URLS = [
+    "https://conda.anaconda.org/conda-forge/{subdir}/{name}-{version}-{build}.conda",
+    "https://anaconda.org/conda-forge/{name}/{version}/download/{subdir}/{name}-{version}-{build}.conda",
+]
 
 def _pkg(name, version, build, sha256, subdir = "linux-64"):
-    url = _URL.format(name = name, version = version, build = build, subdir = subdir)
-    return repos.archive(url = url, sha256 = sha256)
+    urls = [url.format(name = name, version = version, build = build, subdir = subdir) for url in _URLS]
+    return repos.archive(url = " ".join(urls), sha256 = sha256)
 
 _PACKAGES = [
     _pkg("gcc_impl_linux-64", _GCC_VERSION, "h054831b_20", "09bb9b0d54b012c36a115e3ecebc80276df261555e847afbb3fbc7ab5566408c"),

@@ -58,6 +58,15 @@
       "datasourceTemplate": "conda"
     },
     {
+      "description": "Miniforge installer pinned in apt.sh; the PR then needs the two SHA256 digests from the release",
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.ci\\/env\\/apt\\.sh$/"],
+      "matchStrings": ["MINIFORGE_VERSION=(?<currentValue>\\d+\\.\\d+\\.\\d+-\\d+)"],
+      "depNameTemplate": "conda-forge/miniforge",
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)-(?<build>\\d+)$"
+    },
+    {
       "customType": "regex",
       "managerFilePatterns": ["/^\\.ci\\/env\\/editorconfig-checker\\.sh$/"],
       "matchStrings": [
