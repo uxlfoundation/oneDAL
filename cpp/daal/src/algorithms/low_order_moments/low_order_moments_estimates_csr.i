@@ -73,13 +73,14 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
     moments.nRows = nRows;
     if (nRows == 0) return st;
 
-    /* The sum is a result of its own, or what an online partial result keeps for the mean */
+    // The sum is a result of its own, or what an online partial result keeps for the mean.
+    // Static: MSVC rejects a captured local as a template argument inside the lambdas.
 #if defined _SUM_ENABLE_
-    constexpr bool withSum = true;
+    static constexpr bool withSum = true;
 #elif defined _MEAN_ENABLE_
-    constexpr bool withSum = online;
+    static constexpr bool withSum = online;
 #else
-    constexpr bool withSum = false;
+    static constexpr bool withSum = false;
 #endif
 
     const size_t chunkRows = rowsPerChunk(nRows, nFeatures, table.getDataSize());
