@@ -4,6 +4,7 @@ package(default_visibility = ["//visibility:public"])
 
 rc_toolchain(
     name = "rc_tool",
+    files = [%{rc_deps}],
     rc_path = "%{rc_path}",
 )
 

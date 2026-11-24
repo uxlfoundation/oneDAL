@@ -214,10 +214,18 @@ def _configure_cc_toolchain_win_cl(repo_ctx):
         template = template,
         symlink = symlink,
     ))
+
+    # rc.exe is outside the execroot: its identity file keys WindowsResource actions, as
+    # the LLVM toolchain's does.
+    rc_path = _find_resource_compiler(repo_ctx, "cl")
+    rc_identity = write_tool_identity(repo_ctx, [rc_path])
     repo_ctx.template(
         "BUILD",
         Label("@onedal//dev/bazel/toolchains:cc_toolchain_win.tpl.BUILD"),
-        {"%{rc_path}": _find_resource_compiler(repo_ctx, "cl").replace("\\", "/")},
+        {
+            "%{rc_path}": rc_path.replace("\\", "/"),
+            "%{rc_deps}": get_starlark_list([":" + rc_identity]),
+        },
     )
 
 def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
