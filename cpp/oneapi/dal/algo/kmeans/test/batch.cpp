@@ -491,38 +491,24 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
     constexpr std::int64_t row_count = 20000;
     constexpr std::int64_t column_count = 10;
     constexpr std::int64_t cluster_count = 5;
+    constexpr float nnz_fraction = 0.5;
     constexpr int run_count = 3;
 
-    std::mt19937 rng(42);
-    std::normal_distribution<double> normal;
-    std::vector<Float> dense(row_count * column_count);
-    std::vector<Float> values;
-    std::vector<std::int64_t> column_indices;
-    std::vector<std::int64_t> row_offsets{ 0 };
-    for (std::int64_t i = 0; i < row_count; ++i) {
-        for (std::int64_t j = 0; j < column_count; ++j) {
-            const Float x = std::max(Float(0), Float(normal(rng)));
-            dense[i * column_count + j] = x;
-            if (x != Float(0)) {
-                values.push_back(x);
-                column_indices.push_back(j);
-            }
-        }
-        row_offsets.push_back(std::int64_t(values.size()));
-    }
-    const auto data = csr_table::wrap<Float>(values.data(),
-                                             column_indices.data(),
-                                             row_offsets.data(),
-                                             row_count,
-                                             column_count,
-                                             sparse_indexing::zero_based);
-    const auto initial_centroids = homogen_table::wrap(dense.data(), cluster_count, column_count);
+    const auto input =
+        oneapi::dal::test::engine::csr_make_blobs<Float>(cluster_count,
+                                                         row_count,
+                                                         column_count,
+                                                         nnz_fraction,
+                                                         sparse_indexing::zero_based);
+    const auto data = input.get_data(this->get_policy());
+    const auto initial_centroids = input.get_initial_centroids();
     const auto desc = this->get_descriptor(cluster_count, 5, Float(0));
 
     const auto pull = [](const table& t) {
         const auto ary = row_accessor<const Float>(t).pull();
         return std::vector<Float>(ary.get_data(), ary.get_data() + ary.get_count());
     };
+    const auto dense = pull(input.get_dense_data(this->get_policy()));
     // Near-ties may go either way, so a response only has to be as close as the nearest centroid.
     const double tie_tol = std::is_same_v<Float, double> ? 1e-10 : 1e-4;
     const auto count_not_nearest = [&](const std::vector<Float>& centroids,
