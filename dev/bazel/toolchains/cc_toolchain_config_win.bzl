@@ -184,7 +184,11 @@ def _impl(ctx):
             actions = dynamic_library_link_actions,
             flag_groups = [flag_group(
                 flags = ["/IMPLIB:%{interface_library_output_path}"],
-                expand_if_available = "interface_library_output_path",
+                # Bazel supplies the path "ignored" when no import library is requested.
+                expand_if_equal = variable_with_value(
+                    name = "generate_interface_library",
+                    value = "yes",
+                ),
             )],
         )],
     )
