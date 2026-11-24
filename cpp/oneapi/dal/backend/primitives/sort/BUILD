@@ -10,6 +10,9 @@ dal_module(
     dal_deps = [
         "@onedal//cpp/oneapi/dal/backend/primitives:common",
     ],
+    dpc_deps = [
+        "@dpl//:headers",
+    ],
 )
 
 dal_test_suite(

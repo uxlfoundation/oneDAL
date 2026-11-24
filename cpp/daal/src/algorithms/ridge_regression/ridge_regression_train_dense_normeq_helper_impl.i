@@ -40,45 +40,61 @@ using namespace daal::algorithms::linear_model::normal_equations::training::inte
 
 template <typename algorithmFPType, CpuType cpu>
 Status KernelHelper<algorithmFPType, cpu>::computeBetasImpl(DAAL_INT p, const algorithmFPType * a, algorithmFPType * aCopy, DAAL_INT ny,
-                                                            algorithmFPType * b, bool interceptFlag) const
+                                                            algorithmFPType * b, bool interceptFlag, bool isDualSystem) const
 {
     size_t nRidge = _ridge.getNumberOfRows();
     ReadRows<algorithmFPType, cpu> ridgeBlock(const_cast<NumericTable &>(_ridge), 0, nRidge);
     const algorithmFPType * ridge = ridgeBlock.get();
 
-    const DAAL_INT pToFix = (interceptFlag ? p - 1 : p);
+    const DAAL_INT pToFix = (interceptFlag && !isDualSystem ? p - 1 : p);
 
     Status st;
     int result = 0;
-    if (nRidge == 1)
+    if (nRidge * _ridge.getNumberOfColumns() == 1)
     {
-        for (DAAL_INT i = 0, idx = 0; i < pToFix; i++, idx += (p + 1))
+        if (*ridge != 0.0)
         {
-            aCopy[idx] += *ridge;
+            for (DAAL_INT i = 0, idx = 0; i < pToFix; i++, idx += (p + 1))
+            {
+                aCopy[idx] += *ridge;
+            }
         }
 
-        st |= FinalizeKernel<algorithmFPType, cpu>::solveSystem(p, aCopy, ny, b, ErrorRidgeRegressionInternal);
+        st |= FinalizeKernel<algorithmFPType, cpu>::solveSystem(p, aCopy, ny, b, getInternalErrorCode(), isDualSystem,
+                                                                isDualSystem && interceptFlag && *ridge == 0.0);
         DAAL_CHECK_STATUS_VAR(st);
     }
     else
     {
         algorithmFPType * bPtr    = b;
         const size_t aSizeInBytes = p * p * sizeof(algorithmFPType);
-        for (DAAL_INT j = 0; j < ny; j++, bPtr += (pToFix + 1))
+
+        /* b is of size ny x p, the j-th row contains the right hand side for the j-th response */
+        for (DAAL_INT j = 0; j < ny; j++, bPtr += p)
         {
             result |= daal::services::internal::daal_memcpy_s(aCopy, aSizeInBytes, a, aSizeInBytes);
-            for (DAAL_INT i = 0, idx = 0; i < pToFix; i++, idx += (p + 1))
+            if (ridge[j] != 0.0)
             {
-                aCopy[idx] += ridge[j];
+                for (DAAL_INT i = 0, idx = 0; i < pToFix; i++, idx += (p + 1))
+                {
+                    aCopy[idx] += ridge[j];
+                }
             }
 
             DAAL_INT one(1);
 
-            st |= FinalizeKernel<algorithmFPType, cpu>::solveSystem(p, aCopy, one, b, ErrorRidgeRegressionInternal);
+            st |= FinalizeKernel<algorithmFPType, cpu>::solveSystem(p, aCopy, one, bPtr, getInternalErrorCode(), isDualSystem,
+                                                                    isDualSystem && interceptFlag && ridge[j] == 0.0);
             DAAL_CHECK_STATUS_VAR(st);
         }
     }
     return (!result) ? st : services::Status(services::ErrorMemoryCopyFailedInternal);
+}
+
+template <typename algorithmFPType, CpuType cpu>
+ErrorID KernelHelper<algorithmFPType, cpu>::getInternalErrorCode() const
+{
+    return ErrorRidgeRegressionInternal;
 }
 
 } // namespace internal

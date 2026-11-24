@@ -52,8 +52,9 @@ class KernelHelper : public KernelHelperIface<algorithmFPType, cpu>
 {
 public:
     KernelHelper(const NumericTable & ridge) : _ridge(ridge) {}
-    Status computeBetasImpl(DAAL_INT p, const algorithmFPType * a, algorithmFPType * aCopy, DAAL_INT ny, algorithmFPType * b,
-                            bool inteceptFlag) const;
+    Status computeBetasImpl(DAAL_INT p, const algorithmFPType * a, algorithmFPType * aCopy, DAAL_INT ny, algorithmFPType * b, bool inteceptFlag,
+                            bool isDualSystem) const;
+    ErrorID getInternalErrorCode() const;
 
 protected:
     const NumericTable & _ridge;
@@ -64,6 +65,7 @@ class BatchKernel<algorithmFPType, training::normEqDense, cpu> : public daal::al
 {
     typedef linear_model::normal_equations::training::internal::UpdateKernel<algorithmFPType, cpu> UpdateKernelType;
     typedef linear_model::normal_equations::training::internal::FinalizeKernel<algorithmFPType, cpu> FinalizeKernelType;
+    typedef linear_model::normal_equations::training::internal::DualKernel<algorithmFPType, cpu> DualKernelType;
 
 public:
     Status compute(const NumericTable & x, const NumericTable & y, NumericTable & xtx, NumericTable & xty, NumericTable & beta, bool interceptFlag,

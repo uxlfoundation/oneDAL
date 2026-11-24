@@ -324,9 +324,8 @@ DAAL_EXPORT void _daal_static_threader_for(int64_t n, const void * a, daal::func
 // Below this size std::sort beats tbb::parallel_sort.
 constexpr std::int64_t parallelSortMinSize = 4096;
 
-// tbb::parallel_sort is used only for large arrays outside parallel regions. Inside a parallel region
-// (e.g. the per-tree bootstrap sort in decision forest training) the other threads are busy, so it gains
-// nothing and its overhead makes it ~17% slower than std::sort.
+// tbb::parallel_sort is used only for large arrays outside parallel regions.
+// Inside a parallel region it gains nothing and its overhead makes it slower than std::sort.
 inline bool useParallelSort(std::int64_t n)
 {
     return n >= parallelSortMinSize && daal::threader_env()->getNumberOfThreads() > 1 && !_daal_is_in_parallel();

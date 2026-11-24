@@ -59,7 +59,7 @@ if /I "%ARCH%"=="AMD64" (
 
 IF "%VS_VER%"=="2026_build_tools" (
     @call "%ProgramFiles(x86)%\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
-    echo "%ProgramFiles(x86)%\Microsoft Visual Studio\q8\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
+    echo "%ProgramFiles(x86)%\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
     set "sln=slnx"
 ) ELSE IF "%VS_VER%"=="2017_build_tools" (
     @call "%ProgramFiles(x86)%\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" %PROCESSOR_ARCHITECTURE%
@@ -106,7 +106,7 @@ cd %release_dir%\daal\latest\examples\%examples%
 
 set cmake_link_mode_short=so
 set cmake_link_mode=dynamic
-if "%link_mode%"=="lib" (
+if "%linking%"=="lib" (
     set cmake_link_mode_short=a
     set cmake_link_mode=static
 )
@@ -119,8 +119,12 @@ if "%build_system%"=="cmake" (
     echo cmake -B Build -S . -DCMAKE_BUILD_TYPE=Release -DONEDAL_LINK=%cmake_link_mode% -DTBB_DIR=%TBB_DIR%
     cmake -B Build -S . -DCMAKE_BUILD_TYPE=Release -DONEDAL_LINK=%cmake_link_mode% -DTBB_DIR=%TBB_DIR% || set errorcode=1
     set solution_name=%examples:\=_%
+    rem The Visual Studio 2026 generator writes .slnx, older ones .sln.
+    if exist "Build\!solution_name!_examples.slnx" (set "sln=slnx") else (set "sln=sln")
     msbuild.exe "Build\!solution_name!_examples.!sln!" /p:Configuration=Release || set errorcode=1
 
+    rem A second call in the same directory must not run the first call's list again.
+    if exist cmake_examples_list.txt del cmake_examples_list.txt
     for /f "delims=." %%F in ('dir /B !results_dir!\*.exe 2^> nul') do (
         set example=%%F
         echo !example! >> cmake_examples_list.txt
@@ -131,12 +135,13 @@ if "%build_system%"=="cmake" (
         set exe_log=%%G.res
         if exist !results_dir!\%%G.exe (
             !results_dir!\%%G.exe 2>&1 > !exe_log!
-            set errorcode=!errorlevel!
-            if !errorcode! EQU 0 (
+            set example_errorcode=!errorlevel!
+            if !example_errorcode! EQU 0 (
                 set status_ex=PASSED !ExampleName!
                 echo !status_ex!
             ) else (
-                echo FAILED !ExampleName! with errno !errorcode!
+                echo FAILED !ExampleName! with errno !example_errorcode!
+                set errorcode=!example_errorcode!
             )
         )
     )

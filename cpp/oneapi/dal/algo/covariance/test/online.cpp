@@ -15,6 +15,7 @@
 *******************************************************************************/
 
 #include "oneapi/dal/algo/covariance/test/fixture.hpp"
+#include "oneapi/dal/test/engine/tables.hpp"
 
 namespace oneapi::dal::covariance::test {
 
@@ -91,6 +92,45 @@ TEMPLATE_LIST_TEST_M(covariance_online_test,
     // Homogen floating point type is the same as algorithm's floating point type
     const auto input_data_table_id = this->get_homogen_table_id();
     this->online_general_checks(input, input_data_table_id, cov_desc);
+}
+
+// finalize_compute must leave the partial result as it was, so it can be finalized again
+// or extended with more blocks.
+TEMPLATE_LIST_TEST_M(covariance_online_test,
+                     "covariance finalize twice on the same partial result",
+                     "[covariance][integration][online]",
+                     covariance_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+    using Method = std::tuple_element_t<1, TestType>;
+    const int64_t nBlocks = GENERATE(1, 3);
+    const bool assume_centered = GENERATE(true, false);
+
+    const auto desc = covariance::descriptor<Float, Method, covariance::task::compute>()
+                          .set_result_options(covariance::result_options::cov_matrix |
+                                              covariance::result_options::cor_matrix |
+                                              covariance::result_options::means)
+                          .set_assume_centered(assume_centered);
+    const te::dataframe input = te::dataframe_builder{ 6, 3 }.fill_normal(0, 1, 7777).build();
+    const table data = input.get_table(this->get_policy(), this->get_homogen_table_id());
+
+    dal::covariance::partial_compute_result<> partial;
+    for (const auto& block : te::split_table_by_rows<Float>(this->get_policy(), data, nBlocks)) {
+        partial = this->partial_compute(desc, partial, block);
+    }
+    const auto n_rows = te::copy_table_values<Float>(partial.get_partial_n_rows());
+    const auto crossproduct = te::copy_table_values<Float>(partial.get_partial_crossproduct());
+    const auto sums = te::copy_table_values<Float>(partial.get_partial_sum());
+
+    const auto first = this->finalize_compute(desc, partial);
+    REQUIRE(te::copy_table_values<Float>(partial.get_partial_n_rows()) == n_rows);
+    REQUIRE(te::copy_table_values<Float>(partial.get_partial_crossproduct()) == crossproduct);
+    REQUIRE(te::copy_table_values<Float>(partial.get_partial_sum()) == sums);
+
+    const auto second = this->finalize_compute(desc, partial);
+    te::check_if_table_content_equal<Float>(second.get_cov_matrix(), first.get_cov_matrix());
+    te::check_if_table_content_equal<Float>(second.get_cor_matrix(), first.get_cor_matrix());
+    te::check_if_table_content_equal<Float>(second.get_means(), first.get_means());
 }
 
 } // namespace oneapi::dal::covariance::test
