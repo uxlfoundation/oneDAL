@@ -301,8 +301,9 @@ Status TaskKMeansLloyd<algorithmFPType, cpu>::addNTToTaskThreadedCSR(const Numer
         const algorithmFPType beta  = 0.0;
         const char matdescra[6]     = { 'G', 0, 0, 'F', 0, 0 };
 
-        SpBlasInst<algorithmFPType, cpu>::xxcsrmm(&transa, &_n, &_c, &_p, &alpha, matdescra, data, (DAAL_INT *)colIdx, (DAAL_INT *)rowIdx, inClusters,
-                                                  &_p, &beta, x_clusters, &_n);
+        const Status mmStatus = SpBlasInst<algorithmFPType, cpu>::xxcsrmm(&transa, &_n, &_c, &_p, &alpha, matdescra, data, (DAAL_INT *)colIdx,
+                                                                          (DAAL_INT *)rowIdx, inClusters, &_p, &beta, x_clusters, &_n);
+        DAAL_CHECK_STATUS_THR(mmStatus);
 
         algorithmFPType goal = 0;
         size_t csrCursor     = 0;
