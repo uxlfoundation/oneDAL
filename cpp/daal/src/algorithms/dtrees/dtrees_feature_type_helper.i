@@ -22,15 +22,12 @@
 */
 
 #include "include/services/error_indexes.h"
-#include "data_management/data/internal/finiteness_checker.h"
 #include "src/algorithms/dtrees/dtrees_feature_type_helper.h"
 #include "src/threading/threading.h"
 #include "src/algorithms/service_error_handling.h"
 #include "src/algorithms/service_sort.h"
 #include "src/algorithms/dtrees/service_array.h"
 #include "src/externals/service_memory.h"
-
-#include <limits>
 
 namespace daal
 {
@@ -127,11 +124,9 @@ protected:
         const algorithmFPType * pBlock = _block.set(&nt, iCol, 0, nRows);
         DAAL_CHECK_BLOCK_STATUS(_block);
         FeatureIdx * index = _index.get();
-        // NaN is keyed as -inf so the sort sees a strict weak ordering and NaN rows share the lowest bin.
-        const algorithmFPType negInf = -std::numeric_limits<algorithmFPType>::infinity();
         for (size_t i = 0; i < nRows; ++i)
         {
-            index[i].key   = data_management::internal::checkFinitenessByComparison(pBlock[i]) ? negInf : pBlock[i];
+            index[i].key   = pBlock[i];
             index[i].index = i;
         }
         daal::algorithms::internal::qSortByKey<FeatureIdx, cpu>(nRows, index);
@@ -400,21 +395,15 @@ services::Status ColIndexTaskBins<IndexType, algorithmFPType, cpu>::makeIndexAve
     size_t nBins = 0;
     size_t i     = 0;
     DAAL_ASSERT(_prm.maxBins > 0);
-    // The bin width comes from the finite keys; infinite keys, NaN included, form their own bins.
-    const algorithmFPType inf = std::numeric_limits<algorithmFPType>::infinity();
-    size_t iFirst = 0, iLast = nRows - 1;
-    while (iFirst < iLast && index[iFirst].key == -inf) ++iFirst;
-    while (iLast > iFirst && index[iLast].key == inf) --iLast;
-    const algorithmFPType range = index[iLast].key - index[iFirst].key;
-    algorithmFPType binSize     = (range < inf) ? range / _prm.maxBins : algorithmFPType(0);
-    algorithmFPType value       = index[0].key;
+    algorithmFPType binSize = (index[nRows - 1].key - index[0].key) / _prm.maxBins;
+    algorithmFPType value   = index[0].key;
 
     while (i < nRows)
     {
-        // next bin border to the right of current index; the last allowed bin takes all remaining rows
-        size_t iRight = (nBins + 1 == _prm.maxBins) ? nRows : i + 1;
+        // next bin border to the right of current index
+        size_t iRight = i + 1;
 
-        while ((iRight < nRows) && (index[iRight].key == value || index[iRight].key < (value + binSize)))
+        while ((iRight < nRows) && (index[iRight].key < (value + binSize)))
         {
             ++iRight;
         }
@@ -425,8 +414,8 @@ services::Status ColIndexTaskBins<IndexType, algorithmFPType, cpu>::makeIndexAve
 
         append(_bins, nBins, newBinSize);
 
-        i = iRight;
-        if (i < nRows) value = index[i].key;
+        i     = iRight;
+        value = index[i].key;
     }
 
     // assert we picked up all data records
