@@ -477,7 +477,7 @@ jobs:
         run: |
           git fetch --no-tags --depth=1 origin "${BASE_SHA}"
           changed=$(git -c core.quotePath=false diff --no-renames --name-only "${BASE_SHA}" HEAD)
-          if grep -Eq '^dev/bazel/|(^|/)BUILD$|\.bzl$|(^|/)\.bazelrc$|(^|/)MODULE\.bazel$' <<< "${changed}"; then
+          if grep -Eq '^dev/bazel/|(^|/)BUILD(\.bazel)?$|\.BUILD$|\.bzl$|(^|/)\.bazel(rc|version)$|(^|/)MODULE\.bazel(\.lock)?$' <<< "${changed}"; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
