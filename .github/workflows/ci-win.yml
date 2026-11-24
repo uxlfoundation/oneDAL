@@ -39,9 +39,15 @@ on:
       - '.github/.mergify.yml'
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/instructions/**'
+      - 'dev/docker/**'
       - '.github/workflows/check-intel-urls.yml'
+      - '.github/workflows/ci-aarch64.yml'
+      - '.github/workflows/ci.yml'
       - '.github/workflows/ci-conda-recipe.yml'
+      - '.github/workflows/codeql.yml'
+      - '.github/workflows/comment-blocks.yml'
       - '.github/workflows/coverity.yml'
+      - '.github/workflows/docker-validation-ci.yml'
       - '.github/workflows/docker-validation-nightly.yml'
       - '.github/workflows/docs-release.yml'
       - '.github/workflows/label-enforcement.yml'
@@ -79,9 +85,15 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Only the Make or only the Bazel jobs when the change touches files that
+  # just one build system reads (.ci/scripts/change_scope.py). Pushes run all.
+  scope:
+    uses: ./.github/workflows/change-scope.yml
+
   build-and-test:
+    needs: scope
     # TEMP(runner shortage): not on pull requests.
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && needs.scope.outputs.make != 'false'
     strategy:
       fail-fast: false
       matrix:
@@ -222,8 +234,9 @@ jobs:
 
   bazel-build:
     name: WindowsBazel_OpenBLAS(SVE)-GitHub hosted
+    needs: scope
     # TEMP(runner shortage): not on pull requests.
-    if: github.repository == 'uxlfoundation/oneDAL' && github.event_name != 'pull_request'
+    if: github.repository == 'uxlfoundation/oneDAL' && github.event_name != 'pull_request' && needs.scope.outputs.bazel != 'false'
     runs-on: windows-11-vs2026-arm
     timeout-minutes: 180
     # Part of the OpenBLAS cache key, as in `build-and-test`.
@@ -445,8 +458,9 @@ jobs:
   # dev/bazel/toolchains/cc_toolchain_win.bzl). MKL and TBB come from the
   # `@mkl`/`@tbb` downloads, so the stock runner needs no Intel compiler.
   bazel-msvc:
+    needs: scope
     # TEMP(runner shortage): not on pull requests.
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && needs.scope.outputs.bazel != 'false'
     name: WindowsBazel_MKL(AVX2)-MSVC-GitHub hosted
     runs-on: windows-2025
     timeout-minutes: 120
@@ -493,8 +507,9 @@ jobs:
   # GitHub Actions twin of Azure's `WindowsMakeVC`. `VS_VER` stays unset, so build.bat and
   # test.bat take the Visual Studio that the toolkit's setvars-vcvarsall.bat finds.
   make-msvc:
+    needs: scope
     # TEMP(runner shortage): not on pull requests.
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && needs.scope.outputs.make != 'false'
     name: WindowsMakeVC_MKL(AVX2)-GitHub hosted
     runs-on: windows-2025
     timeout-minutes: 180
