@@ -43,7 +43,8 @@
   `supports_interface_shared_libraries`, so `cc_common.link()` declares the
   import library and passes `/IMPLIB:`; the release rule converts line endings
   with `expand_template`; a toolchain configured without `icpx` registers no
-  DPC++ tool and `dev/bazel/cc.bzl` reports that during analysis. The MSVC
+  DPC++ tool and `dev/bazel/cc.bzl` registers a failing action for it, so
+  `--nobuild` still passes and only a build reports it. The MSVC
   runtime is one setting, `--msvc_runtime`, read by the toolchain config as
   well as by the library names and the dependency `select()`s.
 
@@ -56,17 +57,18 @@
   | Windows | :heavy_check_mark: | :heavy_check_mark: |                    | :heavy_check_mark: | :heavy_check_mark: |
 
   Intel `icx`/`icpx` is preferred whenever it is on `PATH`; `CC` overrides the
-  choice. Linux Clang builds `//:release` (`--release_dpc=false`, `--cpu=avx2`)
-  and runs the `pca` host tests in the `LinuxBazelClang` job of `ci.yml`.
-  Windows `clang-cl` is the ARM64 lane of `ci-win.yml`.
+  choice. Linux Clang is checked per PR by `bazel build --nobuild //:release`
+  with `CC=clang` in the clang leg of `LinuxBazelNoOneAPI` in `ci.yml`, when the
+  PR touches Bazel files. nightly-test builds the release with clang in full
+  (`--release_dpc=false`, `--cpu=avx2`). Windows `clang-cl` is the ARM64 lane of
+  `ci-win.yml`.
 
 - [ ] **Windows DPC++ execution.** Windows release artifacts can include the
-  DPC++ libraries. The nightly Windows Bazel job is configured to run the `pca`
-  DPC++ tests on the Intel OpenCL CPU runtime (`opencl:cpu`). That execution is
-  not validated: the runtime install and the `opencl:cpu` check pass, but the
-  test link fails (run 44460598549), so no `pca` test has run there yet. The
-  other examples and tests that create a SYCL queue are not run there and need
-  device and runtime validation on the CI images.
+  DPC++ libraries; nightly-test.yml runs only the `pca` DPC++ tests on the Intel
+  OpenCL CPU runtime (the link works since #4050). `test_spmd_dpc` is left out:
+  it aborts on Windows with 0xC0000409 (run 44849656754), cause not found yet.
+  Other examples and tests that create a SYCL queue still need device and
+  runtime validation on the CI images.
 
 - [ ] **Toolchain flag tables as data.** The compile action configs, the default
   compile flags and the marker features are shared by
@@ -119,3 +121,28 @@
   sites as exceptions and fails on a new one. Still open in the same CI policy
   step: `buildifier` as a required check (the tree is not formatted yet) and a
   stored aquery diff of `//:release` across the release matrix.
+
+- [ ] **Policy checker gaps.** `tests/check_starlark_policy.py` misses a
+  `no-sandbox` tag passed through a variable, a second inherited-environment
+  call inside an allowlisted function (exceptions are per function, not per
+  site), and a bare host executable (`executable = "clang"`); its file selector
+  skips standalone `*.BUILD` files such as `deps/catch2.BUILD`. Add a test for
+  each, then turn on selected buildifier lint warnings.
+
+- [ ] **Measured rebuilds.** After the public-header split (#4032), split
+  `service_headers` by consumers and keep kernel `.i` files private. Add a warm
+  build test that edits a private `.i`, a pca header and a global header and
+  counts the compile actions that run, not the aquery input reach.
+
+- [ ] **Shipped-artifact checks.** One job: a DPC++ release with the pinned
+  oneMKL (no `MKLROOT` override), a SYCL CPU consumer built against it, and the
+  #3693 ABI baseline scan of the Bazel libraries. Also check ELF version needs
+  against the supported glibc/libstdc++ floor (`compare_release_linkage.py`
+  strips `@GLIBC_*`), with #3882's extra MKL `DT_NEEDED` as a regression case.
+
+- [ ] **ISA flags per variant.** For one kernel, check from aquery that each
+  CPU variant gets its own ISA flags and the baseline none higher, and probe
+  runtime dispatch on a capable worker.
+
+- [ ] **One Bazel-change classifier.** The clang gate in `ci.yml` and the
+  #4030 filter should share one list of Bazel paths.
