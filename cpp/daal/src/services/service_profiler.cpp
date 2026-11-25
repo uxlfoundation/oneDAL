@@ -57,6 +57,10 @@ constexpr int transfer_kinds = 3;
 
 const char * const transfer_names[transfer_kinds] = { "host to device", "device to host", "device to device" };
 
+// Runs of a top-level task that the tracer writes. Without a cap, steps that have no enclosing task
+// write a line per iteration and fill a stderr pipe nobody drains.
+constexpr std::uint64_t traced_top_level_runs = 16;
+
 inline std::uint64_t now_ns()
 {
     return static_cast<std::uint64_t>(
@@ -76,6 +80,8 @@ struct node
     std::atomic<bool> threading         = { false }; // ran as the body of a parallel region
     std::atomic<bool> on_queue          = { false }; // timed on a SYCL queue
     bool traced                         = false;     // the tracer has written this path once
+    // The tracer has written a copy of this direction on this path; set by any thread, as below.
+    std::atomic<bool> copy_traced[transfer_kinds] = {};
     // Written by any thread running a chunk under this task.
     std::atomic<std::uint64_t> alloc_bytes[memory_kinds]      = {};
     std::atomic<std::uint64_t> alloc_count[memory_kinds]      = {};
@@ -277,15 +283,28 @@ node * find_node(thread_state & ts, const node * parent, const char * name)
 }
 
 /// Whether the tracer has not yet written the call path of `n`, as run on any thread.
-bool claim_trace(const node * n)
+/// A non-null `copy` asks about the copies of that direction on the path instead of the task.
+bool claim_trace(const node * n, const char * copy = nullptr)
 {
     std::vector<const char *> path;
+    if (copy) path.push_back(copy);
     for (const node * at = n; at; at = at->parent) path.push_back(at->name);
     static std::vector<std::vector<const char *> > traced;
     std::lock_guard<std::mutex> lock(log_mutex());
     if (std::find(traced.begin(), traced.end(), path) != traced.end()) return false;
     traced.push_back(path);
     return true;
+}
+
+/// Whether the tracer is to write a copy of direction `k` charged to `owner` (nullptr outside any
+/// task): the first one on that call path, and every copy at level 5.
+bool claim_copy_trace(node * owner, int k)
+{
+    if (is_service_debug_enabled()) return true;
+    static std::atomic<bool> outside_any_task[transfer_kinds] = {};
+    std::atomic<bool> & seen                                  = owner ? owner->copy_traced[k] : outside_any_task[k];
+    if (seen.exchange(true, std::memory_order_relaxed)) return false;
+    return claim_trace(owner, transfer_names[k]);
 }
 
 void close_task(thread_state & ts, const frame & f, std::uint64_t end)
@@ -317,12 +336,13 @@ void close_task(thread_state & ts, const frame & f, std::uint64_t end)
             }
         }
     }
-    // A top-level task is traced on every run, a nested path the first time it runs, everything at level 5.
+    // A top-level task is traced on its first runs, a nested path the first time it runs, everything at level 5.
     if (is_tracer_enabled())
     {
-        const bool first = !n->traced && claim_trace(n);
-        n->traced        = true;
-        if (ts.stack.empty() || first || is_service_debug_enabled())
+        const bool first    = !n->traced && claim_trace(n);
+        const bool top_runs = ts.stack.empty() && n->count.load(std::memory_order_relaxed) <= traced_top_level_runs;
+        n->traced           = true;
+        if (top_runs || first || is_service_debug_enabled())
         {
             std::ostringstream out;
             out << n->name << ' ' << format_time(spent) << '\n';
@@ -703,7 +723,7 @@ DAAL_EXPORT void profiler_record_transfer(std::size_t size, profiler_transfer_ki
         owner->transfer_bytes[k].fetch_add(size, std::memory_order_relaxed);
         owner->transfer_count[k].fetch_add(1, std::memory_order_relaxed);
     }
-    if (is_tracer_enabled())
+    if (is_tracer_enabled() && claim_copy_trace(owner, k))
     {
         std::vector<const char *> path;
         for (const node * at = owner; at; at = at->parent) path.push_back(at->name);

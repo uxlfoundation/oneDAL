@@ -120,8 +120,9 @@ Example output (for ``cov_dense_batch``):
     Covariance::updateDenseCrossProductAndSums 316.42us
     CovarianceDenseBatchKernel::compute 782.13us
 
-A top-level task, that is an algorithm call, is traced on every run. A nested task is traced the
-first time its call path runs, and on every run at level 5. The analyzer has the totals.
+A top-level task, usually an algorithm call, is traced on each of its first 16 runs. A nested task
+is traced the first time its call path runs. Level 5 traces every run. The output therefore stays
+small enough for a ``stderr`` pipe nobody reads, as with the Logger; the analyzer has the totals.
 
 The Tracer is particularly useful in Jupyter Notebooks or general profiling scenarios where performance insights are needed.
 
@@ -196,7 +197,8 @@ The direction comes from the USM types of the two pointers; USM shared memory co
 and a copy between two host pointers is not recorded. Each copy is charged to the task open on the
 calling thread, as an allocation is.
 
-The Tracer prints every copy as it is submitted, with the call path of its task::
+The Tracer prints the first copy of each direction on a call path as it is submitted, and every
+copy at level 5::
 
     copy host to device 8000 bytes outside any task
     copy device to device 8000 bytes in covariance_algo_compute
