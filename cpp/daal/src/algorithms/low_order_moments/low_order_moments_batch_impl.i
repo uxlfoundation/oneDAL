@@ -36,6 +36,19 @@ namespace low_order_moments
 {
 namespace internal
 {
+/// Single-pass CSR kernel for the requested estimates; `sumCSR` takes the sums from the table.
+template <typename algorithmFPType, Method method, CpuType cpu>
+services::Status computeSinglePassCSR(NumericTable * dataTable, Result * result, const Parameter * parameter)
+{
+    switch (parameter->estimatesToCompute)
+    {
+    case estimatesMinMax: return csr::estimates_minmax::computeBatch<algorithmFPType, method, cpu>(dataTable, result);
+    case estimatesMeanVariance: return csr::estimates_meanvariance::computeBatch<algorithmFPType, method, cpu>(dataTable, result);
+    default /* estimatesAll */: break;
+    }
+    return csr::estimates_all::computeBatch<algorithmFPType, method, cpu>(dataTable, result);
+}
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 services::Status LowOrderMomentsBatchKernel<algorithmFPType, method, cpu>::compute(NumericTable * dataTable, Result * result,
                                                                                    const Parameter * parameter)
@@ -51,15 +64,15 @@ services::Status LowOrderMomentsBatchKernel<algorithmFPType, method, cpu>::compu
         return estimates_batch_all::compute_estimates<algorithmFPType, cpu>(dataTable, result);
     }
 
-    if (method == fastCSR || method == singlePassCSR || method == sumCSR)
+    if (method == singlePassCSR)
     {
-        switch (parameter->estimatesToCompute)
-        {
-        case estimatesMinMax: return csr::estimates_minmax::computeBatch<algorithmFPType, method, cpu>(dataTable, result);
-        case estimatesMeanVariance: return csr::estimates_meanvariance::computeBatch<algorithmFPType, method, cpu>(dataTable, result);
-        default /* estimatesAll */: break;
-        }
-        return csr::estimates_all::computeBatch<algorithmFPType, method, cpu>(dataTable, result);
+        return computeSinglePassCSR<algorithmFPType, method, cpu>(dataTable, result, parameter);
+    }
+
+    // TODO: fastCSR and sumCSR have no kernel of their own yet and run the single-pass one.
+    if (method == fastCSR || method == sumCSR)
+    {
+        return computeSinglePassCSR<algorithmFPType, method, cpu>(dataTable, result, parameter);
     }
 
     LowOrderMomentsBatchTask<algorithmFPType, cpu> task(dataTable, result);

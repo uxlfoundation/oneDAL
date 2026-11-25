@@ -37,6 +37,19 @@ namespace low_order_moments
 namespace internal
 {
 using namespace daal::services;
+/// Single-pass CSR kernel for the requested estimates; `sumCSR` takes the sums from the table.
+template <typename algorithmFPType, Method method, CpuType cpu>
+services::Status computeSinglePassCSR(NumericTable * dataTable, PartialResult * partialResult, const Parameter * parameter, bool isOnline)
+{
+    switch (parameter->estimatesToCompute)
+    {
+    case estimatesMinMax: return csr::estimates_minmax::computeOnline<algorithmFPType, method, cpu>(dataTable, partialResult, isOnline);
+    case estimatesMeanVariance: return csr::estimates_meanvariance::computeOnline<algorithmFPType, method, cpu>(dataTable, partialResult, isOnline);
+    default /* estimatesAll */: break;
+    }
+    return csr::estimates_all::computeOnline<algorithmFPType, method, cpu>(dataTable, partialResult, isOnline);
+}
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 services::Status LowOrderMomentsOnlineKernel<algorithmFPType, method, cpu>::compute(NumericTable * dataTable, PartialResult * partialResult,
                                                                                     const Parameter * parameter, bool isOnline)
@@ -53,16 +66,15 @@ services::Status LowOrderMomentsOnlineKernel<algorithmFPType, method, cpu>::comp
         return estimates_online_all::compute_estimates<algorithmFPType, method, cpu>(dataTable, partialResult, isOnline);
     }
 
-    if (method == fastCSR || method == singlePassCSR || method == sumCSR)
+    if (method == singlePassCSR)
     {
-        switch (parameter->estimatesToCompute)
-        {
-        case estimatesMinMax: return csr::estimates_minmax::computeOnline<algorithmFPType, method, cpu>(dataTable, partialResult, isOnline);
-        case estimatesMeanVariance:
-            return csr::estimates_meanvariance::computeOnline<algorithmFPType, method, cpu>(dataTable, partialResult, isOnline);
-        default /* estimatesAll */: break;
-        }
-        return csr::estimates_all::computeOnline<algorithmFPType, method, cpu>(dataTable, partialResult, isOnline);
+        return computeSinglePassCSR<algorithmFPType, method, cpu>(dataTable, partialResult, parameter, isOnline);
+    }
+
+    // TODO: fastCSR and sumCSR have no kernel of their own yet and run the single-pass one.
+    if (method == fastCSR || method == sumCSR)
+    {
+        return computeSinglePassCSR<algorithmFPType, method, cpu>(dataTable, partialResult, parameter, isOnline);
     }
 
     LowOrderMomentsOnlineTask<algorithmFPType, cpu> task(dataTable);
