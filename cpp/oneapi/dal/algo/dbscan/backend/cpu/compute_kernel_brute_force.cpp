@@ -18,6 +18,8 @@
 #include "oneapi/dal/backend/interop/table_conversion.hpp"
 #include "oneapi/dal/algo/dbscan/backend/cpu/compute_kernel.hpp"
 #include "oneapi/dal/algo/dbscan/backend/fill_core_flags.hpp"
+#include "oneapi/dal/detail/error_messages.hpp"
+#include "oneapi/dal/exceptions.hpp"
 
 #include <daal/src/algorithms/dbscan/dbscan_kernel.h>
 
@@ -40,10 +42,8 @@ template <typename Float, daal::internal::CpuType Cpu>
 class dbscan_compute_wrapper {
 public:
     template <typename... Args>
-    auto compute(Args&&... args) {
-        const daal_dbscan::Parameter* par =
-            std::get<sizeof...(Args) - 1>(std::forward_as_tuple(args...));
-        if (par->memorySavingMode == false) {
+    auto compute(bool mem_save_mode, Args&&... args) {
+        if (mem_save_mode == false) {
             return daal_dbscan::internal::DBSCANBatchKernel<Float, daal_dbscan::defaultDense, Cpu>{}
                 .computeNoMemSave(std::forward<Args>(args)...);
         }
@@ -51,6 +51,18 @@ public:
             .computeMemSave(std::forward<Args>(args)...);
     }
 };
+
+static daal::algorithms::internal::PairwiseDistanceType convert_metric(distance_metric metric) {
+    using daal::algorithms::internal::PairwiseDistanceType;
+    switch (metric) {
+        case distance_metric::euclidean: return PairwiseDistanceType::euclidean;
+        case distance_metric::manhattan: return PairwiseDistanceType::manhattan;
+        case distance_metric::minkowski: return PairwiseDistanceType::minkowski;
+        case distance_metric::chebyshev: return PairwiseDistanceType::chebyshev;
+        case distance_metric::cosine: return PairwiseDistanceType::cosine;
+    }
+    throw invalid_argument(dal::detail::error_messages::unknown_distance_type());
+}
 
 template <typename Float>
 static result_t call_daal_kernel(const context_cpu& ctx,
@@ -88,13 +100,16 @@ static result_t call_daal_kernel(const context_cpu& ctx,
 
     interop::status_to_exception(interop::call_daal_kernel<Float, dbscan_compute_wrapper>(
         ctx,
+        par.memorySavingMode,
         daal_data.get(),
         daal_weights.get(),
         daal_responses.get(),
         daal_cluster_count.get(),
         daal_core_observation_indices.get(),
         daal_core_observations.get(),
-        &par));
+        &par,
+        convert_metric(desc.get_metric()),
+        desc.get_degree()));
 
     auto core_observation_indices =
         interop::convert_from_daal_homogen_table<int>(daal_core_observation_indices);

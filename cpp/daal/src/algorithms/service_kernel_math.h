@@ -121,6 +121,9 @@ public:
                                           FPType * const res) = 0;
 
     virtual services::Status finalize(const size_t n, FPType * a) = 0;
+
+    /// Distance of two rows in the same form as `computeBatch` writes it. Does not need `init`.
+    virtual FPType computeDistance(const FPType * x, const FPType * y, size_t n) const = 0;
 };
 
 // ---------------------------------------------------------------------------
@@ -311,6 +314,12 @@ public:
         return services::Status();
     }
 
+    FPType computeDistance(const FPType * x, const FPType * y, const size_t n) const override
+    {
+        const FPType d = distancePow2<FPType, cpu>(x, y, n);
+        return _squared ? d : MathInst<FPType, cpu>::sSqrt(d);
+    }
+
     services::Status finalize(const size_t n, FPType * a) override
     {
         const size_t blockSize = 512;
@@ -464,6 +473,13 @@ public:
 
     services::Status finalize(const size_t n, FPType * a) override { return services::Status(); }
 
+    FPType computeDistance(const FPType * x, const FPType * y, const size_t n) const override
+    {
+        FPType dot, norm;
+        dotAndNorm(x, y, n, dot, norm);
+        return (norm > FPType(0)) ? FPType(1) - dot / norm : FPType(1);
+    }
+
     // output:  Row-major matrix of size { aSize x bSize }
     services::Status computeBatch(const FPType * const a, const FPType * const b, size_t aOffset, size_t aSize, size_t bOffset, size_t bSize,
                                   FPType * const res) override
@@ -491,6 +507,56 @@ public:
         }
         return services::Status();
     }
+
+protected:
+    /// `dot` is x.y and `norm` is |x||y|.
+    static void dotAndNorm(const FPType * x, const FPType * y, const size_t n, FPType & dot, FPType & norm)
+    {
+        FPType xy = FPType(0);
+        FPType xx = FPType(0);
+        FPType yy = FPType(0);
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : xy, xx, yy))
+        for (size_t i = 0; i < n; ++i)
+        {
+            xy += x[i] * y[i];
+            xx += x[i] * x[i];
+            yy += y[i] * y[i];
+        }
+        dot  = xy;
+        norm = MathInst<FPType, cpu>::sSqrt(xx) * MathInst<FPType, cpu>::sSqrt(yy);
+    }
+};
+
+/// `CosineDistances` with scikit-learn's value for zero rows: distance 1 from every other row.
+template <typename FPType, CpuType cpu>
+class ZeroRowCosineDistances : public CosineDistances<FPType, cpu>
+{
+    using super = CosineDistances<FPType, cpu>;
+
+public:
+    ZeroRowCosineDistances(const NumericTable & a, const NumericTable & b) : super(a, b) {}
+
+    ~ZeroRowCosineDistances() override {}
+
+    services::Status computeBatch(const FPType * const a, const FPType * const b, size_t aOffset, size_t aSize, size_t bOffset, size_t bSize,
+                                  FPType * const res) override
+    {
+        services::Status s = super::computeBatch(a, b, aOffset, aSize, bOffset, bSize, res);
+        // `init` stores the row norms. A norm is exactly zero only for a row without a direction,
+        // and any other row has a well-defined cosine, so there is no tolerance.
+        const FPType * const aNorms = this->normBufferA.get() + aOffset;
+        const FPType * const bNorms = (&this->_a == &this->_b) ? this->normBufferA.get() + bOffset : this->normBufferB.get() + bOffset;
+        for (size_t i = 0; i < aSize; i++)
+        {
+            if (aNorms[i] == FPType(0)) services::internal::service_memset_seq<FPType, cpu>(res + i * bSize, FPType(1), bSize);
+        }
+        for (size_t j = 0; j < bSize; j++)
+        {
+            if (bNorms[j] != FPType(0)) continue;
+            for (size_t i = 0; i < aSize; i++) res[i * bSize + j] = FPType(1);
+        }
+        return s;
+    }
 };
 
 template <typename FPType, CpuType cpu>
@@ -514,9 +580,7 @@ public:
     services::Status computeBatch(const FPType * const a, const FPType * const b, size_t aOffset, size_t aSize, size_t bOffset, size_t bSize,
                                   FPType * const res) override
     {
-        computeBatchImpl(a, b, aOffset, aSize, bOffset, bSize, res);
-
-        return services::Status();
+        return computeBatchImpl(a, b, aOffset, aSize, bOffset, bSize, res);
     }
 
     services::Status finalize(const size_t n, FPType * a) override
@@ -529,9 +593,9 @@ public:
         return services::Status();
     }
 
-protected:
-    inline FPType computeDistance(const FPType * x, const FPType * y, const size_t n) const;
+    FPType computeDistance(const FPType * x, const FPType * y, const size_t n) const override;
 
+protected:
     services::Status computeBatchImpl(const FPType * const a, const FPType * const b, size_t aOffset, size_t aSize, size_t bOffset, size_t bSize,
                                       FPType * const res)
     {
@@ -541,17 +605,65 @@ protected:
         const size_t nX    = aSize;
         const size_t nY    = bSize;
 
-        const FPType * x = a;
-        DAAL_CHECK_MALLOC(x);
+        if (_p == 1.0 || nDims == 0)
+        {
+            for (size_t ix = 0; ix < nX; ++ix)
+            {
+                for (size_t iy = 0; iy < nY; ++iy)
+                {
+                    res[ix * nY + iy] = MinkowskiDistances<FPType, cpu>::computeDistance(a + ix * nDims, b + iy * nDims, nDims);
+                }
+            }
+            return services::Status();
+        }
 
-        const FPType * y = b;
-        DAAL_CHECK_MALLOC(y);
+        // One vPowx call per chunk of values: a call per coordinate costs far more than the power itself.
+        // The chunk stays small because longer vectors make VML start its own threads inside this parallel region.
+        constexpr size_t chunkSize = 32;
+        FPType buf[chunkSize];
+        const FPType p      = static_cast<FPType>(_p);
+        const FPType rootOf = static_cast<FPType>(1.0 / _p);
 
         for (size_t ix = 0; ix < nX; ++ix)
         {
-            for (size_t iy = 0; iy < nY; ++iy)
+            const FPType * const x = a + ix * nDims;
+            if (nDims <= chunkSize)
             {
-                res[ix * nY + iy] = computeDistance(x + ix * nDims, y + iy * nDims, nDims);
+                const size_t pairsPerChunk = chunkSize / nDims;
+                for (size_t iy0 = 0; iy0 < nY; iy0 += pairsPerChunk)
+                {
+                    const size_t nPairs = services::internal::min<cpu, size_t>(pairsPerChunk, nY - iy0);
+                    for (size_t k = 0; k < nPairs; ++k)
+                    {
+                        const FPType * const y = b + (iy0 + k) * nDims;
+                        for (size_t i = 0; i < nDims; ++i) buf[k * nDims + i] = math.sFabs(x[i] - y[i]);
+                    }
+                    math.vPowx(nPairs * nDims, buf, p, buf);
+                    for (size_t k = 0; k < nPairs; ++k)
+                    {
+                        FPType d = 0;
+                        PRAGMA_OMP_SIMD_ARGS(reduction(+ : d))
+                        for (size_t i = 0; i < nDims; ++i) d += buf[k * nDims + i];
+                        res[ix * nY + iy0 + k] = _powered ? d : math.sPowx(d, rootOf);
+                    }
+                }
+            }
+            else
+            {
+                for (size_t iy = 0; iy < nY; ++iy)
+                {
+                    const FPType * const y = b + iy * nDims;
+                    FPType d               = 0;
+                    for (size_t i0 = 0; i0 < nDims; i0 += chunkSize)
+                    {
+                        const size_t n = services::internal::min<cpu, size_t>(chunkSize, nDims - i0);
+                        for (size_t i = 0; i < n; ++i) buf[i] = math.sFabs(x[i0 + i] - y[i0 + i]);
+                        math.vPowx(n, buf, p, buf);
+                        PRAGMA_OMP_SIMD_ARGS(reduction(+ : d))
+                        for (size_t i = 0; i < n; ++i) d += buf[i];
+                    }
+                    res[ix * nY + iy] = _powered ? d : math.sPowx(d, rootOf);
+                }
             }
         }
 
@@ -620,8 +732,7 @@ public:
 
     services::Status finalize(const size_t n, FPType * a) override { return services::Status(); }
 
-protected:
-    FPType computeDistance(const FPType * x, const FPType * y, const size_t n)
+    FPType computeDistance(const FPType * x, const FPType * y, const size_t n) const override
     {
         daal::internal::MathInst<FPType, cpu> math;
 
@@ -638,6 +749,7 @@ protected:
         return d;
     }
 
+protected:
     services::Status computeBatchImpl(const FPType * const a, const FPType * const b, size_t aOffset, size_t aSize, size_t bOffset, size_t bSize,
                                       FPType * const res)
     {
@@ -657,7 +769,7 @@ protected:
         {
             for (size_t iy = 0; iy < nY; ++iy)
             {
-                res[ix * nY + iy] = computeDistance(x + ix * nDims, y + iy * nDims, nDims);
+                res[ix * nY + iy] = ChebyshevDistances<FPType, cpu>::computeDistance(x + ix * nDims, y + iy * nDims, nDims);
             }
         }
 
@@ -676,18 +788,18 @@ inline float MinkowskiDistances<float, avx512>::computeDistance(const float * x,
 {
     daal::internal::MathInst<float, avx512> math;
 
-    const size_t vecSize   = 16;
-    float d                = 0.0;
-    const size_t nBlocks   = n / vecSize;
-    const __m512 * ptr512x = (__m512 *)x;
-    const __m512 * ptr512y = (__m512 *)y;
+    const size_t vecSize = 16;
+    float d              = 0.0;
+    const size_t nBlocks = n / vecSize;
 
     if (_p == 1.0)
     {
         size_t i = 0;
         for (; i < nBlocks; ++i)
         {
-            d += _mm512_reduce_add_ps(_mm512_abs_ps(_mm512_sub_ps(ptr512x[i], ptr512y[i])));
+            const __m512 xi = _mm512_loadu_ps(x + i * vecSize);
+            const __m512 yi = _mm512_loadu_ps(y + i * vecSize);
+            d += _mm512_reduce_add_ps(_mm512_abs_ps(_mm512_sub_ps(xi, yi)));
         }
 
         for (i *= vecSize; i < n; ++i)
@@ -703,7 +815,9 @@ inline float MinkowskiDistances<float, avx512>::computeDistance(const float * x,
         size_t i    = 0;
         for (; i < nBlocks; ++i)
         {
-            _mm512_storeu_ps(tmp, _mm512_abs_ps(_mm512_sub_ps(ptr512x[i], ptr512y[i])));
+            const __m512 xi = _mm512_loadu_ps(x + i * vecSize);
+            const __m512 yi = _mm512_loadu_ps(y + i * vecSize);
+            _mm512_storeu_ps(tmp, _mm512_abs_ps(_mm512_sub_ps(xi, yi)));
             math.vPowx(vecSize, tmp, _p, tmp);
             d += _mm512_reduce_add_ps(_mm512_loadu_ps(tmp));
         }
@@ -726,18 +840,18 @@ inline double MinkowskiDistances<double, avx512>::computeDistance(const double *
 {
     daal::internal::MathInst<double, avx512> math;
 
-    const size_t vecSize    = 8;
-    double d                = 0.0;
-    const size_t nBlocks    = n / vecSize;
-    const __m512d * ptr512x = (__m512d *)x;
-    const __m512d * ptr512y = (__m512d *)y;
+    const size_t vecSize = 8;
+    double d             = 0.0;
+    const size_t nBlocks = n / vecSize;
 
     if (_p == 1.0)
     {
         size_t i = 0;
         for (; i < nBlocks; ++i)
         {
-            d += _mm512_reduce_add_pd(_mm512_abs_pd(_mm512_sub_pd(ptr512x[i], ptr512y[i])));
+            const __m512d xi = _mm512_loadu_pd(x + i * vecSize);
+            const __m512d yi = _mm512_loadu_pd(y + i * vecSize);
+            d += _mm512_reduce_add_pd(_mm512_abs_pd(_mm512_sub_pd(xi, yi)));
         }
 
         for (i *= vecSize; i < n; ++i)
@@ -753,7 +867,9 @@ inline double MinkowskiDistances<double, avx512>::computeDistance(const double *
         size_t i     = 0;
         for (; i < nBlocks; ++i)
         {
-            _mm512_storeu_pd(tmp, _mm512_abs_pd(_mm512_sub_pd(ptr512x[i], ptr512y[i])));
+            const __m512d xi = _mm512_loadu_pd(x + i * vecSize);
+            const __m512d yi = _mm512_loadu_pd(y + i * vecSize);
+            _mm512_storeu_pd(tmp, _mm512_abs_pd(_mm512_sub_pd(xi, yi)));
             math.vPowx(vecSize, tmp, _p, tmp);
             d += _mm512_reduce_add_pd(_mm512_loadu_pd(tmp));
         }
@@ -772,6 +888,32 @@ inline double MinkowskiDistances<double, avx512>::computeDistance(const double *
 }
 
 #endif
+
+/// Create the pairwise distances of `type` between the rows of `a` and the rows of `b`.
+///
+/// Before `finalize` the Euclidean distances are squared and the Minkowski ones are raised to `p`;
+/// `finalize` takes the roots. Manhattan is Minkowski of degree 1. Cosine puts a zero row at
+/// distance 1 from every other row, as scikit-learn does.
+///
+/// @param[in] a               Rows the distances are taken from
+/// @param[in] b               Rows the distances are taken to
+/// @param[in] type            Distance metric
+/// @param[in] minkowskiDegree Exponent `p` of the Minkowski distance; ignored by the other metrics
+/// @return The distances, not yet initialized; `nullptr` if the allocation failed
+template <typename FPType, CpuType cpu>
+PairwiseDistances<FPType, cpu> * createPairwiseDistances(const NumericTable & a, const NumericTable & b, PairwiseDistanceType type,
+                                                         double minkowskiDegree)
+{
+    switch (type)
+    {
+    case PairwiseDistanceType::cosine: return new ZeroRowCosineDistances<FPType, cpu>(a, b);
+    case PairwiseDistanceType::manhattan: return new MinkowskiDistances<FPType, cpu>(a, b, true, 1.0);
+    case PairwiseDistanceType::minkowski: return new MinkowskiDistances<FPType, cpu>(a, b, true, minkowskiDegree);
+    case PairwiseDistanceType::chebyshev: return new ChebyshevDistances<FPType, cpu>(a, b);
+    case PairwiseDistanceType::euclidean:
+    default: return new EuclideanDistances<FPType, cpu>(a, b, true);
+    }
+}
 
 template <typename FPType, CpuType cpu>
 bool solveEquationsSystemWithCholesky(FPType * a, FPType * b, size_t n, size_t nX, bool sequential)
@@ -817,7 +959,7 @@ bool solveEquationsSystemWithCholesky(FPType * a, FPType * b, size_t n, size_t n
 }
 
 template <typename FPType, CpuType cpu>
-bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_t n, size_t nX, bool sequential)
+bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_t n, size_t nX, bool sequential, FPType cutoffFactor = FPType(1))
 {
     DAAL_PROFILER_TASK_WITH_ARGS(solveEquationsSystemWithSpectralDecomposition, n, nX);
     /* Storage for the eigenvalues.
@@ -887,12 +1029,19 @@ bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_
     }
     if (info) return false;
 
-    /* Components with small singular values get eliminated using the exact same logic as 'gelsd' with default parameters
+    /* Errors in symmetric eigenproblems are bounded by the following formula:
+    | lambda_i - lambda_i^true | <= p(n) * eps * | max_j { lambda_j } |,
+    where p(n) is a moderately growing polynomial depending on the matrix size n;
+    eps is the machine precision.
+
+    https://netlib.org/lapack/lug_old/node85.html
+
     Note: these are hard-coded versions of machine epsilon for single and double precision. They aren't obtained through
     'std::numeric_limits' in order to avoid potential template instantiation errors with some types. */
     const FPType eps = std::is_same<FPType, float>::value ? 1.1920929e-07 : 2.220446049250313e-16;
     if (eigenvalues[n - 1] <= eps) return false;
-    const double component_threshold = eps * eigenvalues[n - 1];
+    /* Discard components with eigenvalues below the threshold */
+    const double component_threshold = cutoffFactor * eps * eigenvalues[n - 1];
     DAAL_INT num_discarded;
     for (num_discarded = 0; num_discarded < static_cast<DAAL_INT>(n) - 1; num_discarded++)
     {
@@ -967,28 +1116,50 @@ bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_
     return true;
 }
 
+/* cutoffFactor scales the relative threshold below which eigenvalues are discarded in the spectral decomposition fallback */
 template <typename FPType, CpuType cpu>
-bool solveSymmetricEquationsSystem(FPType * a, FPType * b, size_t n, size_t nX, bool sequential)
+bool solveSymmetricEquationsSystem(FPType * a, FPType * b, size_t n, size_t nX, bool sequential, FPType cutoffFactor = FPType(1),
+                                   bool skipCholesky = false)
 {
     DAAL_PROFILER_TASK_WITH_ARGS(solveSymmetricEquationsSystem, n, nX);
     /* Copy data for fallback from Cholesky to spectral decomposition */
-    TArrayScalable<FPType, cpu> aCopy(n * n);
-    TArrayScalable<FPType, cpu> bCopy(n * nX);
+    TArrayScalable<FPType, cpu> aCopy;
+    TArrayScalable<FPType, cpu> bCopy;
+    {
+        DAAL_PROFILER_TASK(solveSymmetricEquationsSystem.allocateCopies);
+        aCopy.reset(n * n);
+        bCopy.reset(n * nX);
+    }
     DAAL_CHECK_MALLOC(aCopy.get());
     DAAL_CHECK_MALLOC(bCopy.get());
 
-    int copy_status = services::internal::daal_memcpy_s(aCopy.get(), n * n * sizeof(FPType), a, n * n * sizeof(FPType));
-    copy_status += services::internal::daal_memcpy_s(bCopy.get(), n * nX * sizeof(FPType), b, n * nX * sizeof(FPType));
+    int copy_status = 0;
+    {
+        DAAL_PROFILER_TASK(solveSymmetricEquationsSystem.copyInput);
+        copy_status = services::internal::daal_memcpy_s(aCopy.get(), n * n * sizeof(FPType), a, n * n * sizeof(FPType));
+        copy_status += services::internal::daal_memcpy_s(bCopy.get(), n * nX * sizeof(FPType), b, n * nX * sizeof(FPType));
+    }
 
     if (copy_status != 0) return false;
 
     /* Try to solve with Cholesky factorization */
-    if (!solveEquationsSystemWithCholesky<FPType, cpu>(a, b, n, nX, sequential))
+    bool choleskyStatus = false;
+    if (!skipCholesky)
+    {
+        DAAL_PROFILER_TASK(solveSymmetricEquationsSystem.cholesky);
+        choleskyStatus = solveEquationsSystemWithCholesky<FPType, cpu>(a, b, n, nX, sequential);
+    }
+    if (!choleskyStatus)
     {
         /* Fall back to spectral decomposition */
-        bool status = solveEquationsSystemWithSpectralDecomposition<FPType, cpu>(aCopy.get(), bCopy.get(), n, nX, sequential);
+        bool status = false;
+        {
+            DAAL_PROFILER_TASK(solveSymmetricEquationsSystem.spectralDecomposition);
+            status = solveEquationsSystemWithSpectralDecomposition<FPType, cpu>(aCopy.get(), bCopy.get(), n, nX, sequential, cutoffFactor);
+        }
         if (status)
         {
+            DAAL_PROFILER_TASK(solveSymmetricEquationsSystem.copyResult);
             status = status && (services::internal::daal_memcpy_s(b, n * nX * sizeof(FPType), bCopy.get(), n * nX * sizeof(FPType)) == 0);
         }
         return status;

@@ -1,7 +1,11 @@
 {
   "extends": ["config:recommended", ":preserveSemverRanges"],
+  "labels": ["dependencies"],
   "pip_requirements": {
-    "managerFilePatterns": ["/(^|/)docs/requirements.txt$/"]
+    "managerFilePatterns": [
+      "/(^|/)docs/requirements.txt$/",
+      "/^dev\\/bazel\\/deps\\/requirements_lock\\.txt$/"
+    ]
   },
   "packageRules": [
     {
@@ -16,16 +20,52 @@
       "matchFileNames": ["**/*.Dockerfile"]
     },
     {
+      "description": "A new GCC major changes the libstdc++ the release libraries need at run time; open its PR only when approved on the Dependency Dashboard",
+      "matchPackageNames": ["conda-forge/gcc_impl_linux-64"],
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Move the oneAPI toolchain for Make (apt, oneTBB source tag) and Bazel (PyPI wheels) in one PR; dev/bazel/deps/check_pins.py fails the PR when one side is missing",
       "matchPackageNames": [
         "intel-oneapi-compiler-dpcpp-cpp",
         "intel-oneapi-mkl-devel",
-        "intel-oneapi-tbb-devel"
+        "intel-oneapi-tbb-devel",
+        "uxlfoundation/oneTBB",
+        "mkl",
+        "mkl-static",
+        "mkl-include",
+        "mkl-devel",
+        "onemkl-sycl-*",
+        "tbb",
+        "tbb-devel",
+        "onedpl-devel",
+        "impi-rt",
+        "impi-devel",
+        "modified-libfabric",
+        "oneccl"
       ],
-      "matchUpdateTypes": ["major", "minor"],
-      "groupName": "intel-oneapi-apt"
+      "groupName": "oneAPI"
     }
   ],
   "customManagers": [
+    {
+      "description": "Bazel GCC toolchain; the relock-conda workflow then re-pins the builds and hashes",
+      "customType": "regex",
+      "managerFilePatterns": ["/^dev\\/bazel\\/deps\\/gcc\\.bzl$/"],
+      "matchStrings": ["_GCC_VERSION[ \\t]*=[ \\t]*\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""],
+      "depNameTemplate": "conda-forge/gcc_impl_linux-64",
+      "datasourceTemplate": "conda"
+    },
+    {
+      "description": "Miniforge installer pinned in apt.sh; the PR then needs the two SHA256 digests from the release",
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.ci\\/env\\/apt\\.sh$/"],
+      "matchStrings": ["MINIFORGE_VERSION=(?<currentValue>\\d+\\.\\d+\\.\\d+-\\d+)"],
+      "depNameTemplate": "conda-forge/miniforge",
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)-(?<build>\\d+)$"
+    },
     {
       "customType": "regex",
       "managerFilePatterns": ["/^\\.ci\\/env\\/editorconfig-checker\\.sh$/"],

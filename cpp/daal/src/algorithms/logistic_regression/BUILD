@@ -11,5 +11,7 @@ daal_module(
         "@onedal//cpp/daal/src/algorithms/objective_function:kernel",
         "@onedal//cpp/daal/src/algorithms/objective_function/logistic_loss:kernel",
         "@onedal//cpp/daal/src/algorithms/objective_function/cross_entropy_loss:kernel",
+        "@onedal//cpp/daal/src/algorithms/optimization_solver:kernel",
+        "@onedal//cpp/daal/src/algorithms/optimization_solver/lbfgs:kernel",
     ],
 )

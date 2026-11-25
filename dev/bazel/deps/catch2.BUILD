@@ -30,7 +30,6 @@
 load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
 load("@rules_cc//cc:defs.bzl", "cc_library")
 
-# oneDAL version of catch2 bazel build file
 expand_template(
     name = "catch_user_config",
     out = "catch2/catch_user_config.hpp",
@@ -49,8 +48,7 @@ expand_template(
         "#cmakedefine CATCH_CONFIG_CPP17_VARIANT": "",
         "#cmakedefine CATCH_CONFIG_DEPRECATION_ANNOTATIONS": "",
         "#cmakedefine CATCH_CONFIG_DISABLE_EXCEPTIONS_CUSTOM_HANDLER": "",
-# Disables unexpected exceptions handing in Catch2.
-# It is easier to debug exception via GDB if there is handler.
+# Exceptions are easier to debug in GDB without Catch2's handler.
         "#cmakedefine CATCH_CONFIG_DISABLE_EXCEPTIONS": "#define CATCH_CONFIG_DISABLE_EXCEPTIONS",
         "#cmakedefine CATCH_CONFIG_DISABLE_STRINGIFICATION": "",
         "#cmakedefine CATCH_CONFIG_DISABLE": "",
@@ -76,11 +74,7 @@ expand_template(
         "#cmakedefine CATCH_CONFIG_NO_DEPRECATION_ANNOTATIONS": "",
         "#cmakedefine CATCH_CONFIG_NO_GETENV": "",
         "#cmakedefine CATCH_CONFIG_NO_GLOBAL_NEXTAFTER": "",
-# CATCH_CONFIG_POSIX_SIGNAL enables handling of POSIX signals.
-# For unknown reason user-defined handlers for signals
-# (see https://en.wikipedia.org/wiki/C_signal_handling)
-# catches SIGSEGV signal when USM pointer is accessed on host.
-# To make USM work, we disable signal handling in Catch2.
+# Catch2's signal handlers catch the SIGSEGV of a host access to a USM pointer.
         "#cmakedefine CATCH_CONFIG_NO_POSIX_SIGNALS": "#define CATCH_CONFIG_NO_POSIX_SIGNALS",
         "#cmakedefine CATCH_CONFIG_NO_USE_ASYNC": "",
         "#cmakedefine CATCH_CONFIG_NO_EXPERIMENTAL_STATIC_ANALYSIS_SUPPORT": "",
@@ -104,9 +98,7 @@ expand_template(
     template = "src/catch2/catch_user_config.hpp.in",
 )
 
-# Generated header library, modifies the include prefix to account for
-# generation path so that we can include <catch2/catch_user_config.hpp>
-# correctly.
+# Lets dependents include the generated <catch2/catch_user_config.hpp>.
 cc_library(
     name = "catch2_generated",
     hdrs = ["catch2/catch_user_config.hpp"],

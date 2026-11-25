@@ -96,7 +96,11 @@
     #define OPTS -std=c++17 -Wno-deprecated-declarations -diag-disable=10441
 
 #elif defined(_WIN32) || defined(_WIN64)
-    #define LIBDIR lib/intel64
+    #if defined(_M_ARM64)
+        #define LIBDIR lib/ARM64
+    #else
+        #define LIBDIR lib/intel64
+    #endif
 
     #define OTHER_LIBS mkl_core.lib mkl_intel_lp64.lib mkl_tbb_thread.lib tbb12.lib tbbmalloc.lib
 

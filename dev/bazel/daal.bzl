@@ -24,71 +24,65 @@ load("@onedal//dev/bazel:utils.bzl",
     "paths",
 )
 load("@onedal//dev/bazel/config:config.bzl",
-    "CpuInfo",
-    "VersionInfo",
+    "CPU_ATTRS",
+    "ISA_TABLE",
+    "TARGET_ATTRS",
+    "VERSION_ATTRS",
+    "get_cpu_info",
+    "target",
+    "get_version_info",
 )
 
 def daal_module(name, features=[], lib_tag="daal",
                 hdrs=[], srcs=[], auto=False,
-                local_defines=[], copts=[], visibility_hidden=True,
+                local_defines=[], copts=[],
                 stdalloc=True, define_gcov_build=True, **kwargs):
+    """A DAAL module; `auto` globs the package's `.h`, `.i` and `.cpp` files."""
+    auto_hdrs, auto_srcs = [], []
     if auto:
-        auto_hdrs = native.glob(["**/*.h", "**/*.i"], allow_empty=True,)
-        auto_srcs = native.glob(["**/*.cpp"], allow_empty=True,)
-    else:
-        auto_hdrs = []
-        auto_srcs = []
+        auto_hdrs = native.glob(["**/*.h", "**/*.i"], allow_empty = True)
+        auto_srcs = native.glob(["**/*.cpp"], allow_empty = True)
+    # The default arm fails analysis: --stdalloc=true is implemented for Linux only.
     deps = kwargs.pop("deps", []) + select({
         "@config//:stdalloc_enabled": [],
         "@config//:stdalloc_disabled": [],
         "//conditions:default": ["@config//:stdalloc_non_linux_error"],
     })
+    hidden = ["-fvisibility=hidden", "-fvisibility-inlines-hidden"]
     cc_module(
         name = name,
         lib_tag = lib_tag,
-        features = [ "c++17" ] + features,
-        cpu_defines = {
-            "sse2":       [ "DAAL_CPU=sse2"      ],
-            "avx2":       [ "DAAL_CPU=avx2"       ],
-            "avx512":     [ "DAAL_CPU=avx512"     ],
-            "sve":        [ "DAAL_CPU=sve"        ],
-            "rv64":       [ "DAAL_CPU=rv64"        ],
-        },
+        features = ["c++17"] + features,
+        cpu_defines = {isa: ["DAAL_CPU=" + isa] for isa in ISA_TABLE},
         fpt_defines = {
-            "f32": [ "DAAL_FPTYPE=float"  ],
-            "f64": [ "DAAL_FPTYPE=double" ],
+            "f32": ["DAAL_FPTYPE=float"],
+            "f64": ["DAAL_FPTYPE=double"],
         },
         hdrs = auto_hdrs + hdrs,
         srcs = auto_srcs + srcs,
         deps = deps,
-        copts = copts + (select({
+        copts = copts + select({
             "@platforms//os:windows": ["/utf-8"],
-            "//conditions:default": ["-fvisibility=hidden", "-fvisibility-inlines-hidden"],
-        }) if visibility_hidden else select({
-            "@platforms//os:windows": ["/utf-8"],
-            "//conditions:default": [],
-        })),
+            "//conditions:default": hidden,
+        }),
         define_gcov_build = define_gcov_build,
-        local_defines = select({
-            "@config//:assert_enabled": local_defines + ["__DAAL_IMPLEMENTATION", "DEBUG_ASSERT=1"],
-            "//conditions:default": local_defines + ["__DAAL_IMPLEMENTATION"],
+        # __DAAL_IMPLEMENTATION makes DAAL_EXPORT dllexport on Windows.
+        # Export-free static archives omit it, as Make's static objects do.
+        local_defines = local_defines + select({
+            "@config//:static_export_free_enabled": [],
+            "//conditions:default": ["__DAAL_IMPLEMENTATION"],
+        }) + select({
+            "@config//:assert_enabled": ["DEBUG_ASSERT=1"],
+            "//conditions:default": [],
         }) + (select({
             "@config//:stdalloc_enabled": ["USE_STD_ALLOC"],
             "//conditions:default": [],
         }) if stdalloc else []) + select({
-            "@config//:backend_ref": [
-                "DAAL_REF",
-            ],
+            "@config//:backend_ref": ["DAAL_REF"],
             "//conditions:default": [],
         }) + select({
-            # Matches dev/make/deps.ref.mk RNG_OPENRNG: swaps the ref RNG's
-            # <random>-based shim for the OpenRNG (VSL-ABI-compatible)
-            # backend in src/externals/service_rng_ref.h. Gated on the ref
-            # backend as well, since that shim is the only consumer of this
-            # define and it is not compiled in an MKL build.
-            "@config//:rng_backend_openrng_ref": [
-                "OPENRNG_BACKEND",
-            ],
+            # Make: RNG_OPENRNG. Only the ref RNG shim reads it, so it is gated on the ref backend.
+            "@config//:rng_backend_openrng_ref": ["OPENRNG_BACKEND"],
             "//conditions:default": [],
         }),
         **kwargs,
@@ -102,11 +96,7 @@ def daal_static_lib(name, lib_tags=["daal"], **kwargs):
     )
 
 _MKL_EXCLUDE_LIBS_FLAGS = select({
-    # Hide MKL static symbols from the dynamic lib's export table.
-    # --exclude-libs hides all symbols from the named archive, ensuring that
-    # MKL objects embedded via --whole-archive are not re-exported.
-    # This matches Make's behaviour (see dev/make/deps.mk MKL linkage).
-    # GNU ld only; not supported on Windows (MSVC) or macOS (Apple ld).
+    # Keeps the embedded MKL objects out of the export table, as Make does. GNU ld only.
     "@config//:backend_config_mkl_linux": [
         "-Wl,--exclude-libs=libmkl_tbb_thread.a",
         "-Wl,--exclude-libs=libmkl_core.a",
@@ -117,6 +107,12 @@ _MKL_EXCLUDE_LIBS_FLAGS = select({
 
 def daal_dynamic_lib(name, lib_tags=["daal", "mkl_embed"], **kwargs):
     linkopts = kwargs.pop("linkopts", [])
+    # Core and threading DLLs share services/dll.rc (makefile:586, 918).
+    kwargs.setdefault("rc_file", "@onedal//cpp/daal:src/services/dll.rc")
+    kwargs.setdefault("rc_headers", [
+        "@onedal//cpp/daal:src/services/daal_version.h",
+        "@onedal//cpp/daal:version",
+    ])
     cc_dynamic_lib(
         name = name,
         lib_tags = lib_tags,
@@ -135,12 +131,12 @@ def daal_algorithms(name, algorithms=[]):
     )
 
 def _daal_generate_version_impl(ctx):
-    vi = ctx.attr._version_info[VersionInfo]
+    vi = get_version_info(ctx)
     version = ctx.actions.declare_file(ctx.attr.out)
-    content = (
+    ctx.actions.write(version, (
         "// DO NOT EDIT: file is auto-generated on build time\n" +
         "// DO NOT PUT THIS FILE TO SVC: file is auto-generated on build time\n" +
-        "// Product version is specified in dev/bazel/config.bzl file\n" +
+        "// Product version is specified in dev/bazel/version.bzl file\n" +
         "\n" +
         "#define MAJORVERSION {}\n".format(vi.major) +
         "#define MINORVERSION {}\n".format(vi.minor) +
@@ -148,8 +144,7 @@ def _daal_generate_version_impl(ctx):
         "#define BUILD \"{}\"\n".format(vi.build) +
         "#define BUILD_REV \"{}\"\n".format(vi.buildrev) +
         "#define PRODUCT_STATUS '{}'\n".format(vi.status)
-    )
-    ctx.actions.write(version, content)
+    ))
     return [ DefaultInfo(files=depset([ version ])) ]
 
 daal_generate_version = rule(
@@ -157,14 +152,11 @@ daal_generate_version = rule(
     output_to_genfiles = True,
     attrs = {
         "out": attr.string(mandatory=True),
-        "_version_info": attr.label(
-            default = "@config//:version",
-        ),
-    },
+    } | VERSION_ATTRS,
 )
 
 def _get_disabled_cpus(ctx):
-    cpu_info = ctx.attr._cpus[CpuInfo]
+    cpu_info = get_cpu_info(ctx)
     all_cpus = sets.make(cpu_info.allowed)
     enabled_cpus = sets.make(cpu_info.enabled)
     return sets.difference(all_cpus, enabled_cpus)
@@ -177,30 +169,12 @@ def _declare_patched_kernel_defines(ctx):
 def _daal_patch_kernel_defines_impl(ctx):
     """Comment out the `DAAL_KERNEL_<ISA>` defines of the disabled ISAs.
 
-    `cpp/daal/include/services/internal/daal_kernel_defines.h` enables every
-    CPU dispatch variant oneDAL can build; the ones `--cpu` leaves out have to
-    be removed from the header before it is compiled or released. The Makefile
-    does it with
-
-        sed -b -i -E -e 's/^#define DAAL_KERNEL_<ISA>\\b/$(sed.eol)/'
-
-    where `sed.eol` is empty on Linux and a lone CR on Windows, so that a
-    disabled define leaves behind an empty line with the platform's own line
-    ending while every other line is untouched. `expand_template` does exactly
-    that substitution, without a helper script: it rewrites the file at
-    execution time, so nothing has to read its contents during analysis.
-
-    The key spans the whole line, newlines included, so that it matches only a
-    bare `#define DAAL_KERNEL_<ISA>` like sed's `^...\\b` and never a longer
-    macro name or a comment. The header is `eol=lf` (see `.gitattributes`) and
-    no define sits on its first line. Each substitution keeps the trailing
-    newline, so adjacent disabled defines still match one after another.
+    As Make's `sed 's/^#define DAAL_KERNEL_<ISA>\\b/$(sed.eol)/'`: each becomes an empty line, CR-ended
+    on Windows. A key spans the whole line, so a longer macro name never matches.
     """
     disabled_cpus = sets.to_list(_get_disabled_cpus(ctx))
     kernel_defines = _declare_patched_kernel_defines(ctx)
-    is_windows = ctx.target_platform_has_constraint(
-        ctx.attr._windows_constraint[platform_common.ConstraintValueInfo],
-    )
+    is_windows = target(ctx).is_windows
     ctx.actions.expand_template(
         template = ctx.file.src,
         output = kernel_defines,
@@ -216,11 +190,5 @@ daal_patch_kernel_defines = rule(
     output_to_genfiles = True,
     attrs = {
         "src": attr.label(allow_single_file=True, mandatory=True),
-        "_cpus": attr.label(
-            default = "@config//:cpu",
-        ),
-        "_windows_constraint": attr.label(
-            default = "@platforms//os:windows",
-        ),
-    },
+    } | TARGET_ATTRS | CPU_ATTRS,
 )

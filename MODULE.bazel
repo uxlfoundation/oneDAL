@@ -18,9 +18,9 @@ module(name = "onedal")
 
 bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "bazel_skylib", version = "1.9.2")
-bazel_dep(name = "rules_cc", version = "0.2.27")
-bazel_dep(name = "rules_shell", version = "0.8.0")
-bazel_dep(name = "fmt", version = "12.2.0.bcr.1")
+bazel_dep(name = "rules_cc", version = "0.2.28")
+bazel_dep(name = "rules_shell", version = "0.10.0")
+bazel_dep(name = "fmt", version = "12.2.1")
 
 cc_configure = use_extension("@rules_cc//cc:extensions.bzl", "cc_configure_extension")
 use_repo(cc_configure, "local_config_cc", "local_config_cc_toolchains")
@@ -41,11 +41,7 @@ http_archive(
     build_file = "//dev/bazel/deps:catch2.BUILD",
 )
 
-# Prebuilt binary dependencies. Each is fully described by its own
-# `dev/bazel/deps/<dep>.bzl` file -- download URLs and hashes, the environment
-# variable that points at a local installation, the expected file layout and the
-# BUILD template all live there, so that bumping a dependency touches one file
-# and never this one.
+# Prebuilt dependencies: URLs, hashes and the local-install lookup live in dev/bazel/deps/<dep>.bzl.
 opencl_repo = use_repo_rule("@onedal//dev/bazel/deps:opencl.bzl", "opencl_repo")
 opencl_repo(name = "opencl")
 

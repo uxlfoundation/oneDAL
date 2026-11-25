@@ -54,10 +54,24 @@ Status BatchKernel<algorithmFPType, training::normEqDense, cpu>::compute(const N
                                                                          NumericTable & xty, NumericTable & beta, bool interceptFlag,
                                                                          const HyperparameterType * hyperparameter) const
 {
-    services::SharedPtr<linear_model::internal::Hyperparameter> lmHyperparameter;
-    DAAL_CHECK_STATUS_VAR(linear_regression::internal::convert(hyperparameter, lmHyperparameter));
-    DAAL_CHECK_STATUS_VAR(UpdateKernelType::compute(x, y, xtx, xty, true, interceptFlag, lmHyperparameter.get()));
-    return FinalizeKernelType::compute(xtx, xty, xtx, xty, beta, interceptFlag, KernelHelper<algorithmFPType, cpu>(), lmHyperparameter.get());
+    Status st;
+    const size_t nFeatures = x.getNumberOfColumns();
+    const size_t nRows     = x.getNumberOfRows();
+    KernelHelper<algorithmFPType, cpu> linearHelper;
+    if (nRows >= nFeatures)
+    {
+        // Use normal equations method
+        services::SharedPtr<linear_model::internal::Hyperparameter> lmHyperparameter;
+        st = linear_regression::internal::convert(hyperparameter, lmHyperparameter);
+        if (st) st = UpdateKernelType::compute(x, y, xtx, xty, true, interceptFlag, lmHyperparameter.get());
+        if (st) st = FinalizeKernelType::compute(xtx, xty, xtx, xty, beta, interceptFlag, linearHelper, lmHyperparameter.get());
+    }
+    else
+    {
+        // Use dual problem solver
+        st = DualKernelType::compute(x, y, beta, xtx, xty, interceptFlag, linearHelper);
+    }
+    return st;
 }
 
 template <typename algorithmFPType, CpuType cpu>

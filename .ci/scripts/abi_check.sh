@@ -35,6 +35,11 @@ for i in "${solibs[@]}"
 do
     name=$(basename $i)
     echo "======== ${name} ========"
+    # Only the oneDAL libraries shipped with it load libonedal_thread, so its exports are not product ABI.
+    if [ "$name" = "libonedal_thread.so" ]; then
+        echo "skipped"
+        continue
+    fi
     abidiff --suppr .github/.abignore $i $release_dir/$name
     retVal=$?
     # ignore a return value of 4 as it signifies a possibly compatible change

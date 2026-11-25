@@ -41,10 +41,7 @@ filegroup(
     }),
 )
 
-# Make stages the import libraries next to the DLLs, into
-# `tbb/latest/lib/vc_mt` rather than `tbb/latest/bin/vc_mt`
-# (`releasetbb.LIBS_A`, makefile:278), because a Windows consumer needs them to
-# link against the package's oneTBB.
+# Make ships these under tbb/latest/lib/vc_mt for consumers to link against (`releasetbb.LIBS_A`).
 filegroup(
     name = "tbb_import_libs",
     srcs = select({

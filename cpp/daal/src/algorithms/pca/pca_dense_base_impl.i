@@ -15,6 +15,9 @@
 * limitations under the License.
 *******************************************************************************/
 
+#ifndef __PCA_DENSE_BASE_IMPL_I__
+#define __PCA_DENSE_BASE_IMPL_I__
+
 #include "src/algorithms/pca/pca_dense_base.h"
 
 namespace daal
@@ -164,3 +167,5 @@ void PCADenseBase<algorithmFPType, cpu>::signFlipArray(size_t size, algorithmFPT
 } // namespace pca
 } // namespace algorithms
 } // namespace daal
+
+#endif

@@ -18,6 +18,7 @@
 #include "oneapi/dal/algo/dbscan/test/data.hpp"
 #include "oneapi/dal/test/engine/tables.hpp"
 #include "oneapi/dal/test/engine/io.hpp"
+#include "oneapi/dal/test/engine/blobs.hpp"
 
 namespace oneapi::dal::dbscan::test {
 
@@ -488,6 +489,41 @@ TEMPLATE_LIST_TEST_M(dbscan_spmd_test,
     constexpr float_t ref_dbi = float_t(0.00036);
     this->set_rank_count(GENERATE(2, 3, 4));
     this->run_spmd_dbi_checks(x, epsilon, min_observations, ref_dbi, 1.0e-1);
+}
+
+TEMPLATE_LIST_TEST_M(dbscan_spmd_test, "dbscan metrics in spmd", "[dbscan][spmd]", dbscan_types) {
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->get_policy().is_cpu());
+    using float_t = std::tuple_element_t<0, TestType>;
+    using method_t = std::tuple_element_t<1, TestType>;
+
+    const distance_metric metric = GENERATE(distance_metric::euclidean,
+                                            distance_metric::manhattan,
+                                            distance_metric::minkowski,
+                                            distance_metric::chebyshev,
+                                            distance_metric::cosine);
+    const std::int64_t column_count = GENERATE(2, 20);
+    CAPTURE(static_cast<int>(metric), column_count);
+
+    constexpr std::int64_t row_count = 120;
+    constexpr std::int64_t min_observations = 5;
+    constexpr double degree = 3.0;
+    const auto x = te::make_blobs<float_t>(40, 3, column_count, 4.0, 3.0);
+    const auto dist = this->reference_distances(x, column_count, metric, degree);
+    const double epsilon = this->pick_epsilon(dist, row_count, 0.03);
+
+    const auto desc =
+        dbscan::descriptor<float_t, method_t>(epsilon, min_observations)
+            .set_metric(metric)
+            .set_degree(degree)
+            .set_result_options(result_options::responses | result_options::core_flags);
+    this->set_rank_count(GENERATE(2, 3));
+    const auto result = this->compute(desc, homogen_table::wrap(x.data(), row_count, column_count));
+    this->check_against_definition(result,
+                                   dist,
+                                   std::vector<float_t>(row_count, 1),
+                                   epsilon,
+                                   min_observations);
 }
 
 } // namespace oneapi::dal::dbscan::test

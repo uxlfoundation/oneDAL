@@ -46,7 +46,9 @@
 #endif
 
 #if defined(_WIN32) || defined(_WIN64)
-    #define NOMINMAX
+    #ifndef NOMINMAX
+        #define NOMINMAX
+    #endif
     #include <windows.h>
 #endif
 
@@ -559,6 +561,11 @@ DAAL_EXPORT bool _daal_is_in_parallel()
 #else
     return tbb::task::self().state() == tbb::task::executing;
 #endif
+}
+
+DAAL_EXPORT void _daal_threader_isolate(const void * a, daal::functype_isolate func)
+{
+    tbb::this_task_arena::isolate([&]() { func(a); });
 }
 
 DAAL_EXPORT void * _daal_threader_env()

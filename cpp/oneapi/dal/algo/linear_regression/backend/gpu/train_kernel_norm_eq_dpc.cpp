@@ -19,7 +19,11 @@
 #include "oneapi/dal/detail/common.hpp"
 #include "oneapi/dal/backend/dispatcher.hpp"
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
+#include "oneapi/dal/backend/primitives/blas.hpp"
+#include "oneapi/dal/backend/primitives/blas/gemv.hpp"
+#include "oneapi/dal/backend/primitives/element_wise.hpp"
 #include "oneapi/dal/backend/primitives/lapack.hpp"
+#include "oneapi/dal/backend/primitives/reduction.hpp"
 #include "oneapi/dal/backend/primitives/utils.hpp"
 
 #include "oneapi/dal/table/row_accessor.hpp"
@@ -39,15 +43,188 @@ namespace be = dal::backend;
 namespace pr = be::primitives;
 
 template <typename Float, typename Task>
+static train_result<Task> make_train_result(sycl::queue& queue,
+                                            const detail::descriptor_base<Task>& desc,
+                                            const array<Float>& betas_arr,
+                                            std::int64_t response_count,
+                                            std::int64_t feature_count) {
+    using dal::detail::check_mul_overflow;
+
+    using model_t = model<Task>;
+    using model_impl_t = detail::model_impl<Task>;
+
+    constexpr auto alloc = sycl::usm::alloc::device;
+
+    auto betas_table = homogen_table::wrap(betas_arr, response_count, feature_count + 1);
+
+    const auto model_impl = std::make_shared<model_impl_t>(betas_table);
+    const auto model = dal::detail::make_private<model_t>(model_impl);
+
+    const auto options = desc.get_result_options();
+    auto result = train_result<Task>().set_model(model).set_result_options(options);
+
+    const auto betas =
+        pr::ndview<Float, 2>::wrap(betas_arr.get_data(), { response_count, feature_count + 1 });
+
+    if (options.test(result_options::intercept)) {
+        auto arr = array<Float>::zeros(queue, response_count, alloc);
+        auto dst = pr::ndview<Float, 2>::wrap_mutable(arr, { 1l, response_count });
+        const auto src = betas.get_col_slice(0l, 1l).t();
+
+        pr::copy(queue, dst, src).wait_and_throw();
+
+        auto intercept = homogen_table::wrap(arr, 1l, response_count);
+        result.set_intercept(intercept);
+    }
+
+    if (options.test(result_options::coefficients)) {
+        const auto size = check_mul_overflow(response_count, feature_count);
+
+        auto arr = array<Float>::zeros(queue, size, alloc);
+        const auto src = betas.get_col_slice(1l, feature_count + 1);
+        auto dst = pr::ndview<Float, 2>::wrap_mutable(arr, { response_count, feature_count });
+
+        pr::copy(queue, dst, src).wait_and_throw();
+
+        auto coefficients = homogen_table::wrap(arr, response_count, feature_count);
+        result.set_coefficients(coefficients);
+    }
+
+    return result;
+}
+
+/// Solves the regression problem through the dual system: (Xc * Xc^t + alpha * I) * dualCoef = yc.
+/// The resulting coefficients beta = Xc^t * dualCoef,
+/// where Xc and yc are X and y centered when the intercept is computed
+template <typename Float, typename Task>
+static train_result<Task> call_dual_kernel(const context_gpu& ctx,
+                                           const detail::descriptor_base<Task>& desc,
+                                           const pr::ndview<Float, 2>& x,
+                                           const pr::ndview<Float, 2>& y) {
+    using dal::detail::check_mul_overflow;
+
+    auto& queue = ctx.get_queue();
+
+    ONEDAL_PROFILER_TASK(linreg_train_dual_kernel, queue);
+
+    constexpr auto uplo = pr::mkl::uplo::upper;
+    constexpr auto alloc = sycl::usm::alloc::device;
+    constexpr pr::sum<Float> plus;
+    constexpr pr::identity<Float> identity;
+    constexpr std::minus<Float> minus;
+    constexpr std::multiplies<Float> multiplies;
+
+    const auto sample_count = x.get_dimension(0);
+    const auto feature_count = x.get_dimension(1);
+    const auto response_count = y.get_dimension(1);
+    ONEDAL_ASSERT(sample_count == y.get_dimension(0));
+    const bool compute_intercept = desc.get_compute_intercept();
+
+    const auto betas_size = check_mul_overflow(response_count, feature_count + 1);
+    auto betas_arr = array<Float>::zeros(queue, betas_size, alloc);
+    auto betas =
+        pr::ndview<Float, 2>::wrap_mutable(betas_arr, { response_count, feature_count + 1 });
+    auto intercept = betas.get_col_slice(0l, 1l);
+    auto coefs = betas.get_col_slice(1l, feature_count + 1);
+
+    if (compute_intercept && sample_count == 1) {
+        // The intercept fits the only observation exactly, the coefficients are zero
+        pr::copy(queue, intercept, y.t()).wait_and_throw();
+        return make_train_result<Float, Task>(queue,
+                                              desc,
+                                              betas_arr,
+                                              response_count,
+                                              feature_count);
+    }
+
+    array<Float> x_means_arr, y_means_arr;
+    pr::ndview<Float, 1> x_means, y_means;
+    pr::ndarray<Float, 2> xc_arr, yc_arr;
+    pr::ndview<Float, 2> xc = x, yc = y;
+    sycl::event center_x_event, center_y_event;
+    if (compute_intercept) {
+        ONEDAL_PROFILER_TASK(center_data, queue);
+        const Float inv_sample_count = Float(1) / Float(sample_count);
+
+        x_means_arr = array<Float>::empty(queue, feature_count, alloc);
+        y_means_arr = array<Float>::empty(queue, response_count, alloc);
+        x_means = pr::ndview<Float, 1>::wrap_mutable(x_means_arr);
+        y_means = pr::ndview<Float, 1>::wrap_mutable(y_means_arr);
+        auto x_sums_event = pr::reduce_by_columns(queue, x, x_means, plus, identity);
+        auto y_sums_event = pr::reduce_by_columns(queue, y, y_means, plus, identity);
+        auto x_means_event = pr::element_wise(queue,
+                                              multiplies,
+                                              x_means,
+                                              inv_sample_count,
+                                              x_means,
+                                              { x_sums_event });
+        auto y_means_event = pr::element_wise(queue,
+                                              multiplies,
+                                              y_means,
+                                              inv_sample_count,
+                                              y_means,
+                                              { y_sums_event });
+
+        xc_arr = pr::ndarray<Float, 2>::empty(queue, x.get_shape(), alloc);
+        yc_arr = pr::ndarray<Float, 2>::empty(queue, y.get_shape(), alloc);
+        center_x_event = pr::element_wise(queue, minus, x, x_means, xc_arr, { x_means_event });
+        center_y_event = pr::element_wise(queue, minus, y, y_means, yc_arr, { y_means_event });
+        xc = xc_arr;
+        yc = yc_arr;
+    }
+
+    const pr::ndshape<2> xxt_shape{ sample_count, sample_count };
+    auto xxt = pr::ndarray<Float, 2>::empty(queue, xxt_shape, alloc);
+    // TODO: this was copied over from the CPU version as GEMM there
+    // was faster than SYRK for these data shapes, but it hasn't been
+    // validated whether the same holds for GPU.
+    sycl::event xxt_event = pr::gemm(queue, xc, xc.t(), xxt, { center_x_event });
+
+    const double alpha = desc.get_alpha();
+    if (alpha != 0.0) {
+        xxt_event = add_ridge_penalty<Float>(queue, xxt, false, alpha, { xxt_event });
+    }
+
+    // solve_system<uplo, false> prepends a zero column for the intercept, which the dual system does not have
+    auto dual_ext =
+        pr::ndarray<Float, 2>::empty(queue, { response_count, sample_count + 1 }, alloc);
+    auto dual = dual_ext.get_col_slice(1l, sample_count + 1);
+    pr::ndview<Float, 2> unused_xxt;
+    // The rounding noise in the eigenvalues of Xc * Xc^t grows with its size.
+    // Unpenalized centered Xc * Xc^t is singular, so Cholesky is skipped.
+    const bool skip_cholesky = compute_intercept && alpha == 0.0;
+    auto solve_event = pr::solve_system<uplo, false>(queue,
+                                                     xxt,
+                                                     yc.t(),
+                                                     unused_xxt,
+                                                     dual_ext,
+                                                     Float(sample_count),
+                                                     skip_cholesky,
+                                                     { xxt_event, center_y_event });
+
+    auto coefs_event = pr::gemm(queue, dual, xc, coefs, { solve_event });
+
+    if (compute_intercept) {
+        // intercept = y_means - coefs * x_means
+        auto intercept_event =
+            pr::gemv(queue, coefs, x_means, y_means, Float(-1), Float(1), { coefs_event });
+        const auto y_means_2d = y_means.template reshape<2>({ response_count, 1l });
+        pr::copy(queue, intercept, y_means_2d, { intercept_event }).wait_and_throw();
+    }
+    else {
+        coefs_event.wait_and_throw();
+    }
+
+    return make_train_result<Float, Task>(queue, desc, betas_arr, response_count, feature_count);
+}
+
+template <typename Float, typename Task>
 static train_result<Task> call_dal_kernel(const context_gpu& ctx,
                                           const detail::descriptor_base<Task>& desc,
                                           const detail::train_parameters<Task>& params,
                                           const table& data,
                                           const table& resp) {
     using dal::detail::check_mul_overflow;
-
-    using model_t = model<Task>;
-    using model_impl_t = detail::model_impl<Task>;
 
     auto& queue = ctx.get_queue();
 
@@ -132,39 +309,7 @@ static train_result<Task> call_dal_kernel(const context_gpu& ctx,
         pr::solve_system<uplo>(queue, compute_intercept, xtx, xty, nxtx, nxty, solve_deps);
     sycl::event::wait_and_throw({ solve_event });
 
-    auto betas = homogen_table::wrap(betas_arr, response_count, feature_count + 1);
-
-    const auto model_impl = std::make_shared<model_impl_t>(betas);
-    const auto model = dal::detail::make_private<model_t>(model_impl);
-
-    const auto options = desc.get_result_options();
-    auto result = train_result<Task>().set_model(model).set_result_options(options);
-
-    if (options.test(result_options::intercept)) {
-        auto arr = array<Float>::zeros(queue, response_count, alloc);
-        auto dst = pr::ndview<Float, 2>::wrap_mutable(arr, { 1l, response_count });
-        const auto src = nxty.get_col_slice(0l, 1l).t();
-
-        pr::copy(queue, dst, src).wait_and_throw();
-
-        auto intercept = homogen_table::wrap(arr, 1l, response_count);
-        result.set_intercept(intercept);
-    }
-
-    if (options.test(result_options::coefficients)) {
-        const auto size = check_mul_overflow(response_count, feature_count);
-
-        auto arr = array<Float>::zeros(queue, size, alloc);
-        const auto src = nxty.get_col_slice(1l, feature_count + 1);
-        auto dst = pr::ndview<Float, 2>::wrap_mutable(arr, { response_count, feature_count });
-
-        pr::copy(queue, dst, src).wait_and_throw();
-
-        auto coefficients = homogen_table::wrap(arr, response_count, feature_count);
-        result.set_coefficients(coefficients);
-    }
-
-    return result;
+    return make_train_result<Float, Task>(queue, desc, betas_arr, response_count, feature_count);
 }
 
 template <typename Float, typename Task>
@@ -180,6 +325,11 @@ static train_result<Task> train(const context_gpu& ctx,
     const auto data_nd = pr::table2ndarray<Float, pr::ndorder::c>(queue, input.get_data(), alloc);
     const auto resp_nd =
         pr::table2ndarray<Float, pr::ndorder::c>(queue, input.get_responses(), alloc);
+
+    const bool underdetermined = data_nd.get_dimension(0) < data_nd.get_dimension(1);
+    if (underdetermined && ctx.get_communicator().get_rank_count() == 1) {
+        return call_dual_kernel<Float, Task>(ctx, desc, data_nd, resp_nd);
+    }
 
     auto data_table = homogen_table::wrap(queue,
                                           data_nd.get_data(),

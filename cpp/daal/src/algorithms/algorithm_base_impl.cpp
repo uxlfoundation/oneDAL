@@ -135,8 +135,13 @@ AlgorithmContainerIfaceImpl::AlgorithmContainerIfaceImpl() = default;
 
 AlgorithmContainer<batch>::AlgorithmContainer() = default;
 
-template <ComputeMode mode>
-AlgorithmContainer<mode>::AlgorithmContainer() = default;
+template <>
+AlgorithmContainer<online>::AlgorithmContainer()
+{}
+
+template <>
+AlgorithmContainer<distributed>::AlgorithmContainer()
+{}
 
 } //namespace interface1
 

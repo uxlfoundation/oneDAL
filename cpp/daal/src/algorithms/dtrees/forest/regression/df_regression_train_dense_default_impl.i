@@ -98,6 +98,242 @@ void calcPrevImpurity(intermSummFPType var, intermSummFPType mean, intermSummFPT
     if (varPrev < 0) varPrev = 0;
 }
 
+// The one-pass mean and variance run simdBatchSize partial streams from 'minObsVectorizedPath' sizes onwards.
+#if (__CPUID__(DAAL_CPU) == __avx512__)
+constexpr size_t simdBatchSize        = 8;
+constexpr size_t minObsVectorizedPath = 32;
+#elif (__CPUID__(DAAL_CPU) == __avx2__)
+constexpr size_t simdBatchSize        = 4;
+constexpr size_t minObsVectorizedPath = 32;
+#else
+constexpr size_t simdBatchSize        = 1;
+constexpr size_t minObsVectorizedPath = std::numeric_limits<size_t>::max();
+#endif
+
+/// Scalar one-pass mean and variance over the responses `[start, n)`, continuing the running
+/// aggregates. Both the short path and the tail of the vectorized path of calcMeanAndVariance use it.
+///
+/// @tparam ResponseFunc  Functor `intermSummFPType(size_t i)` returning the i-th response
+///
+/// @param[in]     start     Index of the first response to add
+/// @param[in]     n         Number of responses
+/// @param[in]     response  Response functor
+/// @param[in,out] mean      Running mean of the responses added so far
+/// @param[in,out] var       Running sum of centered squares of the responses added so far
+template <typename intermSummFPType, typename ResponseFunc>
+inline void accumulateMeanAndVariance(size_t start, size_t n, const ResponseFunc & response, intermSummFPType & mean, intermSummFPType & var)
+{
+    for (size_t i = start; i < n; i++)
+    {
+        const intermSummFPType y     = response(i);
+        const intermSummFPType delta = y - mean;
+        mean += delta / static_cast<intermSummFPType>(i + 1);
+        var += delta * (y - mean);
+    }
+}
+
+/// Weighted counterpart of accumulateMeanAndVariance.
+///
+/// @tparam ResponseFunc  Functor `intermSummFPType(size_t i)` returning the i-th response
+/// @tparam WeightFunc    Functor `intermSummFPType(size_t i)` returning the i-th weight
+///
+/// @param[in]     start         Index of the first response to add
+/// @param[in]     n             Number of responses
+/// @param[in]     response      Response functor
+/// @param[in]     weight        Weight functor
+/// @param[in,out] mean          Running weighted mean of the responses added so far
+/// @param[in,out] var           Running weighted sum of centered squares of the responses added so far
+/// @param[in,out] totalWeights  Running sum of the weights added so far
+template <typename intermSummFPType, typename ResponseFunc, typename WeightFunc>
+inline void accumulateWeightedMeanAndVariance(size_t start, size_t n, const ResponseFunc & response, const WeightFunc & weight,
+                                              intermSummFPType & mean, intermSummFPType & var, intermSummFPType & totalWeights)
+{
+    // Zero weights do not change the result; skipping to the first nonzero one keeps the first
+    // division's denominator nonzero.
+    size_t i;
+    for (i = start; i < n && !weight(i); i++);
+    for (; i < n; i++)
+    {
+        const intermSummFPType w     = weight(i);
+        const intermSummFPType y     = response(i);
+        const intermSummFPType delta = y - mean;
+        totalWeights += w;
+        mean += delta * (w / totalWeights);
+        var += w * delta * (y - mean);
+    }
+}
+
+/// One-pass mean and variance (MSE); the vectorized form is the parallel algorithm of
+/// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+///
+/// @tparam ResponseFunc  Functor `intermSummFPType(size_t i)` returning the i-th response
+///
+/// @param[in]  n         Number of responses
+/// @param[in]  response  Response functor
+/// @param[out] mean      Mean of the responses
+/// @param[out] var       Variance of the responses, the sum of centered squares divided by `n`
+template <CpuType cpu, typename intermSummFPType, typename ResponseFunc>
+void calcMeanAndVariance(size_t n, const ResponseFunc & response, intermSummFPType & mean, intermSummFPType & var)
+{
+    mean = 0;
+    var  = 0;
+    if (n == 0) return;
+    if (n < minObsVectorizedPath)
+    {
+        // The scalar kernel starts from the first response, not from 0; icx compiles the two forms differently.
+        mean = response(0);
+        accumulateMeanAndVariance(1, n, response, mean, var);
+        var /= static_cast<intermSummFPType>(n);
+        return;
+    }
+
+    intermSummFPType means[simdBatchSize]         = { 0 };
+    intermSummFPType sumsOfSquares[simdBatchSize] = { 0 };
+    intermSummFPType yBatch[simdBatchSize];
+
+    const size_t itersSimdLoop = n / simdBatchSize;
+    const size_t sizeSimdLoop  = itersSimdLoop * simdBatchSize;
+
+    for (size_t iMain = 0; iMain < itersSimdLoop; iMain++)
+    {
+        const size_t iStart = iMain * simdBatchSize;
+#if defined(__GNUC__) && !defined(__clang__)
+        // Without this hint GCC warns about undefined behavior when loops exceed 2^63.
+        if (iStart >= static_cast<size_t>(std::numeric_limits<std::ptrdiff_t>::max())) __builtin_unreachable();
+#endif
+        const intermSummFPType mult = 1.0 / static_cast<intermSummFPType>(iMain + 1);
+
+        // Pack the values into a continuous memory block
+        PRAGMA_OMP_SIMD_ARGS(simdlen(simdBatchSize))
+        for (size_t iSub = 0; iSub < simdBatchSize; iSub++)
+        {
+            yBatch[iSub] = response(iStart + iSub);
+        }
+
+        // Update vector of partial means and sum of squares using an incremental algorithm
+        PRAGMA_OMP_SIMD
+        for (size_t iSub = 0; iSub < simdBatchSize; iSub++)
+        {
+            const intermSummFPType y     = yBatch[iSub];
+            intermSummFPType meanBatch   = means[iSub];
+            const intermSummFPType delta = y - meanBatch;
+            meanBatch += delta * mult;
+            sumsOfSquares[iSub] += delta * (y - meanBatch);
+            means[iSub] = meanBatch;
+        }
+    }
+
+    mean                       = means[0];
+    var                        = sumsOfSquares[0];
+    intermSummFPType varDeltas = 0;
+    // Merge the partial means and sums of squares of the first `sizeSimdLoop` values
+    for (size_t i = 1; i < simdBatchSize; i++)
+    {
+        const intermSummFPType delta = means[i] - mean;
+        const intermSummFPType div   = 1.0 / static_cast<intermSummFPType>(i + 1);
+        mean += delta * div;
+        var += sumsOfSquares[i];
+        varDeltas += (delta * delta) * (static_cast<intermSummFPType>(i) * div);
+    }
+    var += varDeltas * itersSimdLoop;
+
+    accumulateMeanAndVariance(sizeSimdLoop, n, response, mean, var);
+    var /= static_cast<intermSummFPType>(n);
+}
+
+/// Weighted counterpart of calcMeanAndVariance.
+///
+/// @tparam ResponseFunc     Functor `intermSummFPType(size_t i)` returning the i-th response
+/// @tparam WeightFunc       Functor `intermSummFPType(size_t i)` returning the i-th weight
+///
+/// @param[in]  n            Number of responses
+/// @param[in]  response     Response functor
+/// @param[in]  weight       Weight functor
+/// @param[out] mean         Weighted mean of the responses
+/// @param[out] var          Weighted variance: weighted sum of centered squares divided by `totalWeights`
+/// @param[out] totalWeights Sum of the weights
+template <CpuType cpu, typename intermSummFPType, typename ResponseFunc, typename WeightFunc>
+void calcWeightedMeanAndVariance(size_t n, const ResponseFunc & response, const WeightFunc & weight, intermSummFPType & mean, intermSummFPType & var,
+                                 intermSummFPType & totalWeights)
+{
+    mean         = 0;
+    var          = 0;
+    totalWeights = 0;
+    if (n < minObsVectorizedPath)
+    {
+        accumulateWeightedMeanAndVariance(0, n, response, weight, mean, var, totalWeights);
+        if (totalWeights) var /= totalWeights;
+        return;
+    }
+
+    intermSummFPType means[simdBatchSize]         = { 0 };
+    intermSummFPType sumsOfSquares[simdBatchSize] = { 0 };
+    intermSummFPType sumsOfWeights[simdBatchSize] = { 0 };
+    intermSummFPType yBatch[simdBatchSize];
+    intermSummFPType weightsBatch[simdBatchSize];
+
+    const size_t itersSimdLoop = n / simdBatchSize;
+    const size_t sizeSimdLoop  = itersSimdLoop * simdBatchSize;
+
+    for (size_t iMain = 0; iMain < itersSimdLoop; iMain++)
+    {
+        const size_t iStart = iMain * simdBatchSize;
+#if defined(__GNUC__) && !defined(__clang__)
+        if (iStart >= static_cast<size_t>(std::numeric_limits<std::ptrdiff_t>::max())) __builtin_unreachable();
+#endif
+
+        // Pack the data into contiguous blocks
+        PRAGMA_OMP_SIMD_ARGS(simdlen(simdBatchSize))
+        for (size_t iSub = 0; iSub < simdBatchSize; iSub++)
+        {
+            yBatch[iSub]       = response(iStart + iSub);
+            weightsBatch[iSub] = weight(iStart + iSub);
+        }
+
+        // Update the vectors of means, variances, and cumulative weights
+        PRAGMA_OMP_SIMD
+        for (size_t iSub = 0; iSub < simdBatchSize; iSub++)
+        {
+            const intermSummFPType y = yBatch[iSub];
+            const intermSummFPType w = weightsBatch[iSub];
+            sumsOfWeights[iSub] += w;
+
+            intermSummFPType meanBatch   = means[iSub];
+            const intermSummFPType delta = y - meanBatch;
+            meanBatch += sumsOfWeights[iSub] ? (delta * (w / sumsOfWeights[iSub])) : 0;
+            sumsOfSquares[iSub] += w * (delta * (y - meanBatch));
+            means[iSub] = meanBatch;
+        }
+    }
+
+    // Merge the aggregates
+    mean                       = means[0];
+    var                        = sumsOfSquares[0];
+    totalWeights               = sumsOfWeights[0];
+    intermSummFPType varDeltas = 0;
+    // Batches of zero total weight are skipped, so `totalWeights` is positive before it divides.
+    size_t iBatch;
+    for (iBatch = 1; iBatch < simdBatchSize && !sumsOfWeights[iBatch]; iBatch++);
+    for (; iBatch < simdBatchSize; iBatch++)
+    {
+        const intermSummFPType weightNew  = sumsOfWeights[iBatch];
+        const intermSummFPType weightLeft = totalWeights;
+        totalWeights += weightNew;
+        const intermSummFPType fractionRight = weightNew / totalWeights;
+        const intermSummFPType delta         = means[iBatch] - mean;
+        mean += delta * fractionRight;
+        var += sumsOfSquares[iBatch];
+        varDeltas += (delta * delta) * (weightLeft * fractionRight);
+    }
+    var += varDeltas;
+
+    accumulateWeightedMeanAndVariance(sizeSimdLoop, n, response, weight, mean, var, totalWeights);
+    if (totalWeights) var /= totalWeights;
+}
+
+template <typename algorithmFPType, CpuType cpu>
+class TreeThreadCtx;
+
 //////////////////////////////////////////////////////////////////////////////////////////
 // Service structure, contains regression error data for OOB calculation
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -106,11 +342,6 @@ struct RegErr
 {
     intermSummFPType value = 0;
     size_t count           = 0;
-    void add(const RegErr & o)
-    {
-        count += o.count;
-        value += o.value;
-    }
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -168,214 +399,21 @@ protected:
     mutable TVector<intermSummFPType, cpu, DefaultAllocator<cpu> > _weightsFeatureBuf;
 };
 
-// For details about the vectorized version, see the wikipedia article:
-// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
 template <typename algorithmFPType, CpuType cpu>
 template <bool noWeights>
 void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType * aIdx, size_t n, ImpurityData & imp,
                                                                intermSummFPType & totalWeights) const
 {
-#if (__CPUID__(DAAL_CPU) == __avx512__)
-    constexpr const size_t simdBatchSize        = 8;
-    constexpr const size_t minObsVectorizedPath = 32;
-#elif (__CPUID__(DAAL_CPU) == __avx2__)
-    constexpr const size_t simdBatchSize        = 4;
-    constexpr const size_t minObsVectorizedPath = 32;
-#else
-    constexpr const size_t simdBatchSize        = 1;
-    constexpr const size_t minObsVectorizedPath = std::numeric_limits<size_t>::max();
-#endif
     if (noWeights)
     {
-        if (n < minObsVectorizedPath)
-        {
-            imp.var  = 0;
-            imp.mean = this->_aResponse[aIdx[0]].val;
-
-            for (size_t i = 1; i < n; ++i)
-            {
-                const intermSummFPType y     = this->_aResponse[aIdx[i]].val;
-                const intermSummFPType delta = y - imp.mean;
-                imp.mean += delta / static_cast<intermSummFPType>(i + 1);
-                imp.var += delta * (y - imp.mean);
-            }
-            totalWeights = static_cast<intermSummFPType>(n);
-            imp.var /= totalWeights; //impurity is MSE
-        }
-
-        else
-        {
-            intermSummFPType means[simdBatchSize]         = { 0 };
-            intermSummFPType sumsOfSquares[simdBatchSize] = { 0 };
-            intermSummFPType yBatch[simdBatchSize];
-
-            const size_t itersSimdLoop = n / simdBatchSize;
-            const size_t sizeSimdLoop  = itersSimdLoop * simdBatchSize;
-
-            for (size_t iMain = 0; iMain < itersSimdLoop; iMain++)
-            {
-                const size_t iStart = iMain * simdBatchSize;
-#if defined(__GNUC__) && !defined(__clang__)
-                // Note: GCC is unable to determine that the pointer offset plus the
-                // vectorized section will be within the limits of pointer ranges
-                // from the start of the array, and without this hint, ends up issuing
-                // a warning about undefined behavior when loops exceed 2^63. This
-                // attribute leads to a compilation error with LLVM-based compilers,
-                // so it's defined conditionally regardless of compiler support.
-                __attribute__((__assume__(iStart < std::numeric_limits<std::ptrdiff_t>::max())));
-#endif
-                const auto aIdxStart        = aIdx + iStart;
-                const intermSummFPType mult = 1.0 / static_cast<intermSummFPType>(iMain + 1);
-
-                // Pack the responses into a continuous memory block
-                PRAGMA_OMP_SIMD_ARGS(simdlen(simdBatchSize))
-                for (size_t iSub = 0; iSub < simdBatchSize; iSub++)
-                {
-                    yBatch[iSub] = this->_aResponse[aIdxStart[iSub]].val;
-                }
-
-                // Update vector of partial means and sum of squares using an incremental algorithm
-                PRAGMA_OMP_SIMD
-                for (size_t iSub = 0; iSub < simdBatchSize; iSub++)
-                {
-                    const intermSummFPType y     = yBatch[iSub];
-                    intermSummFPType meanBatch   = means[iSub];
-                    const intermSummFPType delta = y - meanBatch;
-                    meanBatch += delta * mult;
-                    sumsOfSquares[iSub] += delta * (y - meanBatch);
-                    means[iSub] = meanBatch;
-                }
-            }
-
-            imp.mean                    = means[0];
-            imp.var                     = sumsOfSquares[0];
-            intermSummFPType var_deltas = 0;
-            // Compute means and sum of squares for the first `sizeSimdLoop` responses
-            for (size_t i = 1; i < simdBatchSize; i++)
-            {
-                const intermSummFPType delta = means[i] - imp.mean;
-                const intermSummFPType div   = 1.0 / static_cast<intermSummFPType>(i + 1);
-                imp.mean += delta * div;
-                imp.var += sumsOfSquares[i];
-                var_deltas += (delta * delta) * (static_cast<intermSummFPType>(i) * div);
-            }
-            imp.var += var_deltas * itersSimdLoop;
-
-            // Process tail elements, if any
-            for (size_t i = sizeSimdLoop; i < n; i++)
-            {
-                const intermSummFPType y     = this->_aResponse[aIdx[i]].val;
-                const intermSummFPType delta = y - imp.mean;
-                imp.mean += delta / static_cast<intermSummFPType>(i + 1);
-                imp.var += delta * (y - imp.mean);
-            }
-            totalWeights = static_cast<intermSummFPType>(n);
-            imp.var /= totalWeights;
-        }
+        calcMeanAndVariance<cpu>(n, [&](size_t i) { return static_cast<intermSummFPType>(this->_aResponse[aIdx[i]].val); }, imp.mean, imp.var);
+        totalWeights = static_cast<intermSummFPType>(n);
     }
     else
     {
-        if (n < minObsVectorizedPath)
-        {
-            imp.mean     = 0;
-            imp.var      = 0;
-            totalWeights = 0;
-
-            // Note: weights can be exactly zero, in which case they'd break the division.
-            // Since zero-weight observations have no impact on the results, this tries to
-            // look for the first non-zero weight.
-            size_t iStart;
-            for (iStart = 0; iStart < n && !this->_aWeights[aIdx[iStart]].val; iStart++);
-
-            for (size_t i = iStart; i < n; ++i)
-            {
-                const intermSummFPType weights = this->_aWeights[aIdx[i]].val;
-                const intermSummFPType y       = this->_aResponse[aIdx[i]].val;
-                const intermSummFPType delta   = y - imp.mean;
-                totalWeights += weights;
-                imp.mean += delta * (weights / totalWeights);
-                imp.var += weights * delta * (y - imp.mean);
-            }
-            if (totalWeights) imp.var /= totalWeights; //impurity is MSE
-        }
-
-        else
-        {
-            intermSummFPType means[simdBatchSize]         = { 0 };
-            intermSummFPType sumsOfSquares[simdBatchSize] = { 0 };
-            intermSummFPType sumsOfWeights[simdBatchSize] = { 0 };
-            intermSummFPType yBatch[simdBatchSize];
-            intermSummFPType weightsBatch[simdBatchSize];
-
-            const size_t itersSimdLoop = n / simdBatchSize;
-            const size_t sizeSimdLoop  = itersSimdLoop * simdBatchSize;
-
-            for (size_t iMain = 0; iMain < itersSimdLoop; iMain++)
-            {
-                const size_t iStart = iMain * simdBatchSize;
-#if defined(__GNUC__) && !defined(__clang__)
-                __attribute__((__assume__(iStart < std::numeric_limits<std::ptrdiff_t>::max())));
-#endif
-                const auto aIdxStart = aIdx + iStart;
-
-                // Pack the data from indices into contiguous blocks
-                PRAGMA_OMP_SIMD_ARGS(simdlen(simdBatchSize))
-                for (size_t iSub = 0; iSub < simdBatchSize; iSub++)
-                {
-                    yBatch[iSub]       = this->_aResponse[aIdxStart[iSub]].val;
-                    weightsBatch[iSub] = this->_aWeights[aIdxStart[iSub]].val;
-                }
-
-                // Update the vectors of means, variances, and cumulative weights
-                PRAGMA_OMP_SIMD
-                for (size_t iSub = 0; iSub < simdBatchSize; iSub++)
-                {
-                    const intermSummFPType y      = yBatch[iSub];
-                    const intermSummFPType weight = weightsBatch[iSub];
-                    sumsOfWeights[iSub] += weight;
-
-                    intermSummFPType meanBatch   = means[iSub];
-                    const intermSummFPType delta = y - meanBatch;
-                    meanBatch += sumsOfWeights[iSub] ? (delta * (weight / sumsOfWeights[iSub])) : 0;
-                    sumsOfSquares[iSub] += weight * (delta * (y - meanBatch));
-                    means[iSub] = meanBatch;
-                }
-            }
-
-            // Merge the aggregates
-            imp.mean                    = means[0];
-            imp.var                     = sumsOfSquares[0];
-            totalWeights                = sumsOfWeights[0];
-            intermSummFPType var_deltas = 0;
-            size_t iBatch;
-            for (iBatch = 1; iBatch < simdBatchSize && !sumsOfWeights[iBatch]; iBatch++);
-            for (; iBatch < simdBatchSize; iBatch++)
-            {
-                const intermSummFPType weightNew  = sumsOfWeights[iBatch];
-                const intermSummFPType weightLeft = totalWeights;
-                totalWeights += weightNew;
-                const intermSummFPType fractionRight = weightNew / totalWeights;
-                const intermSummFPType delta         = means[iBatch] - imp.mean;
-                imp.mean += delta * fractionRight;
-                imp.var += sumsOfSquares[iBatch];
-                var_deltas += (delta * delta) * (weightLeft * fractionRight);
-            }
-            imp.var += var_deltas;
-
-            // Process tail elements, if any
-            size_t i;
-            for (i = sizeSimdLoop; i < n && !this->_aWeights[aIdx[i]].val; i++);
-            for (; i < n; i++)
-            {
-                const intermSummFPType weight = this->_aWeights[aIdx[i]].val;
-                const intermSummFPType y      = this->_aResponse[aIdx[i]].val;
-                const intermSummFPType delta  = y - imp.mean;
-                totalWeights += weight;
-                imp.mean += delta * (weight / totalWeights);
-                imp.var += weight * delta * (y - imp.mean);
-            }
-            if (totalWeights) imp.var /= totalWeights;
-        }
+        calcWeightedMeanAndVariance<cpu>(
+            n, [&](size_t i) { return static_cast<intermSummFPType>(this->_aResponse[aIdx[i]].val); },
+            [&](size_t i) { return static_cast<intermSummFPType>(this->_aWeights[aIdx[i]].val); }, imp.mean, imp.var, totalWeights);
     }
 
 #ifdef DEBUG_CHECK_IMPURITY
@@ -652,9 +690,10 @@ public:
     using intermSummFPType = typename OrderedRespHelperBest<algorithmFPType, cpu>::intermSummFPType;
     typedef dtrees::internal::TreeImpRegression<> TreeType;
     typedef typename TreeType::NodeType NodeType;
-    using ImpurityData = typename OrderedRespHelperBest<algorithmFPType, cpu>::ImpurityData;
-    using TSplitData   = typename OrderedRespHelperBest<algorithmFPType, cpu>::TSplitData;
-    using super        = typename OrderedRespHelperBest<algorithmFPType, cpu>::super;
+    using ImpurityData  = typename OrderedRespHelperBest<algorithmFPType, cpu>::ImpurityData;
+    using TSplitData    = typename OrderedRespHelperBest<algorithmFPType, cpu>::TSplitData;
+    using super         = typename OrderedRespHelperBest<algorithmFPType, cpu>::super;
+    using ThreadCtxType = TreeThreadCtx<algorithmFPType, cpu>;
 
     engines::internal::BatchBaseImpl * engineImpl;
 
@@ -705,17 +744,10 @@ public:
     algorithmFPType predictionError(TResponse prediction, TResponse response) const { return (prediction - response) * (prediction - response); }
 
     algorithmFPType predictionError(const dtrees::internal::Tree & t, const algorithmFPType * x, const NumericTable * resp, size_t iRow,
-                                    byte * oobBuf) const
+                                    ThreadCtxType & /*ctx*/) const
     {
         ReadRows<algorithmFPType, cpu> y(const_cast<NumericTable *>(resp), iRow, 1);
-        const TResponse response(this->predict(t, x));
-        algorithmFPType val = this->predictionError(response, *y.get());
-        if (oobBuf)
-        {
-            ((RegErr<intermSummFPType, cpu> *)oobBuf)[iRow].value += response;
-            ((RegErr<intermSummFPType, cpu> *)oobBuf)[iRow].count++;
-        }
-        return val;
+        return this->predictionError(TResponse(this->predict(t, x)), *y.get());
     }
 
     void setLeafData(typename TreeType::NodeType::Leaf & node, const IndexType * idx, size_t n, ImpurityData & imp) const
@@ -1364,6 +1396,17 @@ bool OrderedRespHelperRandom<algorithmFPType, cpu>::findBestSplitCategoricalFeat
     return false;
 }
 
+// One bit per tree and row, set if the row is OOB for the tree. Does not own the bits, so thread contexts share the main context's masks.
+template <CpuType cpu>
+struct OOBRowMask
+{
+    unsigned char * bits = nullptr;
+    size_t bytesPerTree  = 0; // ceil(nRows / 8)
+
+    void set(size_t iTree, size_t iRow) { bits[iTree * bytesPerTree + iRow / 8] |= static_cast<unsigned char>(1u << (iRow % 8)); }
+    bool isOOB(size_t iTree, size_t iRow) const { return bits[iTree * bytesPerTree + iRow / 8] & (1u << (iRow % 8)); }
+};
+
 //////////////////////////////////////////////////////////////////////////////////////////
 // TreeThreadCtx class for regression
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -1373,30 +1416,76 @@ class TreeThreadCtx : public TreeThreadCtxBase<algorithmFPType, cpu>
 public:
     typedef TreeThreadCtxBase<algorithmFPType, cpu> super;
     using intermSummFPType = typename super::intermSummFPType;
+    // The tasks only record which rows are OOB for their tree, the predictions are summed by predictOOB
+    static constexpr bool oobPredictedInTask = false;
+
     TreeThreadCtx(algorithmFPType * _varImp = nullptr) : super(_varImp) {}
-    bool init(const decision_forest::training::Parameter & par, const NumericTable * x, size_t /*dummy*/)
+
+    // Main context, owns the OOB row masks and the prediction sums
+    bool init(const decision_forest::training::Parameter & par, const NumericTable * x, size_t /*nClasses*/)
     {
-        DAAL_CHECK_STATUS_VAR(super::init(par, x));
         using namespace decision_forest::training;
-        if (par.resultsToCompute
-            & (computeOutOfBagError | computeOutOfBagErrorPerObservation | computeOutOfBagErrorR2 | computeOutOfBagErrorPrediction))
-        {
-            size_t sz    = sizeof(RegErr<intermSummFPType, cpu>) * x->getNumberOfRows();
-            this->oobBuf = service_calloc<byte, cpu>(sz);
-            DAAL_CHECK_STATUS_VAR(this->oobBuf);
-        }
+        if (!(par.resultsToCompute
+              & (computeOutOfBagError | computeOutOfBagErrorPerObservation | computeOutOfBagErrorR2 | computeOutOfBagErrorPrediction)))
+            return true;
+        const size_t nRows    = x->getNumberOfRows();
+        _oobMask.bytesPerTree = nRows / 8 + !!(nRows % 8);
+        if (!_oobMask.bytesPerTree || this->nTrees > std::numeric_limits<size_t>::max() / _oobMask.bytesPerTree) return false;
+        _oobMaskBuf.reset(this->nTrees * _oobMask.bytesPerTree);
+        _oobMask.bits = _oobMaskBuf.get();
+        this->oobBuf  = service_calloc<byte, cpu>(sizeof(RegErr<intermSummFPType, cpu>) * nRows);
+        return _oobMask.bits && this->oobBuf;
+    }
+
+    // Thread context, shares the per-fit state of the main context
+    bool init(const decision_forest::training::Parameter & /*par*/, const NumericTable * /*x*/, size_t /*nClasses*/, const TreeThreadCtx & main)
+    {
+        super::init(main);
+        _oobMask = main._oobMask;
         return true;
     }
 
-    void reduceTo(decision_forest::training::VariableImportanceMode mode, TreeThreadCtx & other, size_t nVars, size_t nSamples) const
+    // Only the task building tree iTree writes its mask
+    void recordOOBRows(size_t iTree, const IndexType * aInd, size_t n)
     {
-        super::reduceTo(mode, other, nVars, nSamples);
-        if (this->oobBuf)
-        {
-            RegErr<intermSummFPType, cpu> * dst       = (RegErr<intermSummFPType, cpu> *)other.oobBuf;
-            const RegErr<intermSummFPType, cpu> * src = (const RegErr<intermSummFPType, cpu> *)this->oobBuf;
-            for (size_t i = 0; i < nSamples; ++i) dst[i].add(src[i]);
-        }
+        if (!_oobMask.bits) return;
+        for (size_t i = 0; i < n; ++i) _oobMask.set(iTree, aInd[i]);
+    }
+
+    void reduceTo(TreeThreadCtx & /*other*/, size_t /*nSamples*/) const {}
+
+    // Sums the OOB predictions of each row in tree order, so the sums do not depend on the thread count
+    template <typename ModelType>
+    Status predictOOB(const ModelType & md, const NumericTable * x, const dtrees::internal::FeatureTypes & featTypes)
+    {
+        if (!_oobMask.bits) return Status();
+        const size_t nRows                  = x->getNumberOfRows();
+        const size_t nCols                  = x->getNumberOfColumns();
+        const size_t blockSize              = 256;
+        const size_t nBlocks                = nRows / blockSize + !!(nRows % blockSize);
+        RegErr<intermSummFPType, cpu> * acc = oobData();
+        daal::SafeStatus safeStat;
+        daal::static_threader_for(nBlocks, [&](size_t iBlock, size_t /*tid*/) {
+            const size_t iStart = iBlock * blockSize;
+            const size_t iEnd   = (iStart + blockSize < nRows) ? iStart + blockSize : nRows;
+            ReadRows<algorithmFPType, cpu> xBD(const_cast<NumericTable *>(x), iStart, iEnd - iStart);
+            DAAL_CHECK_BLOCK_STATUS_THR(xBD);
+            for (size_t iTree = 0; iTree < this->nTrees; ++iTree)
+            {
+                const auto & tree = *md.at(iTree);
+                for (size_t i = iStart; i < iEnd; ++i)
+                {
+                    if (!_oobMask.isOOB(iTree, i)) continue;
+                    const dtrees::internal::DecisionTreeNode * pNode =
+                        dtrees::prediction::internal::findNode<algorithmFPType, typename ModelType::TreeType, cpu>(tree, featTypes,
+                                                                                                                   xBD.get() + (i - iStart) * nCols);
+                    DAAL_ASSERT(pNode);
+                    acc[i].value += pNode->featureValueOrResponse;
+                    ++acc[i].count;
+                }
+            }
+        });
+        return safeStat.detach();
     }
 
     Status finalizeOOBError(const NumericTable * resp, algorithmFPType * res, algorithmFPType * resPerObs, algorithmFPType * resAccuracy,
@@ -1410,40 +1499,48 @@ public:
         size_t nPredicted                   = 0;
         intermSummFPType _res               = 0;
         intermSummFPType yMean              = 0;
-        intermSummFPType sumMeanDiff        = 0;
+        intermSummFPType yVariance          = 0;
+        intermSummFPType sumSquaredError    = 0;
         RegErr<intermSummFPType, cpu> * ptr = (RegErr<intermSummFPType, cpu> *)this->oobBuf;
 
-        PRAGMA_OMP_SIMD_ARGS(reduction(+ : yMean))
-        for (size_t i = 0; i < nSamples; ++i)
-        {
-            yMean += py[i];
-        }
-        yMean /= nSamples;
+        if (resR2) calcMeanAndVariance<cpu>(nSamples, [py](size_t i) { return static_cast<intermSummFPType>(py[i]); }, yMean, yVariance);
 
         for (size_t i = 0; i < nSamples; ++i)
         {
-            if (ptr[i].count)
+            const bool predicted = ptr[i].count;
+            if (predicted) ptr[i].value /= static_cast<intermSummFPType>(ptr[i].count);
+            // scikit-learn scores a row without OOB predictions as predicting 0.
+            const intermSummFPType prediction   = predicted ? ptr[i].value : intermSummFPType(0);
+            const intermSummFPType squaredError = (prediction - py[i]) * (prediction - py[i]);
+
+            // -1 marks a row no tree left out of bag, as outOfBagErrorPerObservation documents.
+            if (resPerObs) resPerObs[i] = predicted ? squaredError : intermSummFPType(-1);
+            if (resPrediction) resPrediction[i] = prediction;
+            if (predicted)
             {
-                ptr[i].value /= static_cast<intermSummFPType>(ptr[i].count);
-                const intermSummFPType oobForObs = (ptr[i].value - py[i]) * (ptr[i].value - py[i]);
-
-                if (resPerObs) resPerObs[i] = oobForObs;
-                _res += oobForObs;
+                _res += squaredError;
                 ++nPredicted;
-
-                if (resPrediction) resPrediction[i] = ptr[i].value;
-                sumMeanDiff += (py[i] - yMean) * (py[i] - yMean);
             }
-            else
-            {
-                if (resPerObs) resPerObs[i] = intermSummFPType(-1); //was not in OOB set of any tree and hence not predicted
-                if (resPrediction) resPrediction[i] = intermSummFPType(0);
-            }
+            sumSquaredError += squaredError;
         }
         if (res && nPredicted > 0) *res = _res / static_cast<intermSummFPType>(nPredicted);
-        if (resR2) *resR2 = 1 - _res / sumMeanDiff;
+        // As scikit-learn's oob_score_: r2_score over all rows, a row without OOB predictions predicting 0,
+        // as 1 - MSE / variance; NaN for fewer than 2 rows, 1 for a zero error and 0 for a zero variance otherwise.
+        if (resR2)
+        {
+            *resR2 = nSamples < 2         ? std::numeric_limits<intermSummFPType>::quiet_NaN() :
+                     sumSquaredError == 0 ? intermSummFPType(1) :
+                     yVariance == 0       ? intermSummFPType(0) :
+                                            1 - (sumSquaredError / static_cast<intermSummFPType>(nSamples)) / yVariance;
+        }
         return Status();
     }
+
+private:
+    RegErr<intermSummFPType, cpu> * oobData() const { return reinterpret_cast<RegErr<intermSummFPType, cpu> *>(this->oobBuf); }
+
+    TArrayCalloc<unsigned char, cpu> _oobMaskBuf; // main context only
+    OOBRowMask<cpu> _oobMask;
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////

@@ -14,6 +14,7 @@
 # limitations under the License.
 #===============================================================================
 
+load("@rules_cc//cc/private/toolchain:windows_cc_configure.bzl", "configure_windows_toolchain")
 load("@rules_cc//cc/private/toolchain:lib_cc_configure.bzl",
     "get_starlark_list",
 )
@@ -22,28 +23,13 @@ load("@onedal//dev/bazel/toolchains:common.bzl",
     "ARCH_ID_TO_PLATFORM_CPU",
     "TEST_CPP_FILE",
     "add_compiler_option_if_supported",
+    "find_tool",
     "get_cpu_specific_options",
     "get_default_compiler_options",
     "get_starlark_list_dict",
     "get_toolchain_identifier",
+    "write_tool_identity",
 )
-
-def _find_tool(repo_ctx, tool_name, mandatory = False):
-    tool_path = repo_ctx.which(tool_name)
-    is_found = tool_path != None
-    if not is_found:
-        if mandatory:
-            fail("Cannot find {}; is it on PATH?".format(tool_name))
-        else:
-            # Stub path so repo generation does not fail; the resulting
-            # toolchain is only valid when the compiler is actually present.
-            repo_ctx.template(
-                "tool_not_found_{}.bat".format(tool_name),
-                Label("@onedal//dev/bazel/toolchains/tools:tool_not_found.tpl.bat"),
-                {"%{tool_name}": tool_name},
-            )
-            tool_path = repo_ctx.path("tool_not_found_{}.bat".format(tool_name))
-    return str(tool_path), is_found
 
 def _create_dpc_link_wrapper(repo_ctx, dpcc_path):
     repo_ctx.template(
@@ -58,61 +44,56 @@ def _create_dpc_link_wrapper(repo_ctx, dpcc_path):
     )
     return str(repo_ctx.path("dpc_link_win.bat"))
 
-def _find_tools_icx(repo_ctx):
-    # Use `icx.exe` (clang-cl driver) for C and C++/DPC++ compile.
-    # For host link, call `lld-link.exe` (or link.exe) DIRECTLY rather
-    # than going through the icx driver — mirrors makefile common.mk:125
-    # (`link.dynamic.win = link ...`). Linux has no equivalent: there the
-    # driver is the linker. Going through icx for huge link actions caused
-    # LNK1170:
-    # icx materialised every Bazel-line arg into a single >131071-char
-    # line in its own intermediate response file before invoking link.exe.
-    cc_path, _ = _find_tool(repo_ctx, "icx", mandatory = True)
-    dpcc_path, dpcpp_found = _find_tool(repo_ctx, "icx", mandatory = False)
-    dpcc_link_path = _create_dpc_link_wrapper(repo_ctx, dpcc_path) if dpcpp_found else dpcc_path
-    # Host link tool: prefer lld-link.exe (ships next to icx in oneAPI),
-    # fall back to MSVC's link.exe — both accept the same flag syntax and
-    # multi-line response files.
-    cc_link_path, lld_found = _find_tool(repo_ctx, "lld-link", mandatory = False)
-    if not lld_found:
-        cc_link_path, _ = _find_tool(repo_ctx, "link", mandatory = True)
-    # Static archiver: same as before, llvm-lib first then MSVC lib.
-    ar_path, _ = _find_tool(repo_ctx, "llvm-lib", mandatory = False)
-    if not ar_path or ar_path.endswith("tool_not_found_llvm-lib.bat"):
-        ar_path, _ = _find_tool(repo_ctx, "lib", mandatory = True)
-    return struct(
-        cc = cc_path,
-        dpcc = dpcc_path,
-        # Host link: lld-link.exe directly. DPC++ link still goes through
-        # icx so it can pull in SYCL device-code libs (matches the
-        # makefile's dpc.link.dynamic.win path in common.mk:138).
-        cc_link = cc_link_path,
-        dpcc_link = dpcc_link_path,
-        ar = ar_path,
-        is_dpc_found = dpcpp_found,
-    )
+def _find_llvm_tool(repo_ctx, cc_path, name, fallback):
+    """Finds an LLVM tool of the icx toolchain, or the MSVC tool it replaces.
 
-def _find_tools_clang(repo_ctx):
-    """Upstream LLVM `clang-cl` tools, matching Make's `PLAT=winarm` toolchain
-    (`COMPILER.win.clang` / `link.dynamic.win.clang` / `link.static.win.clang`
-    in dev/make/compiler_definitions/clang.ref.arm.mk).
+    oneAPI ships its LLVM tools in `compiler/`, a subdirectory of the icx
+    directory that is not on PATH. The MSVC fallbacks are not long-path aware.
 
-    There is no DPC++ half: `icpx` targets x86_64 only, so a clang-cl toolchain
-    (the only option on Windows ARM64) builds the host libraries alone.
+    @param cc_path   Path of icx.
+    @param name      LLVM tool, such as `lld-link`.
+    @param fallback  MSVC tool to use when `name` is not found, such as `link`.
+    @return          Path of the tool to use.
     """
-    cc_path, _ = _find_tool(repo_ctx, "clang-cl", mandatory = True)
-    # `lld-link` and `llvm-lib` ship with LLVM next to clang-cl and are what
-    # Make names unconditionally, so they are required rather than falling back
-    # to MSVC's `link`/`lib`: a bare `repo_ctx.which("link")` can also pick up
-    # an unrelated `link.exe` (MSYS2 coreutils ships one), which would produce a
-    # nonsensical toolchain instead of a diagnostic.
-    cc_link_path, _ = _find_tool(repo_ctx, "lld-link", mandatory = True)
-    ar_path, _ = _find_tool(repo_ctx, "llvm-lib", mandatory = True)
+    path, found = find_tool(repo_ctx, name, mandatory = False)
+    if found:
+        return path
+    bundled = repo_ctx.path(cc_path).dirname.get_child("compiler").get_child(name + ".exe")
+    if bundled.exists:
+        return str(bundled)
+    print("{} not found; falling back to MSVC {}.exe, which is not long-path aware".format(
+        name, fallback))
+    path, _ = find_tool(repo_ctx, fallback, mandatory = True)
+    return path
+
+def _find_tools_icx(repo_ctx):
+    # Host links run the linker directly, as Make's `link.dynamic.win`: icx writes all arguments
+    # of a large link into one response-file line and fails with LNK1170.
+    cc_path, _ = find_tool(repo_ctx, "icx", mandatory = True)
+    dpcc_link_path = _create_dpc_link_wrapper(repo_ctx, cc_path)
+    cc_link_path = _find_llvm_tool(repo_ctx, cc_path, "lld-link", "link")
+    ar_path = _find_llvm_tool(repo_ctx, cc_path, "llvm-lib", "lib")
     return struct(
         cc = cc_path,
         dpcc = cc_path,
+        # DPC++ links go through icx for the SYCL device libraries (Make: dpc.link.dynamic.win).
         cc_link = cc_link_path,
-        dpcc_link = cc_link_path,
+        dpcc_link = dpcc_link_path,
+        ar = ar_path,
+        is_dpc_found = True,
+    )
+
+def _find_tools_clang(repo_ctx):
+    """Upstream LLVM clang-cl tools, as Make's `PLAT=winarm`; host only, as icpx targets x86_64 only."""
+    cc_path, _ = find_tool(repo_ctx, "clang-cl", mandatory = True)
+    # Required, as in Make: falling back to `link` could find MSYS2's unrelated link.exe.
+    cc_link_path, _ = find_tool(repo_ctx, "lld-link", mandatory = True)
+    ar_path, _ = find_tool(repo_ctx, "llvm-lib", mandatory = True)
+    return struct(
+        cc = cc_path,
+        dpcc = "",
+        cc_link = cc_link_path,
+        dpcc_link = "",
         ar = ar_path,
         is_dpc_found = False,
     )
@@ -120,19 +101,7 @@ def _find_tools_clang(repo_ctx):
 def _requested_compiler(repo_ctx):
     """Which Windows compiler the environment asks for: clang, icx, cl or "".
 
-    `ONEDAL_WIN_COMPILER` is the explicit switch. Failing that, the driver
-    named by `CC`/`CXX` decides, the same two variables `_detect_cross_compiler`
-    and `_detect_target_flag_arch` read in common.bzl -- on Windows one driver
-    compiles both languages, so either variable names the same compiler, and
-    honouring only one of them would make `CXX=clang-cl` silently fall back to
-    MSVC. Both are declared in the toolchain repository rule's `environ`
-    (dev/bazel/toolchains/cc_toolchain.bzl), so a change to either
-    re-evaluates the toolchain.
-
-    The value may be a full path, with either slash flavour, quoted or not, and
-    Windows lets the `.exe` suffix be omitted, so compare basenames with the
-    suffix stripped. An empty result means "nothing requested": the caller
-    decides the default.
+    ONEDAL_WIN_COMPILER wins, then CC or CXX: one Windows driver compiles both languages.
     """
     override = repo_ctx.os.environ.get("ONEDAL_WIN_COMPILER", "").lower()
     if override:
@@ -146,11 +115,7 @@ def _requested_compiler(repo_ctx):
 def _driver_basename(value):
     """The compiler name in a `CC`/`CXX` value, lower case and without `.exe`.
 
-    The value may carry flags after the program, and the program may be a path
-    with spaces in it -- `C:\\Program Files\\LLVM\\bin\\clang-cl.exe` is where
-    `.ci/env/llvm.ps1` installs clang-cl. Splitting on the first space would
-    read that as `program`, so quotes are honoured and, unquoted, words are
-    taken until one looks like a flag.
+    Unquoted, the program runs up to the first flag, as it may contain spaces (`C:\\Program Files`).
     """
     value = value.strip()
     if value.startswith("\""):
@@ -168,54 +133,88 @@ def _driver_basename(value):
     return basename
 
 def _is_icx_requested(repo_ctx):
-    """Return True if the Windows toolchain should use Intel oneAPI icx/icpx.
-
-    Default behavior: icx is selected whenever it is on PATH. Users can
-    opt out via ONEDAL_WIN_COMPILER=cl (or CC=cl) to fall back to the
-    rules_cc MSVC auto-config.
-    """
+    """Return True if icx is requested, or nothing is and icx is on PATH."""
     requested = _requested_compiler(repo_ctx)
     if requested == "icx":
         return True
     if requested:
-        # Anything else named explicitly -- `cl`, a cross-compiler, a wrapper
-        # script -- is not icx, so do not let it be overridden by icx being on
-        # PATH.
         return False
-    # Fall back to icx if the compiler is available.
     return repo_ctx.which("icx") != None
 
+# The rule each rules_cc toolchain .bzl file provides to BUILD.windows.tpl.
+_RULES_CC_TOOLCHAIN_CONFIGS = {
+    "windows_cc_toolchain_config.bzl": "cc_toolchain_config",
+    "armeabi_cc_toolchain_config.bzl": "armeabi_cc_toolchain_config",
+}
+
 def _configure_cc_toolchain_win_cl(repo_ctx):
-    """Default Windows toolchain: delegate to rules_cc's MSVC cl auto-config."""
+    """MSVC cl: rules_cc's auto-config, run for the Visual Studio the shell was set up with.
+
+    rules_cc takes the newest Visual Studio unless BAZEL_VC is set; VCINSTALLDIR stands in for it.
+    Its files go to `msvc/`, so that `//:all` registers only the root package's toolchain.
+    """
+    env = dict(repo_ctx.os.environ)
+    vc_dir = env.get("VCINSTALLDIR", "").rstrip("\\/")
+    if vc_dir and not env.get("BAZEL_VC") and not env.get("BAZEL_VS"):
+        env["BAZEL_VC"] = vc_dir
+
+    # The scripts rules_cc runs (get_env.bat, main.cpp) stay in the root, where
+    # it executes them; what the BUILD refers to moves with it.
+    def file(path, *args, **kwargs):
+        prefix = "msvc/" if path.startswith("builtin_include_directory_paths") else ""
+        repo_ctx.file(prefix + path, *args, **kwargs)
+
+    # rules_cc's toolchain .bzl files load repositories (@bazel_features) that only rules_cc's
+    # mapping resolves, so they load through @rules_cc; rules_cc 0.2.28 copies them with `template`.
+    def forward_config(name):
+        symbol = _RULES_CC_TOOLCHAIN_CONFIGS.get(name)
+        if symbol:
+            repo_ctx.file("msvc/" + name, (
+                'load("@rules_cc//cc/private/toolchain:{file}", _impl = "{symbol}")\n' +
+                "{symbol} = _impl\n"
+            ).format(file = name, symbol = symbol))
+        return symbol != None
+
+    def template(path, *args, **kwargs):
+        if not forward_config(path):
+            repo_ctx.template("msvc/" + path, *args, **kwargs)
+
+    def symlink(target, link_name):
+        if not forward_config(link_name):
+            repo_ctx.symlink(target, "msvc/" + link_name)
+
+    configure_windows_toolchain(struct(
+        os = struct(environ = env, name = repo_ctx.os.name, arch = repo_ctx.os.arch),
+        attr = repo_ctx.attr,
+        execute = repo_ctx.execute,
+        path = repo_ctx.path,
+        which = repo_ctx.which,
+        file = file,
+        template = template,
+        symlink = symlink,
+    ))
     repo_ctx.template(
         "BUILD",
         Label("@onedal//dev/bazel/toolchains:cc_toolchain_win.tpl.BUILD"),
     )
 
 def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
-    """Custom Windows toolchain for the clang-cl compiler family: Intel oneAPI
-    `icx`/`icpx` (`compiler_id = "icx"`) or upstream LLVM `clang-cl`
-    (`compiler_id = "clang"`, the only option on ARM64).
-    """
+    """Custom Windows toolchain for icx (`compiler_id = "icx"`) or LLVM clang-cl (`"clang"`)."""
     repo_ctx.file(TEST_CPP_FILE, "int main() { return 0; }")
 
     tools = (_find_tools_icx(repo_ctx) if compiler_id == "icx"
              else _find_tools_clang(repo_ctx))
 
-    # Collect system include roots. The INCLUDE env (populated by Intel
-    # setvars.bat + MSVC VsDevCmd.bat) covers MSVC, Windows SDK, and oneAPI
-    # headers. Add the clang builtin include dir shipped in the oneAPI
-    # compiler package — it is not exported via INCLUDE but icx pulls
-    # headers from there for its intrinsic declarations and the C11
-    # `__stddef_*` helpers. Mirrors how the Makefile relies on the oneAPI
-    # install layout without probing the compiler.
+    # INCLUDE covers MSVC, the SDK and oneAPI, but not the builtin headers of the compiler package.
     builtin_include_directories = []
 
     def _add_builtin_include_dir(path):
         p = path.strip().replace("\\", "/")
         if p and p not in builtin_include_directories:
             builtin_include_directories.append(p)
-        if p:
+        # setvars.bat can list include dirs that do not exist (tcm 1.6 in Basekit 2026.2),
+        # and realpath fails on those.
+        if p and repo_ctx.path(p).exists:
             real = str(repo_ctx.path(p).realpath).replace("\\", "/")
             if real and real not in builtin_include_directories:
                 builtin_include_directories.append(real)
@@ -224,15 +223,9 @@ def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
         _add_builtin_include_dir(raw)
     cmplr_root = repo_ctx.os.environ.get("CMPLR_ROOT", "").strip().replace("\\", "/")
     if cmplr_root:
-        # Whitelist the compiler package root as well as the precise include
-        # dirs. oneAPI's `latest` can be a junction/symlink while icx reports
-        # absolute inclusions through the resolved versioned path
-        # (`.../compiler/2026.0/...`), and Bazel compares the resolved header
-        # path against this list.
+        # `latest` may be a junction, and icx reports headers by the resolved versioned path.
         _add_builtin_include_dir(cmplr_root)
-        # oneAPI's math/intrinsic overrides ship here and are pulled in by
-        # icx before the system headers — Bazel sees them as absolute-path
-        # inclusions and needs them whitelisted as toolchain dirs.
+        # icx includes these overrides ahead of the system headers.
         opt_inc = "{}/opt/compiler/include".format(cmplr_root)
         if repo_ctx.path(opt_inc).exists:
             _add_builtin_include_dir(opt_inc)
@@ -245,20 +238,22 @@ def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
                 if repo_ctx.path(inc).exists:
                     _add_builtin_include_dir(inc)
 
-    # Upstream clang-cl keeps its builtin headers in its own resource dir, which
-    # is not exported through INCLUDE either. Ask the compiler instead of
-    # guessing an install layout (the oneAPI package layout above does not apply).
-    if compiler_id == "clang":
-        resource_dir = repo_ctx.execute([tools.cc, "-print-resource-dir"])
-        if resource_dir.return_code == 0:
-            _add_builtin_include_dir("{}/include".format(resource_dir.stdout.strip()))
+    # The compiler reports its own headers by its resolved path, which a link in CMPLR_ROOT can
+    # hide from realpath (a toolkit restored from a CI cache); ask the compiler for it.
+    resource_dir = repo_ctx.execute([tools.cc, "-print-resource-dir"])
+    if resource_dir.return_code == 0:
+        resource = resource_dir.stdout.strip().replace("\\", "/")
+        _add_builtin_include_dir("{}/include".format(resource))
+        # `<root>/lib/clang/<N>` is the resource dir; icx keeps its overrides in `<root>/opt`.
+        opt_inc = "{}/opt/compiler/include".format(resource.rsplit("/", 3)[0])
+        if repo_ctx.path(opt_inc).exists:
+            _add_builtin_include_dir(opt_inc)
 
     reqs_llvm = struct(
         os_id = "win",
         compiler_id = compiler_id,
         dpc_compiler_id = "icpx",
         compiler_version = "local",
-        dpc_compiler_version = "local",
         target_arch_id = reqs.target_arch_id,
         host_arch_id = reqs.host_arch_id,
         libc_version = "local",
@@ -268,10 +263,6 @@ def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
 
     dpcc_code_split = "per_kernel"
 
-    # `--driver-mode=g++` is not added to the flag sets — the `icx_g_driver.bat`
-    # wrapper registered in `_find_tools_icx` injects it before any bazel-
-    # supplied argument (including those read from @paramfile, where flag-set
-    # flags would arrive too late for clang-cl to re-parse).
     compile_flags_cc = get_default_compiler_options(
         repo_ctx, reqs_llvm, tools.cc,
         is_dpcc = False, category = "common",
@@ -295,20 +286,18 @@ def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
         is_dpcc = True, category = "pedantic",
     ) if tools.is_dpc_found else []
 
-    # icx in clang-cl mode picks up lld-link (or link.exe) automatically.
-    # lld-link resolves `<name>.lib` via the `LIB` env var; Bazel actions
-    # do not inherit the shell `LIB`, so pass it through via the toolchain
-    # env_entries (see cc_toolchain_config_win.bzl — `msvc_env_feature`).
     link_flags_cc = []
-    # NOTE: the SYCL runtime import library is not listed here — it depends on
-    # the MSVC runtime (`sycl.lib` vs `sycld.lib`, see makefile:811), which is
-    # a per-build toolchain feature rather than a repository-time constant.
-    # `cc_toolchain_config_win.bzl` adds it via the `runtime_library` feature.
+    # The SYCL import library depends on the CRT, so the toolchain config adds it per build.
     link_flags_dpcc = ([
         "-fsycl",
         "-fsycl-device-code-split={}".format(dpcc_code_split),
     ]) if tools.is_dpc_found else []
 
+    tool_identity = write_tool_identity(
+        repo_ctx,
+        [tools.cc, tools.cc_link, tools.ar],
+        version_tools = [tools.cc],
+    )
     repo_ctx.template(
         "BUILD",
         Label("@onedal//dev/bazel/toolchains:cc_toolchain_win_llvm.tpl.BUILD"),
@@ -321,22 +310,16 @@ def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
             "%{target_cpu}": reqs_llvm.target_arch_id,
             "%{host_system_name}": "win-" + reqs_llvm.host_arch_id,
             "%{target_system_name}": "win-" + reqs_llvm.target_arch_id,
-            # icx spells the standard selector `/Qstd:`; upstream clang-cl only
-            # knows `/std:` and warns on the unknown argument, which `-Werror`
-            # would make fatal.
             "%{cxx_std_flag_prefix}": "/Qstd:" if compiler_id == "icx" else "/std:",
-            # `-Qopenmp-simd` is likewise Intel-only; `COMPILER.win.clang` in
-            # dev/make/compiler_definitions/clang.ref.arm.mk passes no OpenMP
-            # SIMD flag, so clang-cl gets none here either.
             "%{openmp_simd_flags}": get_starlark_list(
                 ["-Qopenmp-simd"] if compiler_id == "icx" else [],
             ),
             "%{host_cpu_constraint}": ARCH_ID_TO_PLATFORM_CPU[reqs_llvm.host_arch_id],
             "%{target_cpu_constraint}": ARCH_ID_TO_PLATFORM_CPU[reqs_llvm.target_arch_id],
             "%{supports_param_files}": "1",
-            "%{compiler_deps}": get_starlark_list([]),
-            "%{ar_deps}": get_starlark_list([]),
-            "%{linker_deps}": get_starlark_list([]),
+            "%{compiler_deps}": get_starlark_list([":" + tool_identity]),
+            "%{ar_deps}": get_starlark_list([":" + tool_identity]),
+            "%{linker_deps}": get_starlark_list([":" + tool_identity]),
             "%{cc_path}": tools.cc,
             "%{dpcc_path}": tools.dpcc,
             "%{cc_link_path}": tools.cc_link,
@@ -359,8 +342,7 @@ def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
             ]),
             "%{opt_link_flags}": get_starlark_list([]),
             "%{dbg_compile_flags}": get_starlark_list([
-                # clang-cl: `/Z7` embeds debug info in the .obj (no .pdb
-                # juggling, matches Makefile `-DEBC.icx = -debug:all -Z7`).
+                # Debug info in the .obj, as Make's `-DEBC.icx`.
                 "/Z7",
                 "-O1",
                 "-DONEDAL_ENABLE_ASSERT",
@@ -378,22 +360,56 @@ def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
             "%{cpu_flags_dpcc}": get_starlark_list_dict(
                 get_cpu_specific_options(reqs_llvm, is_dpcc = True),
             ),
-            # BUILD template values are embedded in double-quoted Starlark
-            # strings, so any literal backslash becomes an invalid escape.
-            # Convert to forward slashes (both lld-link and MSVC link.exe
-            # accept forward-slash paths in INCLUDE/LIB/PATH entries).
+            # Template values land in double-quoted strings, where a backslash starts an escape.
             "%{env_include}": repo_ctx.os.environ.get("INCLUDE", "").replace("\\", "/"),
             "%{env_lib}": repo_ctx.os.environ.get("LIB", "").replace("\\", "/"),
-            "%{env_path}": repo_ctx.os.environ.get("PATH", "").replace("\\", "/"),
+            "%{env_path}": _action_path(repo_ctx, tools.cc).replace("\\", "/"),
         },
     )
+
+# Environment variables (set by setvars.bat / vcvarsall.bat) whose directories the actions need on PATH.
+_ACTION_PATH_ROOT_VARS = ["ONEAPI_ROOT", "CMPLR_ROOT", "VCINSTALLDIR", "VSINSTALLDIR", "WindowsSdkDir"]
+
+def _action_path(repo_ctx, cc_path):
+    """PATH for the compile and link actions: the toolchain directories only.
+
+    The whole configure-time PATH would make every action key depend on the CI image; a
+    JDK update on the Azure image invalidated the entire Windows disk cache (2026-11-13).
+
+    @param repo_ctx  Repository context of the toolchain rule.
+    @param cc_path   The resolved compiler; its directory holds sibling tools such as llvm-rc.
+    @return          The PATH entries under the toolchain roots, SystemRoot and the compiler's
+                     directory, or all of PATH when no toolchain root variable is set.
+    """
+    env = {key.lower(): value for key, value in repo_ctx.os.environ.items()}
+    roots = [_norm_path(env.get(var.lower(), "")) for var in _ACTION_PATH_ROOT_VARS]
+    roots = [root for root in roots if root]
+    entries = [entry for entry in env.get("path", "").split(";") if entry]
+    if not roots:
+        return ";".join(entries)
+    # SystemRoot is set in every Windows session, so it does not decide the fallback above.
+    roots.append(_norm_path(env.get("systemroot", "")))
+    roots.append(_norm_path(str(repo_ctx.path(cc_path).dirname)))
+    roots = [root for root in roots if root]
+    kept = [entry for entry in entries if _under_any(_norm_path(entry), roots)]
+    return ";".join(kept)
+
+def _norm_path(path):
+    return path.replace("/", "\\").rstrip("\\").lower()
+
+def _under_any(path, roots):
+    for root in roots:
+        if path == root or path.startswith(root + "\\"):
+            return True
+    return False
 
 def _is_clang_requested(repo_ctx):
     """Return True if the Windows toolchain should use upstream LLVM clang-cl."""
     return _requested_compiler(repo_ctx) in ["clang", "clang-cl"]
 
-def configure_cc_toolchain_win(repo_ctx, reqs):
-    if reqs.target_arch_id == "arm":
+def win_compiler_id(repo_ctx, target_arch_id):
+    """The compiler the Windows toolchain is configured with: "clang", "icx" or "cl"."""
+    if target_arch_id == "arm":
         # Windows ARM64 (Make's `PLAT=winarm`) is clang-cl only: neither icx nor
         # MSVC `cl` compiles the SVE code paths oneDAL selects for this arch.
         requested = _requested_compiler(repo_ctx)
@@ -401,10 +417,16 @@ def configure_cc_toolchain_win(repo_ctx, reqs):
             fail(("Compiler {} (from ONEDAL_WIN_COMPILER or CC/CXX) is not " +
                   "supported when targeting Windows ARM64; only clang-cl is " +
                   "(see dev/make/compiler_definitions/clang.ref.arm.mk)").format(requested))
-        _configure_cc_toolchain_win_llvm(repo_ctx, reqs, "clang")
-    elif _is_clang_requested(repo_ctx):
-        _configure_cc_toolchain_win_llvm(repo_ctx, reqs, "clang")
-    elif _is_icx_requested(repo_ctx):
-        _configure_cc_toolchain_win_llvm(repo_ctx, reqs, "icx")
-    else:
+        return "clang"
+    if _is_clang_requested(repo_ctx):
+        return "clang"
+    if _is_icx_requested(repo_ctx):
+        return "icx"
+    return "cl"
+
+def configure_cc_toolchain_win(repo_ctx, reqs):
+    compiler_id = win_compiler_id(repo_ctx, reqs.target_arch_id)
+    if compiler_id == "cl":
         _configure_cc_toolchain_win_cl(repo_ctx)
+    else:
+        _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id)

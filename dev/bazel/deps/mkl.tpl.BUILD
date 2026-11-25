@@ -16,20 +16,29 @@ cc_library(
 cc_library(
     name = "mkl_static",
     srcs = [
-        # Keep MKL static archives in canonical dependency order.
         # libmkl_intel_ilp64.a references mkl_serv_* symbols from libmkl_core.a.
         "lib/libmkl_intel_ilp64.a",
         "lib/libmkl_core.a",
         "lib/libmkl_tbb_thread.a",
     ],
+    # The linkopts name the archives, and oneDAL's link rules pass only additional_inputs
+    # on to a dependent link (`_unpack_linking_contexts` in cc/common.bzl).
+    additional_linker_inputs = [
+        "lib/libmkl_core.a",
+        "lib/libmkl_intel_ilp64.a",
+        "lib/libmkl_tbb_thread.a",
+    ],
     linkopts = [
-        # The source libraries have circular symbol dependencies. To successfully build this cc_library,
-        # oneMKL requires wrapping the libraries with -Wl,--start-group and -Wl,--end-group.
+        # The archives are mutually recursive. `$(location)` keeps them execroot-relative,
+        # so the link action does not depend on the output base and stays cacheable.
         "-Wl,--start-group",
-        "%{repo_root}/lib/libmkl_core.a",
-        "%{repo_root}/lib/libmkl_intel_ilp64.a",
-        "%{repo_root}/lib/libmkl_tbb_thread.a",
+        "$(location lib/libmkl_core.a)",
+        "$(location lib/libmkl_intel_ilp64.a)",
+        "$(location lib/libmkl_tbb_thread.a)",
         "-Wl,--end-group",
+        # The TBB threading layer needs libstdc++. Named by file because clang
+        # rewrites -lstdc++ to -lc++ under -stdlib=libc++.
+        "-l:libstdc++.so.6",
         "-lpthread",
         "-lm",
         "-ldl",
@@ -54,21 +63,8 @@ cc_library(
     ]
 )
 
-# Classic (non-SYCL) MKL shared libraries. Kept in a target of their own so
-# that the SYCL domain libraries below can declare a dependency on them: the
-# oneDAL toolchain links with `-Wl,--as-needed`
-# (dev/bazel/toolchains/cc_toolchain_lnx.bzl), where a shared library is only
-# recorded as DT_NEEDED if it resolves a reference that is still undefined at
-# the point the linker reads it. The SYCL domain libraries reference ~660
-# classic MKL entry points (`cblas_*`, `mkl_lapack_*`, `mkl_serv_*`,
-# `vsl*`, `mkl_sparse_*`), so the classic libraries must come *after* them on
-# the link line. Expressing that as a Bazel dependency rather than as source
-# order inside one target is what makes the ordering guaranteed: Bazel emits
-# linker inputs in topological order, dependents first.
-#
-# Make links in the same order on Linux (`dev/make/deps.mkl.mk:91-95` lists the
-# `sycl_blas`/`sycl_lapack`/`sycl_sparse`/`sycl_rng` domains before the classic
-# libraries), so this is a parity fix, not a Bazel-specific workaround.
+# A target of its own so that, under --as-needed, it follows the SYCL domains that call
+# into it on the link line (Bazel puts dependents first), as Make orders them.
 cc_library(
     name = "mkl_classic_dynamic",
     srcs = glob([
@@ -76,46 +72,17 @@ cc_library(
         "lib/libmkl_intel_lp64.so*",
         "lib/libmkl_gnu_thread.so*",
     ]) + glob([
-        # CPU dispatch kernels. `libmkl_core.so.2` holds only the classic-MKL
-        # dispatcher; the computational kernels live in per-ISA shared objects
-        # that it `dlopen`s on the first classic-MKL call. It resolves them
-        # against *its own* directory (`dladdr` on itself, plus its
-        # `RPATH=$ORIGIN/.`), not against the consumer's RUNPATH, so they have
-        # to be listed here, in the same `cc_library` as `libmkl_core.so.2`:
-        # that is what makes Bazel symlink them into the same
-        # `_solib_intel64/..._Ulib` directory and stage them in test runfiles.
-        # A separate target would not work: it gets its own `_solib` directory,
-        # which the dispatcher never looks in. `data` would not work either --
-        # that reaches runfiles only, not the `_solib` directory the consumer
-        # resolves `libmkl_core.so.2` from.
-        #
-        # They are deliberately not wanted as DT_NEEDED entries: mapping several
-        # ISA variants at once is the kernel conflict MODULE.bazel warns about.
-        # Nothing references their symbols statically, so the toolchain's
-        # `-Wl,--as-needed` keeps them off DT_NEEDED while Bazel still stages
-        # the files, leaving the dispatcher in sole control of what gets loaded.
-        # Two consequences worth knowing: building with
-        # `--linkopt=-Wl,--no-as-needed` does map every family at once, and if a
-        # future MKL release exports a symbol a consumer references from a kernel
-        # rather than from `libmkl_core.so.2`, that kernel becomes DT_NEEDED
-        # silently. Both show up as DT_NEEDED differences against the Make build
-        # in the release comparison (`dev/release_tests`).
-        #
-        # Without them every target that reaches classic MKL at run time dies
-        # with
-        #   INTEL oneMKL ERROR: .../libmkl_avx512.so.2: cannot open shared
-        #     object file: No such file or directory.
-        #   Intel oneMKL FATAL ERROR: Cannot load libmkl_avx512.so.2 or
-        #     libmkl_def.so.2.
-        #
-        # `allow_empty` because `repos.bzl` symlinks these from `optional_libs`:
-        # which ISA families an MKL package ships changes between releases, and a
-        # package missing one must still build.
+        # libmkl_core.so dlopens these kernels from its own directory, so they must share its
+        # _solib dir; --as-needed keeps them off DT_NEEDED. The shipped ISA families vary.
         "lib/libmkl_def.so*",
         "lib/libmkl_avx*.so*",
         "lib/libmkl_mc*.so*",
-        "lib/libmkl_vml_*.so*",
     ], allow_empty = True),
+    # libmkl_vml_*.so is deliberately not listed. Make's DPC link
+    # (`dpc_link_deps`, dev/make/deps.mkl.mk) never names VML, so a DPC library
+    # that pulls it in gets an extra DT_NEEDED on libmkl_vml_avx10.so.3 (and
+    # libimf through it). The VML libraries still ship in the release through the
+    # `mkl_runtime` filegroup, which globs lib/libmkl*.so*.
 )
 
 cc_library(
@@ -137,10 +104,9 @@ cc_library(
 
 cc_library(
     name = "mkl_dpc",
-    # TODO: add a mechanism to get attr from bazel command(it's not available for now)
+    # TODO: take the parallel link job count from the command line.
     linkopts = [
-        # Currently its hardcoded to 16 to get the best trade-off between linking speedup and resources used.
-        # If the number of processors on machine is below 16 it will be defaulted to `nproc`.
+        # Trades link speedup against resources; capped at `nproc` on smaller machines.
         "-fsycl-max-parallel-link-jobs=16",
     ],
     deps = [

@@ -49,6 +49,9 @@ namespace training
 {
 namespace internal
 {
+template <typename algorithmFPType, CpuType cpu>
+class TreeThreadCtx;
+
 //////////////////////////////////////////////////////////////////////////////////////////
 // UnorderedRespHelperBest class for best splitting classification
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -536,10 +539,11 @@ public:
     typedef ClassIndexType TResponse;
     typedef typename dtrees::internal::TreeImpClassification<> TreeType;
     typedef typename TreeType::NodeType NodeType;
-    using super        = UnorderedRespHelperBest<algorithmFPType, cpu>;
-    using Histogramm   = typename super::Histogramm;
-    using ImpurityData = typename super::ImpurityData;
-    using TSplitData   = typename super::TSplitData;
+    using super         = UnorderedRespHelperBest<algorithmFPType, cpu>;
+    using ThreadCtxType = TreeThreadCtx<algorithmFPType, cpu>;
+    using Histogramm    = typename super::Histogramm;
+    using ImpurityData  = typename super::ImpurityData;
+    using TSplitData    = typename super::TSplitData;
 
     engines::internal::BatchBaseImpl * engineImpl;
 
@@ -614,15 +618,11 @@ public:
     algorithmFPType predictionError(TResponse prediction, TResponse response) const { return algorithmFPType(prediction != response); }
 
     algorithmFPType predictionError(const dtrees::internal::Tree & t, const algorithmFPType * x, const NumericTable * resp, size_t iRow,
-                                    byte * oobBuf) const
+                                    ThreadCtxType & ctx) const
     {
         ReadRows<algorithmFPType, cpu> y(const_cast<NumericTable *>(resp), iRow, 1);
         const TResponse response(this->predict(t, x));
-        if (oobBuf)
-        {
-            OOBClassificationData * ptr = ((OOBClassificationData *)oobBuf) + this->_nClasses * iRow;
-            ptr[response]++;
-        }
+        ctx.addOOBPrediction(iRow, response);
         return this->predictionError(response, *y.get());
     }
 
@@ -1590,29 +1590,39 @@ public:
     typedef TreeThreadCtxBase<algorithmFPType, cpu> super;
     using intermSummFPType = typename super::intermSummFPType;
     TreeThreadCtx(algorithmFPType * _varImp = nullptr) : super(_varImp), _nClasses(0) {}
+
+    // Main context
     bool init(const decision_forest::training::Parameter & par, const NumericTable * x, size_t nClasses)
     {
-        DAAL_CHECK_STATUS_VAR(super::init(par, x));
         _nClasses = nClasses;
         using namespace decision_forest::training;
-        if (par.resultsToCompute
-            & (computeOutOfBagError | computeOutOfBagErrorPerObservation | computeOutOfBagErrorAccuracy | computeOutOfBagErrorR2
-               | computeOutOfBagErrorDecisionFunction))
-        {
-            size_t sz    = sizeof(OOBClassificationData) * nClasses * x->getNumberOfRows();
-            this->oobBuf = service_calloc<byte, cpu>(sz);
-            DAAL_CHECK_STATUS_VAR(this->oobBuf);
-        }
-        return true;
+        if (!(par.resultsToCompute
+              & (computeOutOfBagError | computeOutOfBagErrorPerObservation | computeOutOfBagErrorAccuracy | computeOutOfBagErrorR2
+                 | computeOutOfBagErrorDecisionFunction)))
+            return true;
+        return allocOOBBuffer(x->getNumberOfRows());
     }
 
-    void reduceTo(decision_forest::training::VariableImportanceMode mode, TreeThreadCtx & other, size_t nVars, size_t nSamples) const
+    // Thread context, shares the per-fit state of the main context
+    bool init(const decision_forest::training::Parameter & par, const NumericTable * x, size_t nClasses, const TreeThreadCtx & main)
     {
-        super::reduceTo(mode, other, nVars, nSamples);
+        super::init(main);
+        _nClasses = nClasses;
+        return !main.oobBuf || allocOOBBuffer(x->getNumberOfRows());
+    }
+
+    // Vote counts are integers, so their sum does not depend on the merge order
+    void addOOBPrediction(size_t iRow, ClassIndexType response)
+    {
+        if (this->oobBuf) oobData()[_nClasses * iRow + response]++;
+    }
+
+    void reduceTo(TreeThreadCtx & other, size_t nSamples) const
+    {
         if (this->oobBuf)
         {
-            OOBClassificationData * dst       = (OOBClassificationData *)other.oobBuf;
-            const OOBClassificationData * src = (const OOBClassificationData *)this->oobBuf;
+            OOBClassificationData * dst       = other.oobData();
+            const OOBClassificationData * src = oobData();
             const size_t n                    = _nClasses * nSamples;
             PRAGMA_OMP_SIMD
             for (size_t i = 0; i < n; ++i)
@@ -1625,6 +1635,14 @@ public:
                             algorithmFPType * resR2, algorithmFPType * resDecisionFunction, algorithmFPType * resPrediction) const;
 
 private:
+    bool allocOOBBuffer(size_t nRows)
+    {
+        this->oobBuf = service_calloc<byte, cpu>(sizeof(OOBClassificationData) * _nClasses * nRows);
+        return this->oobBuf != nullptr;
+    }
+
+    OOBClassificationData * oobData() const { return reinterpret_cast<OOBClassificationData *>(this->oobBuf); }
+
     size_t _nClasses;
 };
 
@@ -1641,7 +1659,7 @@ Status TreeThreadCtx<algorithmFPType, cpu>::finalizeOOBError(const NumericTable 
     Atomic<size_t> nError(0);
     const intermSummFPType eps = services::internal::EpsilonVal<intermSummFPType>::get();
     daal::threader_for(nSamples, 1, [&](size_t i) {
-        const OOBClassificationData * ptr = ((const OOBClassificationData *)this->oobBuf) + i * _nClasses;
+        const OOBClassificationData * ptr = oobData() + i * _nClasses;
         const size_t classLabel(y.get()[i]);
         size_t maxIdx                = 0;
         intermSummFPType sum         = static_cast<algorithmFPType>(ptr[0]);

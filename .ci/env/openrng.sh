@@ -82,7 +82,8 @@ rng_prefix="${PREFIX:-${OPENRNG_DEFAULT_PREFIX}}"
 
 rng_src_dir=${rng_src_dir:-$OPENRNG_DEFAULT_SOURCE_DIR}
 if [[ ! -d "${rng_src_dir}" ]] ; then
-    git clone --depth 1 --branch "${OPENRNG_VERSION}" https://git.gitlab.arm.com/libraries/openrng.git "${rng_src_dir}"
+    source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/retry.sh"
+    retry git clone --depth 1 --branch "${OPENRNG_VERSION}" https://git.gitlab.arm.com/libraries/openrng.git "${rng_src_dir}"
 fi
 
 if [ "${cross_compile}" == "yes" ]; then

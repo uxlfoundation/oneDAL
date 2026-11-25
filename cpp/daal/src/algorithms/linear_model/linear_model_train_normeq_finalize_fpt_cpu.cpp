@@ -30,7 +30,8 @@ namespace training
 namespace internal
 {
 template class FinalizeKernel<DAAL_FPTYPE, DAAL_CPU>;
-}
+template class DualKernel<DAAL_FPTYPE, DAAL_CPU>;
+} // namespace internal
 } // namespace training
 } // namespace normal_equations
 } // namespace linear_model

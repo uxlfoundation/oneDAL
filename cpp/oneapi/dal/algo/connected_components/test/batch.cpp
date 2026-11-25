@@ -91,7 +91,7 @@ public:
     complete_graph_data(std::int64_t vertex_count)
             : graph_base_data(vertex_count, vertex_count * (vertex_count - 1) / 2, 1) {
         assert(vertex_count >= 1);
-        std::fill(degrees.begin(), degrees.end(), vertex_count - 1);
+        std::fill(degrees.begin(), degrees.end(), static_cast<std::int32_t>(vertex_count - 1));
         for (std::int64_t vertex_index = 0, cols_index = 0; vertex_index < vertex_count;
              ++vertex_index) {
             for (std::int64_t neighbour = 0; neighbour < vertex_count; ++neighbour) {
@@ -114,7 +114,9 @@ public:
                               1) {
         assert(head_vertex_count >= 1);
         assert(tail_vertex_count >= 1);
-        std::fill(degrees.begin(), degrees.begin() + head_vertex_count, head_vertex_count - 1);
+        std::fill(degrees.begin(),
+                  degrees.begin() + head_vertex_count,
+                  static_cast<std::int32_t>(head_vertex_count - 1));
         std::fill(degrees.begin() + head_vertex_count, degrees.end(), 2);
         degrees[head_vertex_count - 1] = head_vertex_count;
         degrees.back() = 1;

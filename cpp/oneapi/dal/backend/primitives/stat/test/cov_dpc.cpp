@@ -249,7 +249,8 @@ TEMPLATE_LIST_TEST_M(cov_test, "correlation on diagonal data", "[cor]", cov_type
                                     float_t(1),
                                     float_t(0),
                                     { gemm_event_cov });
-    pr::means(this->get_queue(), data.get_dimension(0), sums, means, { gemm_event_corr });
+    auto means_event =
+        pr::means(this->get_queue(), data.get_dimension(0), sums, means, { gemm_event_corr });
     auto cov_event = pr::covariance(this->get_queue(),
                                     data.get_dimension(0),
                                     sums,
@@ -257,9 +258,10 @@ TEMPLATE_LIST_TEST_M(cov_test, "correlation on diagonal data", "[cor]", cov_type
                                     bias,
                                     assume_centered,
                                     { gemm_event_corr });
-    pr::variances(this->get_queue(), cov, vars, { cov_event }).wait_and_throw();
-    correlation(this->get_queue(), data.get_dimension(0), sums, corr, { gemm_event_corr })
-        .wait_and_throw();
+    auto vars_event = pr::variances(this->get_queue(), cov, vars, { cov_event });
+    auto corr_event =
+        correlation(this->get_queue(), data.get_dimension(0), sums, corr, { gemm_event_corr });
+    sycl::event::wait_and_throw({ means_event, vars_event, corr_event });
 
     // The upper part of data matrix is diagonal. In diagonal matrix each column
     // contains only one non-zero element (`diag_element`), so mean and
@@ -315,10 +317,13 @@ TEMPLATE_LIST_TEST_M(cov_test, "correlation on one-row table", "[cor]", cov_type
                                     cov,
                                     bias,
                                     assume_centered,
-                                    { gemm_event_cov });
+                                    { sums_event, gemm_event_cov });
     auto var_event = pr::variances(this->get_queue(), cov, vars, { cov_event });
-    auto corr_event =
-        correlation(this->get_queue(), data.get_dimension(0), sums, corr, { gemm_event_corr });
+    auto corr_event = correlation(this->get_queue(),
+                                  data.get_dimension(0),
+                                  sums,
+                                  corr,
+                                  { sums_event, gemm_event_corr });
 
     INFO("check if there is no NaNs in correlation matrix");
     corr_event.wait_and_throw();
@@ -351,17 +356,19 @@ TEMPLATE_LIST_TEST_M(cov_test, "correlation on gold data", "[cor]", cov_types) {
                                     float_t(1),
                                     float_t(0),
                                     { gemm_event_cov });
-    pr::means(this->get_queue(), data.get_dimension(0), sums, means, { gemm_event_corr });
-    pr::covariance(this->get_queue(),
-                   data.get_dimension(0),
-                   sums,
-                   cov,
-                   bias,
-                   assume_centered,
-                   { gemm_event_corr });
-    pr::variances(this->get_queue(), cov, vars, { gemm_event_corr });
-    correlation(this->get_queue(), data.get_dimension(0), sums, corr, { gemm_event_corr })
-        .wait_and_throw();
+    auto means_event =
+        pr::means(this->get_queue(), data.get_dimension(0), sums, means, { gemm_event_corr });
+    auto cov_event = pr::covariance(this->get_queue(),
+                                    data.get_dimension(0),
+                                    sums,
+                                    cov,
+                                    bias,
+                                    assume_centered,
+                                    { gemm_event_corr });
+    auto vars_event = pr::variances(this->get_queue(), cov, vars, { cov_event });
+    auto corr_event =
+        correlation(this->get_queue(), data.get_dimension(0), sums, corr, { gemm_event_corr });
+    sycl::event::wait_and_throw({ means_event, vars_event, corr_event });
 
     this->check_gold_results(corr, means, vars);
 }

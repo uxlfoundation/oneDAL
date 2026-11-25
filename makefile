@@ -647,6 +647,9 @@ ONEAPI.objs_y.dpc := $(ONEAPI.srcs.mangled.dpc:%.cpp=$(ONEAPI.tmpdir_y.dpc)/%.$o
 define .populate_cpus
 $(eval non_cpu_files := $(call notcontaining,_cpu,$2))
 $(eval cpu_files := $(call containing,_cpu,$2))
+# Drop ISA-specific sources (`_skx.cpp` etc.) for CPUs not in USECPUS: the dispatcher
+# never calls them, and Bazel does not build them. Match the file name, not the path.
+$(foreach s,$(filter-out $(USECPUS.files),nrh hsw skx),$(eval non_cpu_files := $(foreach f,$(non_cpu_files),$(if $(findstring _$s.,$(notdir $f)),,$f))))
 
 $(eval $(call add_cpu_to_uarch_in_files,non_cpu_files))
 
@@ -747,14 +750,19 @@ endif
 
 $(eval $(call update_copt_from_dispatcher_tag,$(ONEAPI.objs_y.dpc),.dpcpp))
 
-# Filtering parameter files
-PARAMETERS.objs_a.filtered := $(filter %parameters.$(o) %parameters_impl.$(o),$(ONEAPI.objs_a))
-ONEAPI.objs_a.filtered := $(filter-out %parameters.$(o) %parameters_impl.$(o),$(ONEAPI.objs_a))
-PARAMETERS.objs_y.filtered := $(filter %parameters.$(o) %parameters_impl.$(o),$(ONEAPI.objs_y))
-ONEAPI.objs_y.filtered := $(filter-out %parameters.$(o) %parameters_impl.$(o),$(ONEAPI.objs_y))
+# Objects from */parameters/* source directories form libonedal_parameters.
+in_parameters_dir = $(foreach v,$1,$(if $(findstring -parameters-,$(notdir $v)),$v))
 
-PARAMETERS.objs_y.dpc.filtered := $(filter %parameters.$(o) %parameters_impl.$(o) %parameters_dpc.$(o),$(ONEAPI.objs_y.dpc))
-ONEAPI.objs_y.dpc.filtered := $(filter-out %parameters.$(o) %parameters_impl.$(o) %parameters_dpc.$(o),$(ONEAPI.objs_y.dpc))
+# Filter out the accidentally included objects from the directories which might contain "-parameters-" in their names.
+not_in_parameters_dir = $(foreach v,$1,$(if $(findstring -parameters-,$(notdir $v)),,$v))
+
+PARAMETERS.objs_a.filtered := $(call in_parameters_dir,$(ONEAPI.objs_a))
+ONEAPI.objs_a.filtered := $(call not_in_parameters_dir,$(ONEAPI.objs_a))
+PARAMETERS.objs_y.filtered := $(call in_parameters_dir,$(ONEAPI.objs_y))
+ONEAPI.objs_y.filtered := $(call not_in_parameters_dir,$(ONEAPI.objs_y))
+
+PARAMETERS.objs_y.dpc.filtered := $(call in_parameters_dir,$(ONEAPI.objs_y.dpc))
+ONEAPI.objs_y.dpc.filtered := $(call not_in_parameters_dir,$(ONEAPI.objs_y.dpc))
 
 # Actual compilation
 $(foreach x,$(ONEAPI.objs_a.filtered),$(eval $(call .ONEAPI.compile,$x,$(ONEAPI.tmpdir_a),C)))
@@ -828,6 +836,10 @@ $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_win),sycl$d.lib)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += \
     $(daaldep.math_backend.dpc_link_deps) \
     $(if $(OS_is_win),, -Wl,-rpath,'$$ORIGIN/../../..:$$ORIGIN/../../../')
+# New offloading driver for the DPC libraries only; see dev/make/compiler_definitions/dpcpp.mk
+$(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += \
+    $(if $(offload.new.driver.lnx.dpcpp),--offload-new-driver \
+      -Xsycl-target-backend=spir64 -ftarget-register-alloc-mode=pvc:-ze-intel-enable-auto-large-GRF-mode,)
 
 ifdef OS_is_win
 $(WORKDIR.lib)/$(oneapi_y.dpc:%.$(MAJORBINARY).dll=%_dll.lib): $(WORKDIR.lib)/$(oneapi_y.dpc)
@@ -840,6 +852,9 @@ $(WORKDIR.lib)/$(parameters_y.dpc): \
     $(WORKDIR.lib)/$(oneapi_y.dpc) \
     $(ONEAPI.tmpdir_y.dpc)/$(parameters_y.dpc:%.$y=%_link.txt) ; $(DPC.LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(-fPIC) $(-lsections)
+$(WORKDIR.lib)/$(parameters_y.dpc): LOPT += \
+    $(if $(offload.new.driver.lnx.dpcpp),--offload-new-driver \
+      -Xsycl-target-backend=spir64 -ftarget-register-alloc-mode=pvc:-ze-intel-enable-auto-large-GRF-mode,)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(daaldep.rt.dpc)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(if $(REQDBG),-flink-huge-device-code,) $(-offloadcompress)
 ifndef OS_is_win
@@ -890,7 +905,7 @@ THR.objs_y := $(THR_TBB.objs_y)
 THR_TBB.objs := $(THR_TBB.objs_a) $(THR_TBB.objs_y)
 THR.objs := $(THR.objs_a) $(THR.objs_y)
 
-$(THR.objs): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-sections) $(-Zl) $(-DEBC) -DDAAL_HIDE_DEPRECATED -DTBB_USE_ASSERT=0 -D_ENABLE_ATOMIC_ALIGNMENT_FIX
+$(THR.objs): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-sections) $(-Zl) $(-visibility) $(-DEBC) -DDAAL_HIDE_DEPRECATED -DTBB_USE_ASSERT=0 -D_ENABLE_ATOMIC_ALIGNMENT_FIX
 
 $(THR.objs_a): $(THR.tmpdir_a)/thr_inc_a_folders.txt
 $(THR.objs_a): COPT += @$(THR.tmpdir_a)/thr_inc_a_folders.txt
@@ -1131,8 +1146,12 @@ _release_nuspec: update_headers_version _release_cmake_configs
 #===============================================================================
 
 .PHONY: clean cleanrel cleanall
-clean:    ; -rm -rf $(WORKDIR)
-cleanrel: ; -rm -rf $(RELEASEDIR)
+# Every compiler gets its own __work<suffix> and __release_<os><suffix> directory, so clean them all,
+# but keep the dependency sources that CI scripts unpack into __work (e.g. __work/openblas).
+# The suffixes are the CMPLRDIRSUFF.<compiler> values from dev/make/compiler_definitions/*.mk; icx has none.
+CMPLRDIRSUFFs := _gnu _clang _dpcpp _vc
+clean:    ; -rm -rf $(sort $(WORKDIR) $(wildcard $(addprefix $(DIR)/__work,$(CMPLRDIRSUFFs)) $(DIR)/__work/md $(DIR)/__work/mdd))
+cleanrel: ; -rm -rf $(sort $(RELEASEDIR) $(wildcard $(DIR)/__release_$(_OS) $(addprefix $(DIR)/__release_$(_OS),$(CMPLRDIRSUFFs))))
 cleanall: clean cleanrel
 
 define help
@@ -1142,8 +1161,8 @@ Targets:
   _daal_core ... - build only a part of the product,
              without populating release directory (read makefile for details)
   _release - populate release directory
-  clean    - clean working directory $(WORKDIR)
-  cleanrel - clean release directory $(RELEASEDIR) (for entire OS!)
+  clean    - clean the working directories of every compiler and platform, e.g. $(WORKDIR)
+  cleanrel - clean the release directories of every compiler for this OS, e.g. $(RELEASEDIR)
   cleanall - clean both working and release directories
 Flags:
   COMPILER   - compiler to use ($(COMPILERs)) [default: $(COMPILER)]

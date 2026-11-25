@@ -47,30 +47,26 @@ struct SpBlas
         _impl<fpType, cpu>::xsyrk(uplo, trans, p, n, alpha, a, lda, beta, ata, ldata);
     }
 
-    static void xcsrmultd(const char * transa, const SizeType * m, const SizeType * n, const SizeType * k, fpType * a, SizeType * ja, SizeType * ia,
-                          fpType * b, SizeType * jb, SizeType * ib, fpType * c, SizeType * ldc)
+    [[nodiscard]] static services::Status xcsrmultd(const char * transa, const SizeType * m, const SizeType * n, const SizeType * k, fpType * a,
+                                                    SizeType * ja, SizeType * ia, fpType * b, SizeType * jb, SizeType * ib, fpType * c,
+                                                    SizeType * ldc)
     {
-        _impl<fpType, cpu>::xcsrmultd(transa, m, n, k, a, ja, ia, b, jb, ib, c, ldc);
+        return _impl<fpType, cpu>::xcsrmultd(transa, m, n, k, a, ja, ia, b, jb, ib, c, ldc);
     }
 
-    static void xcsrmv(const char * transa, const SizeType * m, const SizeType * k, const fpType * alpha, const char * matdescra, const fpType * val,
-                       const SizeType * indx, const SizeType * pntrb, const SizeType * pntre, const fpType * x, const fpType * beta, fpType * y)
+    [[nodiscard]] static services::Status xcsrmv(const char * transa, const SizeType * m, const SizeType * k, const fpType * alpha,
+                                                 const char * matdescra, const fpType * val, const SizeType * indx, const SizeType * pntrb,
+                                                 const SizeType * pntre, const fpType * x, const fpType * beta, fpType * y)
     {
-        _impl<fpType, cpu>::xcsrmv(transa, m, k, alpha, matdescra, val, indx, pntrb, pntre, x, beta, y);
+        return _impl<fpType, cpu>::xcsrmv(transa, m, k, alpha, matdescra, val, indx, pntrb, pntre, x, beta, y);
     }
 
-    static void xcsrmm(const char * transa, const SizeType * m, const SizeType * n, const SizeType * k, const fpType * alpha, const char * matdescra,
-                       const fpType * val, const SizeType * indx, const SizeType * pntrb, const fpType * b, const SizeType * ldb, const fpType * beta,
-                       fpType * c, const SizeType * ldc)
+    [[nodiscard]] static services::Status xxcsrmm(const char * transa, const SizeType * m, const SizeType * n, const SizeType * k,
+                                                  const fpType * alpha, const char * matdescra, const fpType * val, const SizeType * indx,
+                                                  const SizeType * pntrb, const fpType * b, const SizeType * ldb, const fpType * beta, fpType * c,
+                                                  const SizeType * ldc)
     {
-        _impl<fpType, cpu>::xcsrmm(transa, m, n, k, alpha, matdescra, val, indx, pntrb, b, ldb, beta, c, ldc);
-    }
-
-    static void xxcsrmm(const char * transa, const SizeType * m, const SizeType * n, const SizeType * k, const fpType * alpha, const char * matdescra,
-                        const fpType * val, const SizeType * indx, const SizeType * pntrb, const fpType * b, const SizeType * ldb,
-                        const fpType * beta, fpType * c, const SizeType * ldc)
-    {
-        _impl<fpType, cpu>::xxcsrmm(transa, m, n, k, alpha, matdescra, val, indx, pntrb, b, ldb, beta, c, ldc);
+        return _impl<fpType, cpu>::xxcsrmm(transa, m, n, k, alpha, matdescra, val, indx, pntrb, b, ldb, beta, c, ldc);
     }
 
 private:

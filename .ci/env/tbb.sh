@@ -20,7 +20,7 @@ set -eo pipefail
 SCRIPT_PATH=$(readlink -f "${BASH_SOURCE[0]}")
 SCRIPT_DIR=$(dirname "${SCRIPT_PATH}")
 ONEDAL_DIR=$(readlink -f "${SCRIPT_DIR}/../..")
-TBB_DEFAULT_VERSION=v2023.1.0
+TBB_DEFAULT_VERSION=v2023.2.0
 
 # Function to display help
 show_help() {
@@ -115,12 +115,13 @@ fi
 build_dir=${build_dir:-${ONEDAL_DIR}/__work/tbb-$target_arch}
 tbb_prefix=${tbb_prefix:-${ONEDAL_DIR}/__deps/tbb-$target_arch}
 
-sudo apt-get update
-sudo apt-get install build-essential gcc gfortran cmake -y
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/retry.sh"
+retry sudo apt-get update
+retry sudo apt-get install build-essential gcc gfortran cmake -y
 tbb_src=${tbb_src:-${ONEDAL_DIR}/__work/onetbb-src}
 if [[ ! -d "${tbb_src}" ]] ; then
   TBB_VERSION="${TBB_VERSION:-${TBB_DEFAULT_VERSION}}"
-  git clone --depth 1 --branch "${TBB_VERSION}" https://github.com/uxlfoundation/oneTBB.git "${tbb_src}"
+  retry git clone --depth 1 --branch "${TBB_VERSION}" https://github.com/uxlfoundation/oneTBB.git "${tbb_src}"
 fi
 
 rm -rf "${tbb_prefix}"

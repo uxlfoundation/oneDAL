@@ -42,33 +42,6 @@ using daal::services::internal::TArray;
 using daal::services::internal::TArrayCalloc;
 using daal::services::internal::TArrayScalable;
 
-/// Create the pairwise distance of `pairwiseDistance` between the rows of `nt` and themselves.
-///
-/// Euclidean and cosine are the final distances after `finalize`; manhattan is Minkowski with
-/// degree 1, which `finalize` leaves as is.
-///
-/// @tparam algorithmFPType Floating-point type
-/// @tparam cpu             CPU dispatch tag
-///
-/// @param[in] nt               Rows the distances are taken between
-/// @param[in] pairwiseDistance Distance metric of the fit
-/// @param[in] minkowskiDegree  Exponent `p` for the Minkowski distance
-template <typename algorithmFPType, CpuType cpu>
-static algorithms::internal::PairwiseDistances<algorithmFPType, cpu> * createPairwiseDistances(
-    const NumericTable & nt, algorithms::internal::PairwiseDistanceType pairwiseDistance, double minkowskiDegree)
-{
-    using namespace algorithms::internal;
-    switch (pairwiseDistance)
-    {
-    case PairwiseDistanceType::cosine: return new CosineDistances<algorithmFPType, cpu>(nt, nt);
-    case PairwiseDistanceType::manhattan: return new MinkowskiDistances<algorithmFPType, cpu>(nt, nt, true, 1.0);
-    case PairwiseDistanceType::minkowski: return new MinkowskiDistances<algorithmFPType, cpu>(nt, nt, true, minkowskiDegree);
-    case PairwiseDistanceType::chebyshev: return new ChebyshevDistances<algorithmFPType, cpu>(nt, nt);
-    case PairwiseDistanceType::euclidean:
-    default: return new EuclideanDistances<algorithmFPType, cpu>(nt, nt, true);
-    }
-}
-
 /// Probability-weighted mean of every cluster's members; empty clusters get zero rows.
 ///
 /// @tparam algorithmFPType Floating-point type
@@ -177,7 +150,7 @@ static services::Status computeMedoids(const algorithmFPType * data, const int *
     auto nt = daal::internal::HomogenNumericTableCPU<algorithmFPType, cpu>::create(sorted, nCols, memberCount, &status);
     DAAL_CHECK_STATUS_VAR(status);
     services::SharedPtr<algorithms::internal::PairwiseDistances<algorithmFPType, cpu> > dist(
-        createPairwiseDistances<algorithmFPType, cpu>(*nt, pairwiseDistance, minkowskiDegree));
+        algorithms::internal::createPairwiseDistances<algorithmFPType, cpu>(*nt, *nt, pairwiseDistance, minkowskiDegree));
     DAAL_CHECK_MALLOC(dist.get());
     DAAL_CHECK_STATUS(status, dist->init());
 

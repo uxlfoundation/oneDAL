@@ -17,6 +17,10 @@
 #include "oneapi/dal/test/engine/common.hpp"
 #include "oneapi/dal/detail/global_context.hpp"
 
+#if defined(_MSC_VER)
+#include <intrin.h>
+#endif
+
 namespace oneapi::dal::detail::test {
 
 #if defined(TARGET_X86_64)
@@ -40,10 +44,19 @@ struct cpuid_registers {
 /// @param[out] registers x86 CPU registers to write the results of CPUID
 /// @param[in]  ecx       The input value of ECX register, the ID of CPUID's subfunction subleaf.
 static inline void cpuid(uint32_t eax, cpuid_registers& registers, uint32_t ecx = 0U) {
+#if defined(_MSC_VER)
+    int values[4];
+    __cpuidex(values, static_cast<int>(eax), static_cast<int>(ecx));
+    registers.eax_ = static_cast<uint32_t>(values[0]);
+    registers.ebx_ = static_cast<uint32_t>(values[1]);
+    registers.ecx_ = static_cast<uint32_t>(values[2]);
+    registers.edx_ = static_cast<uint32_t>(values[3]);
+#else
     asm volatile(
         "cpuid"
         : "=a"(registers.eax_), "=b"(registers.ebx_), "=c"(registers.ecx_), "=d"(registers.edx_)
         : "a"(eax), "c"(ecx));
+#endif
 }
 
 /// Copies the values of x86 EBX, EDX, ECX (in that order) registers that contain the vendor ID

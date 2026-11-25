@@ -178,10 +178,10 @@ static DAAL_INT blockDistsAndArgmax(const algorithmFPType * pivotPt, const algor
 /// @param[in]     maxLeafSize  Leaf cutoff
 /// @param[in]     distFunc     Metric functor instance
 ///
-/// @return Index of the node created by this call
+/// @return `ErrorMemoryAllocationFailed` if a scratch buffer cannot be allocated
 template <typename algorithmFPType, daal::internal::CpuType cpu, typename DistFunc>
-static DAAL_INT buildBallTree(const algorithmFPType * data, DAAL_INT * pointIndices, DAAL_INT begin, DAAL_INT end, size_t nCols,
-                              BallNode<algorithmFPType> * nodes, DAAL_INT & nextNode, DAAL_INT maxLeafSize, const DistFunc & distFunc)
+static services::Status buildBallTree(const algorithmFPType * data, DAAL_INT * pointIndices, DAAL_INT begin, DAAL_INT end, size_t nCols,
+                                      BallNode<algorithmFPType> * nodes, DAAL_INT & nextNode, DAAL_INT maxLeafSize, const DistFunc & distFunc)
 {
     const DAAL_INT nodeIdx           = nextNode++;
     BallNode<algorithmFPType> & node = nodes[nodeIdx];
@@ -203,7 +203,7 @@ static DAAL_INT buildBallTree(const algorithmFPType * data, DAAL_INT * pointIndi
     algorithmFPType * rowNorms2   = rowNorms2Arr.get();
     algorithmFPType * d2          = d2Arr.get();
     algorithmFPType * d3          = d3Arr.get();
-    if (!scratchRows || !rowNorms2 || !d2 || !d3) return nodeIdx;
+    DAAL_CHECK_MALLOC(scratchRows && rowNorms2 && d2 && d3);
 
     gatherRows<algorithmFPType, cpu>(data, pointIndices, begin, end, nCols, rowStride, scratchRows);
     // Cache ||x_i||^2 once per node; reused by all three pivot sweeps when DistFunc is Euclidean.
@@ -233,7 +233,7 @@ static DAAL_INT buildBallTree(const algorithmFPType * data, DAAL_INT * pointIndi
 
     if (count <= maxLeafSize || count <= 1)
     {
-        return nodeIdx;
+        return services::Status();
     }
 
     // Populate d3 (distances to pivot3), then partition.
@@ -264,10 +264,11 @@ static DAAL_INT buildBallTree(const algorithmFPType * data, DAAL_INT * pointIndi
         mid = begin + count / 2;
     }
 
-    node.left  = buildBallTree<algorithmFPType, cpu>(data, pointIndices, begin, mid, nCols, nodes, nextNode, maxLeafSize, distFunc);
-    node.right = buildBallTree<algorithmFPType, cpu>(data, pointIndices, mid, end, nCols, nodes, nextNode, maxLeafSize, distFunc);
-
-    return nodeIdx;
+    node.left                   = nextNode;
+    const services::Status left = buildBallTree<algorithmFPType, cpu>(data, pointIndices, begin, mid, nCols, nodes, nextNode, maxLeafSize, distFunc);
+    if (!left) return left;
+    node.right = nextNode;
+    return buildBallTree<algorithmFPType, cpu>(data, pointIndices, mid, end, nCols, nodes, nextNode, maxLeafSize, distFunc);
 }
 
 /// k-nearest-neighbor query on the ball tree, pruned by hypersphere bounds.
@@ -640,7 +641,9 @@ static services::Status runBallTreeCoreDistAndMst(const algorithmFPType * data, 
                                                   double alpha, size_t & edgesAdded)
 {
     DAAL_INT nextNode = 0;
-    buildBallTree<algorithmFPType, cpu>(data, pointIndices, 0, static_cast<DAAL_INT>(nRows), nCols, nodes, nextNode, maxLeafSize, distFunc);
+    const services::Status built =
+        buildBallTree<algorithmFPType, cpu>(data, pointIndices, 0, static_cast<DAAL_INT>(nRows), nCols, nodes, nextNode, maxLeafSize, distFunc);
+    if (!built) return built;
     const DAAL_INT totalTreeNodes = nextNode;
     return computeCoreDistAndMstBallTree<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, coreDistances,
                                                                mstFrom, mstTo, mstWeights, distFunc, alpha, edgesAdded);

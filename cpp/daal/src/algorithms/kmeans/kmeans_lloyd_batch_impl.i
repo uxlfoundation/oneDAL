@@ -347,7 +347,7 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
         if (!s)
         {
             task->kmeansClearClusters(&oldTargetFunc);
-            break;
+            return s;
         }
 
         {
@@ -420,7 +420,8 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
 
     if (par->resultsToEvaluate & computeAssignments || par->assignFlag || par->resultsToEvaluate & computeExactObjectiveFunction)
     {
-        PostProcessing<method, algorithmFPType, cpu>::computeAssignments(p, nClusters, clusters, ntData, nullptr, assignmetsNT, blockSize);
+        DAAL_CHECK_STATUS(
+            s, (PostProcessing<method, algorithmFPType, cpu>::computeAssignments(p, nClusters, clusters, ntData, nullptr, assignmetsNT, blockSize)));
     }
 
     if (par->resultsToEvaluate & computeExactObjectiveFunction)
@@ -428,8 +429,8 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
         WriteOnlyRows<algorithmFPType, cpu> mtTarget(*const_cast<NumericTable *>(r[2]), 0, 1);
         DAAL_CHECK_BLOCK_STATUS(mtTarget);
         algorithmFPType exactTargetFunc = algorithmFPType(0);
-        PostProcessing<method, algorithmFPType, cpu>::computeExactObjectiveFunction(p, nClusters, clusters, ntData, nullptr, assignmetsNT,
-                                                                                    exactTargetFunc, blockSize);
+        DAAL_CHECK_STATUS(s, (PostProcessing<method, algorithmFPType, cpu>::computeExactObjectiveFunction(p, nClusters, clusters, ntData, nullptr,
+                                                                                                          assignmetsNT, exactTargetFunc, blockSize)));
 
         *mtTarget.get() = exactTargetFunc;
     }

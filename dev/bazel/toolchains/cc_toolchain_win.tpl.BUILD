@@ -10,6 +10,6 @@ toolchain(
         "@platforms//cpu:x86_64",
         "@platforms//os:windows",
     ],
-    toolchain = "@local_config_cc//:cc-compiler-x64_windows",
+    toolchain = "//msvc:cc-compiler-x64_windows",
     toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
 )

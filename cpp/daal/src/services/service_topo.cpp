@@ -102,7 +102,9 @@ typedef cpuset_t cpu_set_t;
         #define AFFINITY_MASK unsigned __int64
 
     #else /* WINDOWS */
-        #define NOMINMAX
+        #ifndef NOMINMAX
+            #define NOMINMAX
+        #endif
         #include <windows.h>
         #include <tlhelp32.h> // CreateToolhelp32Snapshot, THREADENTRY32, Thread32First, Thread32Next
 

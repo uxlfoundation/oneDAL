@@ -37,6 +37,10 @@ All types and functions in this section are declared in the
 ``oneapi::dal::dbscan`` namespace and are available via inclusion of the
 ``oneapi/dal/algo/dbscan.hpp`` header file.
 
+Enum classes
+------------
+.. onedal_enumclass:: oneapi::dal::dbscan::distance_metric
+
 Descriptor
 ----------
 .. onedal_class:: oneapi::dal::dbscan::descriptor

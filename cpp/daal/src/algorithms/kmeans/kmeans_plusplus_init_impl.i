@@ -64,7 +64,7 @@ public:
     {}
     const Status & status() const { return _ntDataBD.status(); }
 
-    void callGemm(const algorithmFPType * pCenters, size_t nRows, size_t nCenters, algorithmFPType * gemmResult)
+    Status callGemm(const algorithmFPType * pCenters, size_t nRows, size_t nCenters, algorithmFPType * gemmResult)
     {
         char transa           = 't';
         char transb           = 'n';
@@ -79,6 +79,7 @@ public:
 
         BlasInst<algorithmFPType, cpu>::xxgemm(&transa, &transb, &_m, &_n, &_k, &alpha, pCenters, &lda, _ntDataBD.get(), &ldy, &beta, gemmResult,
                                                &ldaty);
+        return Status();
     }
 
     algorithmFPType getRowSumSq(size_t iRow, const algorithmFPType * cen)
@@ -108,7 +109,7 @@ public:
     {}
     const Status & status() const { return _ntDataBD.status(); }
 
-    void callGemm(const algorithmFPType * pCenters, size_t nRows, size_t nCenters, algorithmFPType * gemmResult)
+    Status callGemm(const algorithmFPType * pCenters, size_t nRows, size_t nCenters, algorithmFPType * gemmResult)
     {
         char transa           = 'n';
         DAAL_INT _n           = nRows;
@@ -122,8 +123,8 @@ public:
         const size_t * colIdx         = _ntDataBD.cols();
         const size_t * rowIdx         = _ntDataBD.rows();
 
-        SpBlasInst<algorithmFPType, cpu>::xxcsrmm(&transa, &_n, &_c, &_p, &alpha, matdescra, pData, (const DAAL_INT *)colIdx,
-                                                  (const DAAL_INT *)rowIdx, pCenters, &_p, &beta, gemmResult, &_n);
+        return SpBlasInst<algorithmFPType, cpu>::xxcsrmm(&transa, &_n, &_c, &_p, &alpha, matdescra, pData, (const DAAL_INT *)colIdx,
+                                                         (const DAAL_INT *)rowIdx, pCenters, &_p, &beta, gemmResult, &_n);
     }
 
     algorithmFPType getRowSumSq(size_t iRow, const algorithmFPType * cen)
@@ -799,7 +800,8 @@ Status TaskParallelPlusUpdateDist<algorithmFPType, cpu, DataHelper>::processBloc
 
     typename DataHelper::BlockHelperType blockHelper(_data.ntIface(), _data.dim, iStartRow, nRowsToProcess);
     DAAL_CHECK_BLOCK_STATUS(blockHelper);
-    blockHelper.callGemm(_lastAddedCenter, nRowsToProcess, nNewCandidates, tlsLocal->gemmResult);
+    const Status gemmStatus = blockHelper.callGemm(_lastAddedCenter, nRowsToProcess, nNewCandidates, tlsLocal->gemmResult);
+    DAAL_CHECK_STATUS_VAR(gemmStatus);
 
     algorithmFPType * pDistSq  = _aMinDist + iStartRow;
     auto * pNearestCandIndex   = _aNearestCandidateIdx + iStartRow;

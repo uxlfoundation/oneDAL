@@ -1,6 +1,5 @@
-#!/bin/bash
 #===============================================================================
-# Copyright 2014 Intel Corporation
+# Copyright contributors to the oneDAL project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +14,20 @@
 # limitations under the License.
 #===============================================================================
 
-# Stands in for a missing tool, so fail loudly instead of leaving outputs unwritten.
-echo "%{tool_name} is not found!" >&2
-echo "Make sure %{tool_name} is available in \$PATH" >&2
-exit 1
+"""Product and library binary versions of the Bazel build.
+
+The one place to bump them. `makefile.ver` carries the same values for the
+Make build until it is removed.
+"""
+
+# Unstamped builds carry this date; `--build_date=YYYYMMDD` sets the real one.
+DEV_BUILD_DATE = "21990101"
+
+VERSION = struct(
+    major = "2026",
+    minor = "3",
+    update = "0",
+    status = "P",
+    binary_major = "4",
+    binary_minor = "0",
+)

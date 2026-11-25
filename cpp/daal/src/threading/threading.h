@@ -47,6 +47,7 @@ typedef void (*functype2)(int64_t first, int64_t last, const void * a);
 typedef void * (*tls_functype)(const void * a);
 typedef void (*tls_reduce_functype)(void * p, const void * a);
 typedef void (*functype_break)(int64_t i, bool & needBreak, const void * a);
+typedef void (*functype_isolate)(const void * a);
 
 typedef void (*functype_int32)(int i, const void * a);
 typedef void (*functype2_int32)(int first, int last, const void * a);
@@ -104,6 +105,8 @@ extern "C"
     DAAL_EXPORT void _daal_threader_for_blocked_int32(int n, int grain_size, const void * a, daal::functype2_int32 func);
     DAAL_EXPORT void _daal_threader_for_optional_int32(int n, int grain_size, const void * a, daal::functype_int32 func);
     DAAL_EXPORT void _daal_threader_for_break_int32(int n, int grain_size, const void * a, daal::functype_break_int32 func);
+
+    DAAL_EXPORT void _daal_threader_isolate(const void * a, daal::functype_isolate func);
 
     DAAL_EXPORT void _daal_threader_reduce(const size_t n, const size_t grainSize, daal::Reducer & reducer);
 
@@ -972,6 +975,23 @@ protected:
 inline bool is_in_parallel()
 {
     return _daal_is_in_parallel();
+}
+
+template <typename F>
+inline void threader_isolate_func(const void * a)
+{
+    const F & func = *static_cast<const F *>(a);
+    func();
+}
+
+/// Executes `func` in an isolated region of the current task arena: while waiting
+/// inside `func`, the calling thread does not pick up outer-level tasks.
+///
+/// @tparam F   Callable object of type `[/* captures */]() -> void`
+template <typename F>
+inline void threader_isolate(const F & func)
+{
+    _daal_threader_isolate(static_cast<const void *>(&func), threader_isolate_func<F>);
 }
 
 template <typename Func>

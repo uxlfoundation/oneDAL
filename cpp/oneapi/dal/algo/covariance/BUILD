@@ -39,7 +39,25 @@ dal_test_suite(
     ]),
     srcs = glob([
         "test/*.cpp",
+    ], exclude=[
+        "test/online_spmd.cpp",
     ]),
+    dal_deps = [
+        ":covariance",
+    ],
+)
+
+# Host SPMD finalize is not implemented, so this test only runs on a device.
+dal_test_suite(
+    name = "online_spmd_tests",
+    framework = "catch2",
+    compile_as = [ "dpc++" ],
+    hdrs = glob([
+        "test/*.hpp",
+    ]),
+    srcs = [
+        "test/online_spmd.cpp",
+    ],
     dal_deps = [
         ":covariance",
     ],
@@ -49,5 +67,6 @@ dal_test_suite(
     name = "tests",
     tests = [
         ":interface_tests",
+        ":online_spmd_tests",
     ],
 )

@@ -113,7 +113,6 @@ public:
         auto result_type = nothing_to_compute
                                ? optional_results::distances & optional_results::predecessors
                                : optional_results::distances | optional_results::predecessors;
-        std::allocator<char> alloc;
 
         const auto shortest_paths_desc = descriptor<>(source, delta, result_type);
 
