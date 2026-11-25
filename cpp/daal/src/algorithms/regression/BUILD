@@ -5,6 +5,7 @@ daal_module(
     name = "kernel",
     auto = True,
     deps = [
+        "@onedal//cpp/daal:public_includes_regression",
         "@onedal//cpp/daal:core",
     ],
 )

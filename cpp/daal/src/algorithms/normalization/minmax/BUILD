@@ -5,6 +5,7 @@ daal_module(
     name = "kernel",
     auto = True,
     deps = [
+        "@onedal//cpp/daal:public_includes_normalization",
         "@onedal//cpp/daal:core",
         "@onedal//cpp/daal/src/algorithms/low_order_moments:kernel",
     ],

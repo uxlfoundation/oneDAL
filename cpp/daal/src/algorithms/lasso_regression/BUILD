@@ -5,6 +5,8 @@ daal_module(
     name = "kernel",
     auto = True,
     deps = [
+        "@onedal//cpp/daal:public_includes_lasso_regression",
+        "@onedal//cpp/daal:public_includes_optimization_solver",
         "@onedal//cpp/daal:core",
         "@onedal//cpp/daal/src/algorithms/regression:kernel",
         "@onedal//cpp/daal/src/algorithms/linear_model:kernel",

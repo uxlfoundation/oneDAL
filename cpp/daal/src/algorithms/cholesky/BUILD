@@ -5,6 +5,7 @@ daal_module(
     name = "kernel",
     auto = True,
     deps = [
+        "@onedal//cpp/daal:public_includes_cholesky",
         "@onedal//cpp/daal:core",
     ],
 )
