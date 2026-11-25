@@ -52,6 +52,11 @@ if /I "%ARCH%"=="AMD64" (
     exit /b 1
 )
 
+if "%PLAT%"=="win32e" if not defined SIMD_SORT_ROOT (
+    echo bash dev/download_simd_sort.sh
+    bash dev/download_simd_sort.sh || EXIT /B 1
+)
+
 echo make %1 -j%NUMBER_OF_PROCESSORS% COMPILER=%2 PLAT="%PLAT%" REQCPU=%3
 make %1 -j%NUMBER_OF_PROCESSORS% COMPILER=%2 PLAT="%PLAT%" REQCPU=%3 || set errorcode=1
 

@@ -1803,10 +1803,11 @@ services::Status computeForSpecificHelper(const NumericTable * x, const NumericT
     return s;
 }
 
+// The legacy training kernel, selected by the legacyTraining hyperparameter (df_classification_train_impl.i).
 template <typename algorithmFPType, Method method, CpuType cpu>
-services::Status ClassificationTrainBatchKernel<algorithmFPType, method, cpu>::compute(
-    const NumericTable * x, const NumericTable * y, const NumericTable * w, decision_forest::classification::Model & m, Result & res,
-    const decision_forest::classification::training::Parameter & par, const HyperparameterType * hp)
+services::Status computeLegacy(const NumericTable * x, const NumericTable * y, const NumericTable * w, decision_forest::classification::Model & m,
+                               Result & res, const decision_forest::classification::training::Parameter & par,
+                               const classification::training::internal::Hyperparameter * hp)
 {
     services::Status s;
     if (hp)

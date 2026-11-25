@@ -107,6 +107,13 @@
     },
     {
       "customType": "regex",
+      "managerFilePatterns": ["/^dev\\/bazel\\/deps\\/simd_sort\\.bzl$/"],
+      "matchStrings": ["_X86_VERSION[ \\t]*=[ \\t]*\"(?<currentValue>v\\d+\\.\\d+(\\.\\d+)?)\""],
+      "depNameTemplate": "intel/x86-simd-sort",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
       "managerFilePatterns": ["/^\\.github\\/workflows\\/ci-win\\.yml$/"],
       "matchStrings": ["\\bLLVM_VERSION:[ \\t]*(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
       "depNameTemplate": "llvm/llvm-project",

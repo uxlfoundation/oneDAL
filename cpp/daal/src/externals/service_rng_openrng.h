@@ -291,6 +291,15 @@ public:
         return errcode;
     }
 
+    int skipAheadEx(size_t nWords, const DAAL_UINT64 * nSkip)
+    {
+        // As for MKL: skips that fit a long long take the one-word call, which more generators support.
+        if (fitsOneWord(nWords, nSkip)) return skipAhead(nWords ? size_t(nSkip[0]) : 0);
+        return vslSkipAheadStreamEx(_stream, (openrng_int_t)nWords, (const openrng_uint64_t *)nSkip);
+    }
+
+    int copyState(void * srcState) { return vslCopyStreamState(_stream, (VSLStreamStatePtr)srcState); }
+
     void * getState() { return _stream; }
 
 private:

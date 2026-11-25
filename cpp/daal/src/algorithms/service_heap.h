@@ -86,6 +86,19 @@ void popMaxHeap(RandomAccessIterator first, RandomAccessIterator last, Compare c
     }
 }
 
+/// Adds the element at last - 1 to the heap [first, last - 1), in O(log n).
+template <CpuType cpu, typename RandomAccessIterator, typename Compare>
+void pushMaxHeap(RandomAccessIterator first, RandomAccessIterator last, Compare compare)
+{
+    for (auto i = last - first - 1; 0 < i;)
+    {
+        const auto parent = heapParentIndex<cpu>(i);
+        if (!compare(*(first + parent), *(first + i))) break;
+        iterSwap<cpu>(first + parent, first + i);
+        i = parent;
+    }
+}
+
 template <CpuType cpu, typename RandomAccessIterator, typename Compare>
 void makeMaxHeap(RandomAccessIterator first, RandomAccessIterator last, Compare compare)
 {

@@ -518,6 +518,20 @@ public:
         return ((const data_management::HomogenNumericTable<double> *)(*_probTbl)[0].get())->getNumberOfRows();
     }
 
+    /// Stores tree iTree from its tables, as the tree engine emits them (dtrees/engine/tree_builder.h); after
+    /// resize. Calls for distinct trees may run concurrently.
+    bool setTree(size_t iTree, const services::SharedPtr<DecisionTreeTable> & nodes, const data_management::NumericTablePtr & impurity,
+                 const data_management::NumericTablePtr & nodeSamples, const data_management::NumericTablePtr & probabilities)
+    {
+        if (!isValid() || iTree >= _serializationData->size() || !nodes || !impurity || !nodeSamples || !probabilities) return false;
+        (*_serializationData)[iTree] = nodes;
+        (*_impurityTables)[iTree]    = impurity;
+        (*_nNodeSampleTables)[iTree] = nodeSamples;
+        (*_probTbl)[iTree]           = probabilities;
+        _nTree.inc();
+        return true;
+    }
+
 protected:
     void destroy();
     template <typename Archive, bool onDeserialize>

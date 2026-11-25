@@ -41,6 +41,8 @@ class BaseRNGs : public BaseRNGIface<cpu>
 {
 public:
     BaseRNGs(const unsigned int _seed = 777, const int _brngId = __DAAL_BRNG_MT19937) : _baseRNG(_seed, _brngId) {}
+    /// Seeds the generator with n 32-bit words; how they map to the state is generator-specific.
+    BaseRNGs(const size_t n, const unsigned int * seed, const int brngId) : _baseRNG(n, seed, brngId) {}
     ~BaseRNGs() {}
 
     int getStateSize() const { return _baseRNG.getStateSize(); }
@@ -52,6 +54,10 @@ public:
     int leapfrog(size_t threadNum, size_t nThreads) { return _baseRNG.leapfrog(threadNum, nThreads); }
 
     int skipAhead(size_t nSkip) { return _baseRNG.skipAhead(nSkip); }
+
+    int skipAheadEx(size_t nWords, const DAAL_UINT64 * nSkip) { return _baseRNG.skipAheadEx(nWords, nSkip); }
+
+    int copyState(void * srcState) { return _baseRNG.copyState(srcState); }
 
     void * getState() { return _baseRNG.getState(); }
 
