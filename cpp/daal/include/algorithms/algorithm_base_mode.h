@@ -117,8 +117,8 @@ protected:
     const Hyperparameter * _hpar;
 
 private:
-    Algorithm(const Algorithm &);
-    Algorithm & operator=(const Algorithm &);
+    Algorithm(const Algorithm &)             = delete;
+    Algorithm & operator=(const Algorithm &) = delete;
 };
 
 /**

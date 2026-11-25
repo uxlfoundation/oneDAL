@@ -39,8 +39,10 @@ def _extract_conda(repo_ctx, archive, output):
     repo_ctx.delete(staging)
 
 def _download_and_extract(repo_ctx, url, sha256, output, strip_prefix):
-    archive = repo_ctx.path(url.split("/")[-1])
-    repo_ctx.download(url = url, output = archive, sha256 = sha256)
+    # `url` may list mirrors separated by spaces; Bazel tries them in order.
+    urls = [u for u in url.split(" ") if u]
+    archive = repo_ctx.path(urls[0].split("/")[-1])
+    repo_ctx.download(url = urls, output = archive, sha256 = sha256)
     if archive.basename.endswith(".conda"):
         _extract_conda(repo_ctx, archive, output)
     else:
@@ -66,7 +68,8 @@ def _archive(url, sha256, strip_prefix = ""):
     """Describe one downloadable archive of a prebuilt dependency.
 
     Args:
-        url: location of the archive; `.conda`, `.whl` and `.zip` are unpacked here, the rest by Bazel.
+        url: location of the archive, or several mirrors of it separated by spaces;
+            `.conda`, `.whl` and `.zip` are unpacked here, the rest by Bazel.
         sha256: expected hash of the archive.
         strip_prefix: directory prefix to drop while unpacking.
     """
