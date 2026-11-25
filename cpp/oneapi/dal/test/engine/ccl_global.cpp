@@ -14,8 +14,6 @@
 * limitations under the License.
 *******************************************************************************/
 
-#ifdef ONEDAL_DATA_PARALLEL
-
 #include "oneapi/dal/test/engine/spmd.hpp"
 #include "oneapi/dal/spmd/ccl/communicator.hpp"
 
@@ -54,4 +52,3 @@ public:
 REGISTER_GLOBAL_SETUP(ccl_communicator, ccl_communicator_global_setup)
 
 } // namespace oneapi::dal::test::engine
-#endif

@@ -22,10 +22,9 @@
 namespace spmd = oneapi::dal::preview::spmd;
 
 namespace oneapi::dal::test::engine {
-// TODO non-dpcpp host testing
-#ifdef ONEDAL_DATA_PARALLEL
-spmd::communicator<spmd::device_memory_access::none> get_global_ccl_host_communicator();
 
+spmd::communicator<spmd::device_memory_access::none> get_global_ccl_host_communicator();
+#ifdef ONEDAL_DATA_PARALLEL
 spmd::communicator<spmd::device_memory_access::usm> get_global_ccl_device_communicator(
     sycl::queue&);
 #endif

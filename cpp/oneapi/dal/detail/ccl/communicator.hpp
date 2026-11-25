@@ -16,9 +16,6 @@
 
 #pragma once
 
-// TODO host version
-#ifdef ONEDAL_DATA_PARALLEL
-
 // IMPORTANT! This file should not be included to any other non-ccl header,
 // otherwise it creates dependeny on CCL at the user's application compile time
 // TODO: In the future this can be solved via __has_include C++17 feature
@@ -93,6 +90,7 @@ private:
     ccl::communicator comm_;
 };
 
+#ifdef ONEDAL_DATA_PARALLEL
 class ccl_stream_wrapper {
 public:
     explicit ccl_stream_wrapper(ccl::stream&& stream) : stream_(std::move(stream)) {}
@@ -267,15 +265,19 @@ private:
     std::int64_t rank_ = -1;
     std::int64_t rank_count_ = -1;
 };
+#endif
+
 template <typename MemoryAccessKind>
 struct ccl_interface_selector {
     using type = spmd::communicator_iface_base;
 };
 
+#ifdef ONEDAL_DATA_PARALLEL
 template <>
 struct ccl_interface_selector<spmd::device_memory_access::usm> {
     using type = ccl_device_communicator_impl;
 };
+#endif
 
 /// Implementation of the low-level SPMD communicator interface via MPI
 /// TODO: Currently message sizes are limited via `int` type.
@@ -301,6 +303,7 @@ public:
         host_comm_.reset(new ccl_comm_wrapper{ ccl::create_communicator(rank_count_, rank_, kvs) });
     }
 
+#ifdef ONEDAL_DATA_PARALLEL
     //    template<typename T = MemoryAccessKind, spmd::enable_if_device_memory_accessible_t<T>>
     explicit ccl_communicator_impl(sycl::queue& queue,
                                    ccl::shared_ptr_class<ccl::kvs> kvs,
@@ -313,6 +316,7 @@ public:
               default_root_(default_root) {
         host_comm_.reset(new ccl_comm_wrapper{ ccl::create_communicator(rank_count_, rank_, kvs) });
     }
+#endif
 
     std::int64_t get_rank() override {
         return rank_;
@@ -446,6 +450,7 @@ private:
 template <typename MemoryAccessKind>
 class ccl_communicator : public spmd::communicator<MemoryAccessKind> {
 public:
+#ifdef ONEDAL_DATA_PARALLEL
     template <typename T = MemoryAccessKind,
               typename = spmd::enable_if_device_memory_accessible_t<T>>
     explicit ccl_communicator(sycl::queue& queue,
@@ -459,6 +464,7 @@ public:
                                                               rank,
                                                               rank_count,
                                                               default_root)) {}
+#endif
     explicit ccl_communicator(ccl::shared_ptr_class<ccl::kvs> kvs,
                               std::int64_t rank,
                               std::int64_t rank_count,
@@ -475,4 +481,3 @@ public:
 using v1::ccl_communicator;
 
 } // namespace oneapi::dal::detail
-#endif

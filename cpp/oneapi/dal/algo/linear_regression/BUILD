@@ -84,6 +84,22 @@ dal_test_suite(
 )
 
 dal_test_suite(
+    name = "ccl_tests",
+    ccl = True,
+    mpi_ranks = 2,
+    framework = "catch2",
+    hdrs = [
+        "test/fixture.hpp",
+    ],
+    srcs = glob([
+        "test/ccl_*.cpp",
+    ]),
+    dal_deps = [
+        ":linear_regression",
+    ],
+)
+
+dal_test_suite(
     name = "tests",
     tests = [
         ":interface_tests",

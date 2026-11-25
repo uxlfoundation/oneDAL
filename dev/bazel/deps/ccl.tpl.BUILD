@@ -16,6 +16,10 @@ cc_library(
     srcs = [
         "lib/libccl.so.1.0",
     ],
+    # libccl.so needs the DPC++ runtime; a host link does not get it from -fsycl.
+    deps = [
+        "@opencl//:opencl_binary",
+    ],
 )
 
 cc_library(

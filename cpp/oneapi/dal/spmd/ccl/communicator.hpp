@@ -16,9 +16,6 @@
 
 #pragma once
 
-// TODO non-dpcpp ccl host communicator
-#ifdef ONEDAL_DATA_PARALLEL
-
 #include "oneapi/dal/detail/ccl/communicator.hpp"
 #include "oneapi/dal/detail/singleton.hpp"
 
@@ -64,6 +61,7 @@ inline communicator<device_memory_access::none> make_communicator<backend::ccl>(
                                                                       info.rank_count };
 }
 
+#ifdef ONEDAL_DATA_PARALLEL
 template <>
 inline communicator<device_memory_access::usm> make_communicator<backend::ccl>(sycl::queue& queue) {
     auto& info = de::singleton<ccl_info>::get();
@@ -74,7 +72,6 @@ inline communicator<device_memory_access::usm> make_communicator<backend::ccl>(s
         dal::detail::integral_cast<std::int64_t>(info.rank_count)
     };
 }
+#endif
 
 } // namespace oneapi::dal::preview::spmd
-
-#endif

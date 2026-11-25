@@ -310,7 +310,6 @@ dal_test_suite(
     ccl = True,
     mpi_ranks = 2,
     framework = "catch2",
-    compile_as = ["dpc++"],
     srcs = glob([
         "test/ccl_*.cpp",
     ]),
@@ -353,5 +352,6 @@ dal_collect_test_suites(
     tests = [
         "@onedal//cpp/oneapi/dal/algo/kmeans:ccl_tests",
         "@onedal//cpp/oneapi/dal/algo/dbscan:ccl_tests",
+        "@onedal//cpp/oneapi/dal/algo/linear_regression:ccl_tests",
     ],
 )
