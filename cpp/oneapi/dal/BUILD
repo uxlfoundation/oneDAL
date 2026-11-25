@@ -267,9 +267,31 @@ dal_test_suite(
         "test/*.cpp",
     ], exclude=[
         "test/mpi_*.cpp",
-        "test/ccl_*.cpp"
+        "test/ccl_*.cpp",
+        "test/profiler.cpp",
     ]),
     dal_deps = [ ":common" ],
+)
+
+# Private: the profiler entry points are declared in headers the release does not install.
+dal_test_suite(
+    name = "profiler_tests",
+    framework = "catch2",
+    private = True,
+    srcs = [
+        "test/profiler.cpp",
+    ],
+    dal_deps = [ ":common" ],
+)
+
+dal_test_suite(
+    name = "backend_internal_tests",
+    framework = "catch2",
+    srcs = glob([
+        "backend/test/*.cpp",
+    ]),
+    dal_deps = [ ":common" ],
+    private = True,
 )
 
 dal_test_suite(
@@ -312,6 +334,8 @@ dal_collect_test_suites(
     ],
     tests = [
         ":common_tests",
+        ":profiler_tests",
+        ":backend_internal_tests",
         # TODO: Temporary disabled due to
         #       unexpectedly high build time
         # "@onedal//cpp/oneapi:dal_hpp_test",

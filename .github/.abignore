@@ -31,6 +31,33 @@ drop = yes
 symbol_name_regexp = _Z+.*4daal[[:digit:]].*8internal[[:digit:]].*
 drop = yes
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; DAAL KERNEL PROFILER DESELECTIONS ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; deselect the kernel profiler: daal::internal::profiler* and the statics of its header-only
+; predecessor, which the daal::internal regexps above do not match (they expect a namespace
+; between daal and internal). ONEDAL_VERBOSE is a diagnostic; the symbols are not part of the
+; product ABI. The documented C entry point _onedal_profiler_report is deliberately not deselected.
+
+[suppress_type]
+symbol_name_regexp = _Z+.*N4daal8internal.*profiler.*
+drop = yes
+
+[suppress_variable]
+symbol_name_regexp = _Z+.*N4daal8internal.*profiler.*
+drop = yes
+
+[suppress_function]
+symbol_name_regexp = _Z+.*N4daal8internal.*profiler.*
+drop = yes
+
+; std::vector<std::string>::emplace_back and its _M_realloc_insert were weak instantiations leaked
+; by the header-only profiler; every consumer instantiates its own copy.
+[suppress_function]
+symbol_name_regexp = ^_ZNSt6vectorINSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEESaIS5_EE(12emplace_backIJS5_EEERS5_DpOT_|17_M_realloc_insertIJS5_EEEvN9__gnu_cxx17__normal_iteratorIPS5_S7_EEDpOT_)$
+change_kind = deleted-function
+drop = yes
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; DAAL 2026.0 REMOVALS ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
