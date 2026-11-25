@@ -155,23 +155,12 @@ struct profiler_region_hooks;
 namespace internal
 {
 
-/// Parses ONEDAL_VERBOSE; out of the fast path of daal_verbose_mode().
-inline static int profiler_read_verbose_mode()
-{
-    const char * verbose_str = std::getenv("ONEDAL_VERBOSE");
-    int result               = PROFILER_MODE_OFF;
-    if (verbose_str)
-    {
-        char * endptr = nullptr;
-        errno         = 0;
-        long parsed   = std::strtol(verbose_str, &endptr, 10);
-        if (errno == 0 && endptr != verbose_str && *endptr == '\0' && parsed >= 0 && parsed <= 5) result = static_cast<int>(parsed);
-    }
-    return result;
-}
+/// The mode ONEDAL_VERBOSE asks for, read once per process, so every library and translation unit
+/// gets the same answer even if the variable changes later.
+DAAL_EXPORT int profiler_read_verbose_mode();
 
-// Every translation unit reads the mode once, on its first profiled call, into a constant-initialized
-// atomic, so a task that is off costs one relaxed load and a compare. They all get the same answer.
+// Every translation unit keeps the mode in a constant-initialized atomic after its first profiled
+// call, so a task that is off costs one relaxed load and a compare.
 inline static int daal_verbose_mode()
 {
     static std::atomic<int> cached { -1 };

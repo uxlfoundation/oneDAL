@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "src/services/service_defines.h"
 #include "src/services/service_profiler.h"
 
 #ifdef ONEDAL_DATA_PARALLEL
@@ -26,7 +27,8 @@ namespace oneapi::dal::detail {
 
 #ifdef ONEDAL_DATA_PARALLEL
 /// Records a copy for the profiler, its direction taken from the USM types of the pointers.
-/// USM shared memory counts as device; a copy between two host pointers is not recorded.
+/// USM shared memory counts as device, except as the destination of a copy from device memory,
+/// which is a copy to the host; a copy between two host pointers is not recorded.
 ///
 /// @param[in] queue  The SYCL* queue the copy is submitted to
 /// @param[in] dest   Pointer to the output
@@ -37,18 +39,21 @@ inline void profiler_record_copy(const sycl::queue& queue,
                                  const void* src,
                                  std::size_t size) {
     using kind = daal::internal::profiler_transfer_kind;
-    const auto on_device = [&](const void* pointer) {
-        const auto type = sycl::get_pointer_type(pointer, queue.get_context());
-        return type == sycl::usm::alloc::device || type == sycl::usm::alloc::shared;
-    };
-    const bool from_device = on_device(src);
-    const bool to_device = on_device(dest);
-    if (from_device || to_device) {
-        daal::internal::profiler_record_transfer(
-            size,
-            from_device ? (to_device ? kind::device_to_device : kind::device_to_host)
-                        : kind::host_to_device);
+    using alloc = sycl::usm::alloc;
+    const alloc src_type = sycl::get_pointer_type(src, queue.get_context());
+    const alloc dest_type = sycl::get_pointer_type(dest, queue.get_context());
+    const bool from_device = src_type == alloc::device || src_type == alloc::shared;
+    const bool to_device = dest_type == alloc::device || dest_type == alloc::shared;
+    if (!from_device && !to_device) {
+        return;
     }
+    // Device memory copied into shared memory is on its way to the host: `to_host()` does that.
+    const bool leaves_device =
+        !to_device || (src_type == alloc::device && dest_type == alloc::shared);
+    daal::internal::profiler_record_transfer(
+        size,
+        !from_device ? kind::host_to_device
+                     : (leaves_device ? kind::device_to_host : kind::device_to_device));
 }
 
 // Waits on the queue at both ends of a profiled task, so its time covers the device work it
@@ -64,18 +69,8 @@ public:
     }
 
     ~queue_sync_guard() {
-        if (queue_) {
-            try {
-                queue_->wait_and_throw();
-            }
-            catch (std::exception& e) {
-                std::cerr << "ONEDAL KERNEL_PROFILER: unexpected error while waiting on the queue: "
-                          << e.what() << std::endl;
-            }
-            catch (...) {
-                std::cerr << "ONEDAL KERNEL_PROFILER: unexpected error while waiting on the queue"
-                          << std::endl;
-            }
+        if (DAAL_PROFILER_UNLIKELY(queue_ != nullptr)) {
+            wait_at_end();
         }
     }
 
@@ -94,6 +89,21 @@ private:
     queue_sync_guard(sycl::queue* q, daal::internal::profiler_task&& task)
             : queue_(q),
               task_(std::move(task)) {}
+
+    // Out of line, so that a task that is off pays one branch in the destructor.
+    DAAL_FORCENOINLINE void wait_at_end() noexcept {
+        try {
+            queue_->wait_and_throw();
+        }
+        catch (std::exception& e) {
+            std::cerr << "ONEDAL KERNEL_PROFILER: unexpected error while waiting on the queue: "
+                      << e.what() << std::endl;
+        }
+        catch (...) {
+            std::cerr << "ONEDAL KERNEL_PROFILER: unexpected error while waiting on the queue"
+                      << std::endl;
+        }
+    }
 
     sycl::queue* queue_ = nullptr;
     daal::internal::profiler_task task_;

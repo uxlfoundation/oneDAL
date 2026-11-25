@@ -198,8 +198,9 @@ Transfers
 
 With the Tracer or the Analyzer on, copies through oneAPI's USM copy helpers and the ``ndarray``
 copy primitive are recorded by direction: host to device, device to host and device to device.
-The direction comes from the USM types of the two pointers; USM shared memory counts as device,
-and a copy between two host pointers is not recorded. Each copy is charged to the task open on the
+The direction comes from the USM types of the two pointers. USM shared memory counts as device,
+except that a copy from device memory into shared memory is a copy to the host, as that is how
+results are brought back. A copy between two host pointers is not recorded. Each copy is charged to the task open on the
 calling thread, as an allocation is.
 
 The Tracer prints the first copy of each direction on a call path as it is submitted, and every

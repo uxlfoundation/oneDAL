@@ -37,8 +37,10 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cerrno>
 #include <chrono>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <iomanip>
@@ -124,6 +126,7 @@ struct thread_state
     std::unordered_map<node_key, node *, node_key_hash> index;
     std::mutex nodes_mutex; // guards `nodes` against a report that walks it while this thread adds a node
     std::vector<std::unique_ptr<node> > nodes;
+    std::unordered_set<const char *> logged_sites; // call sites this thread has asked to log
     // Every copy made on this thread, in a task or not. Written by this thread only.
     std::atomic<std::uint64_t> transfer_bytes[transfer_kinds] = {};
     std::atomic<std::uint64_t> transfer_count[transfer_kinds] = {};
@@ -225,8 +228,8 @@ thread_state & this_thread()
 
 std::mutex & log_mutex()
 {
-    static std::mutex m;
-    return m;
+    static std::mutex * const m = new std::mutex();
+    return *m;
 }
 
 std::string format_time(std::uint64_t time_ns)
@@ -291,10 +294,11 @@ bool claim_trace(const node * n, const char * copy = nullptr)
     std::vector<const char *> path;
     if (copy) path.push_back(copy);
     for (const node * at = n; at; at = at->parent) path.push_back(at->name);
-    static std::vector<std::vector<const char *> > traced;
+    // Never destroyed: a task may still close while the process runs its static destructors.
+    static std::vector<std::vector<const char *> > * const traced = new std::vector<std::vector<const char *> >();
     std::lock_guard<std::mutex> lock(log_mutex());
-    if (std::find(traced.begin(), traced.end(), path) != traced.end()) return false;
-    traced.push_back(path);
+    if (std::find(traced->begin(), traced->end(), path) != traced->end()) return false;
+    traced->push_back(path);
     return true;
 }
 
@@ -713,6 +717,20 @@ void report_at_exit()
 
 } // namespace
 
+DAAL_EXPORT int profiler_read_verbose_mode()
+{
+    static const int mode = [] {
+        const char * const text = std::getenv("ONEDAL_VERBOSE");
+        if (!text) return PROFILER_MODE_OFF;
+        char * end        = nullptr;
+        errno             = 0;
+        const long parsed = std::strtol(text, &end, 10);
+        const bool valid  = errno == 0 && end != text && *end == '\0' && parsed >= 0 && parsed <= 5;
+        return valid ? static_cast<int>(parsed) : PROFILER_MODE_OFF;
+    }();
+    return mode;
+}
+
 DAAL_EXPORT void print_header()
 {
     if (!is_profiler_enabled()) return;
@@ -751,12 +769,11 @@ DAAL_EXPORT bool profiler_claim_log_site(const char * site)
 {
     if (is_service_debug_enabled()) return true;
     // A site this thread has seen before takes no lock; the key is the literal's address.
-    thread_local std::unordered_set<const char *> seen_here;
-    if (!seen_here.insert(site).second) return false;
-    static std::vector<std::string> logged;
+    if (!this_thread().logged_sites.insert(site).second) return false;
+    static std::vector<std::string> * const logged = new std::vector<std::string>();
     std::lock_guard<std::mutex> lock(log_mutex());
-    if (std::find(logged.begin(), logged.end(), site) != logged.end()) return false;
-    logged.push_back(site);
+    if (std::find(logged->begin(), logged->end(), site) != logged->end()) return false;
+    logged->push_back(site);
     return true;
 }
 
@@ -786,7 +803,17 @@ DAAL_EXPORT void profiler_record_alloc(const void * ptr, std::size_t size, profi
     {
         block_shard & shard = shard_for(global, ptr);
         std::lock_guard<std::mutex> lock(shard.mutex);
-        shard.blocks[ptr] = { size, k, owner };
+        const auto stale = shard.blocks.find(ptr);
+        if (stale != shard.blocks.end())
+        {
+            // The block at this address was released without a recorded free; drop it from live memory.
+            global.live[stale->second.kind].fetch_sub(static_cast<std::int64_t>(stale->second.size), std::memory_order_relaxed);
+            stale->second = { size, k, owner };
+        }
+        else
+        {
+            shard.blocks.emplace(ptr, block { size, k, owner });
+        }
     }
     if (owner)
     {

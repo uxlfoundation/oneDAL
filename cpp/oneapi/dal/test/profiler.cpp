@@ -18,6 +18,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <sstream>
@@ -450,6 +451,21 @@ TEST("profiler ignores a free of a block it never recorded") {
     prof::profiler_record_free(&block);
 }
 
+TEST("profiler replaces a block whose address is recorded again without a free") {
+    start_recording();
+    char block = 0;
+    {
+        auto outer = prof::profiler::start_task("outer");
+        prof::profiler_record_alloc(&block, 64, prof::profiler_memory_kind::host);
+        prof::profiler_record_alloc(&block, 64, prof::profiler_memory_kind::host);
+    }
+    const rows_t rows = prof::profiler_report();
+    REQUIRE(rows.size() == 1);
+    REQUIRE(rows[0].peak_bytes[host_memory] == 64);
+    REQUIRE(rows[0].held_bytes[host_memory] == 64);
+    prof::profiler_record_free(&block);
+}
+
 constexpr int host_to_device = static_cast<int>(prof::profiler_transfer_kind::host_to_device);
 constexpr int device_to_host = static_cast<int>(prof::profiler_transfer_kind::device_to_host);
 constexpr int device_to_device = static_cast<int>(prof::profiler_transfer_kind::device_to_device);
@@ -515,6 +531,7 @@ TEST("profiler takes the direction of a copy from the USM types of its pointers"
         detail::profiler_record_copy(queue, device, host.data(), bytes);
         detail::profiler_record_copy(queue, device, usm_host, bytes);
         detail::profiler_record_copy(queue, host_back.data(), device, bytes);
+        // Into shared memory the data leaves the device; out of it the copy stays there.
         detail::profiler_record_copy(queue, shared, device, bytes);
         detail::profiler_record_copy(queue, device, shared, bytes);
         // Neither side is device memory.
@@ -527,10 +544,10 @@ TEST("profiler takes the direction of a copy from the USM types of its pointers"
     REQUIRE(rows.size() == 1);
     REQUIRE(rows[0].transfer_count[host_to_device] == 2);
     REQUIRE(rows[0].transfer_bytes[host_to_device] == 2 * bytes);
-    REQUIRE(rows[0].transfer_count[device_to_host] == 1);
-    REQUIRE(rows[0].transfer_bytes[device_to_host] == bytes);
-    REQUIRE(rows[0].transfer_count[device_to_device] == 2);
-    REQUIRE(rows[0].transfer_bytes[device_to_device] == 2 * bytes);
+    REQUIRE(rows[0].transfer_count[device_to_host] == 2);
+    REQUIRE(rows[0].transfer_bytes[device_to_host] == 2 * bytes);
+    REQUIRE(rows[0].transfer_count[device_to_device] == 1);
+    REQUIRE(rows[0].transfer_bytes[device_to_device] == bytes);
 }
 
 TEST("profiler records the copies of the memcpy helpers only when it is on") {
@@ -563,5 +580,59 @@ TEST("profiler records the copies of the memcpy helpers only when it is on") {
     }
 }
 #endif
+
+// Run only by the test below, in a child process that has the profiler on.
+TEST("profiler child process repeats one top-level task", "[.profiler_child]") {
+    for (int run = 0; run < 1000; ++run) {
+        ONEDAL_PROFILER_TASK(child_top);
+        ONEDAL_PROFILER_TASK(child_nested);
+        prof::profiler_record_transfer(64, prof::profiler_transfer_kind::host_to_device);
+    }
+}
+
+// The mode is read once when the library loads, so the levels are tried in child processes.
+TEST("profiler output below level 5 does not grow with the number of runs") {
+#ifdef __linux__
+    const auto count = [](const std::string& text, const std::string& what) {
+        std::size_t found = 0;
+        for (auto at = text.find(what); at != std::string::npos; at = text.find(what, at + 1)) {
+            ++found;
+        }
+        return found;
+    };
+    const std::string self = std::filesystem::read_symlink("/proc/self/exe").string();
+    const auto child_stderr = [&](int level) {
+        const std::string command = "ONEDAL_VERBOSE=" + std::to_string(level) + " '" + self +
+                                    "' '[.profiler_child]' 2>&1 >/dev/null";
+        std::string text;
+        FILE* const pipe = popen(command.c_str(), "r");
+        REQUIRE(pipe != nullptr);
+        char buffer[4096];
+        for (std::size_t got; (got = std::fread(buffer, 1, sizeof(buffer), pipe)) > 0;) {
+            text.append(buffer, got);
+        }
+        REQUIRE(pclose(pipe) == 0);
+        return text;
+    };
+
+    const std::string logger = child_stderr(1);
+    REQUIRE(count(logger, "Profiler task_name: child_top") == 1);
+    REQUIRE(count(logger, "Profiler task_name: child_nested") == 1);
+
+    const std::string tracer = child_stderr(2);
+    REQUIRE(count(tracer, "\nchild_top ") >= 1);
+    REQUIRE(count(tracer, "\nchild_top ") <= 16);
+    REQUIRE(count(tracer, "\nchild_nested ") == 1);
+    REQUIRE(count(tracer, "copy host to device") == 1);
+
+    // Every level below 5 has to fit a pipe nobody reads, 64 KB on Linux, with room to spare.
+    for (int level : { 1, 2, 3, 4 }) {
+        CAPTURE(level);
+        REQUIRE(child_stderr(level).size() < 16 * 1024);
+    }
+#else
+    SKIP("needs /proc/self/exe");
+#endif
+}
 
 } // namespace oneapi::dal::test
