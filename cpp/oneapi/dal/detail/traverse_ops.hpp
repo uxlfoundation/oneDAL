@@ -39,5 +39,25 @@ auto traverse_dispatch(Head &&head, Tail &&...tail) {
     return traverse_dispatch_by_input(std::forward<Head>(head), std::forward<Tail>(tail)...);
 }
 
+#ifdef ONEDAL_DATA_PARALLEL
+template <typename Descriptor, typename Head, typename... Tail>
+auto traverse_dispatch_by_input(const dal::detail::data_parallel_policy &policy,
+                                const Descriptor &desc,
+                                Head &&head,
+                                Tail &&...tail) {
+    using tag_t = typename Descriptor::tag_t;
+    using ops_t = traverse_ops<Descriptor, std::decay_t<Head>, tag_t>;
+    using input_t = typename ops_t::input_t;
+
+    auto input = input_t{ std::forward<Head>(head), std::forward<Tail>(tail)... };
+    return ops_t()(policy, desc, input);
+}
+
+template <typename... Tail>
+auto traverse_dispatch(const dal::detail::data_parallel_policy &policy, Tail &&...tail) {
+    return traverse_dispatch_by_input(policy, std::forward<Tail>(tail)...);
+}
+#endif
+
 } // namespace detail
 } // namespace oneapi::dal::preview

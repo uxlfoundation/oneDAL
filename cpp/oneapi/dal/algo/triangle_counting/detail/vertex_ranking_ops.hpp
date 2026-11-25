@@ -23,6 +23,7 @@
 #include "oneapi/dal/detail/policy.hpp"
 #include "oneapi/dal/graph/detail/undirected_adjacency_vector_graph_impl.hpp"
 #include "oneapi/dal/graph/detail/undirected_adjacency_vector_graph_topology_builder.hpp"
+#include "oneapi/dal/graph/detail/device_csr_topology.hpp"
 
 namespace oneapi::dal::preview::triangle_counting::detail {
 
@@ -36,7 +37,7 @@ struct vertex_ranking_ops_dispatcher {
 
         const auto &t = topology_builder(input.get_graph());
 
-        static auto impl = get_backend<Policy, Descriptor>(descriptor, t);
+        auto impl = get_backend<Policy, Descriptor>(descriptor, t);
 
         return (*impl)(policy, descriptor, t);
     }
@@ -57,5 +58,21 @@ struct vertex_ranking_ops {
         return vertex_ranking_ops_dispatcher<Policy, Descriptor, Graph>()(policy, desc, input);
     }
 };
+
+#ifdef ONEDAL_DATA_PARALLEL
+/// Specialization for device_csr_topology: skips host-to-device transfer
+/// since the graph data is already on the device.
+template <typename Descriptor, typename Index>
+struct vertex_ranking_ops_dispatcher<dal::detail::data_parallel_policy,
+                                     Descriptor,
+                                     dal::preview::detail::device_csr_topology<Index>> {
+    using task_t = typename Descriptor::task_t;
+    using input_t = vertex_ranking_input<dal::preview::detail::device_csr_topology<Index>, task_t>;
+
+    vertex_ranking_result<task_t> operator()(const dal::detail::data_parallel_policy &policy,
+                                             const Descriptor &descriptor,
+                                             input_t &input) const;
+};
+#endif
 
 } // namespace oneapi::dal::preview::triangle_counting::detail
