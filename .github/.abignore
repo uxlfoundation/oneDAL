@@ -51,10 +51,10 @@ drop = yes
 symbol_name_regexp = _Z+.*N4daal8internal.*profiler.*
 drop = yes
 
-; std::vector<std::string>::emplace_back was a weak instantiation leaked by the header-only
-; profiler; every consumer instantiates its own copy.
+; std::vector<std::string>::emplace_back and its _M_realloc_insert were weak instantiations leaked
+; by the header-only profiler; every consumer instantiates its own copy.
 [suppress_function]
-symbol_name_regexp = ^_ZNSt6vectorINSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEESaIS5_EE12emplace_backIJS5_EEERS5_DpOT_$
+symbol_name_regexp = ^_ZNSt6vectorINSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEESaIS5_EE(12emplace_backIJS5_EEERS5_DpOT_|17_M_realloc_insertIJS5_EEEvN9__gnu_cxx17__normal_iteratorIPS5_S7_EEDpOT_)$
 change_kind = deleted-function
 drop = yes
 

@@ -120,13 +120,25 @@ struct node_key_hash
     std::size_t operator()(const node_key & key) const { return std::hash<const void *>()(key.parent) * 31u ^ std::hash<const void *>()(key.name); }
 };
 
+// Hashers of this file's own type: a container of standard types alone would be exported from
+// the library as a weak symbol and become part of its ABI.
+struct address_hash
+{
+    std::size_t operator()(const char * address) const { return std::hash<const void *>()(address); }
+};
+
+struct text_hash
+{
+    std::size_t operator()(const std::string & text) const { return std::hash<std::string>()(text); }
+};
+
 struct thread_state
 {
     std::vector<frame> stack;
     std::unordered_map<node_key, node *, node_key_hash> index;
     std::mutex nodes_mutex; // guards `nodes` against a report that walks it while this thread adds a node
     std::vector<std::unique_ptr<node> > nodes;
-    std::unordered_set<const char *> logged_sites; // call sites this thread has asked to log
+    std::unordered_set<const char *, address_hash> logged_sites; // call sites this thread has asked to log
     // Every copy made on this thread, in a task or not. Written by this thread only.
     std::atomic<std::uint64_t> transfer_bytes[transfer_kinds] = {};
     std::atomic<std::uint64_t> transfer_count[transfer_kinds] = {};
@@ -754,7 +766,8 @@ DAAL_EXPORT const char * profiler_kernel_task_name(const char * type, std::size_
 {
     std::string key(type, length);
     key += suffix;
-    static std::unordered_map<std::string, const char *> * const names = new std::unordered_map<std::string, const char *>();
+    using name_map                = std::unordered_map<std::string, const char *, text_hash>;
+    static name_map * const names = new name_map();
     std::lock_guard<std::mutex> lock(log_mutex());
     const auto found = names->find(key);
     if (found != names->end()) return found->second;
