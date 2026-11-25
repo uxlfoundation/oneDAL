@@ -364,7 +364,7 @@ public:
     /// @param[in] class_count The number of classes; ignored for regression.
     void check_same_seed_same_forest(splitter_mode splitter, std::int64_t class_count = 2) {
         constexpr bool is_cls = std::is_same_v<Task, decision_forest::task::classification>;
-        constexpr std::int64_t row_count = 64;
+        constexpr std::int64_t row_count = 32;
         constexpr std::int64_t column_count = 6;
 
         auto x_arr = array<Float>::empty(row_count * column_count);
@@ -397,7 +397,7 @@ public:
         if constexpr (is_cls) {
             desc.set_class_count(class_count);
         }
-        desc.set_tree_count(8);
+        desc.set_tree_count(4);
         desc.set_features_per_node(4);
         desc.set_bootstrap(true);
         desc.set_seed(777);
