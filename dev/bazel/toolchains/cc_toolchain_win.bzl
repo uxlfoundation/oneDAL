@@ -225,6 +225,13 @@ def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
     if cmplr_root:
         # `latest` may be a junction, and icx reports headers by the resolved versioned path.
         _add_builtin_include_dir(cmplr_root)
+
+        # A disk-cache hit replays the header paths of the build that stored it, which may name
+        # this compiler by another directory of the toolkit's `compiler/<version>` layout.
+        versions_root = repo_ctx.path(cmplr_root).dirname
+        if versions_root and versions_root.basename == "compiler":
+            _add_builtin_include_dir(str(versions_root))
+
         # icx includes these overrides ahead of the system headers.
         opt_inc = "{}/opt/compiler/include".format(cmplr_root)
         if repo_ctx.path(opt_inc).exists:
