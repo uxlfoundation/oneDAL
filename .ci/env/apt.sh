@@ -64,6 +64,11 @@ function install_mkl {
     install_dpl
 }
 
+function install_ccl {
+    # Brings Intel MPI with it; the oneCCL samples need both.
+    apt_install intel-oneapi-ccl-devel
+}
+
 function install_clang-format {
     apt_install clang-format-20
 }
@@ -180,6 +185,9 @@ elif [ "${component}" == "mkl" ]; then
 elif [ "${component}" == "dpl" ]; then
     add_repo
     install_dpl
+elif [ "${component}" == "ccl" ]; then
+    add_repo
+    install_ccl
 elif [ "${component}" == "gnu-cross-compilers" ]; then
     update
     install_gnu-cross-compilers "$2"
@@ -214,6 +222,6 @@ elif [ "${component}" == "opencl" ]; then
     install_opencl_apt
 else
     echo "Usage:"
-    echo "   $0 [dpcpp|tbb|mkl|dpl|gnu-cross-compilers|clang-format|dev-base|qemu-apt|qemu-deb|llvm-version|build-sysroot|miniforge|abigail|opencl]"
+    echo "   $0 [dpcpp|tbb|mkl|dpl|ccl|gnu-cross-compilers|clang-format|dev-base|qemu-apt|qemu-deb|llvm-version|build-sysroot|miniforge|abigail|opencl]"
     exit 1
 fi
