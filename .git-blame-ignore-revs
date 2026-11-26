@@ -1,0 +1,5 @@
+# Formatting-only commits. `git blame` skips them with
+# `git config blame.ignoreRevsFile .git-blame-ignore-revs`; GitHub reads this file by default.
+
+# build(bazel): buildifier as a required pre-commit check, format Bazel files (#4040)
+8cf8b4e59d8b5a0c24ec2b16a3908f9399101fac
