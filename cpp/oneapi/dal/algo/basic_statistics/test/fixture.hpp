@@ -82,6 +82,7 @@ public:
 
         check_compute_result(compute_mode, data, weights, compute_result);
         check_for_exception_for_non_requested_results(compute_mode, compute_result);
+        check_results_on_device(compute_mode, compute_result);
     }
 
     void csr_general_checks(const te::csr_table_builder<>& data,
@@ -95,6 +96,38 @@ public:
         auto compute_result = this->compute(desc, csr_table);
         table weights;
         check_compute_result(compute_mode, dense_table, weights, compute_result);
+        check_results_on_device(compute_mode, compute_result);
+    }
+
+    /// On GPU, checks that every requested statistic is returned in USM, for the dense and the
+    /// sparse method alike.
+    ///
+    /// @param compute_mode The requested result options
+    /// @param result       The compute result to check
+    void check_results_on_device(bs::result_option_id compute_mode, const result_t& result) {
+#ifdef ONEDAL_DATA_PARALLEL
+        if (!this->get_policy().is_gpu()) {
+            return;
+        }
+        using getter_t = const table& (result_t::*)() const;
+        const std::pair<bs::result_option_id, getter_t> stats[] = {
+            { result_options::min, &result_t::get_min },
+            { result_options::max, &result_t::get_max },
+            { result_options::sum, &result_t::get_sum },
+            { result_options::sum_squares, &result_t::get_sum_squares },
+            { result_options::sum_squares_centered, &result_t::get_sum_squares_centered },
+            { result_options::mean, &result_t::get_mean },
+            { result_options::second_order_raw_moment, &result_t::get_second_order_raw_moment },
+            { result_options::variance, &result_t::get_variance },
+            { result_options::standard_deviation, &result_t::get_standard_deviation },
+            { result_options::variation, &result_t::get_variation },
+        };
+        for (const auto& [option, get] : stats) {
+            if (compute_mode.test(option)) {
+                te::check_if_table_on_device((result.*get)());
+            }
+        }
+#endif
     }
 
     void online_general_checks(const te::dataframe& data_fr,

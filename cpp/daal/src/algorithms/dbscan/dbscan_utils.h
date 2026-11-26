@@ -436,6 +436,56 @@ public:
     NeighborhoodEngine(const NeighborhoodEngine &)             = delete;
     NeighborhoodEngine & operator=(const NeighborhoodEngine &) = delete;
 
+    /// Squared norms of the first `dim` columns of every row of `table`.
+    static services::Status computeRowNorms(const NumericTable & table, size_t dim, TArrayScalable<FPType, cpu> & norms)
+    {
+        const size_t nRows = table.getNumberOfRows();
+        DAAL_CHECK_MALLOC(norms.reset(nRows));
+        ReadRows<FPType, cpu> rows(const_cast<NumericTable &>(table), 0, nRows);
+        DAAL_CHECK_BLOCK_STATUS(rows);
+        const FPType * const data = rows.get();
+        const size_t nCols        = table.getNumberOfColumns();
+        FPType * const out        = norms.get();
+        daal::threader_for(nRows, 1024, [&](size_t i) {
+            FPType sum = 0;
+            for (size_t k = 0; k < dim; k++) sum += data[i * nCols + k] * data[i * nCols + k];
+            out[i] = sum;
+        });
+        return services::Status();
+    }
+
+    /// `getIndex` for norm-expanded squared distances: a value within `slack` of `cmp`
+    /// is recomputed from the coordinates of `row` and of row `j` of `others`.
+    static size_t getIndexRechecked(size_t * idx, const FPType * array, size_t size, FPType cmp, const FPType * row, const FPType * others,
+                                    size_t dim, size_t othersStride, FPType slack)
+    {
+        const FPType upper = cmp + slack;
+        const FPType lower = cmp - slack;
+        size_t count       = 0;
+        for (size_t j = 0; j < size; ++j)
+        {
+            if (array[j] <= upper) idx[count++] = j;
+        }
+        size_t kept = 0;
+        for (size_t c = 0; c < count; ++c)
+        {
+            const size_t j = idx[c];
+            bool near      = true;
+            if (array[j] > lower)
+            {
+                FPType exact = 0;
+                for (size_t k = 0; k < dim; k++)
+                {
+                    const FPType diff = row[k] - others[j * othersStride + k];
+                    exact += diff * diff;
+                }
+                near = exact <= cmp;
+            }
+            if (near) idx[kept++] = j;
+        }
+        return kept;
+    }
+
     size_t getIndex(size_t * idx, FPType * array, size_t size, FPType cmp)
     {
         size_t count = 0;
@@ -488,11 +538,39 @@ private:
         const FPType epsP    = poweredEpsilon<FPType, cpu>(_metric, _eps, _p);
         const bool sameTable = (_inTable == _outTable);
 
+        // Euclidean tiles come from the norm expansion; entries within its rounding error of epsP
+        // are recomputed from the coordinates, so points exactly epsilon apart stay neighbors.
+        const bool recheck = (_metric == PairwiseDistanceType::euclidean);
+        TArrayScalable<FPType, cpu> inNorms;
+        TArrayScalable<FPType, cpu> outNorms;
+        if (recheck)
+        {
+            DAAL_CHECK_STATUS_VAR(computeRowNorms(*_inTable, dim, inNorms));
+            if (!sameTable) DAAL_CHECK_STATUS_VAR(computeRowNorms(*_outTable, dim, outNorms));
+        }
+        const FPType * const inNormsPtr  = inNorms.get();
+        const FPType * const outNormsPtr = sameTable ? inNorms.get() : outNorms.get();
+        const FPType slackScale          = FPType(4 * (dim + 2)) * services::internal::EpsilonVal<FPType>::get();
+
         const size_t inBlockSize = 128;
         const size_t nInBlocks   = inRows / inBlockSize + (inRows % inBlockSize > 0);
 
         const size_t outBlockSize = 128;
         const size_t nOutBlocks   = outRows / outBlockSize + (outRows % outBlockSize > 0);
+
+        // The largest norm of each out-block bounds the rounding error of a whole tile row.
+        TArrayScalable<FPType, cpu> outBlockMaxNorms;
+        if (recheck)
+        {
+            DAAL_CHECK_MALLOC(outBlockMaxNorms.reset(nOutBlocks));
+            for (size_t b = 0; b < nOutBlocks; b++)
+            {
+                const size_t jEnd = services::internal::min<cpu, size_t>(outRows, (b + 1) * outBlockSize);
+                FPType blockMax   = 0;
+                for (size_t j = b * outBlockSize; j < jEnd; j++) blockMax = services::internal::max<cpu, FPType>(blockMax, outNormsPtr[j]);
+                outBlockMaxNorms[b] = blockMax;
+            }
+        }
 
         TlsMem<FPType, cpu> tls(inBlockSize * outBlockSize);
         TlsMem<size_t, cpu> tlsIdx(outBlockSize);
@@ -555,7 +633,9 @@ private:
 
                 for (size_t i = 0; i < iSize; i++)
                 {
-                    const size_t indexes = getIndex(idx, local + i * jSize, jSize, epsP);
+                    const size_t indexes = recheck ? getIndexRechecked(idx, local + i * jSize, jSize, epsP, inData + i * dim, outData, dim, outDim,
+                                                                       slackScale * (inNormsPtr[i1 + i] + outBlockMaxNorms[outBlock])) :
+                                                     getIndex(idx, local + i * jSize, jSize, epsP);
                     DAAL_CHECK_MALLOC_THR(!neighs[i + i1].allocateNewEntries(indexes));
 
                     for (size_t j = 0; j < indexes; j++)

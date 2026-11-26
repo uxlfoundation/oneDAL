@@ -16,7 +16,10 @@
 
 #include "oneapi/dal/algo/hdbscan/test/fixture.hpp"
 #include "oneapi/dal/test/engine/blobs.hpp"
+#include "oneapi/dal/test/engine/tables.hpp"
 #include "oneapi/dal/detail/error_messages.hpp"
+
+#include "services/env_detect.h"
 
 #include <algorithm>
 #include <cmath>
@@ -374,6 +377,46 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 }
 
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan trees: same hierarchy as brute force over many Boruvka rounds",
+                     "[hdbscan][batch][single_linkage_tree]",
+                     hdbscan_tree_types) {
+    using Float = std::tuple_element_t<0, TestType>;
+    using Method = std::tuple_element_t<1, TestType>;
+    // The float32 brute force takes euclidean distances from a GEMM, so it is not a reference.
+    // The GPU tree search is covered by the cpu-vs-gpu cases below.
+    SKIP_IF((!std::is_same_v<Float, double>));
+    SKIP_IF(!this->get_policy().is_cpu());
+
+    // Touching blobs, so the MST needs many rounds with components of every size.
+    constexpr std::int64_t per_cluster = 250;
+    constexpr std::int64_t cluster_count = 4;
+    constexpr std::int64_t column_count = 3;
+    constexpr std::int64_t row_count = per_cluster * cluster_count;
+    const auto data = te::make_blobs<Float>(per_cluster,
+                                            cluster_count,
+                                            column_count,
+                                            /*separation=*/Float(1.0),
+                                            /*spread=*/Float(1.0));
+    const auto x = homogen_table::wrap(data.data(), row_count, column_count);
+
+    const auto metric = GENERATE(distance_metric::euclidean, distance_metric::manhattan);
+    const std::int64_t min_samples = GENERATE(2, 10);
+    CAPTURE(metric, min_samples);
+
+    const auto options = result_options::responses | result_options::single_linkage_tree;
+    const auto ref_desc = hdbscan::descriptor<Float, hdbscan::method::brute_force>(10, min_samples)
+                              .set_metric(metric)
+                              .set_result_options(options);
+    const auto desc = hdbscan::descriptor<Float, Method>(10, min_samples)
+                          .set_metric(metric)
+                          .set_result_options(options);
+    const auto ref_tree = this->get_single_linkage_tree(this->compute(ref_desc, x));
+    const auto tree = this->get_single_linkage_tree(this->compute(desc, x));
+
+    check_same_hierarchy(tree, ref_tree, row_count, 1e-9);
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan: non-finite input is rejected instead of truncating the MST",
                      "[hdbscan][batch]",
                      hdbscan_types) {
@@ -448,6 +491,57 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 }
 
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan: euclidean methods agree on data far from the origin",
+                     "[hdbscan][batch]",
+                     hdbscan_bf_types) {
+    using Float = std::tuple_element_t<0, TestType>;
+
+    // Norm-expanded squared distances lose the spread to cancellation here unless the data are centered.
+    constexpr std::int64_t per_cluster = 300;
+    constexpr std::int64_t cluster_count = 3;
+    constexpr std::int64_t column_count = 4;
+    constexpr std::int64_t row_count = per_cluster * cluster_count;
+    auto data = te::make_blobs<Float>(per_cluster,
+                                      cluster_count,
+                                      column_count,
+                                      /*separation=*/Float(6.0),
+                                      /*spread=*/Float(2.0));
+    for (auto& v : data) {
+        v += Float(1.0e4);
+    }
+    const auto x = homogen_table::wrap(data.data(), row_count, column_count);
+
+    const std::int64_t min_samples = GENERATE(2, 10);
+    CAPTURE(min_samples);
+    const auto options = result_options::responses | result_options::single_linkage_tree;
+    const auto kd =
+        this->compute(hdbscan::descriptor<Float, hdbscan::method::kd_tree>(10, min_samples)
+                          .set_result_options(options),
+                      x);
+    const auto kd_tree = this->get_single_linkage_tree(kd);
+    // The kd-tree takes every distance from coordinate differences, so it is the reference here; the
+    // tolerance covers float32 GEMM rounding on centered data, not the cancellation of the offset.
+    const Float tolerance = Float(1e-3) * kd_tree[4 * (row_count - 2) + 2];
+    const auto check_merges = [&](const auto& result) {
+        const auto tree = this->get_single_linkage_tree(result);
+        REQUIRE(tree.get_count() == kd_tree.get_count());
+        for (std::int64_t e = 0; e < row_count - 1; e++) {
+            CAPTURE(e, tree[4 * e + 2], kd_tree[4 * e + 2]);
+            REQUIRE(std::abs(tree[4 * e + 2] - kd_tree[4 * e + 2]) <= tolerance);
+        }
+        this->check_same_result(kd, result);
+    };
+    check_merges(
+        this->compute(hdbscan::descriptor<Float, hdbscan::method::ball_tree>(10, min_samples)
+                          .set_result_options(options),
+                      x));
+    check_merges(
+        this->compute(hdbscan::descriptor<Float, hdbscan::method::brute_force>(10, min_samples)
+                          .set_result_options(options),
+                      x));
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan: kd_tree matches brute_force on 1D data",
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
@@ -501,6 +595,102 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
             this->template get_method_descriptor<hdbscan::method::ball_tree>(min_cluster_size,
                                                                              min_samples),
             x));
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan tree methods: wide data gives the brute force hierarchy",
+                     "[hdbscan][batch]",
+                     hdbscan_tree_types) {
+    SKIP_IF(!this->get_policy().is_cpu());
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+    using Method = std::tuple_element_t<1, TestType>;
+
+    // From 32 columns the tree methods build the MST with Prim's algorithm instead of Boruvka.
+    const std::int64_t column_count = GENERATE(31, 32, 64);
+    const auto metric = GENERATE(distance_metric::euclidean, distance_metric::manhattan);
+    CAPTURE(column_count, metric);
+
+    // Prim scans a step serially below 32768 row values: at 600 rows only 64 columns starts in
+    // parallel, at 2400 rows 32 columns does too.
+    const std::int64_t per_cluster = GENERATE(150, 600);
+    CAPTURE(per_cluster);
+    constexpr std::int64_t cluster_count = 4;
+    const std::int64_t row_count = per_cluster * cluster_count;
+    const auto data = te::make_blobs<Float>(per_cluster,
+                                            cluster_count,
+                                            column_count,
+                                            /*separation=*/Float(10.0),
+                                            /*spread=*/Float(1.0));
+    const auto x = homogen_table::wrap(data.data(), row_count, column_count);
+
+    const auto options = result_options::responses | result_options::single_linkage_tree;
+    const auto ref_desc =
+        this->template get_method_descriptor<hdbscan::method::brute_force>(10, 5, metric)
+            .set_result_options(options);
+    const auto desc =
+        this->template get_method_descriptor<Method>(10, 5, metric).set_result_options(options);
+    const auto ref = this->compute(ref_desc, x);
+    const auto result = this->compute(desc, x);
+
+    // The float32 brute force computes squared L2 from norms and dot products.
+    this->check_same_result(ref, result);
+    check_same_hierarchy(this->get_single_linkage_tree(result),
+                         this->get_single_linkage_tree(ref),
+                         row_count,
+                         te::get_tolerance<Float>(1e-2, 1e-9));
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan tree methods: Prim's MST is the same for every thread count",
+                     "[hdbscan][batch]",
+                     hdbscan_tree_types) {
+    SKIP_IF(!this->get_policy().is_cpu());
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+    using Method = std::tuple_element_t<1, TestType>;
+
+    // 2400 rows x 64 columns: the early Prim steps scan in parallel, the late ones serially.
+    constexpr std::int64_t per_cluster = 600;
+    constexpr std::int64_t cluster_count = 4;
+    constexpr std::int64_t column_count = 64;
+    const std::int64_t row_count = per_cluster * cluster_count;
+    const auto data = te::make_blobs<Float>(per_cluster,
+                                            cluster_count,
+                                            column_count,
+                                            /*separation=*/Float(10.0),
+                                            /*spread=*/Float(1.0));
+    const auto x = homogen_table::wrap(data.data(), row_count, column_count);
+    const auto desc = this->template get_method_descriptor<Method>(10, 5).set_result_options(
+        result_options::responses | result_options::single_linkage_tree);
+
+    auto* const env = daal::services::Environment::getInstance();
+    const std::size_t default_thread_count = env->getNumberOfThreads();
+    const auto compute_with_threads = [&](std::size_t thread_count) {
+        env->setNumberOfThreads(thread_count);
+        auto result = this->compute(desc, x);
+        env->setNumberOfThreads(default_thread_count);
+        return result;
+    };
+    const auto serial = compute_with_threads(1);
+    const auto parallel = compute_with_threads(4);
+
+    // The scan reduces its blocks in block order, so the edges are the same whatever runs them.
+    const auto serial_tree = this->get_single_linkage_tree(serial);
+    const auto parallel_tree = this->get_single_linkage_tree(parallel);
+    REQUIRE(serial_tree.get_count() == parallel_tree.get_count());
+    std::int64_t first_difference = -1;
+    for (std::int64_t e = 0; e < row_count - 1 && first_difference < 0; e++) {
+        if (serial_tree[4 * e + 2] != parallel_tree[4 * e + 2]) {
+            first_difference = e;
+        }
+    }
+    CAPTURE(first_difference);
+    REQUIRE(first_difference < 0);
+    check_same_hierarchy(parallel_tree,
+                         serial_tree,
+                         row_count,
+                         te::get_tolerance<Float>(1e-6, 1e-12));
 }
 
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
@@ -676,6 +866,70 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 }
 
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan: minkowski merge distances match the MST of std::pow distances",
+                     "[hdbscan][batch]",
+                     hdbscan_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    // 1.5, 3 and 4 are raised by multiplication and 2.7 through vPowx; 300 columns do not fit
+    // one vPowx buffer.
+    const double degree = GENERATE(1.5, 2.7, 3.0, 4.0);
+    const std::int64_t column_count = GENERATE(3, 300);
+    CAPTURE(degree, column_count);
+
+    constexpr std::int64_t row_count = 60;
+    const auto data = te::make_blobs<Float>(20, 3, column_count, Float(5.0), Float(2.0));
+    const auto x = homogen_table::wrap(data.data(), row_count, column_count);
+
+    // With min_samples = 1 every core distance is 0, so the merge distances are the MST weights.
+    const auto desc =
+        this->get_descriptor(2, 1, distance_metric::minkowski, degree)
+            .set_result_options(result_options::responses | result_options::single_linkage_tree);
+    const auto tree = this->get_single_linkage_tree(this->compute(desc, x));
+
+    const auto distance = [&](std::int64_t a, std::int64_t b) {
+        double sum = 0.0;
+        for (std::int64_t d = 0; d < column_count; d++) {
+            const double diff =
+                double(data[a * column_count + d]) - double(data[b * column_count + d]);
+            sum += std::pow(std::abs(diff), degree);
+        }
+        return std::pow(sum, 1.0 / degree);
+    };
+
+    // Prim's algorithm; the sorted MST weights do not depend on how ties are broken.
+    std::vector<double> best(row_count, std::numeric_limits<double>::infinity());
+    std::vector<bool> in_tree(row_count, false);
+    std::vector<double> weights;
+    best[0] = 0.0;
+    for (std::int64_t step = 0; step < row_count; step++) {
+        std::int64_t u = -1;
+        for (std::int64_t i = 0; i < row_count; i++) {
+            if (!in_tree[i] && (u < 0 || best[i] < best[u])) {
+                u = i;
+            }
+        }
+        in_tree[u] = true;
+        if (step > 0) {
+            weights.push_back(best[u]);
+        }
+        for (std::int64_t v = 0; v < row_count; v++) {
+            if (!in_tree[v]) {
+                best[v] = std::min(best[v], distance(u, v));
+            }
+        }
+    }
+    std::sort(weights.begin(), weights.end());
+
+    const double tol = te::get_tolerance<Float>(1e-4, 1e-10);
+    for (std::int64_t e = 0; e < row_count - 1; e++) {
+        CAPTURE(e, tree[4 * e + 2], weights[e]);
+        REQUIRE(std::abs(double(tree[4 * e + 2]) - weights[e]) <= tol * weights[e]);
+    }
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan brute_force: alpha=1 is default behavior",
                      "[hdbscan][batch]",
                      hdbscan_bf_types) {
@@ -738,12 +992,19 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     SKIP_IF(this->not_float64_friendly());
     using Float = std::tuple_element_t<0, TestType>;
 
-    // Two direction clusters plus two all-zero rows, which scikit-learn puts at cosine distance 1
+    // Two direction clusters plus two zero-norm rows, which scikit-learn puts at cosine distance 1
     // from everything. Reference: sklearn.cluster.HDBSCAN(3, 3, metric="cosine").
     constexpr std::int64_t row_count = 14;
-    constexpr double data[] = { 1.0,  0.05, 1.0,  0.1, 1.0, 0.0, 1.0, 0.08, 1.0,  0.03,
-                                1.0,  0.12, 0.05, 1.0, 0.1, 1.0, 0.0, 1.0,  0.08, 1.0,
-                                0.03, 1.0,  0.12, 1.0, 0.0, 0.0, 0.0, 0.0 };
+    double data[] = {
+        1.0, 0.05, 1.0, 0.1, 1.0,  0.0, 1.0,  0.08, 1.0,  0.03, 1.0, 0.12, 0.05, 1.0,
+        0.1, 1.0,  0.0, 1.0, 0.08, 1.0, 0.03, 1.0,  0.12, 1.0,  0.0, 0.0,  0.0,  0.0
+    };
+    // A row whose squared norm underflows to 0 is a zero row too, as in scikit-learn's normalize.
+    const bool underflow = GENERATE(false, true);
+    CAPTURE(underflow);
+    const double tiny = underflow ? (std::is_same_v<Float, float> ? 1e-25 : 1e-170) : 0.0;
+    data[24] = tiny;
+    data[27] = tiny;
     constexpr Float expected[] = { 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, -1, -1 };
     const auto x = make_table<Float>(data, row_count, 2);
 
@@ -1168,6 +1429,42 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 }
 
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan: allow_single_cluster selects the root when min_cluster_size "
+                     "exceeds the row count",
+                     "[hdbscan][batch][single-cluster]",
+                     hdbscan_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    const auto x = make_table<Float>(single_root_data, single_root_row_count, 2);
+
+    // Every point falls out of the root at the same lambda, so scikit-learn keeps them all in
+    // one cluster with membership 1, and the leaf root's size of 0 never trips max_cluster_size.
+    const std::int64_t min_cluster_size = GENERATE(17, 100);
+    const std::int64_t max_cluster_size = GENERATE(0, 4);
+    CAPTURE(min_cluster_size, max_cluster_size);
+    const std::vector<std::int32_t> ref_labels(single_root_row_count, 0);
+    const std::vector<double> ref_probabilities(single_root_row_count, 1.0);
+
+    const auto desc =
+        this->get_descriptor(min_cluster_size,
+                             3,
+                             result_options::responses | result_options::probabilities)
+            .set_allow_single_cluster(true)
+            .set_max_cluster_size(max_cluster_size);
+    const auto result = this->compute(desc, x);
+
+    REQUIRE(result.get_cluster_count() == 1);
+    this->check_responses_against_ref(result.get_responses(),
+                                      ref_labels.data(),
+                                      single_root_row_count);
+    this->check_close(this->get_probabilities(result),
+                      ref_probabilities.data(),
+                      single_root_row_count,
+                      te::get_tolerance<Float>(1e-4, 1e-7));
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan: leaf selection never picks the root cluster",
                      "[hdbscan][batch][single-cluster]",
                      hdbscan_types) {
@@ -1486,6 +1783,13 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
             .set_store_centers(store_centers_method::both);
     const auto result = this->compute(desc, x);
     REQUIRE(result.get_cluster_count() == 2);
+#ifdef ONEDAL_DATA_PARALLEL
+    if (this->get_policy().is_gpu()) {
+        te::check_if_table_on_device(result.get_responses());
+        te::check_if_table_on_device(result.get_cluster_centers());
+        te::check_if_table_on_device(result.get_medoid_centers());
+    }
+#endif
 
     // Cluster ids follow first appearance, and the first rows belong to the blob at the origin.
     const double tol = te::get_tolerance<Float>(1e-4, 1e-8);
@@ -1658,6 +1962,62 @@ TEMPLATE_LIST_TEST_M(
                          row_count);
 }
 
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan: tied merges come out the same for every thread count",
+                     "[hdbscan][batch]",
+                     hdbscan_types) {
+    SKIP_IF(!this->get_policy().is_cpu());
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    // Integer grid points, every third one duplicated, so most MRD values tie exactly.
+    constexpr std::int64_t side = 30;
+    std::vector<Float> data;
+    for (std::int64_t i = 0; i < side; i++) {
+        for (std::int64_t j = 0; j < side; j++) {
+            const std::int64_t copies = ((i * side + j) % 3 == 0) ? 2 : 1;
+            for (std::int64_t c = 0; c < copies; c++) {
+                data.push_back(Float(i + ((i < side / 2) ? 0 : 3)));
+                data.push_back(Float(j));
+            }
+        }
+    }
+    const std::int64_t row_count = static_cast<std::int64_t>(data.size()) / 2;
+    const auto x = homogen_table::wrap(data.data(), row_count, 2);
+    const auto desc =
+        this->get_descriptor(10,
+                             4,
+                             result_options::responses | result_options::single_linkage_tree);
+
+    // One thread sorts the MST edges serially, more threads in parallel.
+    auto* const env = daal::services::Environment::getInstance();
+    const std::size_t default_thread_count = env->getNumberOfThreads();
+    struct thread_count_guard {
+        daal::services::Environment* env;
+        std::size_t thread_count;
+        ~thread_count_guard() {
+            env->setNumberOfThreads(thread_count);
+        }
+    };
+    const auto compute_with_threads = [&](std::size_t thread_count) {
+        const thread_count_guard restore{ env, default_thread_count };
+        env->setNumberOfThreads(thread_count);
+        return this->compute(desc, x);
+    };
+    const auto serial = compute_with_threads(1);
+    const auto parallel = compute_with_threads(4);
+
+    this->check_same_result(serial, parallel);
+    const auto serial_tree = this->get_single_linkage_tree(serial);
+    const auto parallel_tree = this->get_single_linkage_tree(parallel);
+    for (std::int64_t i = 0; i < 4 * (row_count - 1); i++) {
+        if (serial_tree[i] != parallel_tree[i]) {
+            CAPTURE(i / 4, i % 4, serial_tree[i], parallel_tree[i]);
+            FAIL("single linkage trees differ");
+        }
+    }
+}
+
 // =========================================================================
 // GPU tests
 // =========================================================================
@@ -1767,6 +2127,77 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     const std::int64_t block_size = GENERATE(1, 7, 899);
     CAPTURE(block_size);
     this->check_same_result(reference, compute_with_block(block_size));
+}
+
+// 64 columns take the GEMM distance matrix; the offset checks that the data are centered first.
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan gpu: wide euclidean data match float64 on the host",
+                     "[hdbscan][batch][gpu]",
+                     hdbscan_bf_types) {
+    SKIP_IF(this->get_policy().is_cpu());
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    constexpr std::int64_t per_cluster = 500;
+    constexpr std::int64_t cluster_count = 4;
+    constexpr std::int64_t column_count = 64;
+    constexpr std::int64_t row_count = per_cluster * cluster_count;
+    const Float offset = GENERATE(Float(0), Float(1.0e3));
+    CAPTURE(offset);
+    auto data = te::make_blobs<Float>(per_cluster,
+                                      cluster_count,
+                                      column_count,
+                                      /*separation=*/Float(4.0),
+                                      /*spread=*/Float(2.0));
+    for (auto& v : data) {
+        v += offset;
+    }
+    const auto x = homogen_table::wrap(data.data(), row_count, column_count);
+
+    const auto desc =
+        this->template get_method_descriptor<hdbscan::method::brute_force>(25, 10)
+            .set_result_options(result_options::responses | result_options::single_linkage_tree);
+    const auto [host, device] = this->compare_device_with_float64_host(desc, x);
+    REQUIRE(device.get_cluster_count() == cluster_count);
+    check_same_hierarchy(this->get_single_linkage_tree(device),
+                         this->get_single_linkage_tree(host),
+                         row_count,
+                         te::get_tolerance<Float>(1e-3, 1e-7));
+}
+
+// Above 256 neighbors the block tree takes core distances from the GEMM search, which needs
+// centered data when the points lie far from the origin.
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan gpu: block tree core distances above 256 neighbors match float64",
+                     "[hdbscan][batch][gpu]",
+                     hdbscan_bf_types) {
+    SKIP_IF(this->get_policy().is_cpu());
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    constexpr std::int64_t per_cluster = 1000;
+    constexpr std::int64_t cluster_count = 2;
+    constexpr std::int64_t column_count = 4;
+    constexpr std::int64_t row_count = per_cluster * cluster_count;
+    auto data = te::make_blobs<Float>(per_cluster,
+                                      cluster_count,
+                                      column_count,
+                                      /*separation=*/Float(20.0),
+                                      /*spread=*/Float(2.0));
+    for (auto& v : data) {
+        v += Float(1.0e3);
+    }
+    const auto x = homogen_table::wrap(data.data(), row_count, column_count);
+
+    const auto desc =
+        this->template get_method_descriptor<hdbscan::method::kd_tree>(100, 300).set_result_options(
+            result_options::responses | result_options::single_linkage_tree);
+    const auto [host, device] = this->compare_device_with_float64_host(desc, x);
+    REQUIRE(device.get_cluster_count() == cluster_count);
+    check_same_hierarchy(this->get_single_linkage_tree(device),
+                         this->get_single_linkage_tree(host),
+                         row_count,
+                         te::get_tolerance<Float>(1e-3, 1e-7));
 }
 
 // Thousands of rows give the GPU block tree three levels and a partial last leaf.

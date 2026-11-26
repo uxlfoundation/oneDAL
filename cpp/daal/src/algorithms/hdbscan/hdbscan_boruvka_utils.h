@@ -18,6 +18,10 @@
 #pragma once
 
 #include "services/daal_defines.h" // DAAL_MALLOC_DEFAULT_ALIGNMENT
+#include "services/error_handling.h"
+#include "src/algorithms/hdbscan/hdbscan_distance_utils.h"
+#include "src/externals/service_memory.h"
+#include "src/services/service_arrays.h"
 #include "src/services/service_data_utils.h"
 #include "src/services/service_defines.h"
 #include "src/threading/threading.h"
@@ -121,6 +125,58 @@ static void reduceComponentBestEdges(size_t nRows, const DAAL_INT * componentOf,
     }
 }
 
+/// Upper-bound each component's lightest outgoing edge by last round's edges that still leave it.
+///
+/// @tparam FPType Floating-point type used for edge weights (MRD)
+///
+/// @param[in]  nRows        Number of points
+/// @param[in]  componentOf  Per-point component id
+/// @param[in]  pointBestMrd Per-point best MRD from the previous round
+/// @param[in]  pointBestIdx Per-point best target id from the previous round (-1 if none)
+/// @param[out] compBound    Per-component bound, `+inf` where no such edge exists
+template <typename FPType>
+static void computeComponentBounds(size_t nRows, const DAAL_INT * componentOf, const FPType * pointBestMrd, const DAAL_INT * pointBestIdx,
+                                   FPType * compBound)
+{
+    const FPType inf = daal::services::internal::MaxVal<FPType>::get();
+    for (size_t i = 0; i < nRows; i++) compBound[i] = inf;
+    for (size_t i = 0; i < nRows; i++)
+    {
+        const DAAL_INT j    = pointBestIdx[i];
+        const DAAL_INT comp = componentOf[i];
+        if (j >= 0 && componentOf[j] != comp && pointBestMrd[i] < compBound[comp]) compBound[comp] = pointBestMrd[i];
+    }
+}
+
+/// Check whether a point's Boruvka query can be skipped this round.
+///
+/// Candidates only leave a point's search space between rounds, so an exact best edge that still
+/// leaves the component stays the point's best. A point whose core distance exceeds the component
+/// bound cannot give the component's edge, because its MRD is at least its core distance.
+///
+/// @tparam FPType Floating-point type used for edge weights (MRD)
+///
+/// @param[in]     i             Point id
+/// @param[in]     componentOf   Per-point component id
+/// @param[in]     coreDistances Per-point core distances, scaled as in the MRD
+/// @param[in]     compBound     Per-component bound from `computeComponentBounds`
+/// @param[in,out] pointBestIdx  Per-point exact best target id or -1; set to -1 for a skipped point
+///
+/// @return `true` if the point keeps its previous edge or cannot give its component's edge
+template <typename FPType>
+static bool skipBoruvkaQuery(size_t i, const DAAL_INT * componentOf, const FPType * coreDistances, const FPType * compBound, DAAL_INT * pointBestIdx)
+{
+    const DAAL_INT comp = componentOf[i];
+    const DAAL_INT prev = pointBestIdx[i];
+    if (prev >= 0 && componentOf[prev] != comp) return true;
+    if (coreDistances[i] > compBound[comp])
+    {
+        pointBestIdx[i] = -1;
+        return true;
+    }
+    return false;
+}
+
 /// Append each component's best edge to the MST and merge its endpoints' sets, skipping edges
 /// whose endpoints an earlier edge of the same round already joined.
 ///
@@ -178,6 +234,158 @@ static void refreshComponentIds(size_t nRows, UnionFind & uf, DAAL_INT * compone
     daal::threader_for(nRows, 1, [&](size_t i) { componentOf[i] = uf.find(static_cast<DAAL_INT>(i)); });
     DAAL_INT * const parent = uf.parent;
     daal::threader_for(nRows, 1, [&](size_t i) { parent[i] = componentOf[i]; });
+}
+
+/// Width from which the tree bounds barely prune, so `primMst` replaces the Boruvka rounds.
+constexpr size_t primMinCols = 96;
+
+/// Rows from which `primMst` wins at `primMinCols`; below it each Prim step is too short to share.
+constexpr size_t primMinRows = 32768;
+
+/// Below this many row values left to scan, a Prim step runs serially: a parallel-for costs more than the scan.
+constexpr size_t primSerialWork = 32768;
+
+/// Build the MST under MRD with Prim's algorithm, computing the distances on the fly.
+///
+/// Needs O(nRows x nCols) extra memory, for a compact copy of the rows outside the tree. Each step
+/// scans them in fixed blocks of rows, so the result does not depend on the thread count.
+///
+/// @tparam FPType   Floating-point type
+/// @tparam cpu      CPU dispatch tag
+/// @tparam DistFunc Metric functor exposing `pointDist`
+///
+/// @param[in]  data          Row-major input, `nRows x nCols`
+/// @param[in]  nRows         Number of points
+/// @param[in]  nCols         Number of features
+/// @param[in]  coreDistances Per-point core distances, length `nRows`
+/// @param[in]  distFunc      Metric functor instance (unscaled metric)
+/// @param[in]  invAlpha      `1.0 / alpha`, applied only to the distance term of the MRD
+/// @param[out] mstFrom       Source endpoint per MST edge, length `nRows - 1`
+/// @param[out] mstTo         Target endpoint per MST edge, length `nRows - 1`
+/// @param[out] mstWeights    Edge weights (MRD), length `nRows - 1`
+/// @param[out] edgesAdded    Number of edges emitted; fewer than `nRows - 1` only on non-finite input
+///
+/// @return `ErrorMemoryAllocationFailed` if a scratch allocation fails
+template <typename FPType, daal::internal::CpuType cpu, typename DistFunc>
+static services::Status primMst(const FPType * data, size_t nRows, size_t nCols, const FPType * coreDistances, const DistFunc & distFunc,
+                                FPType invAlpha, DAAL_INT * mstFrom, DAAL_INT * mstTo, FPType * mstWeights, size_t & edgesAdded)
+{
+    using daal::services::internal::TArray;
+    const FPType inf       = daal::services::internal::MaxVal<FPType>::get();
+    const size_t blockSize = 64;
+    const size_t outCount  = nRows - 1;
+    const size_t maxBlocks = (outCount + blockSize - 1) / blockSize;
+    edgesAdded             = 0;
+    DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, outCount, nCols * sizeof(FPType));
+
+    // Row id, row, core distance and best edge of each point outside the tree. Removing a point
+    // moves the last one into its slot.
+    TArray<DAAL_INT, cpu> outIdVec(outCount);
+    TArray<FPType, cpu> outColsVec(outCount * nCols);
+    TArray<FPType, cpu> outCoreVec(outCount);
+    TArray<FPType, cpu> bestMrdVec(outCount);
+    TArray<DAAL_INT, cpu> bestFromVec(outCount);
+    TArray<FPType, cpu> blockMrdVec(maxBlocks);
+    TArray<size_t, cpu> blockPosVec(maxBlocks);
+    DAAL_INT * outId    = outIdVec.get();
+    FPType * outCols    = outColsVec.get();
+    FPType * outCore    = outCoreVec.get();
+    FPType * bestMrd    = bestMrdVec.get();
+    DAAL_INT * bestFrom = bestFromVec.get();
+    FPType * blockMrd   = blockMrdVec.get();
+    size_t * blockPos   = blockPosVec.get();
+    DAAL_CHECK_MALLOC(outId && outCols && outCore && bestMrd && bestFrom && blockMrd && blockPos);
+
+    for (size_t p = 0; p < outCount; p++)
+    {
+        outId[p]    = static_cast<DAAL_INT>(p + 1);
+        outCore[p]  = coreDistances[p + 1];
+        bestMrd[p]  = inf;
+        bestFrom[p] = -1;
+    }
+    // Column-major, so a block's distances to the current point are one SIMD pass per feature.
+    daal::threader_for(nCols, 1, [&](size_t d) {
+        FPType * col = outCols + d * outCount;
+        for (size_t p = 0; p < outCount; p++) col[p] = data[(p + 1) * nCols + d];
+    });
+    const FPType slack = reducedSlack<FPType>();
+
+    DAAL_INT current = 0;
+    for (size_t remaining = outCount; remaining > 0; remaining--)
+    {
+        const FPType * currentRow = data + current * nCols;
+        const FPType currentCore  = coreDistances[current];
+        const size_t blockCount   = (remaining + blockSize - 1) / blockSize;
+
+        const auto scanBlock = [&](size_t b) {
+            const size_t begin = b * blockSize;
+            const size_t end   = (begin + blockSize < remaining) ? begin + blockSize : remaining;
+            FPType localMrd    = inf;
+            size_t localPos    = remaining;
+            FPType reduced[blockSize];
+            distFunc.template leafReduced<cpu>(currentRow, outCols + begin, end - begin, outCount, nCols, reduced);
+            for (size_t p = begin; p < end; p++)
+            {
+                // The MRD is at least both core distances, so only a pair below both needs the distance.
+                const FPType coreP = outCore[p];
+                if (currentCore < bestMrd[p] && coreP < bestMrd[p]
+                    && reduced[p - begin] <= distFunc.template toReduced<cpu>(bestMrd[p] / invAlpha) * slack)
+                {
+                    FPType mrd = distFunc.template fromReduced<cpu>(reduced[p - begin]) * invAlpha;
+                    mrd        = (currentCore > mrd) ? currentCore : mrd;
+                    mrd        = (coreP > mrd) ? coreP : mrd;
+                    if (mrd < bestMrd[p])
+                    {
+                        bestMrd[p]  = mrd;
+                        bestFrom[p] = current;
+                    }
+                }
+                if (bestMrd[p] < localMrd)
+                {
+                    localMrd = bestMrd[p];
+                    localPos = p;
+                }
+            }
+            blockMrd[b] = localMrd;
+            blockPos[b] = localPos;
+        };
+        if (blockCount == 1 || remaining * nCols < primSerialWork)
+        {
+            for (size_t b = 0; b < blockCount; b++) scanBlock(b);
+        }
+        else
+        {
+            // A static partition keeps each thread on mostly the same rows from step to step.
+            daal::static_threader_for(blockCount, [&](size_t b, size_t) { scanBlock(b); });
+        }
+
+        FPType minMrd = inf;
+        size_t minPos = remaining;
+        for (size_t b = 0; b < blockCount; b++)
+        {
+            if (blockMrd[b] < minMrd)
+            {
+                minMrd = blockMrd[b];
+                minPos = blockPos[b];
+            }
+        }
+        // Only non-finite input leaves every remaining point without an edge.
+        if (minPos == remaining) break;
+
+        current                = outId[minPos];
+        mstFrom[edgesAdded]    = bestFrom[minPos];
+        mstTo[edgesAdded]      = current;
+        mstWeights[edgesAdded] = minMrd;
+        edgesAdded++;
+
+        const size_t last = remaining - 1;
+        outId[minPos]     = outId[last];
+        outCore[minPos]   = outCore[last];
+        bestMrd[minPos]   = bestMrd[last];
+        bestFrom[minPos]  = bestFrom[last];
+        for (size_t d = 0; d < nCols; d++) outCols[d * outCount + minPos] = outCols[d * outCount + last];
+    }
+    return services::Status();
 }
 
 } // namespace internal

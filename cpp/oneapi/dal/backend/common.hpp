@@ -529,7 +529,10 @@ inline sycl::range<2> make_range_2d(std::int64_t size1, std::int64_t size2) {
 inline std::int64_t max_range_2d_rows(std::int64_t size2) {
     ONEDAL_ASSERT(size2 > 0);
     constexpr std::int64_t max_items = std::numeric_limits<std::int32_t>::max();
-    return std::max<std::int64_t>(1, max_items / size2);
+    // SYCL may round the first dimension up to a multiple of 32, which must still fit.
+    constexpr std::int64_t rounding = 32;
+    const std::int64_t rows = max_items / size2;
+    return std::max<std::int64_t>(1, rows < rounding ? rows : rows / rounding * rounding);
 }
 
 /// Run `kernel(row, col)` over a `row_count x col_count` grid in row blocks of at most

@@ -31,7 +31,11 @@
 #include "src/services/service_profiler.h"
 
 #include <climits>     // UINT_MAX
+#include <cstdint>     // uintptr_t
 #include <type_traits> // is_trivially_default_constructible
+#if defined(__linux__)
+    #include <sys/mman.h> // madvise
+#endif
 
 namespace daal
 {
@@ -269,6 +273,26 @@ void service_memset_incrementing(T * const ptr, const T startValue, const size_t
     {
         ptr[i] = startValue + i;
     }
+}
+
+/// Ask the kernel to back the 2 MB pages inside `[ptr, ptr + bytes)` with transparent huge
+/// pages, which cuts the page faults and the unmapping cost of a large scratch buffer.
+///
+/// A hint only: it does nothing outside Linux, for buffers below 2 MB, or when THP is off.
+///
+/// @param[in] ptr   Start of the buffer
+/// @param[in] bytes Size of the buffer in bytes
+inline void service_advise_huge_pages(void * ptr, size_t bytes)
+{
+#if defined(__linux__) && defined(MADV_HUGEPAGE)
+    constexpr uintptr_t hugePage = uintptr_t(2) * 1024 * 1024;
+    const uintptr_t begin        = (reinterpret_cast<uintptr_t>(ptr) + hugePage - 1) & ~(hugePage - 1);
+    const uintptr_t end          = (reinterpret_cast<uintptr_t>(ptr) + bytes) & ~(hugePage - 1);
+    if (ptr && end > begin) madvise(reinterpret_cast<void *>(begin), end - begin, MADV_HUGEPAGE);
+#else
+    (void)ptr;
+    (void)bytes;
+#endif
 }
 
 } // namespace internal

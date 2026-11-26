@@ -168,12 +168,11 @@ private:
                         values[i] = fp_max;
                         private_indices[i] = -1;
                     }
-                    for (std::uint32_t i = local_id; i < col_count; i += local_range) {
-                        const Float cur_val = dp.at(sg_global_id, i);
-                        std::int32_t index = i;
-                        std::int32_t pos = -1;
-
-                        pos = values[k - 1] > cur_val ? k - 1 : pos;
+                    // `values` is sorted, so a value not below the k-th one changes nothing.
+                    const auto insert = [&](Float cur_val, std::int32_t index) {
+                        if (!(cur_val < values[k - 1]))
+                            return;
+                        std::int32_t pos = k - 1;
                         for (std::int32_t j = k - 2; j >= 0; j--) {
                             const bool do_shift = values[j] > cur_val;
                             pos = do_shift ? j : pos;
@@ -181,11 +180,25 @@ private:
                             private_indices[j + 1] =
                                 do_shift ? private_indices[j] : private_indices[j + 1];
                         }
+                        values[pos] = cur_val;
+                        private_indices[pos] = index;
+                    };
 
-                        if (pos != -1) {
-                            values[pos] = cur_val;
-                            private_indices[pos] = index;
+                    // Independent loads in flight per lane; one at a time leaves the kernel
+                    // latency-bound on long rows.
+                    constexpr std::uint32_t unroll = 8;
+                    std::uint32_t i = local_id;
+                    for (; i + (unroll - 1) * local_range < col_count; i += unroll * local_range) {
+                        Float cur[unroll];
+                        for (std::uint32_t u = 0; u < unroll; u++) {
+                            cur[u] = dp.at(sg_global_id, i + u * local_range);
                         }
+                        for (std::uint32_t u = 0; u < unroll; u++) {
+                            insert(cur[u], i + u * local_range);
+                        }
+                    }
+                    for (; i < col_count; i += local_range) {
+                        insert(dp.at(sg_global_id, i), i);
                     }
                     sycl::group_barrier(sg);
 

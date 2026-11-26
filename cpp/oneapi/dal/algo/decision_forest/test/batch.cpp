@@ -477,6 +477,39 @@ DF_BATCH_CLS_TEST("df cls base check with non default params") {
     this->infer_base_checks(desc, data_test, this->get_homogen_table_id(), model, checker_list);
 }
 
+DF_BATCH_CLS_TEST("df cls GPU train results are on device") {
+    SKIP_IF(!this->is_gpu());
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+
+    const auto [data, data_test, class_count, checker_list] = this->get_cls_dataframe_base();
+
+    const std::int64_t tree_count_val = GENERATE_COPY(1, 10);
+    const auto variable_importance_mode_val = GENERATE_COPY(variable_importance_mode::mdi,
+                                                            variable_importance_mode::mda_raw,
+                                                            variable_importance_mode::mda_scaled);
+    CAPTURE(tree_count_val, static_cast<int>(variable_importance_mode_val));
+
+    auto desc = this->get_default_descriptor();
+    desc.set_tree_count(tree_count_val);
+    desc.set_variable_importance_mode(variable_importance_mode_val);
+    desc.set_error_metric_mode(error_metric_mode::out_of_bag_error |
+                               error_metric_mode::out_of_bag_error_per_observation);
+    desc.set_class_count(class_count);
+
+    const auto train_result = this->train_base_checks(desc, data, this->get_homogen_table_id());
+    this->check_train_results_on_device(desc, train_result);
+
+    // A single tree has no variance to scale MDA by, so the GPU kernel returns zeros.
+    if (variable_importance_mode_val == variable_importance_mode::mda_scaled &&
+        tree_count_val == 1) {
+        const auto var_imp = row_accessor<const double>(train_result.get_var_importance()).pull();
+        for (std::int64_t i = 0; i < var_imp.get_count(); ++i) {
+            REQUIRE(var_imp[i] == 0.0);
+        }
+    }
+}
+
 DF_BATCH_CLS_TEST("df cls oob accuracy requested alone") {
     SKIP_IF(this->is_gpu()); // the GPU kernel does not compute the OOB accuracy
     SKIP_IF(this->not_available_on_device());
