@@ -14,9 +14,8 @@
 # limitations under the License.
 #===============================================================================
 
-# The conda-forge GNU toolchain used on an x86-64 Linux host that has no C++
-# compiler. It brings its own binutils and a glibc 2.28 sysroot, so neither the
-# host compiler nor the host libc headers are used.
+# The conda-forge GNU toolchain for an x86-64 Linux host without a C++ compiler. It brings its
+# own binutils and a glibc 2.28 sysroot, so nothing of the host toolchain is used.
 
 load("@onedal//dev/bazel:repos.bzl", "repos")
 
@@ -24,13 +23,16 @@ load("@onedal//dev/bazel:repos.bzl", "repos")
 # re-pinned by dev/bazel/deps/relock_conda.py (see dev/bazel/README.md).
 _GCC_VERSION = "16.2.0"
 _TRIPLE = "x86_64-conda-linux-gnu"
-_URL = "https://anaconda.org/conda-forge/{name}/{version}/download/{subdir}/{name}-{version}-{build}.conda"
+
+# The channel CDN first; anaconda.org answers 503 and times out in waves.
+_URLS = [
+    "https://conda.anaconda.org/conda-forge/{subdir}/{name}-{version}-{build}.conda",
+    "https://anaconda.org/conda-forge/{name}/{version}/download/{subdir}/{name}-{version}-{build}.conda",
+]
 
 def _pkg(name, version, build, sha256, subdir = "linux-64"):
-    return struct(
-        url = _URL.format(name = name, version = version, build = build, subdir = subdir),
-        sha256 = sha256,
-    )
+    urls = [url.format(name = name, version = version, build = build, subdir = subdir) for url in _URLS]
+    return repos.archive(url = " ".join(urls), sha256 = sha256)
 
 _PACKAGES = [
     _pkg("gcc_impl_linux-64", _GCC_VERSION, "h9891192_7", "14acaa661e4c4ef6c65606612b8b08f8f079c6a9e6da3ffcb77056685c675651"),
@@ -74,10 +76,7 @@ def download_gcc(repo_ctx, prefix):
         A struct with the absolute paths of `cc`, `ar` and `strip`.
     """
     for pkg in _PACKAGES:
-        archive = repo_ctx.path(pkg.url.split("/")[-1])
-        repo_ctx.download(url = pkg.url, output = archive, sha256 = pkg.sha256)
-        repos.extract_conda(repo_ctx, archive, prefix)
-        repo_ctx.delete(archive)
+        repos.download_and_extract(repo_ctx, pkg.url, pkg.sha256, prefix, pkg.strip_prefix)
     _drop_build_rpath(repo_ctx, prefix)
     tool = lambda name: str(repo_ctx.path("{}/bin/{}-{}".format(prefix, _TRIPLE, name)))
     return struct(cc = tool("gcc"), ar = tool("ar"), strip = tool("strip"))

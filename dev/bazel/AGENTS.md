@@ -17,17 +17,17 @@ Bazel is the **development and testing build system** for oneDAL, providing fast
 ## 📁 Structure
 ```
 dev/bazel/
-├── BUILD           # Root Bazel configuration
-├── cc/             # C++ build rules and configurations
-├── config/         # Build configurations and toolchains
-├── deps/           # External dependencies
+├── BUILD           # Empty; makes dev/bazel a package so its .bzl files can be loaded
+├── cc/             # C++ build rules (compile, link, common)
+├── config/         # Build settings, platforms, TargetInfo, ISA table
+├── deps/           # External dependency repositories
+├── tests/          # analysis.bzl (graph checks) and the two sh_test scripts that inspect built libraries
 └── toolchains/     # Compiler toolchain configurations
 ```
 
 ## 🎯 Configuration Files
 - **[MODULE.bazel](../../MODULE.bazel)** - Root module configuration
 - **[.bazelrc](../../.bazelrc)** - Bazel configuration options
-- **[dev/bazel/BUILD](BUILD)** - Root build configuration
 - **[dev/bazel/cc/BUILD](cc/BUILD)** - C++ build configuration
 - **[dev/bazel/deps/BUILD](deps/BUILD)** - Dependency management
 
@@ -36,7 +36,7 @@ dev/bazel/
 
 ## 🔧 Build Rules and Patterns
 
-oneDAL does not use bare `cc_library` / `cc_test`. All modules go through the macros in `@onedal//dev/bazel:dal.bzl` (`dal_module`, `dal_test_suite`) and `@onedal//dev/bazel:daal.bzl` (`daal_module`). Compiler flags, CPU dispatch and threading are toolchain-owned (`dev/bazel/flags.bzl`); never hand-write `copts`.
+oneDAL does not use bare `cc_library` / `cc_test`. All modules go through the macros in `@onedal//dev/bazel:dal.bzl` (`dal_module`, `dal_test_suite`) and `@onedal//dev/bazel:daal.bzl` (`daal_module`). Compiler flags, CPU dispatch and threading are toolchain-owned (`dev/bazel/flags.bzl`); never hand-write `copts`. The ISAs live in `ISA_TABLE` (`dev/bazel/config/config.bzl`); rules read the target OS and arch from `TargetInfo` (`target(ctx)`, attrs merged from `TARGET_ATTRS`) instead of declaring constraint attributes.
 
 ```python
 load("@onedal//dev/bazel:dal.bzl", "dal_module", "dal_test_suite")
@@ -84,9 +84,9 @@ bazel test --config=host //cpp/oneapi/dal/algo/pca:tests
 bazel build //:release
 ```
 
-Always scope targets, and pass `--config` to `bazel test` and `bazel run`; with it unset, tests include DPC++ targets, which are skipped when `icpx` is not in `PATH` (`--release_dpc` defaults to whether it is). `dev/bazel/README.md` lists every config.
+Always scope targets, and pass `--config` to `bazel test` and `bazel run`; with it unset, tests include DPC++ targets, which are skipped when the toolchain has no DPC++ compiler (`--release_dpc` defaults to whether it has one: `icpx` in `PATH` on Linux, icx on Windows). `dev/bazel/README.md` lists every config.
 
-For the default CPU build on x86-64 Linux, Bazel downloads MKL, TBB and the other dependencies with fallback archives at the versions pinned in `dev/bazel/deps/requirements_lock.txt` (PyPI wheels), `dev/bazel/deps/gcc.bzl` (conda) and `dev/bazel/deps/*.bzl`, so the host only needs Bazelisk, gcc or clang, `unzip` and `unzstd`. The `*ROOT` variables in the README point a dependency at a local install instead; OpenBLAS (`ref` backend), OpenRNG and `@onedal_release` have no fallback and always need one. A release or packaging job that must ship DPC++ passes `--release_dpc=true` (or `--config=release-dpc`), since the default follows whether `icpx` is in `PATH`.
+For the default CPU build on x86-64 Linux, Bazel downloads MKL, TBB and the other dependencies with fallback archives at the versions pinned in `dev/bazel/deps/requirements_lock.txt` (PyPI wheels), `dev/bazel/deps/gcc.bzl` (conda) and `dev/bazel/deps/*.bzl`, so the host only needs Bazelisk, gcc or clang, `unzip` and `unzstd`. The `*ROOT` variables in the README point a dependency at a local install instead; OpenBLAS (`ref` backend), OpenRNG and `@onedal_release` have no fallback and always need one. A release or packaging job that must ship DPC++ passes `--release_dpc=true` (or `--config=release-dpc`), since the default follows the toolchain's DPC++ compiler.
 
 ## 🔧 Dependency Management
 
@@ -104,11 +104,13 @@ External libraries are referenced by their repository labels, e.g. `@mkl//:mkl_c
 - `//conditions:default` in a `select()` means every platform not listed, macOS included, not just Linux. Put Linux-only flags under `@platforms//os:linux`.
 - Don't add `allow_empty = True` to a glob that must match; it hides packaging mistakes. The optional globs in `dal.bzl`, `daal.bzl` and `deps/*.tpl.BUILD` need it.
 - Don't hardcode the workspace name in test paths; use `${TEST_WORKSPACE}`.
-- No `use_default_shell_env = True`; it breaks hermeticity.
+- No `use_default_shell_env = True` and no `no-sandbox`/`no-cache`/`no-remote`/`local` execution requirements; they break hermeticity. `dev/bazel/tests/check_starlark_policy.py` enforces this as the `starlark-policy` pre-commit hook; the reviewed exceptions are listed in its `ALLOWED`, by file and function. Take an action's env from the toolchain with `cc_common.get_environment_variables`.
 - Don't write globs that match several `.so` variants of one library; they produce duplicate link inputs.
 - Remove unused `load()` symbols.
 - Don't hardcode platform-specific paths; reference external libraries by their repository labels.
-- Product and library binary versions of the Bazel build live only in `dev/bazel/version.bzl`. Until Make is removed, `makefile.ver` carries the same values; bump both.
+- Product and library binary versions of the Bazel build live only in `dev/bazel/version.bzl`. Until Make is removed, `makefile.ver` carries the same values; bump both. The build date is `--build_date=YYYYMMDD`, which the release jobs pass with `--config=release`; that config fails without it.
+- No shell, batch or PowerShell in build actions: use `expand_template`, `write`, `symlink` or `run` with arguments. The one exception, `toolchains/tools/dpc_link_win.ps1`, is tracked in `TODO.md`.
+- Checks of the configured graph are Starlark analysis tests in `dev/bazel/tests/analysis.bzl` (`bazel test //dev/bazel/tests:all`), not scripts that run `bazel` again.
 
 ## 🧪 Testing and Validation
 - **Build Validation**: Ensure builds work on all supported platforms
@@ -117,6 +119,7 @@ External libraries are referenced by their repository labels, e.g. `@mkl//:mkl_c
 
 ## 🔧 Required Tools
 - **Bazel**: version pinned in `.bazelversion`; `.ci/env/bazelisk.sh` installs a matching launcher
+- **Buildifier**: 8.2.1, the version of the pre-commit hook `buildifier` (`keith/pre-commit-buildifier` at tag 8.2.1). Format a file with `buildifier -mode=fix -lint=off -buildifier_disable=listsort -buildifier_disable=callsort <file>` (`listsort` keeps `deps` and `srcs` in the order written, since sorting reorders compile flags; `callsort` keeps keyword arguments and their comments in place); the hook checks the same files (BUILD, BUILD.bazel, `*.bzl`, `MODULE.bazel`, `*.BUILD`, not `*.tpl.*`) and fails instead of rewriting.
 
 ## 📖 Further Reading
 - **[dev/AGENTS.md](../AGENTS.md)** - Development tools context

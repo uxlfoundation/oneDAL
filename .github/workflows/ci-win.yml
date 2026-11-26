@@ -68,7 +68,7 @@ env:
   TBB_VERSION: v2023.2.0
   OPENBLAS_VERSION: v0.3.34
   LLVM_VERSION: 22.1.8
-  CMAKE_VERSION: 4.5.0
+  CMAKE_VERSION: 4.5.1
   NINJA_VERSION: 1.13.2
 
 # A PR push cancels the older run of that PR. A push to main waits behind the
@@ -250,14 +250,14 @@ jobs:
         shell: pwsh
         run: .\.ci\env\bazelisk.ps1
 
-      # ~/.bazelrc is read from %USERPROFILE%; forward slashes, since the rc parser does not split on
-      # backslashes. The fingerprint covers clang-cl; `action_env=PATH` already keys the image PATH.
+      # Forward slashes: the rc parser does not split on backslashes. The fingerprint covers clang-cl;
+      # `action_env=PATH` already keys the image PATH.
       - name: Configure the Bazel disk cache
         id: bazel-disk
         shell: pwsh
         run: |
           $cache = "${{ runner.temp }}".Replace('\', '/') + '/bazel-disk'
-          Add-Content -Path "$HOME/.bazelrc" -Value "build --disk_cache=$cache --experimental_disk_cache_gc_max_size=2G --experimental_disk_cache_gc_idle_delay=0s"
+          Add-Content -Path "user.bazelrc" -Value "build --disk_cache=$cache --experimental_disk_cache_gc_max_size=2G --config=ci"
           $repo = "${{ runner.temp }}".Replace('\', '/') + '/bazel-repo'
           Add-Content -Path "$HOME/.bazelrc" -Value "common --repository_cache=$repo"
           $versions = (& "$env:ProgramFiles\LLVM\bin\clang-cl.exe" --version) -join "`n"
@@ -349,7 +349,7 @@ jobs:
           rem `mathbackend_thread`, so it is listed explicitly: without it the
           rem lane would not exercise the new Windows OpenBLAS static archive
           rem at all.
-          bazel build --platforms=@config//:windows_arm64 --backend_config=ref ^
+          bazel build --platforms=@config//:windows_arm64 ^
             //cpp/daal:core_dynamic //cpp/daal:thread_dynamic //cpp/oneapi/dal:dynamic
 
       # A successful link is not proof of the target arch: confirm the PE
@@ -397,8 +397,8 @@ jobs:
         run: |
           CALL "%ProgramFiles%\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" arm64
           set PATH=%PATH%;C:\msys64\usr\bin
-          bazel test --platforms=@config//:windows_arm64 --backend_config=ref ^
-            --test_link_mode=dev --enable_runfiles --test_output=errors ^
+          bazel test --platforms=@config//:windows_arm64 ^
+            --enable_runfiles ^
             //examples/oneapi/cpp:kmeans_lloyd_dense_batch_host
 
       - name: Trim the Bazel disk cache
@@ -487,7 +487,7 @@ jobs:
           if errorlevel 1 exit /b 1
           rem A short output root keeps object paths under MAX_PATH, as in the
           rem Azure Bazel lane (.ci/pipeline/ci.yml, BAZEL_OUTPUT_USER_ROOT).
-          bazel --output_user_root=C:\b test --cpu=avx2 --test_link_mode=dev --enable_runfiles --test_output=errors ^
+          bazel --output_user_root=C:\b test --cpu=avx2 --enable_runfiles --test_output=errors ^
             //examples/oneapi/cpp:kmeans_lloyd_dense_batch_host
 
   # GitHub Actions twin of Azure's `WindowsMakeVC`. `VS_VER` stays unset, so build.bat and
@@ -502,8 +502,22 @@ jobs:
       - name: Checkout oneDAL
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # The toolkit URL and component list are read from .ci/pipeline/ci.yml,
-      # their single source of truth, as nightly-build.yml does.
+      # The installer URL and component list come from .ci/pipeline/ci.yml, their single source
+      # of truth; both the cache key and the install step below read them.
+      - name: Compute the oneAPI Base Toolkit cache key
+        id: basekit
+        shell: bash
+        run: |
+          id=$(grep -oP -m 2 "(?<=WINDOWS_BASEKIT_URL: |WINDOWS_DPCPP_COMPONENTS: ).*" .ci/pipeline/ci.yml | sha256sum | cut -c1-16)
+          echo "key=basekit-${RUNNER_OS}-${RUNNER_ARCH}-${id}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore oneAPI Base Toolkit
+        id: cache-basekit
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: oneapi
+          key: ${{ steps.basekit.outputs.key }}
+
       - name: Install oneAPI Base Toolkit
         shell: cmd
         run: |
@@ -514,15 +528,26 @@ jobs:
           if not defined components exit /b 1
           call .ci\scripts\install_basekit.bat %baseurl:'="% %components:'="% .\oneapi\
 
+      - name: Save oneAPI Base Toolkit
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cache-basekit.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: oneapi
+          key: ${{ steps.basekit.outputs.key }}
+
       # `cpufeature` is read by describe_system.sh; `zip` packs the nuget
       # package (deploy/nuget/prepare_dal_nuget.sh) and `tree` lists it.
       - name: Install cpufeature, zip and tree
         shell: cmd
         run: |
           set PATH=C:\msys64\usr\bin;%PATH%
-          python -m pip install cpufeature
+          python -m pip install --retries 10 cpufeature
           if errorlevel 1 exit /b 1
-          pacman -S -y --noconfirm zip tree
+          for /l %%i in (1,1,3) do (
+            pacman -S -y --noconfirm zip tree && exit /b 0
+            echo pacman attempt %%i failed, retrying
+          )
+          exit /b 1
 
       - name: System info
         shell: cmd

@@ -1,8 +1,10 @@
-package(default_visibility = ["//visibility:public"])
-load("@onedal//dev/bazel:dal.bzl",
+load(
+    "@onedal//dev/bazel:dal.bzl",
     "dal_module",
     "dal_test_suite",
 )
+
+package(default_visibility = ["//visibility:public"])
 
 dal_module(
     name = "svm",
@@ -21,7 +23,7 @@ dal_module(
     extra_deps = [
         "@onedal//cpp/daal/src/algorithms/svm:kernel",
         "@onedal//cpp/daal/src/algorithms/multiclassclassifier:kernel",
-    ]
+    ],
 )
 
 dal_test_suite(

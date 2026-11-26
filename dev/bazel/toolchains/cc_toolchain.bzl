@@ -15,9 +15,9 @@
 #===============================================================================
 
 load("@onedal//dev/bazel/deps:gcc.bzl", "download_gcc")
-load("@onedal//dev/bazel/toolchains:common.bzl", "detect_os", "detect_compiler", "detect_host_arch", "detect_target_arch")
-load("@onedal//dev/bazel/toolchains:cc_toolchain_lnx.bzl", "configure_cc_toolchain_lnx", "find_tool")
+load("@onedal//dev/bazel/toolchains:cc_toolchain_lnx.bzl", "configure_cc_toolchain_lnx")
 load("@onedal//dev/bazel/toolchains:cc_toolchain_win.bzl", "configure_cc_toolchain_win")
+load("@onedal//dev/bazel/toolchains:common.bzl", "detect_compiler", "detect_host_arch", "detect_os", "detect_target_arch")
 
 def _needs_downloaded_compiler(repo_ctx, os_id, host_arch_id):
     if os_id != "lnx" or host_arch_id != "intel64" or "CC" in repo_ctx.os.environ:
@@ -35,38 +35,20 @@ def _detect_requirements(repo_ctx):
     if _needs_downloaded_compiler(repo_ctx, os_id, host_arch_id):
         compiler_id = "gcc"
         downloaded_tools = download_gcc(repo_ctx, "gcc")
-    dpc_compiler_id = "icpx"
-    dpcc_path, dpcpp_found = find_tool(repo_ctx, dpc_compiler_id, mandatory = False)
-    dpc_compiler_version = _detect_compiler_version(repo_ctx, dpcc_path) if dpcpp_found else "local"
     return struct(
         os_id = os_id,
         compiler_id = compiler_id,
 
         # Paths of the downloaded compiler and binutils, or None to look them up.
         downloaded_tools = downloaded_tools,
-
         libc_version = "local",
         libc_abi_version = "local",
         compiler_abi_version = "local",
-
         host_arch_id = host_arch_id,
         target_arch_id = target_arch_id,
-
-        # TODO: Detect compiler version
         compiler_version = "local",
-
-        # TODO: Detect DPC++ compiler, use $env{DPCC}
-        dpc_compiler_id = dpc_compiler_id,
-
-        # TODO: Detect compiler version
-        dpc_compiler_version = dpc_compiler_version,
+        dpc_compiler_id = "icpx",
     )
-
-def _detect_compiler_version(repo_ctx, dpcc_path):
-    year, major, minor, date = repo_ctx.execute([dpcc_path, "--version"])\
-                                       .stdout.split(" ")[5].split("(")[1]\
-                                       .split(")")[0].split(".")
-    return date
 
 def _configure_cc_toolchain(repo_ctx, reqs):
     configure_cc_toolchain_os = {
@@ -89,16 +71,19 @@ onedal_cc_toolchain = repository_rule(
         "ONEDAL_DOWNLOAD_CC",
         "INCLUDE",
         "LIB",
-        # Opt-in switch for the LLVM-driver Windows toolchains:
-        # ONEDAL_WIN_COMPILER=icx selects icx/icpx, =clang selects clang-cl,
-        # anything else falls back to the rules_cc MSVC cl auto-config.
-        # Targeting Windows ARM64 always uses clang-cl.
+        # icx or clang; anything else selects the rules_cc MSVC config. Windows ARM64 is clang-cl only.
         "ONEDAL_WIN_COMPILER",
         # The Visual Studio rules_cc configures for cl: the one vcvarsall.bat
         # set up (VCINSTALLDIR), unless BAZEL_VC or BAZEL_VS names another.
         "BAZEL_VC",
         "BAZEL_VS",
         "VCINSTALLDIR",
+        # The roots that filter the Windows action PATH (cc_toolchain_win.bzl _action_path).
+        "ONEAPI_ROOT",
+        "CMPLR_ROOT",
+        "VSINSTALLDIR",
+        "WindowsSdkDir",
+        "SystemRoot",
         # Windows host-arch detection (see detect_host_arch in common.bzl); the
         # toolchain repo must re-evaluate when these change.
         "PROCESSOR_ARCHITECTURE",

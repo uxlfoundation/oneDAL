@@ -149,18 +149,6 @@ jobs:
         run: |
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/dpc --build-system cmake
-      # Miniforge is necessary in order to get Intel MPI from conda-forge for MPI samples
-      - name: Install Miniforge
-        run: .ci/env/apt.sh miniforge
-      - name: daal/cpp/mpi samples
-        run: |
-            source /opt/intel/oneapi/setvars.sh
-            .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
-      - name: oneapi/cpp/mpi samples
-        run: |
-            source /opt/intel/oneapi/setvars.sh
-            .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface oneapi/cpp/mpi --conda-env ci-env --build-system cmake
-
   LinuxABICheck:
     name: ABI Conformance(avx2)
     needs: LinuxMakeDPCPP
@@ -264,17 +252,6 @@ jobs:
           export TBBROOT="${CONDA_PREFIX}"
           export MKLROOT="${CONDA_PREFIX}"
           .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target onedal_c --jobs 20
-      - name: Make onedal_dpc
-        run: |
-          source "${CONDA_SH}"
-          conda install -y -n "${CONDA_ENV}" -c conda-forge \
-              mkl-dpcpp mkl-devel-dpcpp \
-              dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt \
-              onedpl-devel
-          conda activate "${CONDA_ENV}"
-          export TBBROOT="${CONDA_PREFIX}"
-          export MKLROOT="${CONDA_PREFIX}"
-          .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target onedal_dpc --jobs 20
       - name: daal/cpp examples
         run: |
           source "${CONDA_SH}"
@@ -289,13 +266,6 @@ jobs:
           export TBBROOT="${CONDA_PREFIX}"
           export MKLROOT="${CONDA_PREFIX}"
           .ci/scripts/test.sh --test-kind examples --build-dir "${RELEASE_DIR}" --compiler gnu --interface oneapi/cpp --build-system cmake
-      - name: oneapi/dpc examples
-        run: |
-          source "${CONDA_SH}"
-          conda activate "${CONDA_ENV}"
-          export TBBROOT="${CONDA_PREFIX}"
-          export MKLROOT="${CONDA_PREFIX}"
-          .ci/scripts/test.sh --test-kind examples --build-dir "${RELEASE_DIR}" --compiler icx --interface oneapi/dpc --build-system cmake
       - name: daal/cpp/mpi samples
         run: |
           source "${CONDA_SH}"
@@ -332,7 +302,7 @@ jobs:
       - name: Configure the Bazel disk cache
         id: bazel-disk
         run: |
-          echo "build --disk_cache=$RUNNER_TEMP/bazel-disk" >> ~/.bazelrc
+          echo "build --disk_cache=$RUNNER_TEMP/bazel-disk --config=ci" >> user.bazelrc
           echo "common --repository_cache=$RUNNER_TEMP/bazel-repo" >> ~/.bazelrc
           fingerprint=$({ cat .bazelversion; echo ubuntu-26.04; } | sha256sum | cut -c1-16)
           echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
@@ -356,9 +326,11 @@ jobs:
         run: bazel test --cpu=avx2 //cpp/oneapi/dal/algo/pca:tests
       - name: Bazel example
         run: bazel test --cpu=avx2 //examples/oneapi/cpp:pca
+      # `shutdown` runs the disk-cache GC; when the server does not stop in time (exit 36) the
+      # cache is saved without that pass, which the next run tolerates.
       - name: Trim the Bazel disk cache
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: bazel shutdown
+        run: bazel shutdown || echo "::warning::bazel shutdown exited with $?; the disk cache is saved without the GC pass"
       - name: Save the Bazel disk cache
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -435,7 +407,7 @@ jobs:
             gcc11) cap=350M ;;
             *) cap=400M ;;
           esac
-          echo "build --disk_cache=$RUNNER_TEMP/bazel-disk --experimental_disk_cache_gc_max_size=$cap --experimental_disk_cache_gc_idle_delay=0s" >> ~/.bazelrc
+          echo "build --disk_cache=$RUNNER_TEMP/bazel-disk --experimental_disk_cache_gc_max_size=$cap --config=ci" >> user.bazelrc
           echo "common --repository_cache=$RUNNER_TEMP/bazel-repo" >> ~/.bazelrc
           fingerprint=$({ clang --version 2>&1; gcc -v 2>&1; ld --version; } | sha256sum | cut -c1-16)
           echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
@@ -491,8 +463,7 @@ jobs:
           bazel test --cpu=avx2 \
             //cpp/oneapi/dal:test_mpi_communicator_host \
             //cpp/daal:tests \
-            //examples/daal/cpp:kmeans \
-            --test_output=errors
+            //examples/daal/cpp:kmeans
           bazel test --cpu=avx2 --config=host //cpp/oneapi/dal/algo/kmeans:tests
       - name: DPC++ targets fail clearly without icpx
         if: matrix.leg == 'gcc'
@@ -513,11 +484,13 @@ jobs:
           }
           expect_failure dpc_target.log dpc_needs_icpx_in_PATH \
             build --cpu=avx2 //cpp/oneapi/dal/algo/kmeans:test_batch_dpc
-          expect_failure config_dpc.log "icpx is not found" \
+          expect_failure config_dpc.log "configured without it" \
             test --cpu=avx2 --config=dpc //cpp/oneapi/dal/algo/kmeans:tests
+      # `shutdown` runs the disk-cache GC; when the server does not stop in time (exit 36) the
+      # cache is saved without that pass, which the next run tolerates.
       - name: Trim the Bazel disk cache
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: bazel shutdown
+        run: bazel shutdown || echo "::warning::bazel shutdown exited with $?; the disk cache is saved without the GC pass"
       - name: Save the Bazel disk cache
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -532,6 +505,39 @@ jobs:
         with:
           path: ${{ runner.temp }}/bazel-repo
           key: bazel-repo-linux-x64-${{ hashFiles('.bazelversion', 'MODULE.bazel', 'dev/bazel/deps/*.bzl') }}
+
+  # Builds the release with clang, which no other Bazel leg does: a clang-only
+  # regression in the release flag set fails here.
+  LinuxBazelClang:
+    if: github.repository == 'uxlfoundation/oneDAL'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 120
+    env:
+      CC: clang
+      CXX: clang++
+
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # clang-18 from the Ubuntu archive: apt.llvm.org has no versioned repo for
+      # Ubuntu 26.04 (resolute), so `apt.sh llvm-version` cannot be used here.
+      - name: Install Clang
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-18 180
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 180
+          clang --version
+      - name: Install Bazelisk
+        run: |
+          source .ci/env/bazelisk.sh
+          echo "$(pwd)/bazel/bin" >> "$GITHUB_PATH"
+      - name: System Info
+        run: .ci/scripts/describe_system.sh
+      - name: Bazel release
+        run: bazel build //:release --release_dpc=false --cpu=avx2
+      - name: Bazel tests
+        run: bazel test --config=host --cpu=avx2 --test_output=errors //cpp/oneapi/dal/algo/pca:tests
 
   # SHA-keyed saves fill the 10 GB quota shared with the ABI baselines: keep the newest per leg.
   # Own job so only it holds `actions: write`; `!cancelled()` so one failed leg does not block it.

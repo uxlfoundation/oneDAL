@@ -14,5 +14,5 @@ dal_module(
     ],
     extra_deps = [
         "@mpi//:mpi",
-    ]
+    ],
 )

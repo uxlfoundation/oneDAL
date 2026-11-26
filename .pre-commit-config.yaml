@@ -27,8 +27,28 @@ repos:
     rev: v3.11.2
     hooks:
       - id: editorconfig-checker
+  # buildifier 8.2.1 in check mode; later flags override the hook's `fix` entry.
+  # Lint off (dev/bazel/TODO.md); listsort, callsort off (dev/bazel/AGENTS.md).
+  - repo: https://github.com/keith/pre-commit-buildifier
+    rev: 8.2.1
+    hooks:
+      - id: buildifier
+        args:
+          - -mode=check
+          - -lint=off
+          - -buildifier_disable=listsort
+          - -buildifier_disable=callsort
+        exclude: \.tpl\.
   - repo: local
     hooks:
+      # use_default_shell_env and sandbox/cache opt-outs break hermeticity
+      # (dev/bazel/AGENTS.md); the reviewed exceptions are in the script's ALLOWED.
+      - id: starlark-policy
+        name: Starlark hermeticity policy
+        language: python
+        entry: python3 dev/bazel/tests/check_starlark_policy.py
+        pass_filenames: false
+        files: (\.bzl|(^|/)BUILD(\.bazel)?|check_starlark_policy\.py)$
       # Bazel compiles the per-cpu kernel TUs (*_cpu.cpp, *_fpt_cpu.cpp) once
       # per ISA against the static daal_kernel_defines.h, which defines every
       # ISA, so that a --cpu change does not rebuild them (see

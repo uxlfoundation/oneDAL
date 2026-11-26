@@ -12,5 +12,5 @@ dal_module(
     lib_tag = "parameters",
     dal_deps = [
         "@onedal//cpp/oneapi/dal:common",
-    ]
+    ],
 )

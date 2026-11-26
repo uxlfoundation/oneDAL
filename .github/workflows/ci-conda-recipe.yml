@@ -48,15 +48,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - cxx_compiler: "gxx"
-            cxx_compiler_version: "15"
-          - cxx_compiler: "clangxx"
-            # clang-21 gives compilation errors coming from immintrin.h header
-            cxx_compiler_version: "20"
-          - cxx_compiler: "dpcpp"
-            cxx_compiler_version: "2025"
-    name: Linux(${{ matrix.cxx_compiler }}-${{ matrix.cxx_compiler_version }})
+        compiler:
+          - { cxx: gxx, version: "15" }
+          # clang-21 gives compilation errors coming from immintrin.h header
+          - { cxx: clangxx, version: "20" }
+          - { cxx: dpcpp, version: "2025" }
+        # A pull request builds the recipe with gxx only; pushes to main build all three.
+        exclude:
+          - compiler: ${{ github.event_name == 'pull_request' && fromJSON('{"cxx":"clangxx","version":"20"}') || fromJSON('{"cxx":"none"}') }}
+          - compiler: ${{ github.event_name == 'pull_request' && fromJSON('{"cxx":"dpcpp","version":"2025"}') || fromJSON('{"cxx":"none"}') }}
+    name: Linux(${{ matrix.compiler.cxx }}-${{ matrix.compiler.version }})
     runs-on: ubuntu-26.04
     timeout-minutes: 180
     steps:
@@ -75,12 +76,14 @@ jobs:
           echo -e "default_channels:\n  - https://conda.anaconda.org/conda-forge" > ~/.condarc
           conda config --add channels conda-forge
           conda config --set channel_priority strict
+          conda config --set remote_max_retries 10
+          conda config --set remote_backoff_factor 2
           conda update -y -q conda python
           conda install -y -q -n base conda-build
       - name: Conda build and test
         run: |
           conda build . \
-            --variants "{cxx_compiler: ${{ matrix.cxx_compiler }}, cxx_compiler_version: ${{ matrix.cxx_compiler_version }}}"
+            --variants "{cxx_compiler: ${{ matrix.compiler.cxx }}, cxx_compiler_version: ${{ matrix.compiler.version }}}"
         env:
           # Note: AVX2 is used as the most common denominator for CI systems
           REQCPU: avx2

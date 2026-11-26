@@ -7,7 +7,10 @@ load("@onedal//dev/bazel/config:config.bzl",
     "build_parameters_lib_validation",
     "dump_config_info",
     "unsupported_config",
+    "target_info",
 )
+load("@bazel_skylib//lib:selects.bzl", "selects")
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag", "string_flag")
 
 cpu_info(
     name = "cpu",
@@ -16,12 +19,25 @@ cpu_info(
     build_setting_default = "auto",
 )
 
+# Release builds pass --build_date=YYYYMMDD; otherwise the version carries a placeholder date.
+string_flag(
+    name = "build_date",
+    build_setting_default = "",
+)
+
+# Set by --config=release, so a published package never carries the placeholder date.
+bool_flag(
+    name = "require_build_date",
+    build_setting_default = False,
+)
+
 version_info(
     name = "version",
     major = "%{version_major}",
     minor = "%{version_minor}",
     update = "%{version_update}",
-    build = "%{version_build}",
+    build_date = ":build_date",
+    require_build_date = ":require_build_date",
     buildrev = "%{version_buildrev}",
     status = "%{version_status}",
     # Binary ABI version for SONAME and shared library symlinks.
@@ -29,57 +45,53 @@ version_info(
     binary_minor = "%{version_binary_minor}",
 )
 
+# `auto` is mkl on x86-64 and ref on the other arches of the target platform, as Make's
+# BACKEND_CONFIG does; read it through :backend_ref and :backend_mkl.
 config_flag(
     name = "backend_config",
-    build_setting_default = "mkl",
+    build_setting_default = "auto",
     allowed_build_setting_values = [
+        "auto",
         "ref",
         "mkl",
     ],
 )
 
-config_setting(
+[config_setting(
+    name = "_backend_{}".format(value),
+    flag_values = {":backend_config": value},
+) for value in ["auto", "ref", "mkl"]]
+
+[config_setting(
+    name = "_backend_auto_{}".format(cpu),
+    flag_values = {":backend_config": "auto"},
+    constraint_values = ["@platforms//cpu:{}".format(cpu)],
+) for cpu in ["x86_64", "aarch64", "riscv64"]]
+
+selects.config_setting_group(
     name = "backend_ref",
-    flag_values  = {
-        ":backend_config": "ref",
-    },
+    match_any = [":_backend_ref", ":_backend_auto_aarch64", ":_backend_auto_riscv64"],
 )
 
-# Windows + ref backend. A Windows DLL has to resolve every symbol at link
-# time, so `onedal_core.<major>.dll` needs the math backend linked in directly
-# instead of relying on the loader to bind BLAS/LAPACK calls to
-# `onedal_thread.<major>.dll` the way ELF does. Matches the top-level makefile
-# rule for `$(WORKDIR.lib)/$(core_y)`, which lists
-# `daaldep.math_backend.shared_link_deps` (dev/make/deps.ref.mk) as a
-# dependency of the core shared library on every OS.
-config_setting(
+selects.config_setting_group(
+    name = "backend_mkl",
+    match_any = [":_backend_mkl", ":_backend_auto_x86_64"],
+)
+
+# A DLL resolves every symbol at link time, so onedal_core links the ref math backend
+# directly (Make: daaldep.math_backend.shared_link_deps).
+selects.config_setting_group(
     name = "backend_ref_windows",
-    flag_values = {
-        ":backend_config": "ref",
-    },
-    constraint_values = [
-        "@platforms//os:windows",
-    ],
+    match_all = [":backend_ref", "@platforms//os:windows"],
 )
 
-config_setting(
+selects.config_setting_group(
     name = "backend_config_mkl_linux",
-    flag_values = {
-        ":backend_config": "mkl",
-    },
-    constraint_values = [
-        "@platforms//os:linux",
-    ],
+    match_all = [":backend_mkl", "@platforms//os:linux"],
 )
 
-# Windows MSVC runtime library selection, equivalent to the Makefile's
-# `MSVC_RUNTIME_VERSION`. Deliberately independent of `--compilation_mode`
-# (Make `REQDBG`): the CRT flavour changes the library file names and the
-# `msvcrt`/`tbb` variants that get linked, while REQDBG only adds debug
-# info and assertions. Ignored on non-Windows platforms.
-#
-# Keep in sync with the `msvc_runtime_debug` toolchain feature — use
-# `--config=mdd` (see .bazelrc), which sets both.
+# Windows CRT (Make MSVC_RUNTIME_VERSION), independent of --compilation_mode as it renames the
+# libraries and their dependencies. The toolchain's msvc_runtime_debug feature follows it.
 config_flag(
     name = "msvc_runtime",
     build_setting_default = "release",
@@ -121,13 +133,15 @@ config_setting(
 build_parameters_lib_validation(
     name = "validate_build_parameters_lib",
     flag = ":build_parameters_lib",
+    target = ":target",
 )
 
-# Make RNG_BACKEND parity (dev/make/deps.ref.mk RNG_OPENRNG). Only meaningful
-# together with backend_config=ref; selecting "openrng" under backend_config=mkl
-# has no effect since the ref RNG shim it swaps out is unused in that case.
-# `config_flag` above auto-generates the matching `:rng_backend_openrng` /
-# `:rng_backend_ref` config_setting targets.
+target_info(
+    name = "target",
+    msvc_runtime = ":msvc_runtime",
+)
+
+# Make RNG_BACKEND parity; has an effect with backend_config=ref only.
 config_flag(
     name = "rng_backend",
     build_setting_default = "ref",
@@ -137,26 +151,19 @@ config_flag(
     ],
 )
 
-# Use this, not the bare `:rng_backend_openrng`, to gate the OpenRNG define and
-# dependency: RNG_OPENRNG lives in dev/make/deps.ref.mk, so Make can only reach
-# it on the ref backend, and .ci/scripts/build.sh guards `--use-openrng yes`
-# behind `backend_config == ref` too. Without the backend_config term,
-# `--rng_backend=openrng --backend_config=mkl` would require OPENRNGROOT and
-# link libopenrng into an MKL build whose ref RNG shim is never compiled.
+# Gate OpenRNG on this rather than `:rng_backend_openrng`: Make reaches it on the ref backend
+# only, and an MKL build would otherwise require OPENRNGROOT.
 config_setting(
-    name = "rng_backend_openrng_ref",
-    flag_values = {
-        ":rng_backend": "openrng",
-        ":backend_config": "ref",
-    },
+    name = "_rng_backend_openrng",
+    flag_values = {":rng_backend": "openrng"},
 )
 
-# Target platforms for cross-compiling to non-x86 Linux. Pass e.g.
-# `--platforms=@config//:linux_aarch64` together with
-# `CC=aarch64-linux-gnu-gcc` (or riscv64-linux-gnu-gcc) so the exec platform
-# (the build machine) stays x86_64 while the target platform switches arch;
-# this is what selects the cross cc_toolchain registered in
-# cc_toolchain_lnx.tpl.BUILD.
+selects.config_setting_group(
+    name = "rng_backend_openrng_ref",
+    match_all = [":_rng_backend_openrng", ":backend_ref"],
+)
+
+# Cross-compile targets, e.g. `--platforms=@config//:linux_aarch64` with `CC=aarch64-linux-gnu-gcc`.
 platform(
     name = "linux_aarch64",
     constraint_values = [
@@ -173,13 +180,8 @@ platform(
     ],
 )
 
-# Windows on ARM64 target platform, matching Make's `PLAT=winarm`. The
-# toolchain generated for it from cc_toolchain_win_llvm.tpl.BUILD is clang-cl
-# based
-# (icx has no AArch64 target), so pass this together with clang-cl on PATH.
-# On an ARM64 Windows host it is also the auto-detected default; naming it
-# explicitly is what makes an x86_64-host cross-compile
-# (`CC=clang-cl --target=aarch64-pc-windows-msvc`) resolve.
+# Make's `PLAT=winarm`, clang-cl only. Name it to cross-compile from an x86_64 host
+# (`CC=clang-cl --target=aarch64-pc-windows-msvc`).
 platform(
     name = "windows_arm64",
     constraint_values = [
@@ -204,14 +206,6 @@ config_flag(
         "dev",
         "release_static",
         "release_dynamic",
-    ],
-)
-
-config_flag(
-    name = "test_thread_mode",
-    build_setting_default = "par",
-    allowed_build_setting_values = [
-        "par",
     ],
 )
 
@@ -254,28 +248,22 @@ config_setting(
     },
 )
 
-config_bool_flag(
-    name = "test_nightly",
-    build_setting_default = False,
+# Nothing reads it; dal-infra still passes --test_thread_mode=par. Remove with the infra update.
+config_flag(
+    name = "test_thread_mode",
+    build_setting_default = "par",
+    allowed_build_setting_values = ["par"],
 )
 
-config_setting(
-    name = "test_nightly_enabled",
-    flag_values  = {
-        ":test_nightly": "True",
-    },
-)
-
-config_bool_flag(
-    name = "test_weekly",
-    build_setting_default = False,
-)
-
-config_setting(
-    name = "test_weekly_enabled",
-    flag_values  = {
-        ":test_weekly": "True",
-    },
+# Catch2 cases tagged [nightly] run from the nightly tier on, [weekly] ones in the weekly tier.
+config_flag(
+    name = "test_tier",
+    build_setting_default = "default",
+    allowed_build_setting_values = [
+        "default",
+        "nightly",
+        "weekly",
+    ],
 )
 
 config_bool_flag(
@@ -291,15 +279,14 @@ config_setting(
 )
 
 # Builds the DPC++ targets and puts the DPC++ libraries into //:release.
-# Defaults to whether icpx is in PATH.
+# Defaults to whether the toolchain has a DPC++ compiler: icpx in PATH on Linux, icx on Windows.
 config_bool_flag(
     name = "release_dpc",
     build_setting_default = %{dpc_compiler_found},
 )
 
-# No platform has this constraint. DPC++ targets require it under
-# --release_dpc=false, so they are skipped, and a direct request for one
-# names the missing compiler.
+# No platform has this constraint, so under --release_dpc=false the DPC++ targets that
+# require it are skipped, and a direct request names the missing compiler.
 constraint_setting(name = "dpc_compiler")
 
 constraint_value(
@@ -340,7 +327,6 @@ unsupported_config(
 )
 
 # Instrument oneDAL sources with the Intel coverage options used by Make.
-# The implementation intentionally rejects unsupported OS/compiler pairs.
 config_bool_flag(
     name = "code_coverage",
     build_setting_default = False,
@@ -367,7 +353,6 @@ dump_config_info(
     flags = [
         ":build_parameters_lib",
         ":test_link_mode",
-        ":test_thread_mode",
         ":code_coverage",
         ":msvc_runtime",
     ],

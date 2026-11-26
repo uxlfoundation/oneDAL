@@ -1,8 +1,10 @@
-package(default_visibility = ["//visibility:public"])
-load("@onedal//dev/bazel:dal.bzl",
+load(
+    "@onedal//dev/bazel:dal.bzl",
     "dal_module",
     "dal_test_suite",
 )
+
+package(default_visibility = ["//visibility:public"])
 
 dal_module(
     name = "louvain",
@@ -16,7 +18,7 @@ dal_module(
 dal_test_suite(
     name = "tests",
     framework = "catch2",
-    compile_as = [ "c++" ],
+    compile_as = ["c++"],
     srcs = glob([
         "test/*.cpp",
     ]),

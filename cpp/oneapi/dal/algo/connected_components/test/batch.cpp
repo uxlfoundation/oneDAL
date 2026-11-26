@@ -114,7 +114,9 @@ public:
                               1) {
         assert(head_vertex_count >= 1);
         assert(tail_vertex_count >= 1);
-        std::fill(degrees.begin(), degrees.begin() + head_vertex_count, head_vertex_count - 1);
+        std::fill(degrees.begin(),
+                  degrees.begin() + head_vertex_count,
+                  static_cast<std::int32_t>(head_vertex_count - 1));
         std::fill(degrees.begin() + head_vertex_count, degrees.end(), 2);
         degrees[head_vertex_count - 1] = head_vertex_count;
         degrees.back() = 1;

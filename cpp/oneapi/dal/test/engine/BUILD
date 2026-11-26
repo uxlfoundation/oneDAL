@@ -1,7 +1,9 @@
-package(default_visibility = ["//visibility:public"])
-load("@onedal//dev/bazel:dal.bzl",
+load(
+    "@onedal//dev/bazel:dal.bzl",
     "dal_test_module",
 )
+
+package(default_visibility = ["//visibility:public"])
 
 dal_test_module(
     name = "common",

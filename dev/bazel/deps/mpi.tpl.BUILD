@@ -8,6 +8,8 @@ filegroup(
     ]),
 )
 
+# Not skylib's native_binary: that copies the file away from the hydra_bstrap_proxy
+# that mpiexec execs from its own directory.
 sh_binary(
     name = "mpiexec",
     srcs = [
@@ -45,9 +47,7 @@ filegroup(
     ],
 )
 
-# Linux only: the Windows libfabric wheel ships no provider libraries beside
-# libfabric.dll, and the MPI tests run on Linux. On Linux the repository rule
-# fails when no provider exists.
+# Linux only: the Windows libfabric wheel ships no providers, and the MPI tests run on Linux.
 filegroup(
     name = "fi",
     srcs = glob([

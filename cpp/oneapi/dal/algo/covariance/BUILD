@@ -1,8 +1,10 @@
-package(default_visibility = ["//visibility:public"])
-load("@onedal//dev/bazel:dal.bzl",
+load(
+    "@onedal//dev/bazel:dal.bzl",
     "dal_module",
     "dal_test_suite",
 )
+
+package(default_visibility = ["//visibility:public"])
 
 dal_module(
     name = "core",
@@ -28,7 +30,7 @@ dal_module(
         ":parameters",
         "@onedal//cpp/oneapi/dal/algo/covariance/detail",
         "@onedal//cpp/oneapi/dal/algo/covariance/backend",
-    ]
+    ],
 )
 
 dal_test_suite(
@@ -37,11 +39,14 @@ dal_test_suite(
     hdrs = glob([
         "test/*.hpp",
     ]),
-    srcs = glob([
-        "test/*.cpp",
-    ], exclude=[
-        "test/online_spmd.cpp",
-    ]),
+    srcs = glob(
+        [
+            "test/*.cpp",
+        ],
+        exclude = [
+            "test/online_spmd.cpp",
+        ],
+    ),
     dal_deps = [
         ":covariance",
     ],
@@ -51,7 +56,7 @@ dal_test_suite(
 dal_test_suite(
     name = "online_spmd_tests",
     framework = "catch2",
-    compile_as = [ "dpc++" ],
+    compile_as = ["dpc++"],
     hdrs = glob([
         "test/*.hpp",
     ]),
