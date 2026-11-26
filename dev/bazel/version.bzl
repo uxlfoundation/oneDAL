@@ -25,7 +25,7 @@ DEV_BUILD_DATE = "21990101"
 
 VERSION = struct(
     major = "2026",
-    minor = "3",
+    minor = "4",
     update = "0",
     status = "P",
     binary_major = "4",
