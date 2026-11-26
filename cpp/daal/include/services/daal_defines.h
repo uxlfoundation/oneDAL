@@ -429,6 +429,7 @@ const int SERIALIZATION_DBSCAN_DISTRIBUTED_PARTIAL_RESULT_STEP13_ID = 121310;
 
 } // namespace daal
 
+// The placement deletes run only if a constructor throws inside placement new; the caller owns the storage.
 #define DAAL_NEW_DELETE()                                          \
     static void * operator new(std::size_t sz)                     \
     {                                                              \
@@ -453,7 +454,9 @@ const int SERIALIZATION_DBSCAN_DISTRIBUTED_PARTIAL_RESULT_STEP13_ID = 121310;
     static void operator delete[](void * ptr, std::size_t /*sz*/)  \
     {                                                              \
         daal::services::daal_free(ptr);                            \
-    }
+    }                                                              \
+    static void operator delete(void *, void *) {}                 \
+    static void operator delete[](void *, void *) {}
 
 #define DAAL_CAST_OPERATOR(ClassName)                                            \
     template <class U>                                                           \
