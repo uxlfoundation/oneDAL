@@ -65,8 +65,8 @@ function install_mkl {
 }
 
 function install_ccl {
-    # Brings Intel MPI with it; the oneCCL samples need both.
-    apt_install intel-oneapi-ccl-devel
+    # The oneCCL samples also need the MPI compiler wrappers and mpiexec, which oneCCL does not pull in.
+    apt_install intel-oneapi-ccl-devel intel-oneapi-mpi-devel
 }
 
 function install_clang-format {
