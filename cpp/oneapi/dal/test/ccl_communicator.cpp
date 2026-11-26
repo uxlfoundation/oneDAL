@@ -14,6 +14,8 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include <algorithm>
+
 #include "oneapi/dal/test/engine/ccl_global.hpp"
 #include "oneapi/dal/test/engine/fixtures.hpp"
 
@@ -122,11 +124,10 @@ public:
         auto send_buffer_device = copy_to_device(send_buf, send_count);
         std::int64_t total_count = 0;
         for (std::int64_t i = 0; i < comm.get_rank_count(); i++) {
-            total_count += recv_counts[i];
+            total_count = std::max(total_count, displs[i] + recv_counts[i]);
         }
 
-        auto recv_buffer_device =
-            array<T>::empty(get_queue(), total_count, sycl::usm::alloc::device);
+        auto recv_buffer_device = copy_to_device(recv_buf, total_count);
 
         comm.allgatherv(get_queue(),
                         send_buffer_device.get_mutable_data(),
@@ -329,6 +330,52 @@ TEST_M(ccl_comm_test, "allgatherv") {
     SECTION("device") {
         test_allgatherv_on_device(send_buffer.data(),
                                   rank_size,
+                                  recv_buffer.data(),
+                                  recv_counts.data(),
+                                  displs.data());
+    }
+#endif
+
+    for (std::int64_t i = 0; i < total_size; i++) {
+        REQUIRE(recv_buffer[i] == final_buffer[i]);
+    }
+}
+
+TEST_M(ccl_comm_test, "allgatherv with gaps between the ranks") {
+    auto comm = get_new_comm();
+    const std::int64_t granularity = 10;
+    const std::int64_t rank_count = comm.get_rank_count();
+    const std::int64_t rank = comm.get_rank();
+    constexpr float untouched = -1.0f;
+
+    std::vector<std::int64_t> recv_counts(rank_count);
+    std::vector<std::int64_t> displs(rank_count);
+    std::int64_t total_size = 0;
+    for (std::int64_t i = 0; i < rank_count; i++) {
+        recv_counts[i] = (i + 1) * granularity;
+        displs[i] = total_size + i + 1;
+        total_size = displs[i] + recv_counts[i];
+    }
+
+    std::vector<float> send_buffer(recv_counts[rank], float(rank));
+    std::vector<float> recv_buffer(total_size, untouched);
+    std::vector<float> final_buffer(total_size, untouched);
+    for (std::int64_t i = 0; i < rank_count; i++) {
+        std::fill_n(final_buffer.begin() + displs[i], recv_counts[i], float(i));
+    }
+
+    SECTION("host") {
+        test_allgatherv(send_buffer.data(),
+                        recv_counts[rank],
+                        recv_buffer.data(),
+                        recv_counts.data(),
+                        displs.data());
+    }
+
+#ifdef ONEDAL_DATA_PARALLEL
+    SECTION("device") {
+        test_allgatherv_on_device(send_buffer.data(),
+                                  recv_counts[rank],
                                   recv_buffer.data(),
                                   recv_counts.data(),
                                   displs.data());
