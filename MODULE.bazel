@@ -26,13 +26,16 @@ cc_configure = use_extension("@rules_cc//cc:extensions.bzl", "cc_configure_exten
 use_repo(cc_configure, "local_config_cc", "local_config_cc_toolchains")
 
 declare_onedal_config = use_repo_rule("@onedal//dev/bazel/config:config.bzl", "declare_onedal_config")
-declare_onedal_config(name = "config",)
+
+declare_onedal_config(name = "config")
 
 sh_config_ext = use_extension("@onedal//dev/bazel/toolchains:cc_toolchain_extension.bzl", "cc_toolchain_extension")
 use_repo(sh_config_ext, "onedal_cc_toolchain")
+
 register_toolchains("@{}//:all".format("onedal_cc_toolchain"))
 
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
 http_archive(
     name = "catch2",
     url = "https://github.com/catchorg/Catch2/archive/v3.9.1.tar.gz",
@@ -43,31 +46,41 @@ http_archive(
 
 # Prebuilt dependencies: URLs, hashes and the local-install lookup live in dev/bazel/deps/<dep>.bzl.
 opencl_repo = use_repo_rule("@onedal//dev/bazel/deps:opencl.bzl", "opencl_repo")
+
 opencl_repo(name = "opencl")
 
 openmp_repo = use_repo_rule("@onedal//dev/bazel/deps:openmp.bzl", "openmp_repo")
+
 openmp_repo(name = "openmp")
 
 openblas_repo = use_repo_rule("@onedal//dev/bazel/deps:openblas.bzl", "openblas_repo")
+
 openblas_repo(name = "openblas")
 
 openrng_repo = use_repo_rule("@onedal//dev/bazel/deps:openrng.bzl", "openrng_repo")
+
 openrng_repo(name = "openrng")
 
 tbb_repo = use_repo_rule("@onedal//dev/bazel/deps:tbb.bzl", "tbb_repo")
+
 tbb_repo(name = "tbb")
 
 mpi_repo = use_repo_rule("@onedal//dev/bazel/deps:mpi.bzl", "mpi_repo")
+
 mpi_repo(name = "mpi")
 
 ccl_repo = use_repo_rule("@onedal//dev/bazel/deps:ccl.bzl", "ccl_repo")
+
 ccl_repo(name = "ccl")
 
 dpl_repo = use_repo_rule("@onedal//dev/bazel/deps:dpl.bzl", "dpl_repo")
+
 dpl_repo(name = "dpl")
 
 mkl_repo = use_repo_rule("@onedal//dev/bazel/deps:mkl.bzl", "mkl_repo")
+
 mkl_repo(name = "mkl")
 
 onedal_repo = use_repo_rule("@onedal//dev/bazel/deps:onedal.bzl", "onedal_repo")
+
 onedal_repo(name = "onedal_release")

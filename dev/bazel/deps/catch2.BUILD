@@ -48,7 +48,7 @@ expand_template(
         "#cmakedefine CATCH_CONFIG_CPP17_VARIANT": "",
         "#cmakedefine CATCH_CONFIG_DEPRECATION_ANNOTATIONS": "",
         "#cmakedefine CATCH_CONFIG_DISABLE_EXCEPTIONS_CUSTOM_HANDLER": "",
-# Exceptions are easier to debug in GDB without Catch2's handler.
+        # Exceptions are easier to debug in GDB without Catch2's handler.
         "#cmakedefine CATCH_CONFIG_DISABLE_EXCEPTIONS": "#define CATCH_CONFIG_DISABLE_EXCEPTIONS",
         "#cmakedefine CATCH_CONFIG_DISABLE_STRINGIFICATION": "",
         "#cmakedefine CATCH_CONFIG_DISABLE": "",
@@ -74,7 +74,7 @@ expand_template(
         "#cmakedefine CATCH_CONFIG_NO_DEPRECATION_ANNOTATIONS": "",
         "#cmakedefine CATCH_CONFIG_NO_GETENV": "",
         "#cmakedefine CATCH_CONFIG_NO_GLOBAL_NEXTAFTER": "",
-# Catch2's signal handlers catch the SIGSEGV of a host access to a USM pointer.
+        # Catch2's signal handlers catch the SIGSEGV of a host access to a USM pointer.
         "#cmakedefine CATCH_CONFIG_NO_POSIX_SIGNALS": "#define CATCH_CONFIG_NO_POSIX_SIGNALS",
         "#cmakedefine CATCH_CONFIG_NO_USE_ASYNC": "",
         "#cmakedefine CATCH_CONFIG_NO_EXPERIMENTAL_STATIC_ANALYSIS_SUPPORT": "",

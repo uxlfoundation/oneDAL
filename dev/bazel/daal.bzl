@@ -14,34 +14,46 @@
 # limitations under the License.
 #===============================================================================
 
-load("@onedal//dev/bazel:cc.bzl",
+load(
+    "@onedal//dev/bazel:cc.bzl",
+    "cc_dynamic_lib",
     "cc_module",
     "cc_static_lib",
-    "cc_dynamic_lib",
 )
-load("@onedal//dev/bazel:utils.bzl",
-    "sets",
+load(
+    "@onedal//dev/bazel:utils.bzl",
     "paths",
+    "sets",
 )
-load("@onedal//dev/bazel/config:config.bzl",
+load(
+    "@onedal//dev/bazel/config:config.bzl",
     "CPU_ATTRS",
     "ISA_TABLE",
     "TARGET_ATTRS",
     "VERSION_ATTRS",
     "get_cpu_info",
-    "target",
     "get_version_info",
+    "target",
 )
 
-def daal_module(name, features=[], lib_tag="daal",
-                hdrs=[], srcs=[], auto=False,
-                local_defines=[], copts=[],
-                stdalloc=True, define_gcov_build=True, **kwargs):
+def daal_module(
+        name,
+        features = [],
+        lib_tag = "daal",
+        hdrs = [],
+        srcs = [],
+        auto = False,
+        local_defines = [],
+        copts = [],
+        stdalloc = True,
+        define_gcov_build = True,
+        **kwargs):
     """A DAAL module; `auto` globs the package's `.h`, `.i` and `.cpp` files."""
     auto_hdrs, auto_srcs = [], []
     if auto:
         auto_hdrs = native.glob(["**/*.h", "**/*.i"], allow_empty = True)
         auto_srcs = native.glob(["**/*.cpp"], allow_empty = True)
+
     # The default arm fails analysis: --stdalloc=true is implemented for Linux only.
     deps = kwargs.pop("deps", []) + select({
         "@config//:stdalloc_enabled": [],
@@ -85,14 +97,14 @@ def daal_module(name, features=[], lib_tag="daal",
             "@config//:rng_backend_openrng_ref": ["OPENRNG_BACKEND"],
             "//conditions:default": [],
         }),
-        **kwargs,
+        **kwargs
     )
 
-def daal_static_lib(name, lib_tags=["daal"], **kwargs):
+def daal_static_lib(name, lib_tags = ["daal"], **kwargs):
     cc_static_lib(
         name = name,
         lib_tags = lib_tags,
-        **kwargs,
+        **kwargs
     )
 
 _MKL_EXCLUDE_LIBS_FLAGS = select({
@@ -105,8 +117,9 @@ _MKL_EXCLUDE_LIBS_FLAGS = select({
     "//conditions:default": [],
 })
 
-def daal_dynamic_lib(name, lib_tags=["daal", "mkl_embed"], **kwargs):
+def daal_dynamic_lib(name, lib_tags = ["daal", "mkl_embed"], **kwargs):
     linkopts = kwargs.pop("linkopts", [])
+
     # Core and threading DLLs share services/dll.rc (makefile:586, 918).
     kwargs.setdefault("rc_file", "@onedal//cpp/daal:src/services/dll.rc")
     kwargs.setdefault("rc_headers", [
@@ -117,10 +130,10 @@ def daal_dynamic_lib(name, lib_tags=["daal", "mkl_embed"], **kwargs):
         name = name,
         lib_tags = lib_tags,
         linkopts = linkopts + _MKL_EXCLUDE_LIBS_FLAGS,
-        **kwargs,
+        **kwargs
     )
 
-def daal_algorithms(name, algorithms=[]):
+def daal_algorithms(name, algorithms = []):
     alg_labels = []
     for alg_name in algorithms:
         label = "@onedal//cpp/daal/src/algorithms/{}:kernel".format(alg_name)
@@ -145,13 +158,13 @@ def _daal_generate_version_impl(ctx):
         "#define BUILD_REV \"{}\"\n".format(vi.buildrev) +
         "#define PRODUCT_STATUS '{}'\n".format(vi.status)
     ))
-    return [ DefaultInfo(files=depset([ version ])) ]
+    return [DefaultInfo(files = depset([version]))]
 
 daal_generate_version = rule(
     implementation = _daal_generate_version_impl,
     output_to_genfiles = True,
     attrs = {
-        "out": attr.string(mandatory=True),
+        "out": attr.string(mandatory = True),
     } | VERSION_ATTRS,
 )
 
@@ -183,12 +196,12 @@ def _daal_patch_kernel_defines_impl(ctx):
             for cpu in disabled_cpus
         },
     )
-    return [ DefaultInfo(files=depset([ kernel_defines ])) ]
+    return [DefaultInfo(files = depset([kernel_defines]))]
 
 daal_patch_kernel_defines = rule(
     implementation = _daal_patch_kernel_defines_impl,
     output_to_genfiles = True,
     attrs = {
-        "src": attr.label(allow_single_file=True, mandatory=True),
+        "src": attr.label(allow_single_file = True, mandatory = True),
     } | TARGET_ATTRS | CPU_ATTRS,
 )

@@ -139,8 +139,12 @@ def _release_parameters_test_impl(ctx):
     env = analysistest.begin(ctx)
     libs = analysistest.target_under_test(env)[_DepsInfo].direct_lib
     for lib in _PARAMETER_LIBS:
-        asserts.equals(env, ctx.attr.separate, lib in libs,
-                       "{} staged by the release: {}".format(lib, ctx.attr.separate))
+        asserts.equals(
+            env,
+            ctx.attr.separate,
+            lib in libs,
+            "{} staged by the release: {}".format(lib, ctx.attr.separate),
+        )
     return analysistest.end(env)
 
 def _make_release_parameters_test(value):
@@ -255,8 +259,11 @@ def _release_layout_test_impl(ctx):
         if not path.startswith("daal/latest/include/"):
             continue
         rel = path[len("daal/latest/include/"):]
-        asserts.false(env, rel.startswith("external/") or rel.startswith("+"),
-                      "{} comes from an external repository".format(path))
+        asserts.false(
+            env,
+            rel.startswith("external/") or rel.startswith("+"),
+            "{} comes from an external repository".format(path),
+        )
         base = rel.split("/")[-1]
         for prefix in _FOREIGN_HEADER_PREFIXES:
             asserts.false(env, base.startswith(prefix), "{} is a dependency's header".format(path))
@@ -326,9 +333,14 @@ def _make_build_date_failure_test(message, settings):
         env = analysistest.begin(ctx)
         asserts.expect_failure(env, message)
         return analysistest.end(env)
+
     return analysistest.make(_impl, expect_failure = True, config_settings = settings)
 
 build_date_required_test = _make_build_date_failure_test(
-    "--config=release needs --build_date=YYYYMMDD", {_REQUIRE_BUILD_DATE: True})
+    "--config=release needs --build_date=YYYYMMDD",
+    {_REQUIRE_BUILD_DATE: True},
+)
 build_date_invalid_test = _make_build_date_failure_test(
-    "must be a YYYYMMDD calendar date", {_BUILD_DATE: "20261313"})
+    "must be a YYYYMMDD calendar date",
+    {_BUILD_DATE: "20261313"},
+)

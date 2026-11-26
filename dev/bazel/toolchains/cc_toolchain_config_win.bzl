@@ -17,29 +17,30 @@
 # Toolchain config for clang-cl on Windows (icx and LLVM clang-cl), in clang-cl flag spellings.
 # Arch-independent: the linker and archiver take the machine type from the objects.
 
+load("@onedal//dev/bazel/config:config.bzl", "ConfigFlagInfo")
+load(
+    "@onedal//dev/bazel/toolchains:cc_toolchain_config_common.bzl",
+    "COMMON_ATTRS",
+    "all_compile_actions",
+    "all_link_actions",
+    "common",
+    "dynamic_library_link_actions",
+    "lto_index_actions",
+)
 load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
-
-load("@rules_cc//cc:cc_toolchain_config_lib.bzl",
+load(
+    "@rules_cc//cc:cc_toolchain_config_lib.bzl",
+    "action_config",
+    "artifact_name_pattern",
+    "env_entry",
+    "env_set",
     "feature",
     "flag_group",
     "flag_set",
-    "env_entry",
-    "env_set",
     "variable_with_value",
     "with_feature_set",
-    "action_config",
-    "artifact_name_pattern",
 )
 load("@rules_cc//cc/toolchains:cc_toolchain_config_info.bzl", "CcToolchainConfigInfo")
-load("@onedal//dev/bazel/config:config.bzl", "ConfigFlagInfo")
-load("@onedal//dev/bazel/toolchains:cc_toolchain_config_common.bzl",
-    "common",
-    "all_compile_actions",
-    "all_link_actions",
-    "dynamic_library_link_actions",
-    "lto_index_actions",
-    "COMMON_ATTRS",
-)
 
 def _impl(ctx):
     compiler_tools = common.compiler_tools(ctx.attr.cc_path, ctx.attr.dpcc_path)
@@ -117,8 +118,7 @@ def _impl(ctx):
             # Empty for clang-cl, and flag_group refuses an empty `flags` list.
             flag_set(
                 actions = all_compile_actions,
-                flag_groups = ([flag_group(flags = ctx.attr.openmp_simd_flags)]
-                               if ctx.attr.openmp_simd_flags else []),
+                flag_groups = ([flag_group(flags = ctx.attr.openmp_simd_flags)] if ctx.attr.openmp_simd_flags else []),
                 with_features = [with_feature_set(
                     not_features = ["msvc_runtime_debug"],
                 )],
@@ -157,6 +157,7 @@ def _impl(ctx):
             ),
         ],
     )
+
     # No `supports_pic`: PE/COFF has no PIC variant, and cc_module rejects two object variants.
     supports_dynamic_linker_feature = common.supports_dynamic_linker_feature()
     do_not_link_dynamic_dependencies_feature = common.do_not_link_dynamic_dependencies_feature()
@@ -173,6 +174,7 @@ def _impl(ctx):
         name = "has_configured_linker_path",
         enabled = True,
     )
+
     # Bazel sets interface_library_output_path to "ignored" on executable links, so a test that
     # exports symbols would write ignored.lib/.exp in the exec root, racing the parallel links.
     interface_library_output_flags_feature = feature(
@@ -263,8 +265,7 @@ def _impl(ctx):
         enabled = True,
         flag_sets = [flag_set(
             actions = all_compile_actions,
-            flag_groups = ([flag_group(flags = ctx.attr.deterministic_compile_flags)]
-                           if ctx.attr.deterministic_compile_flags else []),
+            flag_groups = ([flag_group(flags = ctx.attr.deterministic_compile_flags)] if ctx.attr.deterministic_compile_flags else []),
         )],
     )
 

@@ -1,8 +1,10 @@
-package(default_visibility = ["//visibility:public"])
-load("@onedal//dev/bazel:dal.bzl",
+load(
+    "@onedal//dev/bazel:dal.bzl",
     "dal_module",
     "dal_test_suite",
 )
+
+package(default_visibility = ["//visibility:public"])
 
 dal_module(
     name = "finiteness_checker",
@@ -13,7 +15,7 @@ dal_module(
     ],
     extra_deps = [
         "@onedal//cpp/daal:data_management",
-    ]
+    ],
 )
 
 dal_test_suite(

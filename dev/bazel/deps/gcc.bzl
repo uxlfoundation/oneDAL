@@ -23,6 +23,7 @@ load("@onedal//dev/bazel:repos.bzl", "repos")
 # re-pinned by dev/bazel/deps/relock_conda.py (see dev/bazel/README.md).
 _GCC_VERSION = "14.3.0"
 _TRIPLE = "x86_64-conda-linux-gnu"
+
 # The channel CDN first; anaconda.org answers 503 and times out in waves.
 _URLS = [
     "https://conda.anaconda.org/conda-forge/{subdir}/{name}-{version}-{build}.conda",
