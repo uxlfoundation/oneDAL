@@ -1,7 +1,8 @@
-load("@onedal//dev/bazel:dal.bzl",
-    "dal_module",
-    "daal_example_suite",
+load(
+    "@onedal//dev/bazel:dal.bzl",
     "daal_algo_example_suite",
+    "daal_example_suite",
+    "dal_module",
 )
 
 filegroup(
@@ -18,7 +19,7 @@ filegroup(
 dal_module(
     name = "example_util",
     hdrs = glob(["source/utils/*.h"]),
-    includes = [ "source/utils" ],
+    includes = ["source/utils"],
 )
 
 # The math backend is linked explicitly because the examples link the DAAL
@@ -26,11 +27,12 @@ dal_module(
 # here. Mirrors the `@config//:backend_ref` select in //cpp/daal:BUILD; without
 # it the examples are unbuildable on any non-MKL platform (ARM/RISC-V).
 _TEST_DEPS = [
-    ":example_util", "@tbb//:tbb",
+    ":example_util",
+    "@tbb//:tbb",
     # `dal_module` turns a dict entry into a `select()` (see _expand_select).
     {
-        "@config//:backend_ref": [ "@openblas//:openblas" ],
-        "//conditions:default": [ "@mkl//:mkl_static" ],
+        "@config//:backend_ref": ["@openblas//:openblas"],
+        "//conditions:default": ["@mkl//:mkl_static"],
     },
 ]
 
@@ -40,21 +42,23 @@ _DATA_DEPS = [
 
 daal_example_suite(
     name = "datasource",
-    compile_as = [ "c++" ],
+    compile_as = ["c++"],
     srcs = glob(["source/datasource/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/daal/src/algorithms/low_order_moments:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
+    extra_deps = _TEST_DEPS,
 )
 
 # TODO: investigate the issue with excluded example
 daal_example_suite(
     name = "decision_forest",
-    compile_as = [ "c++" ],
-    srcs = glob(["source/decision_forest/*.cpp"],
-    exclude = ["source/decision_forest/df_cls_traversed_model_builder.cpp"],),
+    compile_as = ["c++"],
+    srcs = glob(
+        ["source/decision_forest/*.cpp"],
+        exclude = ["source/decision_forest/df_cls_traversed_model_builder.cpp"],
+    ),
     dal_deps = [
         "@onedal//cpp/daal/src/algorithms/dtrees:kernel",
         "@onedal//cpp/daal/src/algorithms/dtrees/forest:kernel",
@@ -62,19 +66,19 @@ daal_example_suite(
         "@onedal//cpp/daal/src/algorithms/dtrees/forest/regression:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
+    extra_deps = _TEST_DEPS,
 )
 
 daal_example_suite(
     name = "distance",
-    compile_as = [ "c++" ],
+    compile_as = ["c++"],
     srcs = glob(["source/distance/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/daal/src/algorithms/cordistance:kernel",
         "@onedal//cpp/daal/src/algorithms/cosdistance:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
+    extra_deps = _TEST_DEPS,
 )
 
 # No Bazel example sources currently exist under source/distributions/.
@@ -93,7 +97,7 @@ daal_example_suite(
 
 daal_example_suite(
     name = "elastic_net",
-    compile_as = [ "c++" ],
+    compile_as = ["c++"],
     srcs = glob(["source/elastic_net/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/daal/src/algorithms/elastic_net:kernel",
@@ -101,35 +105,35 @@ daal_example_suite(
         "@onedal//cpp/daal/src/algorithms/objective_function/mse:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
+    extra_deps = _TEST_DEPS,
 )
 
 daal_example_suite(
     name = "em",
-    compile_as = [ "c++" ],
+    compile_as = ["c++"],
     srcs = glob(["source/em/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/daal/src/algorithms/em:kernel",
         "@onedal//cpp/daal/src/algorithms/covariance:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
+    extra_deps = _TEST_DEPS,
 )
 
 daal_example_suite(
     name = "enable_thread_pinning_example",
-    compile_as = [ "c++" ],
+    compile_as = ["c++"],
     srcs = glob(["source/enable_thread_pinning/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/daal/src/algorithms/kmeans:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
+    extra_deps = _TEST_DEPS,
 )
 
 daal_example_suite(
     name = "gradient_boosted_trees",
-    compile_as = [ "c++" ],
+    compile_as = ["c++"],
     srcs = glob(["source/gradient_boosted_trees/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/daal/src/algorithms/dtrees/gbt/regression:kernel",
@@ -137,12 +141,12 @@ daal_example_suite(
         "@onedal//cpp/daal/src/algorithms/dtrees/gbt:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
+    extra_deps = _TEST_DEPS,
 )
 
 daal_example_suite(
     name = "lasso_regression",
-    compile_as = [ "c++" ],
+    compile_as = ["c++"],
     srcs = glob(["source/lasso_regression/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/daal/src/algorithms/lasso_regression:kernel",
@@ -150,30 +154,30 @@ daal_example_suite(
         "@onedal//cpp/daal/src/algorithms/objective_function/mse:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
+    extra_deps = _TEST_DEPS,
 )
 
 daal_example_suite(
     name = "logistic_regression",
-    compile_as = [ "c++" ],
+    compile_as = ["c++"],
     srcs = glob(["source/logistic_regression/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/daal/src/algorithms/logistic_regression:kernel",
         "@onedal//cpp/daal/src/algorithms/optimization_solver/lbfgs:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
+    extra_deps = _TEST_DEPS,
 )
 
 daal_example_suite(
     name = "moments",
-    compile_as = [ "c++" ],
+    compile_as = ["c++"],
     srcs = glob(["source/moments/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/daal/src/algorithms/low_order_moments:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
+    extra_deps = _TEST_DEPS,
 )
 
 # TODO: investigate the issue with excluded example
@@ -215,56 +219,58 @@ daal_example_suite(
 
 daal_example_suite(
     name = "pca_transform",
-    compile_as = [ "c++" ],
+    compile_as = ["c++"],
     srcs = glob(["source/pca_transform/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/daal/src/algorithms/pca:kernel",
         "@onedal//cpp/daal/src/algorithms/pca/transform:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
+    extra_deps = _TEST_DEPS,
 )
 
 daal_example_suite(
     name = "serialization_example",
-    compile_as = [ "c++" ],
+    compile_as = ["c++"],
     srcs = glob(["source/serialization/*.cpp"]),
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
+    extra_deps = _TEST_DEPS,
 )
 
 daal_example_suite(
     name = "services_examples",
-    compile_as = [ "c++" ],
+    compile_as = ["c++"],
     srcs = glob(["source/services/*.cpp"]),
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
+    extra_deps = _TEST_DEPS,
 )
 
 daal_example_suite(
     name = "set_number_of_threads_example",
-    compile_as = [ "c++" ],
+    compile_as = ["c++"],
     srcs = glob(["source/set_number_of_threads/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/daal/src/algorithms/kmeans:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
+    extra_deps = _TEST_DEPS,
 )
 
 # TODO: investigate the issue with excluded example
 daal_example_suite(
     name = "svm",
-    compile_as = [ "c++" ],
-    srcs = glob(["source/svm/*.cpp"],
-    exclude = ["source/svm/svm_multi_class_model_builder.cpp"],),
+    compile_as = ["c++"],
+    srcs = glob(
+        ["source/svm/*.cpp"],
+        exclude = ["source/svm/svm_multi_class_model_builder.cpp"],
+    ),
     dal_deps = [
         "@onedal//cpp/daal/src/algorithms/svm:kernel",
         "@onedal//cpp/daal/src/algorithms/kernel_function:kernel",
         "@onedal//cpp/daal/src/algorithms/multiclassclassifier:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
+    extra_deps = _TEST_DEPS,
 )
 
 daal_algo_example_suite(
@@ -283,7 +289,7 @@ daal_algo_example_suite(
         "ridge_regression",
         "svd",
     ],
-    compile_as = [ "c++" ],
+    compile_as = ["c++"],
     data = _DATA_DEPS,
     extra_deps = _TEST_DEPS,
 )

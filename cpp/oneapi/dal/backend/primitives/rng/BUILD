@@ -1,8 +1,10 @@
-package(default_visibility = ["//visibility:public"])
-load("@onedal//dev/bazel:dal.bzl",
+load(
+    "@onedal//dev/bazel:dal.bzl",
     "dal_module",
     "dal_test_suite",
 )
+
+package(default_visibility = ["//visibility:public"])
 
 dal_module(
     name = "rng",
@@ -19,7 +21,7 @@ dal_test_suite(
     name = "tests",
     private = True,
     framework = "catch2",
-    compile_as = [ "dpc++" ],
+    compile_as = ["dpc++"],
     srcs = glob([
         "test/*_dpc.cpp",
     ]),

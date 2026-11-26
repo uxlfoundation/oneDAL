@@ -14,12 +14,9 @@
 # limitations under the License.
 #===============================================================================
 
-load("@rules_cc//cc/private/toolchain:windows_cc_configure.bzl", "configure_windows_toolchain")
-load("@rules_cc//cc/private/toolchain:lib_cc_configure.bzl",
-    "get_starlark_list",
-)
 load("@onedal//dev/bazel:utils.bzl", "paths")
-load("@onedal//dev/bazel/toolchains:common.bzl",
+load(
+    "@onedal//dev/bazel/toolchains:common.bzl",
     "ARCH_ID_TO_PLATFORM_CPU",
     "TEST_CPP_FILE",
     "add_compiler_option_if_supported",
@@ -30,6 +27,11 @@ load("@onedal//dev/bazel/toolchains:common.bzl",
     "get_toolchain_identifier",
     "write_tool_identity",
 )
+load(
+    "@rules_cc//cc/private/toolchain:lib_cc_configure.bzl",
+    "get_starlark_list",
+)
+load("@rules_cc//cc/private/toolchain:windows_cc_configure.bzl", "configure_windows_toolchain")
 
 def _create_dpc_link_wrapper(repo_ctx, dpcc_path):
     repo_ctx.template(
@@ -62,7 +64,9 @@ def _find_llvm_tool(repo_ctx, cc_path, name, fallback):
     if bundled.exists:
         return str(bundled)
     print("{} not found; falling back to MSVC {}.exe, which is not long-path aware".format(
-        name, fallback))
+        name,
+        fallback,
+    ))
     path, _ = find_tool(repo_ctx, fallback, mandatory = True)
     return path
 
@@ -86,6 +90,7 @@ def _find_tools_icx(repo_ctx):
 def _find_tools_clang(repo_ctx):
     """Upstream LLVM clang-cl tools, as Make's `PLAT=winarm`; host only, as icpx targets x86_64 only."""
     cc_path, _ = find_tool(repo_ctx, "clang-cl", mandatory = True)
+
     # Required, as in Make: falling back to `link` could find MSYS2's unrelated link.exe.
     cc_link_path, _ = find_tool(repo_ctx, "lld-link", mandatory = True)
     ar_path, _ = find_tool(repo_ctx, "llvm-lib", mandatory = True)
@@ -202,8 +207,7 @@ def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
     """Custom Windows toolchain for icx (`compiler_id = "icx"`) or LLVM clang-cl (`"clang"`)."""
     repo_ctx.file(TEST_CPP_FILE, "int main() { return 0; }")
 
-    tools = (_find_tools_icx(repo_ctx) if compiler_id == "icx"
-             else _find_tools_clang(repo_ctx))
+    tools = (_find_tools_icx(repo_ctx) if compiler_id == "icx" else _find_tools_clang(repo_ctx))
 
     # INCLUDE covers MSVC, the SDK and oneAPI, but not the builtin headers of the compiler package.
     builtin_include_directories = []
@@ -212,6 +216,7 @@ def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
         p = path.strip().replace("\\", "/")
         if p and p not in builtin_include_directories:
             builtin_include_directories.append(p)
+
         # setvars.bat can list include dirs that do not exist (tcm 1.6 in Basekit 2026.2),
         # and realpath fails on those.
         if p and repo_ctx.path(p).exists:
@@ -236,6 +241,7 @@ def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
         opt_inc = "{}/opt/compiler/include".format(cmplr_root)
         if repo_ctx.path(opt_inc).exists:
             _add_builtin_include_dir(opt_inc)
+
         # Clang builtin headers live under `lib/clang/<N>/include`.
         clang_root = repo_ctx.path("{}/lib/clang".format(cmplr_root))
         if clang_root.exists:
@@ -251,6 +257,7 @@ def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
     if resource_dir.return_code == 0:
         resource = resource_dir.stdout.strip().replace("\\", "/")
         _add_builtin_include_dir("{}/include".format(resource))
+
         # `<root>/lib/clang/<N>` is the resource dir; icx keeps its overrides in `<root>/opt`.
         opt_inc = "{}/opt/compiler/include".format(resource.rsplit("/", 3)[0])
         if repo_ctx.path(opt_inc).exists:
@@ -271,29 +278,43 @@ def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
     dpcc_code_split = "per_kernel"
 
     compile_flags_cc = get_default_compiler_options(
-        repo_ctx, reqs_llvm, tools.cc,
-        is_dpcc = False, category = "common",
+        repo_ctx,
+        reqs_llvm,
+        tools.cc,
+        is_dpcc = False,
+        category = "common",
     )
     compile_flags_dpcc = get_default_compiler_options(
-        repo_ctx, reqs_llvm, tools.dpcc,
-        is_dpcc = True, category = "common",
+        repo_ctx,
+        reqs_llvm,
+        tools.dpcc,
+        is_dpcc = True,
+        category = "common",
     ) if tools.is_dpc_found else []
     if tools.is_dpc_found:
         compile_flags_dpcc = compile_flags_dpcc + add_compiler_option_if_supported(
-            repo_ctx, tools.dpcc,
+            repo_ctx,
+            tools.dpcc,
             "-fsycl-device-code-split={}".format(dpcc_code_split),
         )
 
     compile_flags_pedantic_cc = get_default_compiler_options(
-        repo_ctx, reqs_llvm, tools.cc,
-        is_dpcc = False, category = "pedantic",
+        repo_ctx,
+        reqs_llvm,
+        tools.cc,
+        is_dpcc = False,
+        category = "pedantic",
     )
     compile_flags_pedantic_dpcc = get_default_compiler_options(
-        repo_ctx, reqs_llvm, tools.dpcc,
-        is_dpcc = True, category = "pedantic",
+        repo_ctx,
+        reqs_llvm,
+        tools.dpcc,
+        is_dpcc = True,
+        category = "pedantic",
     ) if tools.is_dpc_found else []
 
     link_flags_cc = []
+
     # The SYCL import library depends on the CRT, so the toolchain config adds it per build.
     link_flags_dpcc = ([
         "-fsycl",
@@ -394,6 +415,7 @@ def _action_path(repo_ctx, cc_path):
     entries = [entry for entry in env.get("path", "").split(";") if entry]
     if not roots:
         return ";".join(entries)
+
     # SystemRoot is set in every Windows session, so it does not decide the fallback above.
     roots.append(_norm_path(env.get("systemroot", "")))
     roots.append(_norm_path(str(repo_ctx.path(cc_path).dirname)))

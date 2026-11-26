@@ -1,4 +1,5 @@
-load("@onedal//dev/bazel/tests:analysis.bzl",
+load(
+    "@onedal//dev/bazel/tests:analysis.bzl",
     "backend_aarch64_test",
     "backend_explicit_ref_test",
     "backend_probe",
@@ -62,7 +63,12 @@ release_parameters_no_test(
     name = "folded_parameters_{}_test".format(name),
     target_under_test = "@onedal//cpp/oneapi/dal:" + name,
     dpc = name.endswith("_dpc"),
-) for name in ["static", "dynamic", "static_dpc", "dynamic_dpc"]]
+) for name in [
+    "static",
+    "dynamic",
+    "static_dpc",
+    "dynamic_dpc",
+]]
 
 windows_parameters_rejected_test(
     name = "windows_parameters_rejected_test",
@@ -105,12 +111,18 @@ release_layout_test(
     target_under_test = "@onedal//cpp/daal:" + name,
     lib_name = lib_name,
     target_compatible_with = ["@platforms//os:linux"],
-) for name, lib_name in [("core_dynamic", "onedal_core"), ("thread_dynamic", "onedal_thread")]]
+) for name, lib_name in [
+    ("core_dynamic", "onedal_core"),
+    ("thread_dynamic", "onedal_thread"),
+]]
 
 # The math backend follows the target platform unless --backend_config is set.
 platform(
     name = "linux_x86_64",
-    constraint_values = ["@platforms//cpu:x86_64", "@platforms//os:linux"],
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
 )
 
 backend_probe(
@@ -121,18 +133,40 @@ backend_probe(
     }),
 )
 
-backend_x86_64_test(name = "backend_x86_64_test", target_under_test = ":backend_probe", expected = "mkl")
+backend_x86_64_test(
+    name = "backend_x86_64_test",
+    target_under_test = ":backend_probe",
+    expected = "mkl",
+)
 
-backend_aarch64_test(name = "backend_aarch64_test", target_under_test = ":backend_probe", expected = "ref")
+backend_aarch64_test(
+    name = "backend_aarch64_test",
+    target_under_test = ":backend_probe",
+    expected = "ref",
+)
 
-backend_riscv64_test(name = "backend_riscv64_test", target_under_test = ":backend_probe", expected = "ref")
+backend_riscv64_test(
+    name = "backend_riscv64_test",
+    target_under_test = ":backend_probe",
+    expected = "ref",
+)
 
-backend_explicit_ref_test(name = "backend_explicit_ref_test", target_under_test = ":backend_probe", expected = "ref")
+backend_explicit_ref_test(
+    name = "backend_explicit_ref_test",
+    target_under_test = ":backend_probe",
+    expected = "ref",
+)
 
 # --config=release-dpc refuses the placeholder date, and the date must exist in the calendar.
-build_date_required_test(name = "build_date_required_test", target_under_test = "@config//:version")
+build_date_required_test(
+    name = "build_date_required_test",
+    target_under_test = "@config//:version",
+)
 
-build_date_invalid_test(name = "build_date_invalid_test", target_under_test = "@config//:version")
+build_date_invalid_test(
+    name = "build_date_invalid_test",
+    target_under_test = "@config//:version",
+)
 
 # Coverage needs the icx toolchain, so only the coverage CI step runs these (manual).
 coverage_core_test(

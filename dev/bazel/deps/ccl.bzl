@@ -34,7 +34,7 @@ ccl_repo = repos.prebuilt_libs_repo_rule(
     build_template = "@onedal//dev/bazel/deps:ccl.tpl.BUILD",
     # oneCCL installations before 2021.14 keep both under `cpu_gpu_dpcpp/`.
     fallback_mapping = {
-        "lib/":                                         "lib/cpu_gpu_dpcpp/",
-        "include/":                                     "include/cpu_gpu_dpcpp/",
+        "lib/": "lib/cpu_gpu_dpcpp/",
+        "include/": "include/cpu_gpu_dpcpp/",
     },
 )

@@ -1,9 +1,11 @@
-package(default_visibility = ["//visibility:public"])
-load("@onedal//dev/bazel:dal.bzl",
+load(
+    "@onedal//dev/bazel:dal.bzl",
     "dal_collect_modules",
     "dal_collect_parameters",
     "dal_collect_test_suites",
 )
+
+package(default_visibility = ["//visibility:public"])
 
 PARAMETRIZED_ALGOS = [
     "covariance",

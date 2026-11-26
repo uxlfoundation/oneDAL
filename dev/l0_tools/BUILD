@@ -1,15 +1,19 @@
-load("@onedal//dev/bazel:cc.bzl",
-    "cc_module",
+load(
+    "@onedal//dev/bazel:cc.bzl",
     "cc_executable",
+    "cc_module",
 )
 
-_FEATURES = ["dpc++", "pedantic"]
+_FEATURES = [
+    "dpc++",
+    "pedantic",
+]
 
 cc_module(
     name = "common",
     hdrs = glob(["*.hpp"]),
     deps = [
-        "@fmt//:fmt",
+        "@fmt",
     ],
     features = _FEATURES,
 )
@@ -30,6 +34,6 @@ cc_executable(
     deps = [
         ":_zeinfo",
     ],
-    user_link_flags = [ "-lze_loader" ],
+    user_link_flags = ["-lze_loader"],
     features = _FEATURES,
 )

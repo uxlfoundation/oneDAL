@@ -1,8 +1,10 @@
-package(default_visibility = ["//visibility:public"])
-load("@onedal//dev/bazel:dal.bzl",
+load(
+    "@onedal//dev/bazel:dal.bzl",
     "dal_module",
     "dal_test_suite",
 )
+
+package(default_visibility = ["//visibility:public"])
 
 dal_module(
     name = "gpu",
@@ -12,12 +14,12 @@ dal_module(
         "@onedal//cpp/oneapi/dal/backend/primitives:common",
         "@onedal//cpp/oneapi/dal/backend/primitives:sort",
         "@onedal//cpp/oneapi/dal/backend/primitives:reduction",
-        "@onedal//cpp/oneapi/dal/backend/primitives:rng"
+        "@onedal//cpp/oneapi/dal/backend/primitives:rng",
     ],
     extra_deps = [
         "@onedal//cpp/daal:core",
         "@onedal//cpp/daal/src/algorithms/dtrees:kernel",
         "@onedal//cpp/daal/src/algorithms/dtrees/forest/classification:kernel",
         "@onedal//cpp/daal/src/algorithms/dtrees/forest/regression:kernel",
-    ]
+    ],
 )

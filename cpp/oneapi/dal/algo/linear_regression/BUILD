@@ -1,8 +1,10 @@
-package(default_visibility = ["//visibility:public"])
-load("@onedal//dev/bazel:dal.bzl",
+load(
+    "@onedal//dev/bazel:dal.bzl",
     "dal_module",
     "dal_test_suite",
 )
+
+package(default_visibility = ["//visibility:public"])
 
 dal_module(
     name = "core",
@@ -29,25 +31,31 @@ dal_module(
         ":parameters",
         "@onedal//cpp/oneapi/dal/algo/linear_regression/detail",
         "@onedal//cpp/oneapi/dal/algo/linear_regression/backend",
-    ]
+    ],
 )
 
 dal_test_suite(
     name = "interface_tests",
     framework = "catch2",
-    hdrs = glob([
-        "test/*.hpp",
-    ], exclude=[
-        "test/mpi_*.hpp",
-        "test/ccl_*.hpp"
-    ]),
-    srcs = glob([
-        "test/*.cpp",
-    ], exclude=[
-        "test/mpi_*.cpp",
-        "test/ccl_*.cpp",
-        "test/online_spmd.cpp",
-    ]),
+    hdrs = glob(
+        [
+            "test/*.hpp",
+        ],
+        exclude = [
+            "test/mpi_*.hpp",
+            "test/ccl_*.hpp",
+        ],
+    ),
+    srcs = glob(
+        [
+            "test/*.cpp",
+        ],
+        exclude = [
+            "test/mpi_*.cpp",
+            "test/ccl_*.cpp",
+            "test/online_spmd.cpp",
+        ],
+    ),
     dal_deps = [
         ":linear_regression",
     ],
@@ -57,13 +65,16 @@ dal_test_suite(
 dal_test_suite(
     name = "online_spmd_tests",
     framework = "catch2",
-    compile_as = [ "dpc++" ],
-    hdrs = glob([
-        "test/*.hpp",
-    ], exclude=[
-        "test/mpi_*.hpp",
-        "test/ccl_*.hpp",
-    ]),
+    compile_as = ["dpc++"],
+    hdrs = glob(
+        [
+            "test/*.hpp",
+        ],
+        exclude = [
+            "test/mpi_*.hpp",
+            "test/ccl_*.hpp",
+        ],
+    ),
     srcs = [
         "test/online_spmd.cpp",
     ],
