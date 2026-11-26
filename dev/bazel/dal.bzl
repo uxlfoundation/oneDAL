@@ -672,6 +672,8 @@ def _dal_cc_test(name, mpi = False, ccl = False, mpi_ranks = 0, **kwargs):
         mpiexec = "@mpi//:mpiexec",
         fi = "@mpi//:fi",
         libfabric = "@mpi//:libfabric_runtime",
+        # The wrapper forwards them to every rank: test filters and `--device`.
+        args = kwargs.get("args", []),
         tags = kwargs.get("tags", []),
         target_compatible_with = kwargs.get("target_compatible_with", []),
     )
