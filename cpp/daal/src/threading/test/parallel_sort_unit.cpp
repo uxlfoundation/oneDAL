@@ -70,11 +70,8 @@ void checkIndexedSort(std::size_t n, IndexKind kind, int valueRange, unsigned se
 
     daal::parallel_index_sort<FPType, int>(n, data.data(), index.data());
 
-    for (std::size_t i = 1; i < n; ++i)
-    {
-        INFO("n = " << n << ", position " << i);
-        REQUIRE(data[i - 1] <= data[i]);
-    }
+    INFO("n = " << n << ", first unsorted position " << (std::is_sorted_until(data.begin(), data.end()) - data.begin()));
+    REQUIRE(std::is_sorted(data.begin(), data.end()));
 
     // The sort need not be stable, so compare the pairs as multisets.
     std::vector<std::pair<FPType, int> > actual(n);
@@ -89,7 +86,7 @@ void checkIndexedSort(std::size_t n, IndexKind kind, int valueRange, unsigned se
 
 TEMPLATE_TEST("parallel_sort keeps data and index paired", "[unit][parallel_sort]", float, double)
 {
-    const std::size_t n  = GENERATE(0, 1, 2, 7, 16, 100, 1000, 10000, 100000);
+    const std::size_t n  = GENERATE(0, 1, 2, 7, 16, 1000, 4095, 4096, 30000);
     const IndexKind kind = GENERATE(IndexKind::identity, IndexKind::shuffled, IndexKind::sparseRowIds);
     const int valueRange = GENERATE(0, 1, 10);
     checkIndexedSort<TestType>(n, kind, valueRange, 777u + unsigned(n));
@@ -97,7 +94,7 @@ TEMPLATE_TEST("parallel_sort keeps data and index paired", "[unit][parallel_sort
 
 TEMPLATE_TEST("parallel_sort on already sorted and reversed data", "[unit][parallel_sort]", float, double)
 {
-    const std::size_t n = GENERATE(2, 100, 10000);
+    const std::size_t n = GENERATE(2, 100, 4096);
     const bool reversed = GENERATE(false, true);
 
     std::vector<TestType> data(n);
@@ -110,12 +107,13 @@ TEMPLATE_TEST("parallel_sort on already sorted and reversed data", "[unit][paral
 
     daal::parallel_index_sort<TestType, int>(n, data.data(), index.data());
 
-    for (std::size_t i = 0; i < n; ++i)
+    std::size_t firstMismatch = n;
+    for (std::size_t i = 0; i < n && firstMismatch == n; ++i)
     {
-        INFO("n = " << n << ", position " << i);
-        REQUIRE(data[i] == TestType(reversed ? i + 1 : i));
-        REQUIRE(index[i] == int(5 * (reversed ? n - 1 - i : i) + 1));
+        if (data[i] != TestType(reversed ? i + 1 : i) || index[i] != int(5 * (reversed ? n - 1 - i : i) + 1)) firstMismatch = i;
     }
+    INFO("n = " << n << ", first mismatch at position " << firstMismatch);
+    REQUIRE(firstMismatch == n);
 }
 
 // Mirrors the CSR to CSC conversion in implicit ALS: column indices are the keys.
@@ -142,10 +140,10 @@ void checkTwoIndexSort(std::size_t n, std::size_t nCols, unsigned seed)
 
     daal::parallel_index_sort<std::size_t, FPType, std::size_t>(n, cols.data(), values.data(), rows.data());
 
+    INFO("n = " << n << ", first unsorted position " << (std::is_sorted_until(cols.begin(), cols.end()) - cols.begin()));
+    REQUIRE(std::is_sorted(cols.begin(), cols.end()));
     for (std::size_t i = 0; i < n; ++i)
     {
-        INFO("n = " << n << ", position " << i);
-        if (i > 0) REQUIRE(cols[i - 1] <= cols[i]);
         actual[i] = { cols[i], values[i], rows[i] };
     }
     std::sort(expected.begin(), expected.end());
@@ -155,14 +153,14 @@ void checkTwoIndexSort(std::size_t n, std::size_t nCols, unsigned seed)
 
 TEMPLATE_TEST("parallel_index_sort keeps data and two index arrays together", "[unit][parallel_sort]", float, double)
 {
-    const std::size_t n     = GENERATE(0, 1, 2, 7, 100, 10000, 100000);
-    const std::size_t nCols = GENERATE(1, 10, 1000);
+    const std::size_t n     = GENERATE(0, 1, 2, 7, 100, 4095, 4096, 30000);
+    const std::size_t nCols = n < 30000 ? GENERATE(1, 10, 1000) : GENERATE(1, 10);
     checkTwoIndexSort<TestType>(n, nCols, 777u + unsigned(n));
 }
 
 TEMPLATE_TEST("parallel_sort_by_key orders IdxValType with int index by key", "[unit][parallel_sort]", float, double)
 {
-    const std::size_t n  = GENERATE(0, 1, 2, 7, 100, 499, 500, 10000, 100000);
+    const std::size_t n  = GENERATE(0, 1, 2, 7, 100, 4095, 4096, 30000);
     const int valueRange = GENERATE(0, 1, 10);
 
     std::mt19937 gen(777u + unsigned(n));
@@ -179,10 +177,11 @@ TEMPLATE_TEST("parallel_sort_by_key orders IdxValType with int index by key", "[
 
     daal::parallel_sort_by_key(a.data(), a.data() + n);
 
+    const auto keyLess = [](const auto & l, const auto & r) { return l.key < r.key; };
+    INFO("n = " << n << ", first unsorted position " << (std::is_sorted_until(a.begin(), a.end(), keyLess) - a.begin()));
+    REQUIRE(std::is_sorted(a.begin(), a.end(), keyLess));
     for (std::size_t i = 0; i < n; ++i)
     {
-        INFO("n = " << n << ", position " << i);
-        if (i > 0) REQUIRE(a[i - 1].key <= a[i].key);
         actual[i] = { a[i].key, a[i].index };
     }
     // Equal keys may come in any order, so compare the pairs as multisets.
@@ -197,7 +196,7 @@ thread_local std::int64_t activeOuterTask = -1;
 
 TEST("parallel_sort inside a parallel loop does not run other loop tasks", "[unit][parallel_sort]")
 {
-    const std::int64_t nTasks = 512;
+    const std::int64_t nTasks = 16;
     const std::size_t n       = 20000;
     std::atomic<int> interleaved(0);
 

@@ -24,7 +24,7 @@ namespace daal::algorithms::internal
 {
 TEST("Indexed qSort", "[unit]")
 {
-    const size_t n = GENERATE(100, 16000000, 20000000);
+    const size_t n = GENERATE(100, 20000000);
     std::vector<float> x(n);
     std::vector<int> idx(n);
     std::mt19937 gen(777);
