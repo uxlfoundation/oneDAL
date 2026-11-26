@@ -97,13 +97,6 @@ public:
         check_compute_result(compute_mode, dense_table, weights, compute_result);
     }
 
-    // TODO: Fix DAAL code. On big datasets there is an error in computing.
-    // To reproduce it remove this check from test case in batch.cpp
-    bool not_cpu_friendly(const te::csr_table_builder<>& data) {
-        auto policy = this->get_policy();
-        return (data.row_count_ > 100 || data.column_count_ > 100) && policy.is_cpu();
-    }
-
     void online_general_checks(const te::dataframe& data_fr,
                                std::shared_ptr<te::dataframe> weights_fr,
                                bs::result_option_id compute_mode,

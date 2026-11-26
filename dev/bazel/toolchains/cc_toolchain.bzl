@@ -15,9 +15,9 @@
 #===============================================================================
 
 load("@onedal//dev/bazel/deps:gcc.bzl", "download_gcc")
-load("@onedal//dev/bazel/toolchains:common.bzl", "detect_os", "detect_compiler", "detect_host_arch", "detect_target_arch")
 load("@onedal//dev/bazel/toolchains:cc_toolchain_lnx.bzl", "configure_cc_toolchain_lnx")
 load("@onedal//dev/bazel/toolchains:cc_toolchain_win.bzl", "configure_cc_toolchain_win")
+load("@onedal//dev/bazel/toolchains:common.bzl", "detect_compiler", "detect_host_arch", "detect_os", "detect_target_arch")
 
 def _needs_downloaded_compiler(repo_ctx, os_id, host_arch_id):
     if os_id != "lnx" or host_arch_id != "intel64" or "CC" in repo_ctx.os.environ:
@@ -41,14 +41,11 @@ def _detect_requirements(repo_ctx):
 
         # Paths of the downloaded compiler and binutils, or None to look them up.
         downloaded_tools = downloaded_tools,
-
         libc_version = "local",
         libc_abi_version = "local",
         compiler_abi_version = "local",
-
         host_arch_id = host_arch_id,
         target_arch_id = target_arch_id,
-
         compiler_version = "local",
         dpc_compiler_id = "icpx",
     )
@@ -81,6 +78,12 @@ onedal_cc_toolchain = repository_rule(
         "BAZEL_VC",
         "BAZEL_VS",
         "VCINSTALLDIR",
+        # The roots that filter the Windows action PATH (cc_toolchain_win.bzl _action_path).
+        "ONEAPI_ROOT",
+        "CMPLR_ROOT",
+        "VSINSTALLDIR",
+        "WindowsSdkDir",
+        "SystemRoot",
         # Windows host-arch detection (see detect_host_arch in common.bzl); the
         # toolchain repo must re-evaluate when these change.
         "PROCESSOR_ARCHITECTURE",

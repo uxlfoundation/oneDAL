@@ -17,7 +17,7 @@
 name: Slack PR Notification
 on:
   # use pull_request_target to run on PRs from forks and have access to secrets
-  pull_request_target:
+  pull_request_target: # zizmor: ignore[dangerous-triggers] no checkout, label events only
     types: [labeled]
 
 env:

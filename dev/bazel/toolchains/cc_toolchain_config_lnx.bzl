@@ -14,25 +14,26 @@
 # limitations under the License.
 #===============================================================================
 
+load(
+    "@onedal//dev/bazel/toolchains:cc_toolchain_config_common.bzl",
+    "COMMON_ATTRS",
+    "all_compile_actions",
+    "all_link_actions",
+    "common",
+    "lto_index_actions",
+)
 load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
-
-load("@rules_cc//cc:cc_toolchain_config_lib.bzl",
+load(
+    "@rules_cc//cc:cc_toolchain_config_lib.bzl",
+    "action_config",
     "feature",
     "flag_group",
     "flag_set",
+    "tool",
     "variable_with_value",
     "with_feature_set",
-    "action_config",
-    "tool",
 )
 load("@rules_cc//cc/toolchains:cc_toolchain_config_info.bzl", "CcToolchainConfigInfo")
-load("@onedal//dev/bazel/toolchains:cc_toolchain_config_common.bzl",
-    "common",
-    "all_compile_actions",
-    "all_link_actions",
-    "lto_index_actions",
-    "COMMON_ATTRS",
-)
 
 def _impl(ctx):
     compiler_tools = common.compiler_tools(ctx.attr.cc_path, ctx.attr.dpcc_path)
@@ -109,14 +110,22 @@ def _impl(ctx):
                     # TODO: Add only if use GNU compiler stack
                     flag_group(
                         flags = [
-                            "-R", ".gnu.switches.text.quote_paths'",
-                            "-R", ".gnu.switches.text.bracket_paths",
-                            "-R", ".gnu.switches.text.system_paths",
-                            "-R", ".gnu.switches.text.cpp_defines",
-                            "-R", ".gnu.switches.text.cpp_includes",
-                            "-R", ".gnu.switches.text.cl_args",
-                            "-R", ".gnu.switches.text.lipo_info",
-                            "-R", ".gnu.switches.text.annotation",
+                            "-R",
+                            ".gnu.switches.text.quote_paths'",
+                            "-R",
+                            ".gnu.switches.text.bracket_paths",
+                            "-R",
+                            ".gnu.switches.text.system_paths",
+                            "-R",
+                            ".gnu.switches.text.cpp_defines",
+                            "-R",
+                            ".gnu.switches.text.cpp_includes",
+                            "-R",
+                            ".gnu.switches.text.cl_args",
+                            "-R",
+                            ".gnu.switches.text.lipo_info",
+                            "-R",
+                            ".gnu.switches.text.annotation",
                         ],
                     ),
                     flag_group(
@@ -128,7 +137,7 @@ def _impl(ctx):
             ),
         ],
         tools = [
-            tool(path = ctx.attr.strip_path)
+            tool(path = ctx.attr.strip_path),
         ],
     )
 
@@ -163,15 +172,15 @@ def _impl(ctx):
                 actions = all_compile_actions,
                 flag_groups = [
                     flag_group(
-                        flags = [ "-S" ],
+                        flags = ["-S"],
                         expand_if_available = "output_assembly_file",
                     ),
                     flag_group(
-                        flags = [ "-E" ],
+                        flags = ["-E"],
                         expand_if_available = "output_preprocess_file",
                     ),
                     flag_group(
-                        flags = [ "-o", "%{output_file}" ],
+                        flags = ["-o", "%{output_file}"],
                         expand_if_available = "output_file",
                     ),
                 ],
@@ -186,7 +195,7 @@ def _impl(ctx):
                 actions = all_link_actions,
                 flag_groups = [
                     flag_group(
-                        flags = [ "-Wl,-S" ],
+                        flags = ["-Wl,-S"],
                         expand_if_available = "strip_debug_symbols",
                     ),
                 ],
@@ -198,10 +207,10 @@ def _impl(ctx):
         name = "force_pic_flags",
         flag_sets = [
             flag_set(
-                actions = [ ACTION_NAMES.cpp_link_executable ],
+                actions = [ACTION_NAMES.cpp_link_executable],
                 flag_groups = [
                     flag_group(
-                        flags = [ "-pie" ],
+                        flags = ["-pie"],
                         expand_if_available = "force_pic",
                     ),
                 ],
@@ -264,7 +273,7 @@ def _impl(ctx):
                         flags = ctx.attr.no_canonical_system_headers_flags_cc,
                     ),
                 ] if ctx.attr.no_canonical_system_headers_flags_cc else []),
-                with_features = [with_feature_set(not_features = ["dpc++"])]
+                with_features = [with_feature_set(not_features = ["dpc++"])],
             ),
             flag_set(
                 actions = all_compile_actions,
@@ -273,7 +282,7 @@ def _impl(ctx):
                         flags = ctx.attr.no_canonical_system_headers_flags_dpcc,
                     ),
                 ] if ctx.attr.no_canonical_system_headers_flags_dpcc else []),
-                with_features = [with_feature_set(features = ["dpc++"])]
+                with_features = [with_feature_set(features = ["dpc++"])],
             ),
             flag_set(
                 actions = all_compile_actions,

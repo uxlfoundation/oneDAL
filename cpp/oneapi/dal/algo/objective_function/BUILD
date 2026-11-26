@@ -1,8 +1,10 @@
-package(default_visibility = ["//visibility:public"])
-load("@onedal//dev/bazel:dal.bzl",
+load(
+    "@onedal//dev/bazel:dal.bzl",
     "dal_module",
     "dal_test_suite",
 )
+
+package(default_visibility = ["//visibility:public"])
 
 dal_module(
     name = "objective_function",
@@ -15,7 +17,7 @@ dal_module(
     ],
     extra_deps = [
         "@onedal//cpp/daal/src/algorithms/objective_function/logistic_loss:kernel",
-    ]
+    ],
 )
 
 dal_test_suite(

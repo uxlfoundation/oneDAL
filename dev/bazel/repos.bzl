@@ -14,9 +14,10 @@
 # limitations under the License.
 #===============================================================================
 
-load("@onedal//dev/bazel:utils.bzl", "utils", "paths")
+load("@onedal//dev/bazel:utils.bzl", "paths", "utils")
 load("@onedal//dev/bazel:version.bzl", "VERSION")
-load("@onedal//dev/bazel/toolchains:common.bzl",
+load(
+    "@onedal//dev/bazel/toolchains:common.bzl",
     "arch_dir",
     "detect_host_arch",
     "detect_os",
@@ -39,8 +40,10 @@ def _extract_conda(repo_ctx, archive, output):
     repo_ctx.delete(staging)
 
 def _download_and_extract(repo_ctx, url, sha256, output, strip_prefix):
-    archive = repo_ctx.path(url.split("/")[-1])
-    repo_ctx.download(url = url, output = archive, sha256 = sha256)
+    # `url` may list mirrors separated by spaces; Bazel tries them in order.
+    urls = [u for u in url.split(" ") if u]
+    archive = repo_ctx.path(urls[0].split("/")[-1])
+    repo_ctx.download(url = urls, output = archive, sha256 = sha256)
     if archive.basename.endswith(".conda"):
         _extract_conda(repo_ctx, archive, output)
     else:
@@ -66,7 +69,8 @@ def _archive(url, sha256, strip_prefix = ""):
     """Describe one downloadable archive of a prebuilt dependency.
 
     Args:
-        url: location of the archive; `.conda`, `.whl` and `.zip` are unpacked here, the rest by Bazel.
+        url: location of the archive, or several mirrors of it separated by spaces;
+            `.conda`, `.whl` and `.zip` are unpacked here, the rest by Bazel.
         sha256: expected hash of the archive.
         strip_prefix: directory prefix to drop while unpacking.
     """
@@ -117,7 +121,7 @@ def _glob_entry_matches(repo_ctx, root, entry_fmt, mapping):
             return True
     return False
 
-def _create_symlinks(repo_ctx, root, entries, substitutions=None, mapping=None, source=None):
+def _create_symlinks(repo_ctx, root, entries, substitutions = None, mapping = None, source = None):
     """Symlink every entry from `root` into the repository; a missing one fails the fetch.
 
     Args:
@@ -140,17 +144,24 @@ def _create_symlinks(repo_ctx, root, entries, substitutions=None, mapping=None, 
             for fs_entry in _glob_dir_entries(repo_ctx, glob):
                 if _matches_glob(fs_entry.basename, glob.pattern):
                     matched = True
-                    dst = (paths.join(glob.dir_part, fs_entry.basename)
-                           if glob.dir_part else fs_entry.basename)
+                    dst = (paths.join(glob.dir_part, fs_entry.basename) if glob.dir_part else fs_entry.basename)
                     repo_ctx.symlink(str(fs_entry), dst)
             if not matched:
                 fail("{}: nothing matches '{}' in '{}' ({})".format(
-                    repo_ctx.name, glob.pattern, glob.root_with_dir, source))
+                    repo_ctx.name,
+                    glob.pattern,
+                    glob.root_with_dir,
+                    source,
+                ))
         else:
             src_entry_path = _source_path(root, entry_fmt, mapping)
             if not repo_ctx.path(src_entry_path).exists:
                 fail("{}: '{}' is missing, '{}' does not exist ({})".format(
-                    repo_ctx.name, entry_fmt, src_entry_path, source))
+                    repo_ctx.name,
+                    entry_fmt,
+                    src_entry_path,
+                    source,
+                ))
             repo_ctx.symlink(src_entry_path, entry_fmt)
 
 def _present_entries(repo_ctx, root, entries, substitutions, mapping):
@@ -177,7 +188,12 @@ def _create_required_any_symlinks(repo_ctx, root, entries, what, substitutions, 
     present = _present_entries(repo_ctx, root, entries, substitutions, mapping)
     if not present:
         fail("{}: none of {} is in '{}', and at least one is required: {} ({})".format(
-            repo_ctx.name, entries, root, what, source))
+            repo_ctx.name,
+            entries,
+            root,
+            what,
+            source,
+        ))
     _create_symlinks(repo_ctx, root, present, substitutions, mapping, source)
 
 def _pick_mapping(repo_ctx, root, entries, substitutions, mappings):
@@ -271,12 +287,20 @@ def _fetch_pypi_wheel(repo_ctx, name, pin, platform_tag):
         ]
         if len(candidates) != 1:
             fail("pypi package {}=={}: expected one '*-{}.whl' wheel, found {}".format(
-                name, pin.version, platform_tag, [f["filename"] for f in candidates]))
+                name,
+                pin.version,
+                platform_tag,
+                [f["filename"] for f in candidates],
+            ))
         wheel = candidates[0]
         sha256 = wheel["digests"]["sha256"]
         if sha256 not in pin.sha256s:
             fail("pypi package {}=={}: the hash of {} ({}) is not in the lock file".format(
-                name, pin.version, wheel["filename"], sha256))
+                name,
+                pin.version,
+                wheel["filename"],
+                sha256,
+            ))
         wheel_path = repo_ctx.path("pypi/" + wheel["filename"])
         repo_ctx.download(url = wheel["url"], output = wheel_path, sha256 = sha256)
         return wheel_path, wheel["filename"].split("-")[0]
@@ -284,8 +308,12 @@ def _fetch_pypi_wheel(repo_ctx, name, pin, platform_tag):
     dist = name.replace("-", "_")
     urls = [
         "https://files.pythonhosted.org/packages/{tag}/{initial}/{name}/{dist}-{version}-{tag}-none-{platform}.whl".format(
-            tag = python_tag, initial = name[0], name = name, dist = dist,
-            version = pin.version, platform = platform_tag,
+            tag = python_tag,
+            initial = name[0],
+            name = name,
+            dist = dist,
+            version = pin.version,
+            platform = platform_tag,
         )
         for python_tag in ["py2.py3", "py3"]
     ]
@@ -298,7 +326,10 @@ def _fetch_pypi_wheel(repo_ctx, name, pin, platform_tag):
         repo_ctx.delete(wheel_path)
     fail(("pypi package {}=={}: no locked {} wheel could be fetched; the PyPI " +
           "metadata was unreachable and no locked hash is in the repository cache").format(
-        name, pin.version, platform_tag))
+        name,
+        pin.version,
+        platform_tag,
+    ))
 
 def _download_pypi(repo_ctx, os_id, package, lock, output):
     """Downloads and unpacks the wheel of `package` pinned in the lock file."""
@@ -343,7 +374,9 @@ def _check_download_arch(repo_ctx, os_id):
         fail(("Cannot supply the {} dependency by download for this target: the " +
               "configured package is built for {}, the target is {}. Build it " +
               "from source and point {} at the result.").format(
-            repo_ctx.name, download_arch, target_arch,
+            repo_ctx.name,
+            download_arch,
+            target_arch,
             repo_ctx.attr.root_env_var or "the dependency root env var",
         ))
 
@@ -377,14 +410,19 @@ def _prebuilt_libs_repo_impl(repo_ctx):
         ))
     _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "includes", os_id), substitutions, mapping, source)
     _create_symlinks(repo_ctx, root, libs, substitutions, mapping, source)
+
     # The BUILD templates glob these with `allow_empty = True`, so an absent library drops out.
     _create_optional_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "optional_libs", os_id), substitutions, mapping, source)
+
     # Not `_select_by_os`: its Linux fallback for an empty `win_` list could never match.
     _create_required_any_symlinks(
-        repo_ctx, root,
+        repo_ctx,
+        root,
         repo_ctx.attr.win_required_any_libs if os_id == "win" else repo_ctx.attr.required_any_libs,
         repo_ctx.attr.required_any_libs_description,
-        substitutions, mapping, source,
+        substitutions,
+        mapping,
+        source,
     )
     _create_symlinks(repo_ctx, root, _select_by_os(repo_ctx, "bins", os_id), substitutions, mapping, source)
     repo_ctx.template(
@@ -393,15 +431,30 @@ def _prebuilt_libs_repo_impl(repo_ctx):
         substitutions = substitutions,
     )
 
-def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_libs=[],
-                             required_any_libs=[], required_any_libs_description="",
-                             win_required_any_libs=[],
-                             root_env_var="", archives=[], pypi_packages=[],
-                             download_arch="intel64", win_download_arch="",
-                             download_mapping={}, fallback_mapping={},
-                             win_includes=[], win_libs=[], win_bins=[], win_optional_libs=[],
-                             win_build_template=None,
-                             win_archives=[], win_pypi_packages=[], win_download_mapping={}):
+def _prebuilt_libs_repo_rule(
+        includes,
+        libs,
+        build_template,
+        bins = [],
+        optional_libs = [],
+        required_any_libs = [],
+        required_any_libs_description = "",
+        win_required_any_libs = [],
+        root_env_var = "",
+        archives = [],
+        pypi_packages = [],
+        download_arch = "intel64",
+        win_download_arch = "",
+        download_mapping = {},
+        fallback_mapping = {},
+        win_includes = [],
+        win_libs = [],
+        win_bins = [],
+        win_optional_libs = [],
+        win_build_template = None,
+        win_archives = [],
+        win_pypi_packages = [],
+        win_download_mapping = {}):
     """Declare a repository rule for a dependency shipped as prebuilt binaries.
 
     Args:
@@ -444,37 +497,41 @@ def _prebuilt_libs_repo_rule(includes, libs, build_template, bins=[], optional_l
         local = True,
         configure = True,
         attrs = {
-            "root_env_var": attr.string(default=root_env_var),
-            "urls": attr.string_list(default=download_info.urls),
-            "sha256s": attr.string_list(default=download_info.sha256s),
-            "strip_prefixes": attr.string_list(default=download_info.strip_prefixes),
-            "download_arch": attr.string(default=download_arch),
-            "win_download_arch": attr.string(default=win_download_arch or download_arch),
-            "includes": attr.string_list(default=includes),
-            "libs": attr.string_list(default=libs),
-            "optional_libs": attr.string_list(default=optional_libs),
-            "required_any_libs": attr.string_list(default=required_any_libs),
-            "required_any_libs_description": attr.string(default=required_any_libs_description),
-            "win_required_any_libs": attr.string_list(default=win_required_any_libs),
-            "bins": attr.string_list(default=bins),
-            "build_template": attr.label(allow_files=True,
-                                         default=Label(build_template)),
-            "win_includes": attr.string_list(default=win_includes),
-            "win_libs": attr.string_list(default=win_libs),
-            "win_bins": attr.string_list(default=win_bins),
-            "win_optional_libs": attr.string_list(default=win_optional_libs),
-            "win_build_template": attr.label(allow_files=True,
-                                             default=Label(win_build_template or build_template)),
-            "win_urls": attr.string_list(default=win_download_info.urls),
-            "win_sha256s": attr.string_list(default=win_download_info.sha256s),
-            "win_strip_prefixes": attr.string_list(default=win_download_info.strip_prefixes),
-            "pypi_packages": attr.string_list(default=pypi_packages),
-            "win_pypi_packages": attr.string_list(default=win_pypi_packages),
-            "_pypi_lock": attr.label(default=Label("@onedal//dev/bazel/deps:requirements_lock.txt")),
-            "_download_mapping": attr.string_dict(default=download_mapping),
-            "_win_download_mapping": attr.string_dict(default=win_download_mapping),
-            "_fallback_mapping": attr.string_dict(default=fallback_mapping),
-        }
+            "root_env_var": attr.string(default = root_env_var),
+            "urls": attr.string_list(default = download_info.urls),
+            "sha256s": attr.string_list(default = download_info.sha256s),
+            "strip_prefixes": attr.string_list(default = download_info.strip_prefixes),
+            "download_arch": attr.string(default = download_arch),
+            "win_download_arch": attr.string(default = win_download_arch or download_arch),
+            "includes": attr.string_list(default = includes),
+            "libs": attr.string_list(default = libs),
+            "optional_libs": attr.string_list(default = optional_libs),
+            "required_any_libs": attr.string_list(default = required_any_libs),
+            "required_any_libs_description": attr.string(default = required_any_libs_description),
+            "win_required_any_libs": attr.string_list(default = win_required_any_libs),
+            "bins": attr.string_list(default = bins),
+            "build_template": attr.label(
+                allow_files = True,
+                default = Label(build_template),
+            ),
+            "win_includes": attr.string_list(default = win_includes),
+            "win_libs": attr.string_list(default = win_libs),
+            "win_bins": attr.string_list(default = win_bins),
+            "win_optional_libs": attr.string_list(default = win_optional_libs),
+            "win_build_template": attr.label(
+                allow_files = True,
+                default = Label(win_build_template or build_template),
+            ),
+            "win_urls": attr.string_list(default = win_download_info.urls),
+            "win_sha256s": attr.string_list(default = win_download_info.sha256s),
+            "win_strip_prefixes": attr.string_list(default = win_download_info.strip_prefixes),
+            "pypi_packages": attr.string_list(default = pypi_packages),
+            "win_pypi_packages": attr.string_list(default = win_pypi_packages),
+            "_pypi_lock": attr.label(default = Label("@onedal//dev/bazel/deps:requirements_lock.txt")),
+            "_download_mapping": attr.string_dict(default = download_mapping),
+            "_win_download_mapping": attr.string_dict(default = win_download_mapping),
+            "_fallback_mapping": attr.string_dict(default = fallback_mapping),
+        },
     )
 
 repos = struct(

@@ -14,8 +14,8 @@
 # limitations under the License.
 #===============================================================================
 
-load("@onedal//dev/bazel:utils.bzl", "utils", "paths")
 load("@onedal//dev/bazel:cc.bzl", "ModuleInfo")
+load("@onedal//dev/bazel:utils.bzl", "paths", "utils")
 load("@onedal//dev/bazel/config:config.bzl", "TARGET_ATTRS", "VERSION_ATTRS", "get_version_info", "target")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 
@@ -65,10 +65,12 @@ _BINARY_EXTENSIONS = ["a", "so", "lib", "dll", "exe", "pdb"]
 
 def _copy(ctx, src_file, dst_path):
     dst_file = ctx.actions.declare_file(dst_path)
+
     # The copy runs on the exec host, so its OS picks the tool, not the target's.
     exec_windows = ctx.configuration.host_path_separator == ";"
     if exec_windows:
         executable = "cmd.exe"
+
         # `copy` reports "1 file(s) copied." on stdout, which Bazel would echo for every file.
         arguments = ["/d", "/c", 'copy /Y "{}" "{}" >NUL'.format(
             src_file.path.replace("/", "\\"),
@@ -112,6 +114,7 @@ def _try_relativize(path, start):
 
 def _copy_version_header(ctx, src_file, dst_path, version_info, is_windows):
     dst_file = ctx.actions.declare_file(dst_path)
+
     # On Windows Make's `sed` (sed.eol.win) ends only these seven lines with CRLF; match that.
     eol = "\r" if is_windows else ""
     ctx.actions.expand_template(
@@ -147,8 +150,11 @@ def _copy_include(ctx, prefix, version_info):
     staged_order = []
     staged = {}
     os_specific = {}
-    for include, add_prefix, skip_prefix in zip(ctx.attr.include, ctx.attr.include_prefix,
-                                                ctx.attr.include_skip_prefix):
+    for include, add_prefix, skip_prefix in zip(
+        ctx.attr.include,
+        ctx.attr.include_prefix,
+        ctx.attr.include_skip_prefix,
+    ):
         headers = _collect_headers(include)
         for header in headers:
             if header.basename == "_dal_cpu_dispatcher_gen.hpp":
@@ -222,7 +228,9 @@ def _copy_lib(ctx, prefix, version_info):
         for lib in libs:
             if lib.extension == "dll" and lib.basename[:-len(".dll")] not in implib_stems:
                 fail("{} has no import library: the Windows toolchain must emit {}.if.lib".format(
-                    lib.basename, lib.basename[:-len(".dll")]))
+                    lib.basename,
+                    lib.basename[:-len(".dll")],
+                ))
 
     for lib in libs:
         # macOS .dylib files are not versioned yet.
@@ -248,6 +256,7 @@ def _copy_lib(ctx, prefix, version_info):
             dst_files.append(_copy(ctx, lib, paths.join(redist_prefix, lib.basename)))
         elif is_windows and lib.basename.endswith(".if.lib"):
             stem = _windows_dll_stem(lib.basename[:-len(".if.lib")], version_info)
+
             # The thread import library is not shipped in the Make package.
             if stem in _THREAD_STEMS:
                 continue
@@ -292,9 +301,15 @@ def _copy_extra_files(ctx, prefix):
         srcs = dep[DefaultInfo].files.to_list()
         if len(srcs) != 1:
             fail("extra_files entry '{}' must produce exactly one file, got {}".format(
-                dep.label, len(srcs)))
-        dst_files.append(_stage(ctx, srcs[0], paths.join(prefix, dst_subpath),
-                                crlf = is_windows and _is_crlf_staged(dst_subpath)))
+                dep.label,
+                len(srcs),
+            ))
+        dst_files.append(_stage(
+            ctx,
+            srcs[0],
+            paths.join(prefix, dst_subpath),
+            crlf = is_windows and _is_crlf_staged(dst_subpath),
+        ))
     return dst_files
 
 def _copy_dep_runtime(ctx, release_root):
@@ -304,12 +319,16 @@ def _copy_dep_runtime(ctx, release_root):
         if dst_dir == "daal" or dst_dir.startswith("daal/"):
             fail(("dep_runtime destination '{}' of {} would write into the " +
                   "daal/latest tree, which the release rule stages itself").format(
-                dst_dir, dep.label))
+                dst_dir,
+                dep.label,
+            ))
         srcs = dep[DefaultInfo].files.to_list()
         if not srcs:
             # Make fails here too; the repository rules glob with `allow_empty = True`.
             fail("dep_runtime target {} produced no files to stage into '{}'".format(
-                dep.label, dst_dir))
+                dep.label,
+                dst_dir,
+            ))
         for src in srcs:
             dst_path = paths.join(release_root, dst_dir, src.basename)
             dst_files.append(_copy(ctx, src, dst_path))
@@ -325,8 +344,12 @@ def _copy_data(ctx, prefix):
         for src in srcs:
             if src.short_path.startswith("../"):
                 continue
-            dst_files.append(_stage(ctx, src, paths.join(prefix, src.short_path),
-                                    crlf = is_windows and _is_crlf_staged(src.short_path)))
+            dst_files.append(_stage(
+                ctx,
+                src,
+                paths.join(prefix, src.short_path),
+                crlf = is_windows and _is_crlf_staged(src.short_path),
+            ))
     return dst_files
 
 def _copy_to_release_impl(ctx):
@@ -338,7 +361,7 @@ def _copy_to_release_impl(ctx):
     files += _copy_extra_files(ctx, prefix)
     files += _copy_data(ctx, prefix)
     files += _copy_dep_runtime(ctx, ctx.attr.name)
-    return [DefaultInfo(files=depset(files))]
+    return [DefaultInfo(files = depset(files))]
 
 def _release_cpu_all_transition_impl(settings, attr):
     """Build every ISA unless --cpu is set; an explicit --cpu=auto also becomes 'all'."""
@@ -356,11 +379,11 @@ _release_cpu_all_transition = transition(
 _release = rule(
     implementation = _copy_to_release_impl,
     attrs = {
-        "include": attr.label_list(allow_files=True, cfg=_release_cpu_all_transition),
+        "include": attr.label_list(allow_files = True, cfg = _release_cpu_all_transition),
         "include_prefix": attr.string_list(),
         "include_skip_prefix": attr.string_list(),
-        "lib": attr.label_list(allow_files=True, cfg=_release_cpu_all_transition),
-        "data": attr.label_list(allow_files=True, cfg=_release_cpu_all_transition),
+        "lib": attr.label_list(allow_files = True, cfg = _release_cpu_all_transition),
+        "data": attr.label_list(allow_files = True, cfg = _release_cpu_all_transition),
         "extra_files": attr.string_keyed_label_dict(
             doc = "Destination path under the release root -> the rule target producing that one file.",
         ),
@@ -381,14 +404,13 @@ def _headers_filter_impl(ctx):
             not _match_file_name(header, ctx.attr.exclude)):
             filtered_headers.append(header)
     return [
-        DefaultInfo(files = depset(filtered_headers))
+        DefaultInfo(files = depset(filtered_headers)),
     ]
-
 
 headers_filter = rule(
     implementation = _headers_filter_impl,
     attrs = {
-        "deps": attr.label_list(allow_files=True),
+        "deps": attr.label_list(allow_files = True),
         "include": attr.string_list(),
         "exclude": attr.string_list(),
     },
@@ -431,6 +453,7 @@ def _relativize_release_file(file, dep):
             break
         start = index + len(marker)
         parts = path[start:].split("/")
+
         # Otherwise a package directory that shares the target's name.
         if len(parts) >= 3 and parts[1] == "latest":
             return (paths.join(parts[0], "latest"), "/".join(parts[2:]))
@@ -449,7 +472,9 @@ def _copy_from_release_tree(ctx, dep, prefix, only_dirs = None, staged = None):
         relative = _relativize_release_file(src, dep)
         if relative == None:
             fail("Unexpected file '{}' in release tree of {}".format(
-                src.short_path, dep.label))
+                src.short_path,
+                dep.label,
+            ))
         component, rel = relative
         if component == "daal/latest":
             if only_dirs != None:
@@ -465,7 +490,11 @@ def _copy_from_release_tree(ctx, dep, prefix, only_dirs = None, staged = None):
                         fail(("Release component file '{}' of {} is staged from " +
                               "both '{}' and '{}': the two MSVC runtime flavours " +
                               "disagree on what the merged tree should hold").format(
-                            dst, dep.label, previous, src.short_path))
+                            dst,
+                            dep.label,
+                            previous,
+                            src.short_path,
+                        ))
                     continue
                 staged[dst] = src.short_path
         dst_files.append(_stage(ctx, src, dst))
@@ -475,7 +504,9 @@ def _get_single_dep(deps, attr_name):
     """Return the one configured target of a transitioned label_list attribute."""
     if len(deps) != 1:
         fail("Attribute '{}' must hold exactly one target, got {}".format(
-            attr_name, len(deps)))
+            attr_name,
+            len(deps),
+        ))
     return deps[0]
 
 def _release_all_impl(ctx):
@@ -486,10 +517,13 @@ def _release_all_impl(ctx):
     prefix = ctx.attr.name + "/daal/latest"
     staged_components = {}
     files = _copy_from_release_tree(ctx, release_md, prefix, staged = staged_components)
+
     # Only the `d`-suffixed libraries differ; pkg-config describes the release CRT, and
     # oneDALConfig.cmake appends DAL_DEBUG_SUFFIX itself.
     files += _copy_from_release_tree(
-        ctx, _get_single_dep(ctx.attr.release_mdd, "release_mdd"), prefix,
+        ctx,
+        _get_single_dep(ctx.attr.release_mdd, "release_mdd"),
+        prefix,
         only_dirs = _runtime_specific_dirs(target(ctx).arch_dir),
         staged = staged_components,
     )
@@ -521,7 +555,7 @@ def release_all(name, release_target):
         release_mdd = [release_target],
     )
 
-def release_include(hdrs, skip_prefix="", add_prefix=""):
+def release_include(hdrs, skip_prefix = "", add_prefix = ""):
     return (hdrs, add_prefix, skip_prefix)
 
 def release(name, include, lib, extra_files = {}, data = [], dep_runtime = {}):

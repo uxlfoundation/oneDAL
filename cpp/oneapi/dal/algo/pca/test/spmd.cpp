@@ -80,6 +80,8 @@ private:
 using pca_types = COMBINE_TYPES((float, double), (pca::method::cov));
 
 TEMPLATE_LIST_TEST_M(pca_spmd_test, "pca common flow", "[pca][integration][spmd]", pca_types) {
+    // SPMD training is not implemented for CPU devices.
+    SKIP_IF(this->get_policy().is_cpu());
     SKIP_IF(this->not_float64_friendly());
 
     const te::dataframe data =

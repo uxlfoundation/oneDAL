@@ -1,28 +1,31 @@
-package(default_visibility = ["//visibility:public"])
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("@onedal//dev/bazel:dal.bzl",
-    "dal_test_suite",
-    "dal_collect_test_suites",
-)
-load("@onedal//dev/bazel:daal.bzl",
-    "daal_module",
-    "daal_static_lib",
-    "daal_dynamic_lib",
+load(
+    "@onedal//dev/bazel:daal.bzl",
     "daal_algorithms",
+    "daal_dynamic_lib",
     "daal_generate_version",
+    "daal_module",
     "daal_patch_kernel_defines",
+    "daal_static_lib",
 )
+load(
+    "@onedal//dev/bazel:dal.bzl",
+    "dal_collect_test_suites",
+    "dal_test_suite",
+)
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+package(default_visibility = ["//visibility:public"])
 
 daal_module(
     name = "microvmlipp",
     lib_tag = "mkl_embed",
     override_deps_lib_tag = True,
     deps = select({
-        "@config//:backend_ref": [ ],
+        "@config//:backend_ref": [],
         "//conditions:default": [
-                                    "@mkl//:mkl_core",
-                                ],
-        }),
+            "@mkl//:mkl_core",
+        ],
+    }),
 )
 
 daal_module(
@@ -42,14 +45,16 @@ daal_module(
     # rng_backend=openrng *and* backend_config=ref, matching where RNG_OPENRNG
     # lives in Make.
     deps = select({
-        "@config//:backend_ref": [ "@openblas//:openblas",
-                                 ],
-        "//conditions:default": [ "@mkl//:mkl_core",
-                                ],
-        }) + select({
-            "@config//:rng_backend_openrng_ref": [ "@openrng//:openrng" ],
-            "//conditions:default": [],
-        }),
+        "@config//:backend_ref": [
+            "@openblas",
+        ],
+        "//conditions:default": [
+            "@mkl//:mkl_core",
+        ],
+    }) + select({
+        "@config//:rng_backend_openrng_ref": ["@openrng"],
+        "//conditions:default": [],
+    }),
 )
 
 daal_patch_kernel_defines(
@@ -59,13 +64,16 @@ daal_patch_kernel_defines(
 
 daal_module(
     name = "public_includes",
-    hdrs = glob([
-        "include/**/*.h",
-    ], exclude = [
-        "**/daal_kernel_defines.h",
-        "**/daal_win.h",
-    ]),
-    includes = [ "include" ],
+    hdrs = glob(
+        [
+            "include/**/*.h",
+        ],
+        exclude = [
+            "**/daal_kernel_defines.h",
+            "**/daal_win.h",
+        ],
+    ),
+    includes = ["include"],
 )
 
 # Headers that ship under their generic name on one OS only. Make selects them
@@ -76,8 +84,8 @@ daal_module(
 filegroup(
     name = "os_specific_includes",
     srcs = select({
-        "@platforms//os:windows": [ "include/daal_win.h" ],
-        "//conditions:default": [ ],
+        "@platforms//os:windows": ["include/daal_win.h"],
+        "//conditions:default": [],
     }),
 )
 
@@ -85,27 +93,28 @@ daal_module(
     name = "includes",
     # The generated header follows --cpu; the static one (all ISAs, the source
     # file) is what the per-cpu kernel TUs see, see dev/bazel/cc/compile.bzl.
-    hdrs = [ ":kernel_defines",
-             "include/services/internal/daal_kernel_defines.h",
+    hdrs = [
+        ":kernel_defines",
+        "include/services/internal/daal_kernel_defines.h",
     ],
-    includes = [ "." ],
+    includes = ["."],
     defines = [
         "DAAL_NOTHROW_EXCEPTIONS",
         "DAAL_HIDE_DEPRECATED",
     ],
     deps = select({
         "@config//:backend_ref": [
-                                   ":public_includes",
-                                   "@openblas//:headers",
-                                 ],
+            ":public_includes",
+            "@openblas//:headers",
+        ],
         "//conditions:default": [
-                                  ":public_includes",
-                                  "@mkl//:headers",
-                                ],
-        }) + select({
-            "@config//:rng_backend_openrng_ref": [ "@openrng//:headers" ],
-            "//conditions:default": [],
-        }),
+            ":public_includes",
+            "@mkl//:headers",
+        ],
+    }) + select({
+        "@config//:rng_backend_openrng_ref": ["@openrng//:headers"],
+        "//conditions:default": [],
+    }),
 )
 
 daal_generate_version(
@@ -135,7 +144,8 @@ daal_module(
 
 daal_module(
     name = "services",
-    srcs = glob([
+    srcs = glob(
+        [
             "src/services/**/*.cpp",
             "src/externals/**/*.cpp",
             "src/algorithms/*.cpp",
@@ -187,7 +197,10 @@ daal_module(
 
 daal_module(
     name = "data_management",
-    hdrs = glob(["src/data_management/**/*.h", "src/data_management/**/*.i"]),
+    hdrs = glob([
+        "src/data_management/**/*.h",
+        "src/data_management/**/*.i",
+    ]),
     srcs = glob(["src/data_management/**/*.cpp"]),
     deps = [
         ":services",
@@ -196,7 +209,10 @@ daal_module(
 
 daal_module(
     name = "threading_tbb",
-    srcs = glob(["src/threading/**/*.cpp"], exclude = ["src/threading/test/*.cpp"]),
+    srcs = glob(
+        ["src/threading/**/*.cpp"],
+        exclude = ["src/threading/test/*.cpp"],
+    ),
     # Match Make STDALLOC=yes: separately built threading objects keep TBB
     # scalable allocation while core objects switch away from MKL allocation.
     stdalloc = False,
@@ -209,19 +225,19 @@ daal_module(
         "TBB_USE_ASSERT=0",
     ],
     deps = select({
-            "@config//:backend_ref": [
-                                          ":threading_headers",
-                                          ":mathbackend_thread",
-                                          "@tbb//:tbb",
-                                          "@tbb//:tbbmalloc",
-                                        ],
-            "//conditions:default": [
-                                      ":threading_headers",
-                                      ":mathbackend_thread",
-                                      "@tbb//:tbb",
-                                      "@tbb//:tbbmalloc",
-                                    ],
-        }),
+        "@config//:backend_ref": [
+            ":threading_headers",
+            ":mathbackend_thread",
+            "@tbb",
+            "@tbb//:tbbmalloc",
+        ],
+        "//conditions:default": [
+            ":threading_headers",
+            ":mathbackend_thread",
+            "@tbb",
+            "@tbb//:tbbmalloc",
+        ],
+    }),
 )
 
 daal_module(
@@ -299,7 +315,6 @@ daal_static_lib(
         ":version_info",
     ],
 )
-
 
 daal_static_lib(
     name = "thread_static",
@@ -385,7 +400,7 @@ dal_collect_test_suites(
     name = "tests",
     root = "@onedal//cpp/daal/src/algorithms",
     modules = [
-        "dtrees/gbt/regression"
+        "dtrees/gbt/regression",
     ],
     tests = [
         "@onedal//cpp/daal/src/algorithms/test:tests",
