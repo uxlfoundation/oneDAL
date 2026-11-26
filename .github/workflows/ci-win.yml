@@ -502,8 +502,22 @@ jobs:
       - name: Checkout oneDAL
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # The toolkit URL and component list are read from .ci/pipeline/ci.yml,
-      # their single source of truth, as nightly-build.yml does.
+      # The installer URL and component list come from .ci/pipeline/ci.yml, their single source
+      # of truth; both the cache key and the install step below read them.
+      - name: Compute the oneAPI Base Toolkit cache key
+        id: basekit
+        shell: bash
+        run: |
+          id=$(grep -oP -m 2 "(?<=WINDOWS_BASEKIT_URL: |WINDOWS_DPCPP_COMPONENTS: ).*" .ci/pipeline/ci.yml | sha256sum | cut -c1-16)
+          echo "key=basekit-${RUNNER_OS}-${RUNNER_ARCH}-${id}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore oneAPI Base Toolkit
+        id: cache-basekit
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: oneapi
+          key: ${{ steps.basekit.outputs.key }}
+
       - name: Install oneAPI Base Toolkit
         shell: cmd
         run: |
@@ -514,15 +528,26 @@ jobs:
           if not defined components exit /b 1
           call .ci\scripts\install_basekit.bat %baseurl:'="% %components:'="% .\oneapi\
 
+      - name: Save oneAPI Base Toolkit
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cache-basekit.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: oneapi
+          key: ${{ steps.basekit.outputs.key }}
+
       # `cpufeature` is read by describe_system.sh; `zip` packs the nuget
       # package (deploy/nuget/prepare_dal_nuget.sh) and `tree` lists it.
       - name: Install cpufeature, zip and tree
         shell: cmd
         run: |
           set PATH=C:\msys64\usr\bin;%PATH%
-          python -m pip install cpufeature
+          python -m pip install --retries 10 cpufeature
           if errorlevel 1 exit /b 1
-          pacman -S -y --noconfirm zip tree
+          for /l %%i in (1,1,3) do (
+            pacman -S -y --noconfirm zip tree && exit /b 0
+            echo pacman attempt %%i failed, retrying
+          )
+          exit /b 1
 
       - name: System info
         shell: cmd

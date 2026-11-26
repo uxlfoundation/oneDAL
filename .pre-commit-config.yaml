@@ -27,6 +27,18 @@ repos:
     rev: v3.11.2
     hooks:
       - id: editorconfig-checker
+  # buildifier 8.2.1 in check mode; later flags override the hook's `fix` entry.
+  # Lint off (dev/bazel/TODO.md); listsort, callsort off (dev/bazel/AGENTS.md).
+  - repo: https://github.com/keith/pre-commit-buildifier
+    rev: 8.2.1
+    hooks:
+      - id: buildifier
+        args:
+          - -mode=check
+          - -lint=off
+          - -buildifier_disable=listsort
+          - -buildifier_disable=callsort
+        exclude: \.tpl\.
   - repo: local
     hooks:
       # use_default_shell_env and sandbox/cache opt-outs break hermeticity

@@ -1,8 +1,10 @@
-package(default_visibility = ["//visibility:public"])
-load("@onedal//dev/bazel:dal.bzl",
+load(
+    "@onedal//dev/bazel:dal.bzl",
     "dal_module",
     "dal_test_suite",
 )
+
+package(default_visibility = ["//visibility:public"])
 
 dal_module(
     name = "dbscan",
@@ -29,7 +31,7 @@ dal_test_suite(
         "test/spmd_backend_template.hpp",
     ]),
     srcs = glob([
-        "test/mpi_*.cpp"
+        "test/mpi_*.cpp",
     ]),
     dal_deps = [
         ":dbscan",
@@ -47,7 +49,7 @@ dal_test_suite(
         "test/spmd_backend_template.hpp",
     ]),
     srcs = glob([
-        "test/ccl_*.cpp"
+        "test/ccl_*.cpp",
     ]),
     dal_deps = [
         ":dbscan",
@@ -57,19 +59,24 @@ dal_test_suite(
 dal_test_suite(
     name = "interface_tests",
     framework = "catch2",
-    hdrs = glob([
-        "test/*.hpp",
-    ], exclude=[
-        "test/mpi_*.hpp",
-        "test/ccl_*.hpp"
-    ]),
-
-    srcs = glob([
-        "test/*.cpp",
-    ], exclude=[
-        "test/mpi_*.cpp",
-        "test/ccl_*.cpp"
-    ]),
+    hdrs = glob(
+        [
+            "test/*.hpp",
+        ],
+        exclude = [
+            "test/mpi_*.hpp",
+            "test/ccl_*.hpp",
+        ],
+    ),
+    srcs = glob(
+        [
+            "test/*.cpp",
+        ],
+        exclude = [
+            "test/mpi_*.cpp",
+            "test/ccl_*.cpp",
+        ],
+    ),
     dal_deps = [
         ":dbscan",
     ],

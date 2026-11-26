@@ -14,16 +14,17 @@
 # limitations under the License.
 #===============================================================================
 
-load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
-
-load("@onedal//dev/bazel:utils.bzl",
-    "utils",
+load(
+    "@onedal//dev/bazel:utils.bzl",
     "paths",
+    "utils",
 )
-load("@onedal//dev/bazel/cc:common.bzl",
+load(
+    "@onedal//dev/bazel/cc:common.bzl",
     onedal_cc_common = "common",
 )
 load("@onedal//dev/bazel/config:config.bzl", "ISA_TABLE")
+load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 
 _CPU_SUFFIX_TO_ISA_MAP = {info.suffix: isa for isa, info in ISA_TABLE.items() if info.suffix}
 _CPU_SUFFIX_TO_ISA_BACK_MAP = {isa: suffix for suffix, isa in _CPU_SUFFIX_TO_ISA_MAP.items()}
@@ -60,8 +61,10 @@ def _get_cpu_compile_kwargs(toolchain, cpu, kwargs):
     )
     return cpu_kwargs
 
-def _categorize_sources(source_files, cpu_files_supported = True,
-                                      fpt_files_supported = True):
+def _categorize_sources(
+        source_files,
+        cpu_files_supported = True,
+        fpt_files_supported = True):
     fpt_cpu_files_supported = cpu_files_supported and fpt_files_supported
     normal_files = []
     cpu_files = []
@@ -113,7 +116,7 @@ def _normalize_cpu_files(general_cpu_files, special_cpu_files):
         normalized_cpu_files[isa] = merged_dict.values()
     return normalized_cpu_files
 
-def _normalize_includes(ctx, includes, extra=[]):
+def _normalize_includes(ctx, includes, extra = []):
     # `workspace_root` keeps the paths valid for packages in external repositories.
     inc_dir = paths.join(ctx.label.workspace_root, ctx.label.package) + "/"
     gen_dir = ctx.genfiles_dir.path + "/" + inc_dir
@@ -123,25 +126,38 @@ def _normalize_includes(ctx, includes, extra=[]):
     normalized_includes = utils.unique(normalized_includes + extra)
     return normalized_includes
 
-def _patch_includes(ctx, compilation_context, includes=[],
-                    system_includes=[], drop_defines=[]):
+def _patch_includes(
+        ctx,
+        compilation_context,
+        includes = [],
+        system_includes = [],
+        drop_defines = []):
     system_includes = _normalize_includes(
         ctx,
         system_includes,
         compilation_context.system_includes.to_list(),
     )
-    includes = [x for x in _normalize_includes(ctx, includes, compilation_context.includes.to_list())
-                if x not in system_includes]
-    quote_includes = [x for x in _normalize_includes(ctx, [], compilation_context.quote_includes.to_list())
-                      if x not in system_includes]
+    includes = [
+        x
+        for x in _normalize_includes(ctx, includes, compilation_context.includes.to_list())
+        if x not in system_includes
+    ]
+    quote_includes = [
+        x
+        for x in _normalize_includes(ctx, [], compilation_context.quote_includes.to_list())
+        if x not in system_includes
+    ]
     return cc_common.create_compilation_context(
         headers = compilation_context.headers,
         system_includes = depset(system_includes),
         includes = depset(includes),
         quote_includes = depset(quote_includes),
         framework_includes = compilation_context.framework_includes,
-        defines = depset([d for d in compilation_context.defines.to_list()
-                          if d not in drop_defines]) if drop_defines else compilation_context.defines,
+        defines = depset([
+            d
+            for d in compilation_context.defines.to_list()
+            if d not in drop_defines
+        ]) if drop_defines else compilation_context.defines,
         local_defines = compilation_context.local_defines,
     )
 
@@ -193,6 +209,7 @@ def _compile_calls(sources, fpts, cpus):
         cpu_to_files = {}
         if sources.special_cpu_files:
             cpu_to_files = _normalize_cpu_files(sources.cpu_files, sources.special_cpu_files)
+
         # Only x86 ISAs have per-ISA files; ARM and RISC-V use the `_cpu` files.
         calls += [struct(fpt = None, cpu = cpu, srcs = cpu_to_files.get(cpu, sources.cpu_files)) for cpu in cpus]
     if sources.fpt_cpu_files:
@@ -262,6 +279,7 @@ def _stage_sources(ctx, name, srcs):
         if f.path in staged:
             continue
         stem = _short_hash(f.path)
+
         # A collision within the target takes the next free `_` suffix.
         for _ in range(len(srcs)):
             if stem not in stems:
@@ -269,7 +287,10 @@ def _stage_sources(ctx, name, srcs):
             stem += "_"
         stems[stem] = True
         stub = ctx.actions.declare_file("_s/{}/{}.{}".format(
-            name, stem, f.extension))
+            name,
+            stem,
+            f.extension,
+        ))
         ctx.actions.write(stub, '#include "{}"\n'.format(f.path))
         staged[f.path] = stub
     return staged
@@ -303,17 +324,26 @@ def _check_obj_paths(ctx, compilation_output):
         if len(path) > _WIN_MAX_OBJ_PATH:
             fail(("{} is {} chars, over the {} allowed on Windows (MAX_PATH). " +
                   "Shorten the package path of {}.").format(
-                path, len(path), _WIN_MAX_OBJ_PATH, ctx.label))
+                path,
+                len(path),
+                _WIN_MAX_OBJ_PATH,
+                ctx.label,
+            ))
 
-def _compile_wrapper(name, ctx, toolchain, feature_config,
-                     disallow_nopic_outputs = True, **kwargs):
+def _compile_wrapper(
+        name,
+        ctx,
+        toolchain,
+        feature_config,
+        disallow_nopic_outputs = True,
+        **kwargs):
     return cc_common.compile(
         name = name,
         actions = ctx.actions,
         cc_toolchain = toolchain,
         feature_configuration = feature_config,
         disallow_nopic_outputs = disallow_nopic_outputs,
-        **kwargs,
+        **kwargs
     )
 
 def _configure_cpu_features(ctx, toolchain, cpus):
@@ -322,20 +352,33 @@ def _configure_cpu_features(ctx, toolchain, cpus):
         cpu_feature_configs[cpu] = cc_common.configure_features(
             ctx = ctx,
             cc_toolchain = toolchain,
-            requested_features = ctx.features + [ "{}_flags".format(cpu) ],
+            requested_features = ctx.features + ["{}_flags".format(cpu)],
             unsupported_features = ctx.disabled_features,
         )
     return cpu_feature_configs
 
-def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
-             cpus=[], fpts=[], cpu_defines={}, fpt_defines={},
-             srcs=[], local_defines=[], includes=[], system_includes=[],
-             short_paths=False, drop_mkl_ilp64=False, **kwargs):
-
+def _compile(
+        name,
+        ctx,
+        toolchain,
+        feature_config,
+        compilation_contexts = [],
+        cpus = [],
+        fpts = [],
+        cpu_defines = {},
+        fpt_defines = {},
+        srcs = [],
+        local_defines = [],
+        includes = [],
+        system_includes = [],
+        short_paths = False,
+        drop_mkl_ilp64 = False,
+        **kwargs):
     kwargs = _get_msvc_compile_kwargs(toolchain, kwargs)
     sources_by_category = _categorize_sources(srcs)
     calls = _compile_calls(sources_by_category, fpts, cpus)
     check_obj_paths = short_paths
+
     # Stand-ins only for targets whose real object paths would not fit.
     if short_paths and _longest_obj_path(ctx, name, calls) <= _WIN_MAX_OBJ_PATH:
         short_paths = False
@@ -350,22 +393,24 @@ def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
         cpu_tags = {cpu: cpu for cpu in cpus}
     dep_compilation_context = onedal_cc_common.merge_compilation_contexts(compilation_contexts)
     dep_compilation_context = _patch_includes(
-        ctx, dep_compilation_context,
+        ctx,
+        dep_compilation_context,
         includes = includes,
         system_includes = system_includes,
         # DPC library objects are LP64 (Make's ONEAPI.objs_y.dpc); a DPC test that links the ILP64
         # archives keeps MKL_ILP64, see cpp/oneapi/dal/test/engine/mkl.
         drop_defines = ["MKL_ILP64"] if drop_mkl_ilp64 else [],
     )
-    dep_compilation_contexts = [ dep_compilation_context ]
+    dep_compilation_contexts = [dep_compilation_context]
 
     if sources_by_category.cpu_files or sources_by_category.fpt_cpu_files:
-        cpu_defines = utils.normalize_dict(cpu_defines, cpus, default=[])
+        cpu_defines = utils.normalize_dict(cpu_defines, cpus, default = [])
         cpu_feature_configs = _configure_cpu_features(ctx, toolchain, cpus)
+
         # Flattens the transitive headers, so build it only for the modules that have per-cpu sources.
-        cpu_dep_compilation_contexts = [ _without_cpu_list_headers(dep_compilation_context) ]
+        cpu_dep_compilation_contexts = [_without_cpu_list_headers(dep_compilation_context)]
     if sources_by_category.fpt_files or sources_by_category.fpt_cpu_files:
-        fpt_defines = utils.normalize_dict(fpt_defines, fpts, default=[])
+        fpt_defines = utils.normalize_dict(fpt_defines, fpts, default = [])
 
     compilation_contexts = []
     compilation_outputs = []
@@ -373,12 +418,14 @@ def _compile(name, ctx, toolchain, feature_config, compilation_contexts=[],
         call_srcs, call_kwargs = _staged_srcs(staged, call.srcs, short_paths, kwargs)
         call_defines = local_defines + (cpu_defines[call.cpu] if call.cpu else []) + (fpt_defines[call.fpt] if call.fpt else [])
         compilation_context, compilation_output = _compile_wrapper(
-            _call_name(name, call, fpt_tags, cpu_tags), ctx, toolchain,
+            _call_name(name, call, fpt_tags, cpu_tags),
+            ctx,
+            toolchain,
             cpu_feature_configs[call.cpu] if call.cpu else feature_config,
             srcs = call_srcs,
             local_defines = call_defines,
             compilation_contexts = cpu_dep_compilation_contexts if call.cpu else dep_compilation_contexts,
-            **(_get_cpu_compile_kwargs(toolchain, call.cpu, call_kwargs) if call.cpu else call_kwargs),
+            **(_get_cpu_compile_kwargs(toolchain, call.cpu, call_kwargs) if call.cpu else call_kwargs)
         )
         compilation_contexts.append(compilation_context)
         compilation_outputs.append(compilation_output)

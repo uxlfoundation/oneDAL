@@ -1,16 +1,18 @@
-package(default_visibility = ["//visibility:public"])
-load("@onedal//dev/bazel:dal.bzl",
+load(
+    "@onedal//dev/bazel:dal.bzl",
+    "dal_global_header_test",
     "dal_module",
     "dal_test_suite",
-    "dal_global_header_test",
 )
+
+package(default_visibility = ["//visibility:public"])
 
 dal_module(
     name = "include_root",
     # All include paths in `*.cpp/*.hpp` files are relative to
     # `cpp` directory (e.g., `oneapi/dal/array.hpp`), so add parent
     # directory to includes search path
-    includes = [ ".." ],
+    includes = [".."],
 
     # Compiled part of oneAPI part depends on DAAL sources. Compilation
     # options for the oneAPI part are more strict than for DAAL, it leads
@@ -42,7 +44,7 @@ dal_global_header_test(
         "triangle_counting",
         "shortest_paths",
         "subgraph_isomorphism",
-        "connected_components"
+        "connected_components",
     ],
     dal_deps = [
         ":dal_header",

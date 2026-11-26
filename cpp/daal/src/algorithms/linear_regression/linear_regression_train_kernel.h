@@ -134,14 +134,9 @@ class DistributedKernel<algorithmFPType, training::normEqDense, cpu> : public da
     typedef linear_model::normal_equations::training::internal::FinalizeKernel<algorithmFPType, cpu> FinalizeKernelType;
 
 public:
-    typedef linear_regression::internal::Hyperparameter HyperparameterType;
     Status compute(size_t n, NumericTable ** partialxtx, NumericTable ** partialxty, NumericTable & xtx, NumericTable & xty) const;
     Status finalizeCompute(const NumericTable & xtx, const NumericTable & xty, NumericTable & xtxFinal, NumericTable & xtyFinal, NumericTable & beta,
                            bool interceptFlag) const;
-    Status compute(size_t n, NumericTable ** partialxtx, NumericTable ** partialxty, NumericTable & xtx, NumericTable & xty,
-                   const HyperparameterType * hyperparameter) const;
-    Status finalizeCompute(const NumericTable & xtx, const NumericTable & xty, NumericTable & xtxFinal, NumericTable & xtyFinal, NumericTable & beta,
-                           bool interceptFlag, const HyperparameterType * hyperparameter) const;
 };
 
 template <typename algorithmFPType, CpuType cpu>

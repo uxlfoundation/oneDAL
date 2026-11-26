@@ -119,6 +119,7 @@ External libraries are referenced by their repository labels, e.g. `@mkl//:mkl_c
 
 ## 🔧 Required Tools
 - **Bazel**: version pinned in `.bazelversion`; `.ci/env/bazelisk.sh` installs a matching launcher
+- **Buildifier**: 8.2.1, the version of the pre-commit hook `buildifier` (`keith/pre-commit-buildifier` at tag 8.2.1). Format a file with `buildifier -mode=fix -lint=off -buildifier_disable=listsort -buildifier_disable=callsort <file>` (`listsort` keeps `deps` and `srcs` in the order written, since sorting reorders compile flags; `callsort` keeps keyword arguments and their comments in place); the hook checks the same files (BUILD, BUILD.bazel, `*.bzl`, `MODULE.bazel`, `*.BUILD`, not `*.tpl.*`) and fails instead of rewriting.
 
 ## 📖 Further Reading
 - **[dev/AGENTS.md](../AGENTS.md)** - Development tools context

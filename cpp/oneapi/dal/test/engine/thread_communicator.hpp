@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <cstdio>
+#include <exception>
 #include <list>
 #include <mutex>
 #include <thread>
@@ -57,19 +59,39 @@ public:
 
     template <typename Body>
     void execute(const Body& body) {
+        // An exception escaping a std::thread calls std::terminate and loses its message:
+        // print it at once (a peer may then wait in a barrier), rethrow it after the join.
+        std::vector<std::exception_ptr> errors(thread_count_);
         for (std::int64_t i = 0; i < thread_count_; i++) {
-            thread_pool_.emplace_back([=]() {
-                init(i);
+            thread_pool_.emplace_back([=, &errors]() {
+                try {
+                    init(i);
 
-                {
                     std::unique_lock lock(serializing_lock_);
                     body(i);
+                }
+                catch (const std::exception& e) {
+                    std::fprintf(stderr, "rank %lld: %s\n", static_cast<long long>(i), e.what());
+                    std::fflush(stderr);
+                    errors[i] = std::current_exception();
+                }
+                catch (...) {
+                    std::fprintf(stderr,
+                                 "rank %lld: unknown exception\n",
+                                 static_cast<long long>(i));
+                    std::fflush(stderr);
+                    errors[i] = std::current_exception();
                 }
             });
         }
 
         for (auto& thread : thread_pool_) {
             thread.join();
+        }
+        for (const auto& error : errors) {
+            if (error) {
+                std::rethrow_exception(error);
+            }
         }
     }
 

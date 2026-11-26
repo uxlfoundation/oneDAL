@@ -14,11 +14,11 @@
 # limitations under the License.
 #===============================================================================
 
-load("@onedal//dev/bazel:utils.bzl", "utils", "sets")
-load("@onedal//dev/bazel:version.bzl", "DEV_BUILD_DATE", "VERSION")
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
-load("@onedal//dev/bazel/toolchains:common.bzl", "arch_dir", "detect_os", "detect_compiler", "detect_host_arch", "detect_target_arch", "is_dpc_compiler_found")
+load("@onedal//dev/bazel:utils.bzl", "sets", "utils")
+load("@onedal//dev/bazel:version.bzl", "DEV_BUILD_DATE", "VERSION")
 load("@onedal//dev/bazel/toolchains:cc_toolchain_win.bzl", "win_compiler_id")
+load("@onedal//dev/bazel/toolchains:common.bzl", "arch_dir", "detect_compiler", "detect_host_arch", "detect_os", "detect_target_arch", "is_dpc_compiler_found")
 
 ConfigFlagInfo = provider(
     fields = [
@@ -32,7 +32,10 @@ def _config_flag_impl(ctx):
     allowed = ctx.attr.allowed_build_setting_values
     if not flag in allowed:
         fail("Got unexpected value '{}' for {} flag, allowed values are {}".format(
-             flag, ctx.attr.name, allowed))
+            flag,
+            ctx.attr.name,
+            allowed,
+        ))
     return ConfigFlagInfo(
         flag = flag,
         allowed = allowed,
@@ -55,7 +58,7 @@ def config_flag(name, build_setting_default, allowed_build_setting_values):
     for value in allowed_build_setting_values:
         native.config_setting(
             name = "{}_{}".format(name, value),
-            flag_values  = {
+            flag_values = {
                 ":" + name: value,
             },
         )
@@ -80,7 +83,6 @@ unsupported_config = rule(
         "message": attr.string(mandatory = True),
     },
 )
-
 
 TargetInfo = provider(
     doc = "The target platform, read once from its constraints by @config//:target.",
@@ -202,7 +204,7 @@ def _cpu_info_impl(ctx):
         isa_extensions = allowed
     elif ctx.build_setting_value == "auto":
         # The exec host probe means something for a native x86 build only.
-        isa_extensions = [ ctx.attr.auto_cpu ] if is_x86 else allowed
+        isa_extensions = [ctx.attr.auto_cpu] if is_x86 else allowed
     else:
         isa_extensions = ctx.build_setting_value.split(" ")
         isa_extensions = [x.strip() for x in isa_extensions]
@@ -221,9 +223,9 @@ cpu_info = rule(
     implementation = _cpu_info_impl,
     build_setting = config.string(flag = True),
     attrs = {
-        "auto_cpu": attr.string(mandatory=True),
+        "auto_cpu": attr.string(mandatory = True),
         # From detect_target_arch, as this rule's configuration cannot see `--platforms`.
-        "arch": attr.string(mandatory=True),
+        "arch": attr.string(mandatory = True),
     },
 )
 
@@ -266,29 +268,29 @@ def _version_info_impl(ctx):
         fail("--build_date must be a YYYYMMDD calendar date, got '{}'".format(build))
     return [
         VersionInfo(
-            major        = ctx.attr.major,
-            minor        = ctx.attr.minor,
-            update       = ctx.attr.update,
-            build        = build,
-            buildrev     = ctx.attr.buildrev,
-            status       = ctx.attr.status,
+            major = ctx.attr.major,
+            minor = ctx.attr.minor,
+            update = ctx.attr.update,
+            build = build,
+            buildrev = ctx.attr.buildrev,
+            status = ctx.attr.status,
             binary_major = ctx.attr.binary_major,
             binary_minor = ctx.attr.binary_minor,
-        )
+        ),
     ]
 
 version_info = rule(
     implementation = _version_info_impl,
     attrs = {
-        "major": attr.string(mandatory=True),
-        "minor": attr.string(mandatory=True),
-        "update": attr.string(mandatory=True),
-        "build_date": attr.label(mandatory=True, providers=[BuildSettingInfo]),
-        "require_build_date": attr.label(mandatory=True, providers=[BuildSettingInfo]),
-        "buildrev": attr.string(mandatory=True),
-        "status": attr.string(mandatory=True),
-        "binary_major": attr.string(mandatory=True),
-        "binary_minor": attr.string(mandatory=True),
+        "major": attr.string(mandatory = True),
+        "minor": attr.string(mandatory = True),
+        "update": attr.string(mandatory = True),
+        "build_date": attr.label(mandatory = True, providers = [BuildSettingInfo]),
+        "require_build_date": attr.label(mandatory = True, providers = [BuildSettingInfo]),
+        "buildrev": attr.string(mandatory = True),
+        "status": attr.string(mandatory = True),
+        "binary_major": attr.string(mandatory = True),
+        "binary_minor": attr.string(mandatory = True),
     },
 )
 
@@ -299,28 +301,28 @@ def _dump_config_info_impl(ctx):
         target_json = "      {}: {},".format(target.label.name, json.encode(target[ConfigFlagInfo]))
         flags_json.append(target_json)
     content = ("{\n" +
-    "   cpu: {},\n".format(json.encode(ctx.attr.cpu_info[CpuInfo])) +
-    "   version: {},\n".format(json.encode(ctx.attr.version_info[VersionInfo])) +
-    "   flags: {\n" +
-        "\n".join(flags_json) + "\n" +
-    "   }\n" +
-    "}\n")
+               "   cpu: {},\n".format(json.encode(ctx.attr.cpu_info[CpuInfo])) +
+               "   version: {},\n".format(json.encode(ctx.attr.version_info[VersionInfo])) +
+               "   flags: {\n" +
+               "\n".join(flags_json) + "\n" +
+               "   }\n" +
+               "}\n")
     ctx.actions.write(config_file, content)
-    return DefaultInfo(files=depset([ config_file ]))
+    return DefaultInfo(files = depset([config_file]))
 
 dump_config_info = rule(
     implementation = _dump_config_info_impl,
     attrs = {
         "cpu_info": attr.label(
-            mandatory=True,
-            providers = [ CpuInfo ],
+            mandatory = True,
+            providers = [CpuInfo],
         ),
         "version_info": attr.label(
-            mandatory=True,
-            providers = [ VersionInfo ],
+            mandatory = True,
+            providers = [VersionInfo],
         ),
         "flags": attr.label_list(
-            providers = [ ConfigFlagInfo ],
+            providers = [ConfigFlagInfo],
         ),
     },
 )
@@ -351,13 +353,21 @@ def _detect_cpu_extension(repo_ctx):
     repo_ctx.report_progress("Compile cpu-detector")
     if is_windows:
         compile_command = [
-            "cl", "/nologo", "/EHsc", "/std:c++17",
-            cpudetect_src, "/Fe:{}".format(cpudetect_exe),
+            "cl",
+            "/nologo",
+            "/EHsc",
+            "/std:c++17",
+            cpudetect_src,
+            "/Fe:{}".format(cpudetect_exe),
         ]
     else:
         compile_command = [
-            _find_cxx_compiler(repo_ctx), "-pedantic", "-Wall", "-std=c++17",
-            cpudetect_src, "-o{}".format(cpudetect_exe),
+            _find_cxx_compiler(repo_ctx),
+            "-pedantic",
+            "-Wall",
+            "-std=c++17",
+            cpudetect_src,
+            "-o{}".format(cpudetect_exe),
         ]
     compile_result = repo_ctx.execute(compile_command)
     if compile_result.return_code != 0:
@@ -377,28 +387,28 @@ def _detect_cpu_extension(repo_ctx):
 def _declare_onedal_config_impl(repo_ctx):
     os_id = detect_os(repo_ctx)
     target_arch = detect_target_arch(repo_ctx, detect_host_arch(repo_ctx, os_id))
+
     # The probe is x86-only; elsewhere `auto_cpu` is ignored.
-    auto_cpu = (_detect_cpu_extension(repo_ctx) if target_arch == "intel64"
-                else _ISA_EXTENSION_AUTO_DEFAULT)
+    auto_cpu = (_detect_cpu_extension(repo_ctx) if target_arch == "intel64" else _ISA_EXTENSION_AUTO_DEFAULT)
 
     repo_ctx.template(
         "BUILD",
         Label("@onedal//dev/bazel/config:config.tpl.BUILD"),
         substitutions = {
-            "%{auto_cpu}":              auto_cpu,
-            "%{arch}":                  target_arch,
+            "%{auto_cpu}": auto_cpu,
+            "%{arch}": target_arch,
             # On Windows only the icx toolchain has a DPC++ driver.
-            "%{dpc_compiler_found}":    str(win_compiler_id(repo_ctx, target_arch) == "icx"
-                                            if os_id == "win" else is_dpc_compiler_found(repo_ctx, os_id)),
-            "%{version_major}":         VERSION.major,
-            "%{version_minor}":         VERSION.minor,
-            "%{version_update}":        VERSION.update,
-            "%{version_buildrev}":      "work",
-            "%{version_status}":        VERSION.status,
-            "%{version_binary_major}":  VERSION.binary_major,
-            "%{version_binary_minor}":  VERSION.binary_minor,
+            "%{dpc_compiler_found}": str(win_compiler_id(repo_ctx, target_arch) == "icx" if os_id == "win" else is_dpc_compiler_found(repo_ctx, os_id)),
+            "%{version_major}": VERSION.major,
+            "%{version_minor}": VERSION.minor,
+            "%{version_update}": VERSION.update,
+            "%{version_buildrev}": "work",
+            "%{version_status}": VERSION.status,
+            "%{version_binary_major}": VERSION.binary_major,
+            "%{version_binary_minor}": VERSION.binary_minor,
         },
     )
+
 declare_onedal_config = repository_rule(
     implementation = _declare_onedal_config_impl,
     local = True,

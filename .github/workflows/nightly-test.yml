@@ -45,7 +45,7 @@ name: Nightly-test
 # the fork builds these jobs exist for.
 
 on:
-  workflow_run:
+  workflow_run: # zizmor: ignore[dangerous-triggers] consumes Nightly-build artifacts, see above
     workflows: [Nightly-build]
     types:
       - completed
@@ -72,7 +72,7 @@ jobs:
     runs-on: ubuntu-26.04
     # Only scan artifacts from schedule or manual Nightly-build runs. Do not scan PR-originated
     # runs or workflow_dispatch verification runs — SARIF uploads must come from real nightlies.
-    if: >
+    if: >-
       ${{ github.repository == 'uxlfoundation/oneDAL'
           && github.event_name == 'workflow_run'
           && github.event.workflow_run.conclusion == 'success'
@@ -112,7 +112,7 @@ jobs:
   check_start:
     name: Publish Bazel test check runs
     runs-on: ubuntu-26.04
-    if: >
+    if: >-
       ${{ github.repository == 'uxlfoundation/oneDAL'
           && (github.event_name == 'workflow_dispatch'
               || github.event.workflow_run.conclusion == 'success') }}
@@ -165,7 +165,7 @@ jobs:
     name: oneDAL Linux Bazel test
     runs-on: ubuntu-26.04
     needs: check_start
-    if: >
+    if: >-
       ${{ github.repository == 'uxlfoundation/oneDAL'
           && (github.event_name == 'workflow_dispatch'
               || github.event.workflow_run.conclusion == 'success') }}
@@ -241,7 +241,7 @@ jobs:
     name: oneDAL Windows Bazel test
     runs-on: windows-2025
     needs: check_start
-    if: >
+    if: >-
       ${{ github.repository == 'uxlfoundation/oneDAL'
           && (github.event_name == 'workflow_dispatch'
               || github.event.workflow_run.conclusion == 'success') }}

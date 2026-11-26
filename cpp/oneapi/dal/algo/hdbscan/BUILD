@@ -1,8 +1,10 @@
-package(default_visibility = ["//visibility:public"])
-load("@onedal//dev/bazel:dal.bzl",
+load(
+    "@onedal//dev/bazel:dal.bzl",
     "dal_module",
     "dal_test_suite",
 )
+
+package(default_visibility = ["//visibility:public"])
 
 dal_module(
     name = "hdbscan",
@@ -39,7 +41,7 @@ dal_test_suite(
     name = "gpu_tests",
     framework = "catch2",
     private = True,
-    compile_as = [ "dpc++" ],
+    compile_as = ["dpc++"],
     srcs = glob([
         "backend/gpu/test/*_dpc.cpp",
     ]),

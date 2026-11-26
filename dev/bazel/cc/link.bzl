@@ -14,16 +14,16 @@
 # limitations under the License.
 #===============================================================================
 
-load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
-load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
-
-load("@onedal//dev/bazel:utils.bzl",
+load(
+    "@onedal//dev/bazel:utils.bzl",
     "utils",
 )
-
-load("@onedal//dev/bazel/cc:common.bzl",
+load(
+    "@onedal//dev/bazel/cc:common.bzl",
     onedal_cc_common = "common",
 )
+load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
+load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 
 def _filter_user_link_flags(feature_configuration, user_link_flags):
     strip_dynamic_libraries_from_user_link_flags = cc_common.is_enabled(
@@ -38,8 +38,13 @@ def _filter_user_link_flags(feature_configuration, user_link_flags):
         return filtered_flags
     return user_link_flags
 
-def _merge_static_libs(filename, actions, cc_toolchain,
-                       feature_configuration, static_libs, is_windows = False):
+def _merge_static_libs(
+        filename,
+        actions,
+        cc_toolchain,
+        feature_configuration,
+        static_libs,
+        is_windows = False):
     """Archive whole static libraries into a single library.
 
     cc_common would add each input archive as a member, so the toolchain's archiver runs directly;
@@ -89,7 +94,7 @@ def _merge_static_libs(filename, actions, cc_toolchain,
         content = "\n".join(
             ["CREATE " + output_file.path] +
             ["ADDLIB " + lib.path for lib in static_libs] +
-            ["SAVE", ""]
+            ["SAVE", ""],
         ),
     )
     actions.run_shell(
@@ -106,8 +111,14 @@ def _merge_static_libs(filename, actions, cc_toolchain,
     )
     return output_file
 
-def _static(owner, name, actions, cc_toolchain,
-            feature_configuration, linking_contexts, is_windows = False):
+def _static(
+        owner,
+        name,
+        actions,
+        cc_toolchain,
+        feature_configuration,
+        linking_contexts,
+        is_windows = False):
     unpacked = onedal_cc_common.unpack_linking_contexts(linking_contexts)
     if unpacked.objects and unpacked.pic_objects:
         utils.warn("Static library {} contains mix of PIC and non-PIC code".format(name))
@@ -174,21 +185,32 @@ def _static(owner, name, actions, cc_toolchain,
         additional_inputs = depset(unpacked.additional_inputs),
     )
     linking_context = cc_common.create_linking_context(
-        linker_inputs = depset([ linker_input ]),
+        linker_inputs = depset([linker_input]),
     )
     return linking_context, static_lib
 
-def _link(owner, name, actions, cc_toolchain,
-          feature_configuration, linking_contexts,
-          def_file=None, is_executable=False, user_link_flags=[],
-          is_windows=False, additional_inputs=[]):
+def _link(
+        owner,
+        name,
+        actions,
+        cc_toolchain,
+        feature_configuration,
+        linking_contexts,
+        def_file = None,
+        is_executable = False,
+        user_link_flags = [],
+        is_windows = False,
+        additional_inputs = []):
     unpacked_linking_context = onedal_cc_common.unpack_linking_contexts(linking_contexts)
     if not is_executable and unpacked_linking_context.objects and unpacked_linking_context.pic_objects:
         fail("Dynamic library {} contains non-PIC object files: {}".format(
-            name, unpacked_linking_context.objects))
+            name,
+            unpacked_linking_context.objects,
+        ))
     all_object_list = unpacked_linking_context.pic_objects + unpacked_linking_context.objects
     libraries_to_link = unpacked_linking_context.libraries_to_link
     object_archive_link_flags = []
+
     # Files that dependencies name only through `user_link_flags` must be staged as well.
     additional_link_inputs = list(additional_inputs) + unpacked_linking_context.additional_inputs
     if is_windows and all_object_list and not is_executable:
@@ -208,6 +230,7 @@ def _link(owner, name, actions, cc_toolchain,
             pic_static_library = object_archive,
         )
         libraries_to_link = [object_archive_to_link] + libraries_to_link
+
         # Whole archive, or the dllexport objects stay out of leaf DLLs such as onedal_thread.dll.
         # No `/link` here: dpc_linker_mode emits one already, and a second gives LNK4044.
         object_archive_link_flags.append("/WHOLEARCHIVE:" + object_archive.path)
@@ -220,7 +243,7 @@ def _link(owner, name, actions, cc_toolchain,
     )
     unpacked_user_link_flags = _filter_user_link_flags(
         feature_configuration,
-        unpacked_linking_context.user_link_flags
+        unpacked_linking_context.user_link_flags,
     )
     all_user_link_flags = unpacked_user_link_flags + user_link_flags + object_archive_link_flags
     linker_input = cc_common.create_linker_input(
@@ -228,6 +251,7 @@ def _link(owner, name, actions, cc_toolchain,
         libraries = depset(libraries_to_link),
         user_link_flags = depset(all_user_link_flags),
     )
+
     # TODO: pass the compilation outputs per library tag, to link with --start-lib/--end-lib.
     linking_context = cc_common.create_linking_context(
         linker_inputs = depset([linker_input]),
@@ -252,23 +276,35 @@ def _link(owner, name, actions, cc_toolchain,
     )
     return unpacked_linking_context, linking_outputs
 
-def _dynamic(owner, name, actions, cc_toolchain,
-             feature_configuration, linking_contexts,
-             def_file=None, user_link_flags=[], is_windows=False,
-             additional_inputs=[]):
+def _dynamic(
+        owner,
+        name,
+        actions,
+        cc_toolchain,
+        feature_configuration,
+        linking_contexts,
+        def_file = None,
+        user_link_flags = [],
+        is_windows = False,
+        additional_inputs = []):
     unpacked_linking_context, linking_outputs = _link(
-        owner, name, actions, cc_toolchain,
-        feature_configuration, linking_contexts,
+        owner,
+        name,
+        actions,
+        cc_toolchain,
+        feature_configuration,
+        linking_contexts,
         def_file,
-        user_link_flags=user_link_flags,
-        is_windows=is_windows,
-        additional_inputs=additional_inputs,
+        user_link_flags = user_link_flags,
+        is_windows = is_windows,
+        additional_inputs = additional_inputs,
     )
     library_to_link = linking_outputs.library_to_link
     dynamic_lib = None
     interface_lib = None
     if library_to_link:
         dynamic_lib = library_to_link.resolved_symlink_dynamic_library or library_to_link.dynamic_library
+
         # On Windows the import library the link action declares (`targets_windows`).
         interface_lib = library_to_link.resolved_symlink_interface_library or library_to_link.interface_library
     if not dynamic_lib:
@@ -291,7 +327,7 @@ def _dynamic(owner, name, actions, cc_toolchain,
         additional_inputs = depset(unpacked_linking_context.additional_inputs),
     )
     linking_context = cc_common.create_linking_context(
-        linker_inputs = depset([ linker_input ]),
+        linker_inputs = depset([linker_input]),
     )
     return linking_context, struct(
         files = dynamic_files,
@@ -299,12 +335,21 @@ def _dynamic(owner, name, actions, cc_toolchain,
         interface_library = interface_lib,
     )
 
-def _executable(owner, name, actions, cc_toolchain,
-                feature_configuration, linking_contexts,
-                user_link_flags=[]):
+def _executable(
+        owner,
+        name,
+        actions,
+        cc_toolchain,
+        feature_configuration,
+        linking_contexts,
+        user_link_flags = []):
     _, linking_outputs = _link(
-        owner, name, actions, cc_toolchain,
-        feature_configuration, linking_contexts,
+        owner,
+        name,
+        actions,
+        cc_toolchain,
+        feature_configuration,
+        linking_contexts,
         is_executable = True,
         user_link_flags = user_link_flags,
         is_windows = False,
