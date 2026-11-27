@@ -43,6 +43,19 @@ struct partial_compute_ops {
         if (!input.get_data().has_data()) {
             throw domain_error(msg::input_data_is_empty());
         }
+
+        // The kernels add the block to the previous sums and cross-product and trust their sizes.
+        const std::int64_t column_count = input.get_data().get_column_count();
+        const auto& prev_sum = input.get_prev().get_partial_sum();
+        const auto& prev_crossproduct = input.get_prev().get_partial_crossproduct();
+        if (prev_sum.has_data() && prev_sum.get_column_count() != column_count) {
+            throw invalid_argument(msg::input_data_cc_neq_partial_result_cc());
+        }
+        if (prev_crossproduct.has_data() &&
+            (prev_crossproduct.get_row_count() != column_count ||
+             prev_crossproduct.get_column_count() != column_count)) {
+            throw invalid_argument(msg::input_data_cc_neq_partial_result_cc());
+        }
     }
 
     void check_postconditions(const Descriptor& params,

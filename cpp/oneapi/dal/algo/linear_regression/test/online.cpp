@@ -99,4 +99,28 @@ TEMPLATE_LIST_TEST_M(lr_online_test,
     }
 }
 
+// The partial xtx and xty are updated in place, so a block of another shape used to write out of them.
+TEMPLATE_LIST_TEST_M(lr_online_test,
+                     "LR partial train throws if the block does not match the partial result",
+                     "[lr][online][badarg]",
+                     lr_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using float_t = std::tuple_element_t<0, TestType>;
+    constexpr std::int64_t row_count = 8;
+    const std::vector<float_t> values(row_count * 3, float_t(1));
+    const auto x3 = homogen_table::wrap(values.data(), row_count, 3);
+    const auto x2 = homogen_table::wrap(values.data(), row_count, 2);
+    const auto y2 = homogen_table::wrap(values.data(), row_count, 2);
+    const auto y1 = homogen_table::wrap(values.data(), row_count, 1);
+
+    this->intercept_ = GENERATE(0, 1);
+    const auto desc = this->get_descriptor();
+    const auto partial =
+        this->partial_train(desc, dal::linear_regression::partial_train_result<>{}, x3, y2);
+
+    REQUIRE_THROWS_AS(this->partial_train(desc, partial, x3, y1), invalid_argument);
+    REQUIRE_THROWS_AS(this->partial_train(desc, partial, x2, y2), invalid_argument);
+    REQUIRE_NOTHROW(this->partial_train(desc, partial, x3, y2));
+}
+
 } // namespace oneapi::dal::linear_regression::test

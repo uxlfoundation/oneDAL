@@ -216,4 +216,27 @@ TEMPLATE_LIST_TEST_M(basic_statistics_online_test,
     this->online_general_checks(data, std::shared_ptr<te::dataframe>{}, compute_mode, nBlocks);
 }
 
+// The partial statistics are updated in place, so a block with another column count used to
+// write out of them.
+TEMPLATE_LIST_TEST_M(
+    basic_statistics_online_test,
+    "basic statistics partial compute throws if the block does not match the partial "
+    "result",
+    "[basic_statistics][online][badarg]",
+    basic_statistics_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+    constexpr std::int64_t row_count = 8;
+    const std::vector<Float> values(row_count * 4, Float(1));
+    const auto wide = homogen_table::wrap(values.data(), row_count, 4);
+    const auto narrow = homogen_table::wrap(values.data(), row_count, 3);
+
+    const auto desc = this->get_descriptor(result_options::min | result_options::mean);
+    const auto partial =
+        this->partial_compute(desc, dal::basic_statistics::partial_compute_result<>{}, wide);
+
+    REQUIRE_THROWS_AS(this->partial_compute(desc, partial, narrow), invalid_argument);
+    REQUIRE_NOTHROW(this->partial_compute(desc, partial, wide));
+}
+
 } // namespace oneapi::dal::basic_statistics::test

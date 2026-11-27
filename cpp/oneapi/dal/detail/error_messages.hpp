@@ -171,10 +171,12 @@ public:
     MSG(accuracy_threshold_lt_zero);
     MSG(class_count_leq_one);
     MSG(conv_tol_lt_zero);
+    MSG(input_data_cc_neq_partial_result_cc);
     MSG(input_data_is_empty);
     MSG(input_data_rc_neq_input_responses_rc);
     MSG(input_data_rc_neq_input_weights_rc);
     MSG(input_responses_are_empty);
+    MSG(input_responses_cc_neq_partial_result_cc);
     MSG(input_responses_contain_only_one_unique_value_expect_two);
     MSG(input_responses_contain_wrong_unique_values_count_expect_two);
     MSG(input_responses_table_has_wrong_cc_expect_one);
