@@ -33,9 +33,6 @@
 
 /// Welford's update of one column's running moments with the observation `x`. The count is
 /// always kept: it gives the number of implicit zeros of the column.
-///
-/// @tparam withSum  Whether the sum of the column is kept
-template <bool withSum>
 inline void addObservation(double * const col, const double x)
 {
     const double c = col[slotCount] + 1.0;
@@ -44,10 +41,6 @@ inline void addObservation(double * const col, const double x)
     const double delta = x - col[slotMean];
     col[slotMean] += delta / c;
     col[slotM2] += delta * (x - col[slotMean]);
-#endif
-    if (withSum) col[slotSum] += x;
-#ifdef _CSR_SUM2_ENABLE_
-    col[slotSumSq] += x * x;
 #endif
 #ifdef _MIN_ENABLE_
     col[slotMin] = x < col[slotMin] ? x : col[slotMin];
@@ -60,28 +53,18 @@ inline void addObservation(double * const col, const double x)
 /// Moments of all rows of a CSR table, from its stored values only. Each chunk runs Welford's
 /// update over its values; the chunks are merged, and the implicit zeros join as one final
 /// observation of value 0 and weight (nRows - nnz_j), as a weighted dense column would.
+/// The sum and the sum of squares are derived from the mean and the centered sum of squares.
 ///
-/// @tparam online         Whether the moments go to a partial result
 /// @param[in]  table      The CSR table
 /// @param[in]  userSums   Precomputed column sums used for the mean, or nullptr
 /// @param[out] moments    The moments of the enabled estimates; `sum` holds `userSums` when they are given
-template <typename algorithmFPType, CpuType cpu, bool online>
+template <typename algorithmFPType, CpuType cpu>
 Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatures, const algorithmFPType * userSums, Moments<cpu> & moments)
 {
     Status st;
     DAAL_CHECK_STATUS(st, moments.init(nFeatures));
     moments.nRows = nRows;
     if (nRows == 0) return st;
-
-    // The sum is a result of its own, or what an online partial result keeps for the mean.
-    // Static: MSVC rejects a captured local as a template argument inside the lambdas.
-#if defined _SUM_ENABLE_
-    static constexpr bool withSum = true;
-#elif defined _MEAN_ENABLE_
-    static constexpr bool withSum = online;
-#else
-    static constexpr bool withSum = false;
-#endif
 
     const size_t chunkRows = rowsPerChunk(nRows, nFeatures, table.getDataSize());
     const size_t nChunks   = (nRows + chunkRows - 1) / chunkRows;
@@ -102,10 +85,6 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
 #ifdef _CSR_CENTERED_ENABLE_
             col[slotMean] = 0.0;
             col[slotM2]   = 0.0;
-#endif
-            if (withSum) col[slotSum] = 0.0;
-#ifdef _CSR_SUM2_ENABLE_
-            col[slotSumSq] = 0.0;
 #endif
 #ifdef _MIN_ENABLE_
             col[slotMin] = MaxVal<double>::get();
@@ -149,7 +128,7 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
                     {
                         x += values[k];
                     }
-                    addObservation<withSum>(a + (j - 1) * slotsPerColumn, x);
+                    addObservation(a + (j - 1) * slotsPerColumn, x);
                 }
                 continue;
             }
@@ -170,7 +149,7 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
             {
                 const size_t j = cols[k] - 1;
                 if (seenRow[j] != r) continue;
-                addObservation<withSum>(a + j * slotsPerColumn, pending[j]);
+                addObservation(a + j * slotsPerColumn, pending[j]);
                 seenRow[j] = noRow;
             }
         }
@@ -183,12 +162,9 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
     daal::threader_for(nColumnBlocks, 1, [&](size_t iBlock) {
         const size_t jBegin = iBlock * columnsPerTask;
         const size_t width  = (jBegin + columnsPerTask > nFeatures) ? nFeatures - jBegin : columnsPerTask;
-        double c[columnsPerTask], s[columnsPerTask];
+        double c[columnsPerTask];
 #ifdef _CSR_CENTERED_ENABLE_
         double m[columnsPerTask], m2[columnsPerTask];
-#endif
-#ifdef _CSR_SUM2_ENABLE_
-        double s2[columnsPerTask];
 #endif
 #ifdef _MIN_ENABLE_
         double lo[columnsPerTask];
@@ -206,10 +182,6 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
 #ifdef _CSR_CENTERED_ENABLE_
             m[t]  = col[slotMean];
             m2[t] = col[slotM2];
-#endif
-            if (withSum) s[t] = col[slotSum];
-#ifdef _CSR_SUM2_ENABLE_
-            s2[t] = col[slotSumSq];
 #endif
 #ifdef _MIN_ENABLE_
             lo[t] = col[slotMin];
@@ -229,10 +201,6 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
                 mergeMoments(c[t], m[t], m2[t], col[slotCount], col[slotMean], col[slotM2]);
 #else
                 c[t] += col[slotCount];
-#endif
-                if (withSum) s[t] += col[slotSum];
-#ifdef _CSR_SUM2_ENABLE_
-                s2[t] += col[slotSumSq];
 #endif
 #ifdef _MIN_ENABLE_
                 lo[t] = col[slotMin] < lo[t] ? col[slotMin] : lo[t];
@@ -267,7 +235,6 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
                 const double userMean = double(userSums[jBegin + t]) * invN;
                 m2[t] += n * (m[t] - userMean) * (m[t] - userMean);
                 m[t] = userMean;
-                if (withSum) s[t] = double(userSums[jBegin + t]);
             }
         }
 #endif
@@ -278,10 +245,10 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
 #ifdef _CSR_CENTERED_ENABLE_
             moments.mean[jBegin + t]     = m[t];
             moments.sumSqCen[jBegin + t] = m2[t];
-#endif
-            if (withSum) moments.sum[jBegin + t] = s[t];
-#ifdef _CSR_SUM2_ENABLE_
-            moments.sumSq[jBegin + t] = s2[t];
+            moments.sum[jBegin + t]      = userSums ? double(userSums[jBegin + t]) : m[t] * n;
+    #ifdef _CSR_SUM2_ENABLE_
+            moments.sumSq[jBegin + t] = m2[t] + n * m[t] * m[t];
+    #endif
 #endif
 #ifdef _MIN_ENABLE_
             moments.min[jBegin + t] = lo[t];
@@ -313,7 +280,7 @@ Status computeBatch(NumericTable * dataTable, Result * result)
 #endif
 
     Moments<cpu> m;
-    DAAL_CHECK_STATUS(st, (computeMoments<algorithmFPType, cpu, false>(*csr, nRows, nFeatures, userSums.get(), m)));
+    DAAL_CHECK_STATUS(st, (computeMoments<algorithmFPType, cpu>(*csr, nRows, nFeatures, userSums.get(), m)));
     if (nRows == 0) return st;
 
     WriteOnlyRows<algorithmFPType, cpu> out[lastResultId + 1];
@@ -389,7 +356,7 @@ Status computeOnline(NumericTable * dataTable, PartialResult * partialResult, bo
 #endif
 
     Moments<cpu> m;
-    DAAL_CHECK_STATUS(st, (computeMoments<algorithmFPType, cpu, true>(*csr, nRows, nFeatures, userSums.get(), m)));
+    DAAL_CHECK_STATUS(st, (computeMoments<algorithmFPType, cpu>(*csr, nRows, nFeatures, userSums.get(), m)));
 
     WriteRows<algorithmFPType, cpu> part[lastPartialResultId + 1];
     algorithmFPType * res[lastPartialResultId + 1];

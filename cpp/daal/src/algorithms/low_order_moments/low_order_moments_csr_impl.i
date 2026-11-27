@@ -80,8 +80,6 @@ enum ColumnSlot
     slotCount = 0,
     slotMean,
     slotM2,
-    slotSum,
-    slotSumSq,
     slotMin,
     slotMax,
     slotsPerColumn = 8
