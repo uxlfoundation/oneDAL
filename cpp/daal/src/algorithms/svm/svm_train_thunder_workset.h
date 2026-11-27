@@ -104,7 +104,7 @@ struct TaskWorkingSet
             const size_t endRow   = (iBlock != nBlocks - 1) ? startRow + blockSize : _nVectors;
             for (size_t i = startRow; i < endRow; ++i)
             {
-                sortedFIndices[i].value = f[i];
+                sortedFIndices[i].key   = f[i];
                 sortedFIndices[i].index = i;
             }
         });

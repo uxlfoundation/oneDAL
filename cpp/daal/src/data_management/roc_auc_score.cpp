@@ -58,7 +58,7 @@ services::Status rocAucScoreImpl(const NumericTablePtr & truePrediction, const N
         for (size_t i = 0; i < blockSize; ++i)
         {
             const size_t idx   = blockBegin + i;
-            predict[idx].value = testPredictionPtr[idx];
+            predict[idx].key   = testPredictionPtr[idx];
             predict[idx].index = idx;
         }
     });
@@ -73,7 +73,7 @@ services::Status rocAucScoreImpl(const NumericTablePtr & truePrediction, const N
     while (i < nElements)
     {
         size_t j = i;
-        while ((j < (nElements - 1)) && (predict[j].value == predict[j + 1].value))
+        while ((j < (nElements - 1)) && (predict[j].key == predict[j + 1].key))
         {
             j++;
         }
