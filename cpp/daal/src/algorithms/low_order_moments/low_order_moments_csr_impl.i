@@ -80,8 +80,6 @@ enum ColumnSlot
     slotCount = 0,
     slotMean,
     slotM2,
-    slotSum,
-    slotSumSq,
     slotMin,
     slotMax,
     slotsPerColumn = 8
@@ -113,6 +111,32 @@ inline size_t rowsPerChunk(size_t nRows, size_t nFeatures, size_t nnz)
     nChunks                = nChunks > maxChunks ? maxChunks : nChunks;
     nChunks                = nChunks > nRows ? nRows : nChunks;
     return (nRows + nChunks - 1) / nChunks;
+}
+
+/// Splits the columns of the row chunks into blocks for the fastCSR tiles when the chunks leave
+/// most threads idle, about one tile per thread. A tile costs more than its share of the chunk,
+/// so the chunks are not split when they occupy the threads. The split keeps the order of the
+/// updates of every column, so it does not change the result.
+///
+/// @param[in]  nRows      Number of rows
+/// @param[in]  nFeatures  Number of columns
+/// @param[in]  nnz        Number of stored values
+/// @param[in]  nChunks    Number of row chunks
+/// @param[in]  nThreads   Number of threads
+/// @return     Number of column blocks; 1 when the chunks are not split
+inline size_t columnBlocks(size_t nRows, size_t nFeatures, size_t nnz, size_t nChunks, size_t nThreads)
+{
+    // A tile pays for the pass over the indices that finds its ranges from a few thousand values.
+    constexpr size_t minValuesPerTile = 4096;
+    if (nChunks * 4 > nThreads) return 1;
+    size_t nBlocks = (nThreads + nChunks - 1) / nChunks;
+    // A block is a separate range of each row; more blocks than values per row only add ranges.
+    const size_t byRows   = nnz / nRows;
+    const size_t byValues = nnz / (minValuesPerTile * nChunks);
+    nBlocks               = nBlocks > byRows ? byRows : nBlocks;
+    nBlocks               = nBlocks > byValues ? byValues : nBlocks;
+    nBlocks               = nBlocks > nFeatures ? nFeatures : nBlocks;
+    return nBlocks < 1 ? 1 : nBlocks;
 }
 
 /// Merges the moments (cB, meanB, m2B) into (cA, meanA, m2A), Chan et al.; either side may be empty.

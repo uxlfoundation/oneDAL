@@ -110,12 +110,6 @@ struct tls_moments_data_t
 #ifdef _MEAN_ENABLE_
     algorithmFPType * mean;
 #endif
-#ifdef _SUM_ENABLE_
-    algorithmFPType * sum;
-#endif
-#ifdef _SUM2_ENABLE_
-    algorithmFPType * sum2;
-#endif
 #if defined _SUM2C_ENABLE_ || defined _VARC_ENABLE_ || defined _STDEV_ENABLE_ || defined _VART_ENABLE_
     algorithmFPType * varc;
 #endif
@@ -134,12 +128,6 @@ struct tls_moments_data_t
 #ifdef _MEAN_ENABLE_
         mean = daal::services::internal::service_scalable_calloc<algorithmFPType, cpu>(nFeatures);
 #endif
-#ifdef _SUM_ENABLE_
-        sum = daal::services::internal::service_scalable_calloc<algorithmFPType, cpu>(nFeatures);
-#endif
-#ifdef _SUM2_ENABLE_
-        sum2 = daal::services::internal::service_scalable_calloc<algorithmFPType, cpu>(nFeatures);
-#endif
 #if defined _SUM2C_ENABLE_ || defined _VARC_ENABLE_ || defined _STDEV_ENABLE_ || defined _VART_ENABLE_
         varc = daal::services::internal::service_scalable_calloc<algorithmFPType, cpu>(nFeatures);
 #endif
@@ -153,12 +141,6 @@ struct tls_moments_data_t
         if (
 #ifdef _MEAN_ENABLE_
             (!mean) ||
-#endif
-#ifdef _SUM_ENABLE_
-            (!sum) ||
-#endif
-#ifdef _SUM2_ENABLE_
-            (!sum2) ||
 #endif
 #if defined _SUM2C_ENABLE_ || defined _VARC_ENABLE_ || defined _STDEV_ENABLE_ || defined _VART_ENABLE_
             (!varc) ||
@@ -194,20 +176,6 @@ struct tls_moments_data_t
         {
             daal::services::internal::service_scalable_free<algorithmFPType, cpu>(mean);
             mean = 0;
-        }
-#endif
-#ifdef _SUM_ENABLE_
-        if (sum)
-        {
-            daal::services::internal::service_scalable_free<algorithmFPType, cpu>(sum);
-            sum = 0;
-        }
-#endif
-#ifdef _SUM2_ENABLE_
-        if (sum2)
-        {
-            daal::services::internal::service_scalable_free<algorithmFPType, cpu>(sum2);
-            sum2 = 0;
         }
 #endif
 #if defined _SUM2C_ENABLE_ || defined _VARC_ENABLE_ || defined _STDEV_ENABLE_ || defined _VART_ENABLE_
@@ -283,9 +251,6 @@ Status compute_estimates(NumericTable * dataTable, Result * result)
                 for (size_t j = 0; j < _cd.nFeatures; j++)
                 {
                     const algorithmFPType arg = argi[j];
-#if (defined _SUM2_ENABLE_ || defined _SORM_ENABLE_)
-                    const algorithmFPType arg2 = arg * arg;
-#endif
 #if defined _MEAN_ENABLE_ || defined _SUM2C_ENABLE_ || defined _VARC_ENABLE_ || defined _STDEV_ENABLE_ || defined _VART_ENABLE_
                     const algorithmFPType delta = arg - _td->mean[j];
 #endif
@@ -295,13 +260,6 @@ Status compute_estimates(NumericTable * dataTable, Result * result)
 #endif
 #ifdef _MAX_ENABLE_
                     _td->max[j] = arg > _td->max[j] ? arg : _td->max[j];
-#endif
-
-#ifdef _SUM_ENABLE_
-                    _td->sum[j] += arg;
-#endif
-#if (defined _SUM2_ENABLE_ || defined _SORM_ENABLE_)
-                    _td->sum2[j] += arg2;
 #endif
 
 #ifdef _MEAN_ENABLE_
@@ -384,12 +342,6 @@ Status compute_estimates(NumericTable * dataTable, Result * result)
     #endif
 #endif
 
-#ifdef _SUM_ENABLE_
-                        _sum[j] += _td->sum[j]; /* merging sums */
-#endif
-#ifdef _SUM2_ENABLE_
-                        _sum2[j] += _td->sum2[j]; /* merging sum2 */
-#endif
 #if defined _SUM2C_ENABLE_ || defined _VARC_ENABLE_ || defined _STDEV_ENABLE_ || defined _VART_ENABLE_
                         _sum2c[j] = (_td->varc[j] + _varc[j] * (n_current - 1) + delta * delta * delta_scale); /* merging _sum2c */
 #endif
@@ -419,12 +371,6 @@ Status compute_estimates(NumericTable * dataTable, Result * result)
                     _mean[j] = (_mean[j] * n_current + _td->mean[j] * _td->nvectors) * mean_scale; /* merging means */
 #endif
 
-#ifdef _SUM_ENABLE_
-                    _sum[j] += _td->sum[j]; /* merging sums */
-#endif
-#ifdef _SUM2_ENABLE_
-                    _sum2[j] += _td->sum2[j]; /* merging sum2 */
-#endif
 #if defined _SUM2C_ENABLE_ || defined _VARC_ENABLE_ || defined _STDEV_ENABLE_ || defined _VART_ENABLE_
                     _sum2c[j] = (_td->varc[j] + _varc[j] * (n_current - 1) + delta * delta * delta_scale); /* merging _sum2c */
 #endif
@@ -456,20 +402,31 @@ Status compute_estimates(NumericTable * dataTable, Result * result)
         daal::internal::MathInst<algorithmFPType, cpu>::vSqrt(_cd.nFeatures, &_varc[0], &_stdev[0]);
 #endif /* #if (defined _STDEV_ENABLE_ || defined _VART_ENABLE_) */
 
-#if (defined _VART_ENABLE_ || defined _SORM_ENABLE_)
-        const algorithmFPType _invN = algorithmFPType(1.0) / algorithmFPType(_cd.nVectors);
+        /* The sums are derived from the mean and the centered sum of squares, not accumulated per row */
+#if (defined _SUM_ENABLE_ || defined _SUM2_ENABLE_ || defined _SORM_ENABLE_ || defined _VART_ENABLE_)
+        const algorithmFPType _n    = algorithmFPType(_cd.nVectors);
+        const algorithmFPType _invN = algorithmFPType(1.0) / _n;
         PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t j = 0; j < _cd.nFeatures; j++)
         {
+    #ifdef _SUM_ENABLE_
+            _sum[j] = _mean[j] * _n;
+    #endif
+    #if (defined _SUM2_ENABLE_ || defined _SORM_ENABLE_)
+            const algorithmFPType sum2j = _sum2c[j] + _n * _mean[j] * _mean[j];
+    #endif
+    #ifdef _SUM2_ENABLE_
+            _sum2[j] = sum2j;
+    #endif
     #ifdef _SORM_ENABLE_
-            _sorm[j] = _sum2[j] * _invN;
+            _sorm[j] = sum2j * _invN;
     #endif
     #ifdef _VART_ENABLE_
             _vart[j] = _stdev[j] / _mean[j];
     #endif
         }
-#endif /* #if (defined _VART_ENABLE_ || defined _SORM_ENABLE_) */
+#endif
     } /* end for DAAL_PROFILER_TASK(LowOrderMomentsBatchTask.MergeBlocks); */
 
     return Status();

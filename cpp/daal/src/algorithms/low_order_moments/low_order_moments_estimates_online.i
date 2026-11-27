@@ -113,12 +113,6 @@ struct tls_moments_data_t
 #if (defined _MEAN_ENABLE_) || (defined _VARC_ENABLE_)
     algorithmFPType * mean;
 #endif
-#if (defined _SUM_ENABLE_) || (defined _MEAN_ENABLE_)
-    algorithmFPType * sum;
-#endif
-#if (defined _SUM2_ENABLE_) || (defined _SORM_ENABLE_)
-    algorithmFPType * sum2;
-#endif
 #if (defined _VARC_ENABLE_) || (defined _STDEV_ENABLE_) || (defined _VART_ENABLE_)
     algorithmFPType * varc;
 #endif
@@ -137,12 +131,6 @@ struct tls_moments_data_t
 #if (defined _MEAN_ENABLE_) || (defined _VARC_ENABLE_)
         mean = daal::services::internal::service_scalable_calloc<algorithmFPType, cpu>(nFeatures);
 #endif
-#if (defined _SUM_ENABLE_) || (defined _MEAN_ENABLE_)
-        sum = daal::services::internal::service_scalable_calloc<algorithmFPType, cpu>(nFeatures);
-#endif
-#if (defined _SUM2_ENABLE_) || (defined _SORM_ENABLE_)
-        sum2 = daal::services::internal::service_scalable_calloc<algorithmFPType, cpu>(nFeatures);
-#endif
 #if (defined _VARC_ENABLE_) || (defined _STDEV_ENABLE_) || (defined _VART_ENABLE_)
         varc = daal::services::internal::service_scalable_calloc<algorithmFPType, cpu>(nFeatures);
 #endif
@@ -156,12 +144,6 @@ struct tls_moments_data_t
         if (
 #if (defined _MEAN_ENABLE_) || (defined _VARC_ENABLE_)
             (!mean) ||
-#endif
-#if (defined _SUM_ENABLE_) || (defined _MEAN_ENABLE_)
-            (!sum) ||
-#endif
-#if (defined _SUM2_ENABLE_) || (defined _SORM_ENABLE_)
-            (!sum2) ||
 #endif
 #if (defined _VARC_ENABLE_) || (defined _STDEV_ENABLE_) || (defined _VART_ENABLE_)
             (!varc) ||
@@ -197,20 +179,6 @@ struct tls_moments_data_t
         {
             daal::services::internal::service_scalable_free<algorithmFPType, cpu>(mean);
             mean = 0;
-        }
-#endif
-#if (defined _SUM_ENABLE_) || (defined _MEAN_ENABLE_)
-        if (sum)
-        {
-            daal::services::internal::service_scalable_free<algorithmFPType, cpu>(sum);
-            sum = 0;
-        }
-#endif
-#if (defined _SUM2_ENABLE_) || (defined _SORM_ENABLE_)
-        if (sum2)
-        {
-            daal::services::internal::service_scalable_free<algorithmFPType, cpu>(sum2);
-            sum2 = 0;
         }
 #endif
 #if (defined _VARC_ENABLE_) || (defined _STDEV_ENABLE_) || (defined _VART_ENABLE_)
@@ -317,9 +285,6 @@ Status compute_estimates(NumericTable * dataTable, PartialResult * partialResult
                 {
                     const algorithmFPType arg = _dataArray_block[i * _cd.nFeatures + j];
 
-#if defined _SUM2_ENABLE_ || defined _SORM_ENABLE_
-                    const algorithmFPType arg2 = arg * arg;
-#endif
 #if defined _MEAN_ENABLE_ || defined _SUM2C_ENABLE_ || defined _VARC_ENABLE_ || defined _STDEV_ENABLE_ || defined _VART_ENABLE_
                     const algorithmFPType delta = arg - _td->mean[j];
 #endif
@@ -328,12 +293,6 @@ Status compute_estimates(NumericTable * dataTable, PartialResult * partialResult
 #endif
 #ifdef _MAX_ENABLE_
                     _td->max[j] = arg > _td->max[j] ? arg : _td->max[j];
-#endif
-#if (defined _SUM_ENABLE_) || (defined _MEAN_ENABLE_)
-                    _td->sum[j] += arg;
-#endif
-#ifdef _SUM2_ENABLE_
-                    _td->sum2[j] += arg2;
 #endif
 #ifdef _MEAN_ENABLE_
                     _td->mean[j] += delta * _invN;
@@ -389,12 +348,6 @@ Status compute_estimates(NumericTable * dataTable, PartialResult * partialResult
 #ifdef _MAX_ENABLE_
                 if (_td->max[j] > _max[j]) _max[j] = _td->max[j]; /* merging _max */
 #endif
-#if (defined _SUM_ENABLE_) || (defined _MEAN_ENABLE_)
-                _sums[j] += _td->sum[j]; /* merging _sums */
-#endif
-#ifdef _SUM2_ENABLE_
-                _sumSq[j] += _td->sum2[j]; /* merging sum2 */
-#endif
 #if defined _VARC_ENABLE_ || defined _STDEV_ENABLE_ || defined _VART_ENABLE_
                 _cd.variance[j] =
                     (_td->varc[j] + _cd.variance[j] * (n_current - 1) + delta * delta * delta_scale) * variance_scale; /* merging variances */
@@ -411,6 +364,28 @@ Status compute_estimates(NumericTable * dataTable, PartialResult * partialResult
 
         if (bMemoryAllocationFailed) return Status(daal::services::ErrorMemoryAllocationFailed);
         DAAL_CHECK_SAFE_STATUS();
+
+        /* The sums of the block are derived from its mean and variance, not accumulated per row */
+#if (defined _SUM_ENABLE_) || (defined _MEAN_ENABLE_) || (defined _SUM2_ENABLE_)
+        {
+            const algorithmFPType nBlock = algorithmFPType(_cd.nVectors);
+    #ifdef _SUM2_ENABLE_
+            /* The variance of one row is NaN after the merge above, while its centered sum of squares is exactly 0 */
+            const algorithmFPType nBlockM1 = algorithmFPType(_cd.nVectors) - algorithmFPType(1.0);
+            const bool blockHasSpread      = (_cd.nVectors > 1);
+    #endif
+            PRAGMA_OMP_SIMD
+            PRAGMA_VECTOR_ALWAYS
+            for (size_t i = 0; i < _cd.nFeatures; i++)
+            {
+    #ifdef _SUM2_ENABLE_
+                const algorithmFPType blockSumSqCen = blockHasSpread ? _cd.variance[i] * nBlockM1 : algorithmFPType(0);
+                _sumSq[i] += blockSumSqCen + nBlock * _cd.mean[i] * _cd.mean[i];
+    #endif
+                _sums[i] = _cd.mean[i] * nBlock;
+            }
+        }
+#endif
 
         if (isOnline)
         {

@@ -33,9 +33,6 @@
 
 /// Welford's update of one column's running moments with the observation `x`. The count is
 /// always kept: it gives the number of implicit zeros of the column.
-///
-/// @tparam withSum  Whether the sum of the column is kept
-template <bool withSum>
 inline void addObservation(double * const col, const double x)
 {
     const double c = col[slotCount] + 1.0;
@@ -45,10 +42,6 @@ inline void addObservation(double * const col, const double x)
     col[slotMean] += delta / c;
     col[slotM2] += delta * (x - col[slotMean]);
 #endif
-    if (withSum) col[slotSum] += x;
-#ifdef _CSR_SUM2_ENABLE_
-    col[slotSumSq] += x * x;
-#endif
 #ifdef _MIN_ENABLE_
     col[slotMin] = x < col[slotMin] ? x : col[slotMin];
 #endif
@@ -57,34 +50,142 @@ inline void addObservation(double * const col, const double x)
 #endif
 }
 
+/// Starts the running moments of the columns [jBegin, jEnd) of a chunk.
+inline void initColumns(double * const a, const size_t jBegin, const size_t jEnd)
+{
+    PRAGMA_OMP_SIMD
+    for (size_t j = jBegin; j < jEnd; j++)
+    {
+        double * const col = a + j * slotsPerColumn;
+        col[slotCount]     = 0.0;
+#ifdef _CSR_CENTERED_ENABLE_
+        col[slotMean] = 0.0;
+        col[slotM2]   = 0.0;
+#endif
+#ifdef _MIN_ENABLE_
+        col[slotMin] = MaxVal<double>::get();
+#endif
+#ifdef _MAX_ENABLE_
+        col[slotMax] = -MaxVal<double>::get();
+#endif
+    }
+}
+
+/// Adds all values of the rows of a chunk to its running moments. Values of a column repeated
+/// in a row are summed, as in the dense row: sorted rows sum the adjacent repeats, the others go
+/// through a per-column scratch.
+///
+/// @param[in,out] a           Running moments of the chunk, slotsPerColumn values per column
+/// @param[in]     values      Stored values of the chunk
+/// @param[in]     cols        One-based column indices of the stored values
+/// @param[in]     rowOffsets  One-based row offsets of the chunk, rows + 1 values
+/// @param[in]     rows        Number of rows in the chunk
+/// @param[in]     nFeatures   Number of columns
+template <typename algorithmFPType, CpuType cpu>
+Status accumulateRows(double * const a, const algorithmFPType * const values, const size_t * const cols, const size_t * const rowOffsets,
+                      const size_t rows, const size_t nFeatures)
+{
+    TArrayScalable<size_t, cpu> seenRow;
+    TArrayScalable<double, cpu> pending;
+    for (size_t r = 0; r < rows; r++)
+    {
+        const size_t begin = rowOffsets[r] - rowOffsets[0];
+        const size_t end   = rowOffsets[r + 1] - rowOffsets[0];
+        bool sorted        = true;
+        for (size_t k = begin + 1; k < end && sorted; k++)
+        {
+            sorted = cols[k - 1] <= cols[k];
+        }
+        if (sorted)
+        {
+            for (size_t k = begin; k < end;)
+            {
+                const size_t j = cols[k];
+                double x       = values[k];
+                while (++k < end && cols[k] == j)
+                {
+                    x += values[k];
+                }
+                addObservation(a + (j - 1) * slotsPerColumn, x);
+            }
+            continue;
+        }
+        if (!seenRow.get())
+        {
+            seenRow.reset(nFeatures);
+            pending.reset(nFeatures);
+            DAAL_CHECK_MALLOC(seenRow.get() && pending.get());
+            services::internal::service_memset_seq<size_t, cpu>(seenRow.get(), noRow, nFeatures);
+        }
+        for (size_t k = begin; k < end; k++)
+        {
+            const size_t j = cols[k] - 1;
+            pending[j]     = (seenRow[j] == r) ? pending[j] + values[k] : double(values[k]);
+            seenRow[j]     = r;
+        }
+        for (size_t k = begin; k < end; k++)
+        {
+            const size_t j = cols[k] - 1;
+            if (seenRow[j] != r) continue;
+            addObservation(a + j * slotsPerColumn, pending[j]);
+            seenRow[j] = noRow;
+        }
+    }
+    return Status();
+}
+
+/// Adds the values of one column block of the rows of a chunk to its running moments. For each
+/// row the block is a range of stored values found by the pre-pass, so this is the same sequence
+/// of updates as accumulateRows.
+///
+/// @param[in,out] a       Running moments of the chunk, slotsPerColumn values per column
+/// @param[in]     values  Stored values of the chunk
+/// @param[in]     cols    One-based column indices of the stored values
+/// @param[in]     begins  First stored value of the block in each row, from the chunk start
+/// @param[in]     ends    Stored value past the last one of the block in each row
+/// @param[in]     rows    Number of rows in the chunk
+template <typename algorithmFPType>
+void accumulateTile(double * const a, const algorithmFPType * const values, const size_t * const cols, const uint32_t * const begins,
+                    const uint32_t * const ends, const size_t rows)
+{
+    for (size_t r = 0; r < rows; r++)
+    {
+        const size_t end = ends[r];
+        for (size_t k = begins[r]; k < end;)
+        {
+            const size_t j = cols[k];
+            double x       = values[k];
+            while (++k < end && cols[k] == j)
+            {
+                x += values[k];
+            }
+            addObservation(a + (j - 1) * slotsPerColumn, x);
+        }
+    }
+}
+
 /// Moments of all rows of a CSR table, from its stored values only. Each chunk runs Welford's
 /// update over its values; the chunks are merged, and the implicit zeros join as one final
 /// observation of value 0 and weight (nRows - nnz_j), as a weighted dense column would.
+/// The sum and the sum of squares are derived from the mean and the centered sum of squares.
 ///
-/// @tparam online         Whether the moments go to a partial result
 /// @param[in]  table      The CSR table
 /// @param[in]  userSums   Precomputed column sums used for the mean, or nullptr
+/// @param[in]  tiled      Splits the columns of each chunk into tiles that run in parallel
 /// @param[out] moments    The moments of the enabled estimates; `sum` holds `userSums` when they are given
-template <typename algorithmFPType, CpuType cpu, bool online>
-Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatures, const algorithmFPType * userSums, Moments<cpu> & moments)
+template <typename algorithmFPType, CpuType cpu>
+Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatures, const algorithmFPType * userSums, bool tiled,
+                      Moments<cpu> & moments)
 {
     Status st;
     DAAL_CHECK_STATUS(st, moments.init(nFeatures));
     moments.nRows = nRows;
     if (nRows == 0) return st;
 
-    // The sum is a result of its own, or what an online partial result keeps for the mean.
-    // Static: MSVC rejects a captured local as a template argument inside the lambdas.
-#if defined _SUM_ENABLE_
-    static constexpr bool withSum = true;
-#elif defined _MEAN_ENABLE_
-    static constexpr bool withSum = online;
-#else
-    static constexpr bool withSum = false;
-#endif
-
-    const size_t chunkRows = rowsPerChunk(nRows, nFeatures, table.getDataSize());
+    const size_t nnzTotal  = table.getDataSize();
+    const size_t chunkRows = rowsPerChunk(nRows, nFeatures, nnzTotal);
     const size_t nChunks   = (nRows + chunkRows - 1) / chunkRows;
+    const size_t nBlocks   = tiled ? columnBlocks(nRows, nFeatures, nnzTotal, nChunks, threader_get_threads_number()) : 1;
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nFeatures, slotsPerColumn);
     const size_t stride = nFeatures * slotsPerColumn;
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nChunks, stride);
@@ -92,90 +193,108 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
     DAAL_CHECK_MALLOC(acc.get());
 
     SafeStatus safeStat;
-    daal::threader_for(nChunks, 1, [&](size_t iChunk) {
-        double * const a = acc.get() + iChunk * stride;
-        PRAGMA_OMP_SIMD
-        for (size_t j = 0; j < nFeatures; j++)
-        {
-            double * const col = a + j * slotsPerColumn;
-            col[slotCount]     = 0.0;
-#ifdef _CSR_CENTERED_ENABLE_
-            col[slotMean] = 0.0;
-            col[slotM2]   = 0.0;
-#endif
-            if (withSum) col[slotSum] = 0.0;
-#ifdef _CSR_SUM2_ENABLE_
-            col[slotSumSq] = 0.0;
-#endif
-#ifdef _MIN_ENABLE_
-            col[slotMin] = MaxVal<double>::get();
-#endif
-#ifdef _MAX_ENABLE_
-            col[slotMax] = -MaxVal<double>::get();
-#endif
-        }
+    if (nBlocks == 1)
+    {
+        daal::threader_for(nChunks, 1, [&](size_t iChunk) {
+            double * const a = acc.get() + iChunk * stride;
+            initColumns(a, 0, nFeatures);
+            const size_t start = iChunk * chunkRows;
+            const size_t rows  = (start + chunkRows > nRows) ? nRows - start : chunkRows;
+            ReadRowsCSR<algorithmFPType, cpu> block(&table, start, rows);
+            DAAL_CHECK_BLOCK_STATUS_THR(block);
+            const size_t nnz = block.rows()[rows] - block.rows()[0];
+            // A sparse block can report success with no buffer when converting the value type fails to allocate.
+            DAAL_CHECK_THR(nnz == 0 || (block.values() && block.cols()), ErrorMemoryAllocationFailed);
+            safeStat |= accumulateRows<algorithmFPType, cpu>(a, block.values(), block.cols(), block.rows(), rows, nFeatures);
+        });
+        DAAL_CHECK_SAFE_STATUS();
+    }
+    else
+    {
+        /* Tiles of a chunk share its rows, read once */
+        TArray<ReadRowsCSR<algorithmFPType, cpu>, cpu> blocks(nChunks);
+        DAAL_CHECK_MALLOC(blocks.get());
+        daal::threader_for(nChunks, 1, [&](size_t iChunk) {
+            const size_t start = iChunk * chunkRows;
+            const size_t rows  = (start + chunkRows > nRows) ? nRows - start : chunkRows;
+            blocks[iChunk].set(&table, start, rows);
+            DAAL_CHECK_BLOCK_STATUS_THR(blocks[iChunk]);
+            const size_t nnz = blocks[iChunk].rows()[rows] - blocks[iChunk].rows()[0];
+            DAAL_CHECK_THR(nnz == 0 || (blocks[iChunk].values() && blocks[iChunk].cols()), ErrorMemoryAllocationFailed);
+        });
+        DAAL_CHECK_SAFE_STATUS();
 
-        const size_t start = iChunk * chunkRows;
-        const size_t rows  = (start + chunkRows > nRows) ? nRows - start : chunkRows;
-        ReadRowsCSR<algorithmFPType, cpu> block(&table, start, rows);
-        DAAL_CHECK_BLOCK_STATUS_THR(block);
-        const algorithmFPType * const values = block.values();
-        const size_t * const cols            = block.cols();
-        const size_t nnz                     = block.rows()[rows] - block.rows()[0];
-        // A sparse block can report success with no buffer when converting the value type fails to allocate.
-        DAAL_CHECK_THR(nnz == 0 || (values && cols), ErrorMemoryAllocationFailed);
-
-        // Values of a column repeated in a row are summed, as in the dense row. Rows with sorted
-        // indices sum the adjacent repeats; the others go through a per-column scratch.
-        const size_t * const rowOffsets = block.rows();
-        TArrayScalable<size_t, cpu> seenRow;
-        TArrayScalable<double, cpu> pending;
-        for (size_t r = 0; r < rows; r++)
-        {
-            const size_t begin = rowOffsets[r] - rowOffsets[0];
-            const size_t end   = rowOffsets[r + 1] - rowOffsets[0];
-            bool sorted        = true;
-            for (size_t k = begin + 1; k < end && sorted; k++)
+        /* Bounds of each block in each row, block by block, so that a tile reads two sequential arrays */
+        const size_t blockWidth     = (nFeatures + nBlocks - 1) / nBlocks;
+        const size_t piecesPerChunk = nBlocks;
+        const size_t pieceRows      = (chunkRows + piecesPerChunk - 1) / piecesPerChunk;
+        const size_t nPieces        = nChunks * piecesPerChunk;
+        DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nRows, nBlocks + 1);
+        TArrayScalable<uint32_t, cpu> bounds(nRows * (nBlocks + 1));
+        TArray<int, cpu> pieceUnsorted(nPieces);
+        TArray<int, cpu> unsorted(nChunks);
+        DAAL_CHECK_MALLOC(bounds.get() && pieceUnsorted.get() && unsorted.get());
+        daal::threader_for(nPieces, 1, [&](size_t iPiece) {
+            const size_t iChunk       = iPiece / piecesPerChunk;
+            const size_t start        = iChunk * chunkRows;
+            const size_t rows         = (iChunk + 1 == nChunks) ? nRows - start : chunkRows;
+            const size_t rBegin       = (iPiece % piecesPerChunk) * pieceRows;
+            const size_t rEnd         = (rBegin + pieceRows > rows) ? rows : rBegin + pieceRows;
+            const size_t * const offs = blocks[iChunk].rows();
+            const size_t * const cols = blocks[iChunk].cols();
+            // Offsets from the chunk start must fit the bounds; a larger chunk goes by rows.
+            bool sorted = offs[rows] - offs[0] <= size_t(MaxVal<uint32_t>::get());
+            for (size_t r = rBegin; r < rEnd && sorted; r++)
             {
-                sorted = cols[k - 1] <= cols[k];
-            }
-            if (sorted)
-            {
-                for (size_t k = begin; k < end;)
+                const size_t base = offs[r] - offs[0];
+                const size_t end  = offs[r + 1] - offs[0];
+                for (size_t k = base + 1; k < end; k++)
                 {
-                    const size_t j = cols[k];
-                    double x       = values[k];
-                    while (++k < end && cols[k] == j)
-                    {
-                        x += values[k];
-                    }
-                    addObservation<withSum>(a + (j - 1) * slotsPerColumn, x);
+                    sorted &= cols[k - 1] <= cols[k];
                 }
-                continue;
+                uint32_t * const bnd = bounds.get() + start + r;
+                size_t k             = base;
+                bnd[0]               = uint32_t(base);
+                for (size_t b = 1; b < nBlocks; b++)
+                {
+                    while (k < end && cols[k] <= b * blockWidth) k++;
+                    bnd[b * nRows] = uint32_t(k);
+                }
+                bnd[nBlocks * nRows] = uint32_t(end);
             }
-            if (!seenRow.get())
-            {
-                seenRow.reset(nFeatures);
-                pending.reset(nFeatures);
-                DAAL_CHECK_THR(seenRow.get() && pending.get(), ErrorMemoryAllocationFailed);
-                services::internal::service_memset_seq<size_t, cpu>(seenRow.get(), noRow, nFeatures);
-            }
-            for (size_t k = begin; k < end; k++)
-            {
-                const size_t j = cols[k] - 1;
-                pending[j]     = (seenRow[j] == r) ? pending[j] + values[k] : double(values[k]);
-                seenRow[j]     = r;
-            }
-            for (size_t k = begin; k < end; k++)
-            {
-                const size_t j = cols[k] - 1;
-                if (seenRow[j] != r) continue;
-                addObservation<withSum>(a + j * slotsPerColumn, pending[j]);
-                seenRow[j] = noRow;
-            }
+            pieceUnsorted[iPiece] = sorted ? 0 : 1;
+        });
+        for (size_t iChunk = 0; iChunk < nChunks; iChunk++)
+        {
+            int any = 0;
+            for (size_t p = 0; p < piecesPerChunk; p++) any |= pieceUnsorted[iChunk * piecesPerChunk + p];
+            unsorted[iChunk] = any;
         }
-    });
-    DAAL_CHECK_SAFE_STATUS();
+
+        /* A chunk with an unsorted row goes by rows; the others by tiles */
+        daal::threader_for(nChunks * nBlocks, 1, [&](size_t iTile) {
+            const size_t iChunk = iTile / nBlocks;
+            if (unsorted[iChunk]) return;
+            const size_t iBlock = iTile % nBlocks;
+            const size_t jBegin = iBlock * blockWidth;
+            const size_t jEnd   = (jBegin + blockWidth > nFeatures) ? nFeatures : jBegin + blockWidth;
+            const size_t start  = iChunk * chunkRows;
+            const size_t rows   = (iChunk + 1 == nChunks) ? nRows - start : chunkRows;
+            double * const a    = acc.get() + iChunk * stride;
+            if (jBegin < jEnd) initColumns(a, jBegin, jEnd);
+            const uint32_t * const begins = bounds.get() + iBlock * nRows + start;
+            accumulateTile(a, blocks[iChunk].values(), blocks[iChunk].cols(), begins, begins + nRows, rows);
+        });
+        daal::threader_for(nChunks, 1, [&](size_t iChunk) {
+            if (!unsorted[iChunk]) return;
+            const size_t rows = (iChunk + 1 == nChunks) ? nRows - iChunk * chunkRows : chunkRows;
+            double * const a  = acc.get() + iChunk * stride;
+            initColumns(a, 0, nFeatures);
+            safeStat |=
+                accumulateRows<algorithmFPType, cpu>(a, blocks[iChunk].values(), blocks[iChunk].cols(), blocks[iChunk].rows(), rows, nFeatures);
+        });
+        DAAL_CHECK_SAFE_STATUS();
+    }
 
     /* Merge the chunks in order, a block of columns per task, then add the implicit zeros */
     const size_t nColumnBlocks = (nFeatures + columnsPerTask - 1) / columnsPerTask;
@@ -183,12 +302,9 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
     daal::threader_for(nColumnBlocks, 1, [&](size_t iBlock) {
         const size_t jBegin = iBlock * columnsPerTask;
         const size_t width  = (jBegin + columnsPerTask > nFeatures) ? nFeatures - jBegin : columnsPerTask;
-        double c[columnsPerTask], s[columnsPerTask];
+        double c[columnsPerTask];
 #ifdef _CSR_CENTERED_ENABLE_
         double m[columnsPerTask], m2[columnsPerTask];
-#endif
-#ifdef _CSR_SUM2_ENABLE_
-        double s2[columnsPerTask];
 #endif
 #ifdef _MIN_ENABLE_
         double lo[columnsPerTask];
@@ -206,10 +322,6 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
 #ifdef _CSR_CENTERED_ENABLE_
             m[t]  = col[slotMean];
             m2[t] = col[slotM2];
-#endif
-            if (withSum) s[t] = col[slotSum];
-#ifdef _CSR_SUM2_ENABLE_
-            s2[t] = col[slotSumSq];
 #endif
 #ifdef _MIN_ENABLE_
             lo[t] = col[slotMin];
@@ -229,10 +341,6 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
                 mergeMoments(c[t], m[t], m2[t], col[slotCount], col[slotMean], col[slotM2]);
 #else
                 c[t] += col[slotCount];
-#endif
-                if (withSum) s[t] += col[slotSum];
-#ifdef _CSR_SUM2_ENABLE_
-                s2[t] += col[slotSumSq];
 #endif
 #ifdef _MIN_ENABLE_
                 lo[t] = col[slotMin] < lo[t] ? col[slotMin] : lo[t];
@@ -267,7 +375,6 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
                 const double userMean = double(userSums[jBegin + t]) * invN;
                 m2[t] += n * (m[t] - userMean) * (m[t] - userMean);
                 m[t] = userMean;
-                if (withSum) s[t] = double(userSums[jBegin + t]);
             }
         }
 #endif
@@ -278,10 +385,10 @@ Status computeMoments(CSRNumericTableIface & table, size_t nRows, size_t nFeatur
 #ifdef _CSR_CENTERED_ENABLE_
             moments.mean[jBegin + t]     = m[t];
             moments.sumSqCen[jBegin + t] = m2[t];
-#endif
-            if (withSum) moments.sum[jBegin + t] = s[t];
-#ifdef _CSR_SUM2_ENABLE_
-            moments.sumSq[jBegin + t] = s2[t];
+            moments.sum[jBegin + t]      = userSums ? double(userSums[jBegin + t]) : m[t] * n;
+    #ifdef _CSR_SUM2_ENABLE_
+            moments.sumSq[jBegin + t] = m2[t] + n * m[t] * m[t];
+    #endif
 #endif
 #ifdef _MIN_ENABLE_
             moments.min[jBegin + t] = lo[t];
@@ -313,7 +420,7 @@ Status computeBatch(NumericTable * dataTable, Result * result)
 #endif
 
     Moments<cpu> m;
-    DAAL_CHECK_STATUS(st, (computeMoments<algorithmFPType, cpu, false>(*csr, nRows, nFeatures, userSums.get(), m)));
+    DAAL_CHECK_STATUS(st, (computeMoments<algorithmFPType, cpu>(*csr, nRows, nFeatures, userSums.get(), method == fastCSR, m)));
     if (nRows == 0) return st;
 
     WriteOnlyRows<algorithmFPType, cpu> out[lastResultId + 1];
@@ -389,7 +496,7 @@ Status computeOnline(NumericTable * dataTable, PartialResult * partialResult, bo
 #endif
 
     Moments<cpu> m;
-    DAAL_CHECK_STATUS(st, (computeMoments<algorithmFPType, cpu, true>(*csr, nRows, nFeatures, userSums.get(), m)));
+    DAAL_CHECK_STATUS(st, (computeMoments<algorithmFPType, cpu>(*csr, nRows, nFeatures, userSums.get(), method == fastCSR, m)));
 
     WriteRows<algorithmFPType, cpu> part[lastPartialResultId + 1];
     algorithmFPType * res[lastPartialResultId + 1];
