@@ -77,11 +77,11 @@ static services::Status sortMstEdges(DAAL_INT * mstFrom, DAAL_INT * mstTo, algor
 
     for (size_t i = 0; i < edgeCount; i++)
     {
-        pairs[i].value = mstWeights[i];
+        pairs[i].key   = mstWeights[i];
         pairs[i].index = i;
     }
 
-    // IdxValType orders by value, then by index.
+    // IdxValType orders by key, then by index.
     daal::parallel_sort<algorithmFPType>(pairs, pairs + edgeCount);
 
     for (size_t i = 0; i < edgeCount; i++)
@@ -89,7 +89,7 @@ static services::Status sortMstEdges(DAAL_INT * mstFrom, DAAL_INT * mstTo, algor
         const size_t src = pairs[i].index;
         sortedFrom[i]    = mstFrom[src];
         sortedTo[i]      = mstTo[src];
-        mstWeights[i]    = pairs[i].value;
+        mstWeights[i]    = pairs[i].key;
     }
 
     const size_t idxBytes = edgeCount * sizeof(DAAL_INT);
