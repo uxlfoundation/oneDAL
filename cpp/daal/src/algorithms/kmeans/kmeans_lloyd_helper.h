@@ -35,6 +35,7 @@
 #include "src/externals/service_spblas.h"
 #include "src/services/service_data_utils.h"
 #include "src/services/service_environment.h"
+#include "src/algorithms/kmeans/kmeans_csr_helper.h"
 
 namespace daal
 {
