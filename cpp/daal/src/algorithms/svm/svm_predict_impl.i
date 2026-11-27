@@ -79,7 +79,10 @@ public:
             _kernel->getParameter()->computationMode = kernel_function::matrixMatrix;
         }
 
-        return _kernel->computeNoThrow();
+        // The kernel function can run a parallel loop, and a block stolen while waiting in it
+        // would reuse this thread's task and overwrite _buff.
+        daal::threader_isolate([&]() { status = _kernel->computeNoThrow(); });
+        return status;
     }
 
     const algorithmFPType * getBuff() const { return _buff.get(); }
