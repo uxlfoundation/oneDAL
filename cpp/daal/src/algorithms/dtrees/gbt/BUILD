@@ -1,8 +1,10 @@
-package(default_visibility = ["//visibility:public"])
-load("@onedal//dev/bazel:dal.bzl",
+load("@onedal//dev/bazel:daal.bzl", "daal_module")
+load(
+    "@onedal//dev/bazel:dal.bzl",
     "dal_collect_test_suites",
 )
-load("@onedal//dev/bazel:daal.bzl", "daal_module")
+
+package(default_visibility = ["//visibility:public"])
 
 daal_module(
     name = "kernel",
@@ -18,6 +20,6 @@ dal_collect_test_suites(
     name = "tests",
     root = "@onedal//cpp/daal/src/algorithms/dtrees/gbt",
     modules = [
-        "regression"
+        "regression",
     ],
 )

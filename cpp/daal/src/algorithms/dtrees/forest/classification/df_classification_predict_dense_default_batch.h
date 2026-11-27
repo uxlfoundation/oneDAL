@@ -74,8 +74,8 @@ public:
     PredictClassificationTask<algorithmFpType, cpu> * _task;
 
 private:
-    PredictKernel(const PredictKernel &);
-    PredictKernel & operator=(const PredictKernel &);
+    PredictKernel(const PredictKernel &)             = delete;
+    PredictKernel & operator=(const PredictKernel &) = delete;
 };
 
 } // namespace internal

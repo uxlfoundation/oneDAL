@@ -1,8 +1,10 @@
-package(default_visibility = ["//visibility:public"])
-load("@onedal//dev/bazel:dal.bzl",
-    "dal_test_suite",
+load(
+    "@onedal//dev/bazel:dal.bzl",
     "dal_collect_modules",
+    "dal_test_suite",
 )
+
+package(default_visibility = ["//visibility:public"])
 
 IOS = [
     "csv",

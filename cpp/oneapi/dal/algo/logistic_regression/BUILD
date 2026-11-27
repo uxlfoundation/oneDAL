@@ -1,8 +1,10 @@
-package(default_visibility = ["//visibility:public"])
-load("@onedal//dev/bazel:dal.bzl",
+load(
+    "@onedal//dev/bazel:dal.bzl",
     "dal_module",
     "dal_test_suite",
 )
+
+package(default_visibility = ["//visibility:public"])
 
 dal_module(
     name = "core",
@@ -28,26 +30,31 @@ dal_module(
         ":parameters",
         "@onedal//cpp/oneapi/dal/algo/logistic_regression/detail",
         "@onedal//cpp/oneapi/dal/algo/logistic_regression/backend",
-
-    ]
+    ],
 )
 
 dal_test_suite(
     name = "interface_tests",
     framework = "catch2",
-    compile_as = [ "dpc++" ],
-    hdrs = glob([
-        "test/*.hpp",
-    ], exclude=[
-        "test/mpi_*.hpp",
-        "test/ccl_*.hpp"
-    ]),
-    srcs = glob([
-        "test/*.cpp",
-    ], exclude=[
-        "test/mpi_*.cpp",
-        "test/ccl_*.cpp"
-    ]),
+    compile_as = ["dpc++"],
+    hdrs = glob(
+        [
+            "test/*.hpp",
+        ],
+        exclude = [
+            "test/mpi_*.hpp",
+            "test/ccl_*.hpp",
+        ],
+    ),
+    srcs = glob(
+        [
+            "test/*.cpp",
+        ],
+        exclude = [
+            "test/mpi_*.cpp",
+            "test/ccl_*.cpp",
+        ],
+    ),
     dal_deps = [
         ":logistic_regression",
     ],

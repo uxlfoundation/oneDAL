@@ -35,7 +35,7 @@ dal_module(
         ":parameters",
         "@onedal//cpp/oneapi/dal/algo/pca/detail",
         "@onedal//cpp/oneapi/dal/algo/pca/backend",
-    ]
+    ],
 )
 
 dal_test_suite(
@@ -49,13 +49,16 @@ dal_test_suite(
 
 dal_test_suite(
     name = "interface_tests",
-    srcs = glob([
-        "test/*.cpp",
-    ], exclude=[
-        "test/online_spmd.cpp",
-    ]),
+    srcs = glob(
+        [
+            "test/*.cpp",
+        ],
+        exclude = [
+            "test/online_spmd.cpp",
+        ],
+    ),
     hdrs = glob([
-    "test/*.hpp",
+        "test/*.hpp",
     ]),
     dal_deps = [
         ":pca",
@@ -67,7 +70,7 @@ dal_test_suite(
 dal_test_suite(
     name = "online_spmd_tests",
     framework = "catch2",
-    compile_as = [ "dpc++" ],
+    compile_as = ["dpc++"],
     hdrs = glob([
         "test/*.hpp",
     ]),

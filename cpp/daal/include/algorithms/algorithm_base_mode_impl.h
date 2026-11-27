@@ -202,7 +202,7 @@ private:
     bool wasFinalizeSetup;
     bool resetFinalizeFlag;
 
-    AlgorithmImpl & operator=(const AlgorithmImpl &);
+    AlgorithmImpl & operator=(const AlgorithmImpl &) = delete;
 };
 
 /**

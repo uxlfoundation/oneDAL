@@ -14,8 +14,9 @@
 # limitations under the License.
 #===============================================================================
 
-package(default_visibility = ["//visibility:public"])
 load("@onedal//dev/bazel:daal.bzl", "daal_module")
+
+package(default_visibility = ["//visibility:public"])
 
 daal_module(
     name = "kernel",

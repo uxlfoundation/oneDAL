@@ -14,14 +14,6 @@
 # limitations under the License.
 #===============================================================================
 
-
-
-load(
-    "@rules_cc//cc/private/toolchain:lib_cc_configure.bzl",
-    "auto_configure_fail",
-    "get_starlark_list",
-    "write_builtin_include_directory_paths",
-)
 load(
     "@onedal//dev/bazel:utils.bzl",
     "paths",
@@ -43,6 +35,12 @@ load(
     "get_toolchain_identifier",
     "write_tool_identity",
 )
+load(
+    "@rules_cc//cc/private/toolchain:lib_cc_configure.bzl",
+    "auto_configure_fail",
+    "get_starlark_list",
+    "write_builtin_include_directory_paths",
+)
 
 def _find_tools(repo_ctx, reqs):
     # TODO: Use full compiler path from reqs
@@ -54,6 +52,7 @@ def _find_tools(repo_ctx, reqs):
     else:
         cross_prefix = get_cross_tool_prefix(repo_ctx)
         ar_path, _ = find_tool(repo_ctx, cross_prefix + "ar", mandatory = True)
+
         # Use CC as given so that a versioned name (gcc-14, clang-19) or a full
         # path selects that exact compiler.
         cc_name = repo_ctx.os.environ.get("CC") or (cross_prefix + reqs.compiler_id)
@@ -154,9 +153,15 @@ def _add_new_offload_driver_link(repo_ctx, dpcc):
     scratch_dir = repo_ctx.path("offload_probe")
     repo_ctx.file("offload_probe/.keep", "")
     result = repo_ctx.execute([
-        dpcc, "-fsycl", "--offload-new-driver", "--offload-compress",
-        "-shared", "-fPIC", str(repo_ctx.path(TEST_CPP_FILE)),
-        "-o", str(scratch_dir.get_child("probe.so")),
+        dpcc,
+        "-fsycl",
+        "--offload-new-driver",
+        "--offload-compress",
+        "-shared",
+        "-fPIC",
+        str(repo_ctx.path(TEST_CPP_FILE)),
+        "-o",
+        str(scratch_dir.get_child("probe.so")),
     ], environment = {"TMPDIR": str(scratch_dir)})
     repo_ctx.delete(scratch_dir)
     if result.return_code != 0:
@@ -196,6 +201,7 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
 
     cxx_opts = []
     link_opts = []
+
     # -lpthread -ldl stay outside --as-needed, as in Make (lnx32e.mk, deps.mkl.mk).
     # They add NEEDED entries on glibc < 2.34 and resolve to empty stubs after it.
     dynamic_link_libs = [
@@ -246,7 +252,6 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
                 ":" + tool_identity,
             ]),
             "%{tool_identity}": tool_identity,
-
             "%{cc_path}": tools.cc,
             "%{dpcc_path}": tools.dpcc,
             "%{ar_path}": tools.ar,
@@ -343,12 +348,10 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
             "%{opt_compile_flags}": get_starlark_list(
                 [
                     "-g0",
-
                     "-O2",
 
                     # Some GCC builds predefine _FORTIFY_SOURCE.
                     "-U_FORTIFY_SOURCE",
-
                     "-D_FORTIFY_SOURCE=2",
 
                     # For --gc-sections.
@@ -382,7 +385,6 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
             "%{dbg_compile_flags}": get_starlark_list(
                 [
                     "-g",
-
                     "-DONEDAL_ENABLE_ASSERT",
 
                     # Explicit, as icx defaults to -O2; -O0 code is too slow.
@@ -390,7 +392,6 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
 
                     # Loop transformation warnings appear at -O1.
                     "-Wno-pass-failed",
-
                     "-DDEBUG_ASSERT",
                 ],
             ),

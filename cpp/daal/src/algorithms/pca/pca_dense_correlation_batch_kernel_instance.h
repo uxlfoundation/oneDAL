@@ -32,6 +32,11 @@ namespace pca
 {
 namespace internal
 {
+// Instantiated in pca_dense_base_fpt_cpu.cpp; without this MSVC warns C4661 here.
+// extern stops clang from emitting hidden copies that would un-export them.
+extern template class PCADenseBase<DAAL_FPTYPE, DAAL_CPU>;
+extern template class PCACorrelationBase<DAAL_FPTYPE, DAAL_CPU>;
+
 template class DAAL_EXPORT PCACorrelationKernel<batch, DAAL_FPTYPE, DAAL_CPU>;
 } // namespace internal
 } // namespace pca

@@ -116,6 +116,12 @@
   archiver is via `cc_common.get_tool_for_action`, removes the second. The
   Windows archive merge in `cc/link.bzl` now takes the toolchain's env.
   `dev/bazel/tests/check_starlark_policy.py` (pre-commit hook `starlark-policy`) lists the two
-  sites as exceptions and fails on a new one. Still open in the same CI policy
-  step: `buildifier` as a required check (the tree is not formatted yet) and a
-  stored aquery diff of `//:release` across the release matrix.
+  sites as exceptions and fails on a new one. Buildifier 8.2.1 formats the tree
+  and runs as the pre-commit hook `buildifier` in check mode, with lint off.
+  Still open in the same CI policy step: a stored aquery diff of `//:release`
+  across the release matrix.
+
+- [ ] **Buildifier lint.** The `buildifier` hook passes `-lint=off`, so lint
+  warnings do not fail CI. `buildifier -mode=check -lint=warn` reports 140
+  of them in 14 categories, mostly unused `load()` symbols, missing module and
+  function docstrings and `constant-glob`. Fix them and drop `-lint=off`.

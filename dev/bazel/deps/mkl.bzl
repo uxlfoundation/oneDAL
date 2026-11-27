@@ -52,7 +52,6 @@ mkl_repo = repos.prebuilt_libs_repo_rule(
         "lib/libmkl_sycl_lapack.so*",
         "lib/libmkl_sycl_sparse.so*",
         "lib/libmkl_sycl_rng.so*",
-
     ],
     # VML kernels are dlopened like the dispatch kernels, but no oneDAL target is known to need one.
     optional_libs = [

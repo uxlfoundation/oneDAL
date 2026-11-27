@@ -18,76 +18,90 @@
 
 component=$1
 
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/retry.sh"
+
+function apt_install {
+    retry sudo apt-get install -y "$@"
+}
+
 function update {
-    sudo apt-get update
+    retry sudo apt-get update
+}
+
+function fetch_intel_apt_key {
+    (
+        set -o pipefail
+        wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | \
+            gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
+    )
 }
 
 function add_repo {
-    wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | \
-        gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
+    retry fetch_intel_apt_key
     echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" \
         | sudo tee /etc/apt/sources.list.d/oneAPI.list
-    sudo apt update
+    update
 }
 
 function install_dpcpp {
     # DPC++ compiler version monitored by Renovate and sets exact value available via apt
-    sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp=2026.2.0-863
+    apt_install intel-oneapi-compiler-dpcpp-cpp=2026.2.0-863
 }
 
 function install_tbb {
     # TBB version monitored by Renovate and sets exact value available via apt
-    sudo apt-get install -y intel-oneapi-tbb-devel=2023.2.0-492
+    apt_install intel-oneapi-tbb-devel=2023.2.0-492
 }
 
 function install_dpl {
-    sudo apt-get install -y intel-oneapi-libdpstd-devel
+    apt_install intel-oneapi-libdpstd-devel
 }
 
 function install_mkl {
     # MKL version monitored by Renovate and sets exact value available via apt
-    sudo apt-get install -y intel-oneapi-mkl-devel=2026.2.1-11
+    apt_install intel-oneapi-mkl-devel=2026.2.1-11
     install_tbb
     install_dpl
 }
 
 function install_clang-format {
-    sudo apt-get install -y clang-format-20
+    apt_install clang-format-20
 }
 
 function install_dev-base {
-    sudo apt-get install -y gcc-multilib g++-multilib tree
+    apt_install gcc-multilib g++-multilib tree
 }
 
 function install_dev-base-conda {
     echo -e "default_channels:\n  - https://conda.anaconda.org/conda-forge" > ~/.condarc
+    conda_retries
     conda env create -f .ci/env/environment.yml
 }
 
 function install_gnu-cross-compilers {
-    sudo apt-get install -y "gcc-$1-linux-gnu" "g++-$1-linux-gnu" "gfortran-$1-linux-gnu"
+    apt_install "gcc-$1-linux-gnu" "g++-$1-linux-gnu" "gfortran-$1-linux-gnu"
 }
 
 function install_qemu_emulation_apt {
-    sudo apt-get install -f -y
-    sudo apt-get install -y qemu-user-static qemu-user binfmt-support
+    retry sudo apt-get install -f -y
+    apt_install qemu-user-static qemu-user binfmt-support
 }
 
 function install_opencl_apt {
-    sudo apt-get install -y ocl-icd-opencl-dev
+    apt_install ocl-icd-opencl-dev
 }
 
 function install_qemu_emulation_deb {
-    sudo apt-get install -f -y
-    sudo apt-get install -y qemu-user qemu-user-binfmt qemu-user-static
+    retry sudo apt-get install -f -y
+    apt_install qemu-user qemu-user-binfmt qemu-user-static
     sudo systemctl restart systemd-binfmt.service
 }
 
 function install_llvm_version {
-    sudo apt-get install -y curl
-    curl -o llvm.sh https://apt.llvm.org/llvm.sh
+    apt_install curl
+    retry curl -fsSL -o llvm.sh https://apt.llvm.org/llvm.sh
     chmod u+x llvm.sh
-    sudo ./llvm.sh "$1"
+    retry sudo ./llvm.sh "$1"
     sudo update-alternatives --install /usr/bin/clang clang "/usr/bin/clang-$1" "${1}00"
     sudo update-alternatives --install /usr/bin/clang++ clang++ "/usr/bin/clang++-$1" "${1}00"
 }
@@ -100,7 +114,7 @@ function build_sysroot {
     # the working directory
     mkdir -p "$1"
     pushd "$1" || exit
-    sudo apt-get install -y debootstrap build-essential
+    apt_install debootstrap build-essential
     sudo debootstrap --arch="$2" --verbose --include=fakeroot,symlinks,libatomic1,libstdc++6 --resolve-deps --variant=minbase --components=main,universe "$3" "$4"
     sudo chroot "$4" symlinks -cr .
     sudo chown "${USER}" -R "$4"
@@ -111,22 +125,39 @@ function build_sysroot {
     popd || exit
 }
 
+# Miniforge release monitored by Renovate; add the digests for every new version:
+#   curl -L https://github.com/conda-forge/miniforge/releases/download/<version>/Miniforge3-<version>-Linux-<arch>.sh.sha256
+MINIFORGE_VERSION=26.9.4-2
+
+function conda_retries {
+    # conda's own retries for repodata and package downloads (default 3, no backoff).
+    conda config --set remote_max_retries 10
+    conda config --set remote_backoff_factor 2
+}
+
+function fetch_miniforge {
+    rm -f "${installer}"
+    curl -fsSLO "https://github.com/conda-forge/miniforge/releases/download/${MINIFORGE_VERSION}/${installer}" && \
+        echo "${sha256}  ${installer}" | sha256sum -c
+}
+
 function install_miniforge {
-    local platform
-    local version
-    local installer
+    local platform installer sha256
 
     platform="$(uname)-$(uname -m)"
-    version=$(curl -s https://api.github.com/repos/conda-forge/miniforge/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")')
-    installer=Miniforge3-${version}-${platform}.sh
+    installer=Miniforge3-${MINIFORGE_VERSION}-${platform}.sh
+    case "${MINIFORGE_VERSION}/${platform}" in
+        26.9.4-2/Linux-x86_64)  sha256=bbaf16b3897da24c4be50315934ba74848f617b4495982841d6a0a60e0edbbdf ;;
+        26.9.4-2/Linux-aarch64) sha256=1adf18b530e4ffb00886ce6d5bd2eb1fa6311d2f14709b13bd154d8cd98d94c8 ;;
+        *)
+            echo ":error: .ci/env/apt.sh has no pinned SHA256 for Miniforge ${MINIFORGE_VERSION} on ${platform}. Add it from:" >&2
+            echo ":error:   curl -L https://github.com/conda-forge/miniforge/releases/download/${MINIFORGE_VERSION}/${installer}.sha256" >&2
+            exit 1
+            ;;
+    esac
 
-    curl -LO "https://github.com/conda-forge/miniforge/releases/download/${version}/${installer}"
-    curl -LO "https://github.com/conda-forge/miniforge/releases/download/${version}/${installer}.sha256"
-
-    if ! sha256sum -c "${installer}.sha256"; then
-        echo "Error: SHA256 checksum verification failed."
-        exit 1
-    fi
+    # A truncated download fails the digest check, so the check is inside the retried step.
+    retry fetch_miniforge || exit $?
 
     sudo bash "${installer}" -b -p /usr/share/miniconda
     sudo chown -R "$(id -u):$(id -g)" /usr/share/miniconda
@@ -134,7 +165,7 @@ function install_miniforge {
 }
 
 function install_abigail {
-    sudo apt-get install -y abigail-tools
+    apt_install abigail-tools
 }
 
 if [ "${component}" == "dpcpp" ]; then
