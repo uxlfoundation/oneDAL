@@ -43,7 +43,8 @@
         "impi-rt",
         "impi-devel",
         "modified-libfabric",
-        "oneccl"
+        "oneccl",
+        "oneccl-devel"
       ],
       "groupName": "oneAPI"
     }
