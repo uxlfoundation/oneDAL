@@ -31,7 +31,7 @@ updated, which also makes the script convenient for local CI reproduction.
 
 $ErrorActionPreference = "Stop"
 
-$bazeliskVersion = "v1.30.0"
+$bazeliskVersion = "v1.31.0"
 $hostArch = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
 $assetSuffix = switch ($hostArch.ToUpperInvariant()) {
     "ARM64" { "arm64" }

@@ -15,7 +15,7 @@
 # limitations under the License.
 #===============================================================================
 
-BAZELISK_VERSION=v1.30.0
+BAZELISK_VERSION=v1.31.0
 
 # Bazelisk itself always runs on the CI *exec* host (even when the build
 # cross-compiles to another target arch, e.g. the riscv64 job below), so pick
