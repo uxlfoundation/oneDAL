@@ -37,8 +37,8 @@ BAZELISK_ASSET="bazelisk-linux-${arch}"
 # call. Add the digests for every new BAZELISK_VERSION:
 #   gh api repos/bazelbuild/bazelisk/releases/tags/<version> --jq '.assets[] | "\(.name) \(.digest)"'
 case "${BAZELISK_VERSION}/${BAZELISK_ASSET}" in
-  v1.30.0/bazelisk-linux-amd64) SHA256=a248ae2b2b62b5baebb748f6fba7203bff1a27e5d01b55399a8406744cb539e8 ;;
-  v1.30.0/bazelisk-linux-arm64) SHA256=b2bcc040c213b44586b121bda6d983c35df121b917c3a7a66fb16f2fa0df1a4f ;;
+  v1.31.0/bazelisk-linux-amd64) SHA256=37c6c243a5a0d2cb6a16a74012c108c47ae9eb5c0455251881e66e7f393a4ce1 ;;
+  v1.31.0/bazelisk-linux-arm64) SHA256=202bd85dfd6b427187ffa0cf4892dbae7796ddd37a66f69c75519260492c4aaf ;;
   *)
     echo ":error: .ci/env/bazelisk.sh has no pinned SHA256 for ${BAZELISK_ASSET} at ${BAZELISK_VERSION}. Add it from:" >&2
     echo ":error:   gh api repos/bazelbuild/bazelisk/releases/tags/${BAZELISK_VERSION} --jq '.assets[] | \"\(.name) \(.digest)\"'" >&2
