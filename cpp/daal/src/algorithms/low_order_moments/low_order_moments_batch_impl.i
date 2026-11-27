@@ -36,9 +36,9 @@ namespace low_order_moments
 {
 namespace internal
 {
-/// Single-pass CSR kernel for the requested estimates; `sumCSR` takes the sums from the table.
+/// CSR kernel for the requested estimates; `sumCSR` takes the sums from the table, `fastCSR` also splits wide tables into tiles.
 template <typename algorithmFPType, Method method, CpuType cpu>
-services::Status computeSinglePassCSR(NumericTable * dataTable, Result * result, const Parameter * parameter)
+services::Status computeCSR(NumericTable * dataTable, Result * result, const Parameter * parameter)
 {
     switch (parameter->estimatesToCompute)
     {
@@ -64,15 +64,9 @@ services::Status LowOrderMomentsBatchKernel<algorithmFPType, method, cpu>::compu
         return estimates_batch_all::compute_estimates<algorithmFPType, cpu>(dataTable, result);
     }
 
-    if (method == singlePassCSR)
+    if (method == singlePassCSR || method == fastCSR || method == sumCSR)
     {
-        return computeSinglePassCSR<algorithmFPType, method, cpu>(dataTable, result, parameter);
-    }
-
-    // TODO: fastCSR and sumCSR have no kernel of their own yet and run the single-pass one.
-    if (method == fastCSR || method == sumCSR)
-    {
-        return computeSinglePassCSR<algorithmFPType, method, cpu>(dataTable, result, parameter);
+        return computeCSR<algorithmFPType, method, cpu>(dataTable, result, parameter);
     }
 
     LowOrderMomentsBatchTask<algorithmFPType, cpu> task(dataTable, result);

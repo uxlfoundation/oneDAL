@@ -16,9 +16,11 @@
 
 #include "oneapi/dal/test/engine/common.hpp"
 #include "algorithms/moments/low_order_moments_batch.h"
+#include "algorithms/moments/low_order_moments_online.h"
 #include "data_management/data/csr_numeric_table.h"
 #include "data_management/data/homogen_numeric_table.h"
 
+#include <algorithm>
 #include <cmath>
 #include <random>
 #include <vector>
@@ -141,6 +143,126 @@ static void checkCsrMoments()
         REQUIRE(std::abs(block.getBlockPtr()[j] - refVart[j - 1]) <= tol * std::max(1.0, std::abs(refVart[j - 1])));
     }
     result->get(variation)->releaseBlockOfRows(block);
+}
+
+/// Runs `method` on `table` and returns all its results, one vector per ResultId.
+template <typename FPType, Method method>
+static std::vector<std::vector<double> > computeAll(const NumericTablePtr & table, EstimatesToCompute estimates)
+{
+    Batch<FPType, method> algorithm;
+    algorithm.input.set(data, table);
+    algorithm.parameter.estimatesToCompute = estimates;
+    REQUIRE(algorithm.compute().ok());
+    const auto result = algorithm.getResult();
+    std::vector<std::vector<double> > all;
+    for (size_t id = 0; id <= lastResultId; ++id)
+    {
+        BlockDescriptor<double> block;
+        result->get(ResultId(id))->getBlockOfRows(0, 1, readOnly, block);
+        all.emplace_back(block.getBlockPtr(), block.getBlockPtr() + table->getNumberOfColumns());
+        result->get(ResultId(id))->releaseBlockOfRows(block);
+    }
+    return all;
+}
+
+/// Runs `method` online over `table` given twice and returns all its results, one vector per ResultId.
+template <typename FPType, Method method>
+static std::vector<std::vector<double> > computeAllOnline(const NumericTablePtr & table)
+{
+    Online<FPType, method> algorithm;
+    algorithm.input.set(data, table);
+    REQUIRE(algorithm.compute().ok());
+    REQUIRE(algorithm.compute().ok());
+    REQUIRE(algorithm.finalizeCompute().ok());
+    const auto result = algorithm.getResult();
+    std::vector<std::vector<double> > all;
+    for (size_t id = 0; id <= lastResultId; ++id)
+    {
+        BlockDescriptor<double> block;
+        result->get(ResultId(id))->getBlockOfRows(0, 1, readOnly, block);
+        all.emplace_back(block.getBlockPtr(), block.getBlockPtr() + table->getNumberOfColumns());
+        result->get(ResultId(id))->releaseBlockOfRows(block);
+    }
+    return all;
+}
+
+/// A table wide enough for fastCSR to split its columns into tiles, with values repeated in a
+/// row; `unsortedRow` names a row whose indices are put out of order, or is nRows for none.
+template <typename FPType>
+static NumericTablePtr makeWideTable(size_t nRows, size_t nFeatures, size_t unsortedRow, std::vector<FPType> & values,
+                                     std::vector<size_t> & colIndices, std::vector<size_t> & rowOffsets)
+{
+    std::mt19937 gen(4070);
+    std::uniform_real_distribution<double> noise(-1.0, 1.0);
+    std::uniform_int_distribution<size_t> column(0, nFeatures - 1);
+    rowOffsets.assign(nRows + 1, 0);
+    for (size_t i = 0; i < nRows; ++i)
+    {
+        rowOffsets[i] = values.size() + 1;
+        std::vector<size_t> js(48);
+        for (auto & j : js) j = column(gen);
+        // A third of the rows repeat their first column.
+        if (i % 3 == 0) js.push_back(js[0]);
+        std::sort(js.begin(), js.end());
+        if (i == unsortedRow) std::swap(js.front(), js.back());
+        for (size_t j : js)
+        {
+            values.push_back(FPType(1000.0 + double(j % 17) + noise(gen)));
+            colIndices.push_back(j + 1);
+        }
+    }
+    rowOffsets[nRows] = values.size() + 1;
+    services::Status status;
+    auto table =
+        CSRNumericTable::create(values.data(), colIndices.data(), rowOffsets.data(), nFeatures, nRows, CSRNumericTableIface::oneBased, &status);
+    REQUIRE(status.ok());
+    return table;
+}
+
+// fastCSR splits a wide table into tiles of columns; each column sees the same updates in the
+// same order as in singlePassCSR, so the results agree bit for bit.
+TEMPLATE_TEST("fastCSR tiles give the results of singlePassCSR", "[unit][low_order_moments]", float, double)
+{
+    // Two row chunks; an unsorted row sends its chunk back to the kernel by rows.
+    constexpr size_t nRows             = 30000;
+    constexpr size_t nFeatures         = 9000;
+    const size_t unsortedRow           = GENERATE(size_t(30000), size_t(29999), size_t(12345));
+    const EstimatesToCompute estimates = GENERATE(estimatesAll, estimatesMinMax, estimatesMeanVariance);
+    std::vector<TestType> values;
+    std::vector<size_t> colIndices, rowOffsets;
+    const auto table = makeWideTable<TestType>(nRows, nFeatures, unsortedRow, values, colIndices, rowOffsets);
+
+    const auto fast   = computeAll<TestType, fastCSR>(table, estimates);
+    const auto single = computeAll<TestType, singlePassCSR>(table, estimates);
+    if (estimates == estimatesAll)
+    {
+        const auto fastOnline   = computeAllOnline<TestType, fastCSR>(table);
+        const auto singleOnline = computeAllOnline<TestType, singlePassCSR>(table);
+        for (size_t id = 0; id <= lastResultId; ++id)
+        {
+            for (size_t j = 0; j < nFeatures; ++j)
+            {
+                INFO("online result " << id << ", column " << j);
+                REQUIRE(fastOnline[id][j] == singleOnline[id][j]);
+            }
+        }
+    }
+
+    std::vector<ResultId> ids = { minimum, maximum };
+    if (estimates == estimatesMeanVariance) ids = { mean, variance };
+    if (estimates == estimatesAll)
+    {
+        ids.clear();
+        for (size_t id = 0; id <= lastResultId; ++id) ids.push_back(ResultId(id));
+    }
+    for (ResultId id : ids)
+    {
+        for (size_t j = 0; j < nFeatures; ++j)
+        {
+            INFO("result " << int(id) << ", column " << j);
+            REQUIRE(fast[id][j] == single[id][j]);
+        }
+    }
 }
 
 // oneAPI basic statistics reaches fastCSR only, so the other CSR kernels are run from here.
