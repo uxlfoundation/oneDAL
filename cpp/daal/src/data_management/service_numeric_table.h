@@ -709,12 +709,12 @@ class GetRowsCSR
 {
 public:
     GetRowsCSR(CSRNumericTableIface & data, size_t iStartFrom, size_t nRows, bool toOneBaseRowIndices = false)
-        : _data(&data), _toReleaseFlag(false), _toOneBaseRowIndices(toOneBaseRowIndices)
+        : _data(&data), _toOneBaseRowIndices(toOneBaseRowIndices), _toReleaseFlag(false)
     {
         getBlock(iStartFrom, nRows);
     }
     GetRowsCSR(CSRNumericTableIface * data, size_t iStartFrom, size_t nRows, bool toOneBaseRowIndices = false)
-        : _data(data), _toReleaseFlag(false), _toOneBaseRowIndices(toOneBaseRowIndices)
+        : _data(data), _toOneBaseRowIndices(toOneBaseRowIndices), _toReleaseFlag(false)
     {
         if (_data)
         {

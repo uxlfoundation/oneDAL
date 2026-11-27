@@ -29,7 +29,7 @@
 #include "src/algorithms/service_error_handling.h"
 #include "src/data_management/service_numeric_table.h"
 #include "src/externals/service_blas.h"
-#include "src/externals/service_spblas.h"
+#include "src/algorithms/kmeans/kmeans_csr_helper.h"
 #include "src/algorithms/distributions/uniform/uniform_kernel.h"
 #include "src/services/service_data_utils.h"
 
@@ -63,6 +63,13 @@ public:
     BlockHelperDense(NumericTableType * nt, size_t dim, size_t iStartRow, size_t nRowsToProcess) : _ntDataBD(nt, iStartRow, nRowsToProcess), _dim(dim)
     {}
     const Status & status() const { return _ntDataBD.status(); }
+
+    static Status prepareGemmCenters(const algorithmFPType * pCenters, size_t, size_t, TArrayScalable<algorithmFPType, cpu> &,
+                                     const algorithmFPType *& gemmCenters)
+    {
+        gemmCenters = pCenters;
+        return Status();
+    }
 
     Status callGemm(const algorithmFPType * pCenters, size_t nRows, size_t nCenters, algorithmFPType * gemmResult)
     {
@@ -109,22 +116,25 @@ public:
     {}
     const Status & status() const { return _ntDataBD.status(); }
 
-    Status callGemm(const algorithmFPType * pCenters, size_t nRows, size_t nCenters, algorithmFPType * gemmResult)
+    /// Transposes the `nCenters x dim` centers into `buffer`, the layout `callGemm` expects.
+    static Status prepareGemmCenters(const algorithmFPType * pCenters, size_t nCenters, size_t dim, TArrayScalable<algorithmFPType, cpu> & buffer,
+                                     const algorithmFPType *& gemmCenters)
     {
-        char transa           = 'n';
-        DAAL_INT _n           = nRows;
-        DAAL_INT _p           = _dim;
-        DAAL_INT _c           = nCenters;
-        algorithmFPType alpha = 1.0;
-        algorithmFPType beta  = 0.0;
-        char matdescra[6]     = { 'G', 0, 0, 'F', 0, 0 };
+        if (nCenters)
+        {
+            DAAL_CHECK_MALLOC(buffer.reset(nCenters * dim));
+            kmeans::internal::transposeCentroids<algorithmFPType, cpu>(pCenters, nCenters, dim, buffer.get());
+        }
+        gemmCenters = buffer.get();
+        return Status();
+    }
 
-        const algorithmFPType * pData = _ntDataBD.values();
-        const size_t * colIdx         = _ntDataBD.cols();
-        const size_t * rowIdx         = _ntDataBD.rows();
-
-        return SpBlasInst<algorithmFPType, cpu>::xxcsrmm(&transa, &_n, &_c, &_p, &alpha, matdescra, pData, (const DAAL_INT *)colIdx,
-                                                         (const DAAL_INT *)rowIdx, pCenters, &_p, &beta, gemmResult, &_n);
+    /// `pCentersT` is the `dim x nCenters` output of `prepareGemmCenters`; the result is `nRows x nCenters`, row-major.
+    Status callGemm(const algorithmFPType * pCentersT, size_t nRows, size_t nCenters, algorithmFPType * gemmResult)
+    {
+        kmeans::internal::csrRowsTimesCentroids<algorithmFPType, cpu>(nRows, nCenters, _ntDataBD.values(), _ntDataBD.cols(), _ntDataBD.rows(),
+                                                                      pCentersT, gemmResult);
+        return Status();
     }
 
     algorithmFPType getRowSumSq(size_t iRow, const algorithmFPType * cen)
@@ -140,7 +150,7 @@ public:
 
     algorithmFPType getGemmResult(size_t iRow, size_t iCol, size_t nRows, size_t nCols, const algorithmFPType * gemmResult) const
     {
-        return gemmResult[iRow + iCol * nRows];
+        return gemmResult[iRow * nCols + iCol];
     }
 
 protected:
@@ -479,7 +489,8 @@ public:
     Status updateMinDist(size_t iFirstOfNewCandidates, size_t nNewCandidates);
 
 protected:
-    Status processBlock(size_t iBlock, TlsPPData_t * tlsLocal, size_t iFirstOfNewCandidates, size_t nNewCandidates);
+    Status processBlock(size_t iBlock, TlsPPData_t * tlsLocal, size_t iFirstOfNewCandidates, size_t nNewCandidates,
+                        const algorithmFPType * gemmCenters);
     bool findBestCandidate(typename DataHelper::BlockHelperType & blockHelper, size_t iRow, algorithmFPType * pDistSq, size_t nRowsToProcess,
                            size_t nNewCandidates, size_t & iBestCandidate, const algorithmFPType * gemmResult) const;
 
@@ -791,7 +802,7 @@ bool TaskParallelPlusUpdateDist<algorithmFPType, cpu, DataHelper>::findBestCandi
 
 template <typename algorithmFPType, CpuType cpu, typename DataHelper>
 Status TaskParallelPlusUpdateDist<algorithmFPType, cpu, DataHelper>::processBlock(size_t iBlock, TlsPPData_t * tlsLocal, size_t iFirstOfNewCandidates,
-                                                                                  size_t nNewCandidates)
+                                                                                  size_t nNewCandidates, const algorithmFPType * gemmCenters)
 {
     int * aCandidateRating = tlsLocal->aCandidateRating;
     size_t nRowsToProcess  = _nRowsInBlock;
@@ -800,7 +811,7 @@ Status TaskParallelPlusUpdateDist<algorithmFPType, cpu, DataHelper>::processBloc
 
     typename DataHelper::BlockHelperType blockHelper(_data.ntIface(), _data.dim, iStartRow, nRowsToProcess);
     DAAL_CHECK_BLOCK_STATUS(blockHelper);
-    const Status gemmStatus = blockHelper.callGemm(_lastAddedCenter, nRowsToProcess, nNewCandidates, tlsLocal->gemmResult);
+    const Status gemmStatus = blockHelper.callGemm(gemmCenters, nRowsToProcess, nNewCandidates, tlsLocal->gemmResult);
     DAAL_CHECK_STATUS_VAR(gemmStatus);
 
     algorithmFPType * pDistSq  = _aMinDist + iStartRow;
@@ -828,6 +839,11 @@ Status TaskParallelPlusUpdateDist<algorithmFPType, cpu, DataHelper>::updateMinDi
 {
     const size_t nCandidates  = iFirstOfNewCandidates + nNewCandidates;
     const size_t gemmDataSize = _nRowsInBlock * nCandidates;
+    TArrayScalable<algorithmFPType, cpu> gemmCentersBuffer;
+    const algorithmFPType * gemmCenters = nullptr;
+    const Status prepareStatus =
+        DataHelper::BlockHelperType::prepareGemmCenters(_lastAddedCenter, nNewCandidates, _data.dim, gemmCentersBuffer, gemmCenters);
+    DAAL_CHECK_STATUS_VAR(prepareStatus);
     daal::static_tls<TlsPPData_t *> tlsData([=]() -> TlsPPData_t * {
         const size_t sz     = sizeof(TlsPPData_t) + (nCandidates - 1) * sizeof(int);
         byte * ptr          = service_scalable_calloc<byte, cpu>(sz);
@@ -854,7 +870,7 @@ Status TaskParallelPlusUpdateDist<algorithmFPType, cpu, DataHelper>::updateMinDi
             bMemoryAllocationFailed = true;
             return;
         }
-        safeStat |= processBlock(iBlock, tlsLocal, iFirstOfNewCandidates, nNewCandidates);
+        safeStat |= processBlock(iBlock, tlsLocal, iFirstOfNewCandidates, nNewCandidates, gemmCenters);
     });
     tlsData.reduce([=, &newOverallError](TlsPPData_t * ptr) -> void {
         if (!ptr) return;
