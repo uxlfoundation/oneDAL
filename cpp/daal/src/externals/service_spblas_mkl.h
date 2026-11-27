@@ -56,6 +56,19 @@ inline sparse_operation_t sparseOperation(const char * trans)
     return (*trans == 'n' || *trans == 'N') ? SPARSE_OPERATION_NON_TRANSPOSE : SPARSE_OPERATION_TRANSPOSE;
 }
 
+/// Copies the upper triangle of the column-major `n x n` matrix `c` into its lower triangle.
+template <typename fpType>
+inline void symmetrizeFromUpper(const DAAL_INT n, fpType * c, const DAAL_INT ldc)
+{
+    for (DAAL_INT col = 0; col < n; col++)
+    {
+        for (DAAL_INT row = col + 1; row < n; row++)
+        {
+            c[row + col * ldc] = c[col + row * ldc];
+        }
+    }
+}
+
 template <typename fpType, CpuType cpu>
 struct MklSpBlas
 {};
@@ -88,6 +101,25 @@ struct MklSpBlas<double, cpu>
         }
         st = destroyHandle(csrA, st);
         st = destroyHandle(csrB, st);
+        return sparseStatus(st);
+    }
+
+    [[nodiscard]] static services::Status xxcsrsyrkd(const DAAL_INT * m, const DAAL_INT * n, double * a, DAAL_INT * ja, DAAL_INT * ia, double * c,
+                                                     const DAAL_INT * ldc)
+    {
+        // Sequential: the threaded syrkd sums in a different order on every call.
+        int old_nthr         = mkl_set_num_threads_local(1);
+        sparse_matrix_t csrA = NULL;
+        sparse_status_t st = mkl_sparse_d_create_csr(&csrA, SPARSE_INDEX_BASE_ONE, static_cast<MKL_INT>(*m), static_cast<MKL_INT>(*n), (MKL_INT *)ia,
+                                                     (MKL_INT *)ia + 1, (MKL_INT *)ja, a);
+        if (st == SPARSE_STATUS_SUCCESS)
+        {
+            st =
+                mkl_sparse_d_syrkd(SPARSE_OPERATION_TRANSPOSE, csrA, double(1), double(0), c, SPARSE_LAYOUT_COLUMN_MAJOR, static_cast<MKL_INT>(*ldc));
+        }
+        st = destroyHandle(csrA, st);
+        mkl_set_num_threads_local(old_nthr);
+        if (st == SPARSE_STATUS_SUCCESS) symmetrizeFromUpper(*n, c, *ldc);
         return sparseStatus(st);
     }
 
@@ -157,6 +189,24 @@ struct MklSpBlas<float, cpu>
         }
         st = destroyHandle(csrA, st);
         st = destroyHandle(csrB, st);
+        return sparseStatus(st);
+    }
+
+    [[nodiscard]] static services::Status xxcsrsyrkd(const DAAL_INT * m, const DAAL_INT * n, float * a, DAAL_INT * ja, DAAL_INT * ia, float * c,
+                                                     const DAAL_INT * ldc)
+    {
+        // Sequential: the threaded syrkd sums in a different order on every call.
+        int old_nthr         = mkl_set_num_threads_local(1);
+        sparse_matrix_t csrA = NULL;
+        sparse_status_t st = mkl_sparse_s_create_csr(&csrA, SPARSE_INDEX_BASE_ONE, static_cast<MKL_INT>(*m), static_cast<MKL_INT>(*n), (MKL_INT *)ia,
+                                                     (MKL_INT *)ia + 1, (MKL_INT *)ja, a);
+        if (st == SPARSE_STATUS_SUCCESS)
+        {
+            st = mkl_sparse_s_syrkd(SPARSE_OPERATION_TRANSPOSE, csrA, float(1), float(0), c, SPARSE_LAYOUT_COLUMN_MAJOR, static_cast<MKL_INT>(*ldc));
+        }
+        st = destroyHandle(csrA, st);
+        mkl_set_num_threads_local(old_nthr);
+        if (st == SPARSE_STATUS_SUCCESS) symmetrizeFromUpper(*n, c, *ldc);
         return sparseStatus(st);
     }
 

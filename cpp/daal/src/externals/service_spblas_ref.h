@@ -54,6 +54,13 @@ struct RefSpBlas
         return services::Status();
     }
 
+    [[nodiscard]] static services::Status xxcsrsyrkd(const DAAL_INT * m, const DAAL_INT * n, fpType * a, DAAL_INT * ja, DAAL_INT * ia, fpType * c,
+                                                     const DAAL_INT * ldc)
+    {
+        csrmultd_transpose(m, n, n, a, ja, ia, a, ja, ia, c, const_cast<DAAL_INT *>(ldc));
+        return services::Status();
+    }
+
     static void csrmultd(const DAAL_INT * m, const DAAL_INT * n, const DAAL_INT * k, fpType * a, DAAL_INT * ja, DAAL_INT * ia, fpType * b,
                          DAAL_INT * jb, DAAL_INT * ib, fpType * c, DAAL_INT * ldc)
     {

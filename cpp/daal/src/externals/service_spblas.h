@@ -54,6 +54,14 @@ struct SpBlas
         return _impl<fpType, cpu>::xcsrmultd(transa, m, n, k, a, ja, ia, b, jb, ib, c, ldc);
     }
 
+    /// The full symmetric `n x n` product `A^T * A` of the one-based CSR matrix `A` (`m x n`), column-major,
+    /// computed sequentially.
+    [[nodiscard]] static services::Status xxcsrsyrkd(const SizeType * m, const SizeType * n, fpType * a, SizeType * ja, SizeType * ia, fpType * c,
+                                                     const SizeType * ldc)
+    {
+        return _impl<fpType, cpu>::xxcsrsyrkd(m, n, a, ja, ia, c, ldc);
+    }
+
     [[nodiscard]] static services::Status xcsrmv(const char * transa, const SizeType * m, const SizeType * k, const fpType * alpha,
                                                  const char * matdescra, const fpType * val, const SizeType * indx, const SizeType * pntrb,
                                                  const SizeType * pntre, const fpType * x, const fpType * beta, fpType * y)
