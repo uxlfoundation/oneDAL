@@ -163,12 +163,16 @@ MSG(archive_is_in_invalid_state,
 MSG(accuracy_threshold_lt_zero, "Accuracy threshold is lower than zero")
 MSG(class_count_leq_one, "Class count is lower than or equal to one")
 MSG(conv_tol_lt_zero, "Convergence tolerance is less than zero")
+MSG(input_data_cc_neq_partial_result_cc,
+    "Input data column count is not equal to the column count the partial result was computed for")
 MSG(input_data_is_empty, "Input data is empty")
 MSG(input_data_rc_neq_input_responses_rc,
     "Input data row count is not equal to input responses row count")
 MSG(input_data_rc_neq_input_weights_rc,
     "Input data row count is not equal to input weights row count")
 MSG(input_responses_are_empty, "Responses are empty")
+MSG(input_responses_cc_neq_partial_result_cc,
+    "Input responses column count is not equal to the column count the partial result was computed for")
 MSG(input_responses_contain_only_one_unique_value_expect_two,
     "Input responses contain only one unique value, two unique values are expected")
 MSG(input_responses_contain_wrong_unique_values_count_expect_two,

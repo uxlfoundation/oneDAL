@@ -133,4 +133,26 @@ TEMPLATE_LIST_TEST_M(covariance_online_test,
     te::check_if_table_content_equal<Float>(second.get_means(), first.get_means());
 }
 
+// The partial sums and cross-product are updated in place, so a block with another column count
+// used to write out of them.
+TEMPLATE_LIST_TEST_M(
+    covariance_online_test,
+    "covariance partial compute throws if the block does not match the partial result",
+    "[covariance][online][badarg]",
+    covariance_types) {
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+    constexpr std::int64_t row_count = 8;
+    const std::vector<Float> values(row_count * 4, Float(1));
+    const auto wide = homogen_table::wrap(values.data(), row_count, 4);
+    const auto narrow = homogen_table::wrap(values.data(), row_count, 3);
+
+    const auto desc = this->get_descriptor(covariance::result_options::cov_matrix);
+    const auto partial =
+        this->partial_compute(desc, dal::covariance::partial_compute_result<>{}, wide);
+
+    REQUIRE_THROWS_AS(this->partial_compute(desc, partial, narrow), invalid_argument);
+    REQUIRE_NOTHROW(this->partial_compute(desc, partial, wide));
+}
+
 } // namespace oneapi::dal::covariance::test

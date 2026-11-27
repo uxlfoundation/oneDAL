@@ -197,4 +197,25 @@ TEMPLATE_LIST_TEST_M(pca_online_test,
     te::check_if_table_content_equal<float_t>(second.get_eigenvalues(), first.get_eigenvalues());
 }
 
+// The partial sums and cross-product are updated in place, so a block with another column count
+// used to write out of them.
+TEMPLATE_LIST_TEST_M(pca_online_test,
+                     "PCA partial train throws if the block does not match the partial result",
+                     "[pca][online][badarg]",
+                     pca_types) {
+    SKIP_IF(this->not_float64_friendly());
+    SKIP_IF(this->not_available_on_device());
+    using Float = std::tuple_element_t<0, TestType>;
+    constexpr std::int64_t row_count = 8;
+    const std::vector<Float> values(row_count * 4, Float(1));
+    const auto wide = homogen_table::wrap(values.data(), row_count, 4);
+    const auto narrow = homogen_table::wrap(values.data(), row_count, 3);
+
+    const auto desc = this->get_descriptor(2, true);
+    const auto partial = this->partial_train(desc, dal::pca::partial_train_result<>{}, wide);
+
+    REQUIRE_THROWS_AS(this->partial_train(desc, partial, narrow), invalid_argument);
+    REQUIRE_NOTHROW(this->partial_train(desc, partial, wide));
+}
+
 } // namespace oneapi::dal::pca::test

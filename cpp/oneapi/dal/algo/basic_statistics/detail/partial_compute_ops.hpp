@@ -53,6 +53,18 @@ struct partial_compute_ops {
             if (c_count != std::int64_t(1))
                 throw domain_error(msg::weights_column_count_ne_1());
         }
+
+        // The kernels update the previous statistics in place and trust their sizes.
+        const auto& prev = input.get_prev();
+        for (const table* statistic : { &prev.get_partial_min(),
+                                        &prev.get_partial_max(),
+                                        &prev.get_partial_sum(),
+                                        &prev.get_partial_sum_squares(),
+                                        &prev.get_partial_sum_squares_centered() }) {
+            if (statistic->has_data() && statistic->get_column_count() != data.get_column_count()) {
+                throw invalid_argument(msg::input_data_cc_neq_partial_result_cc());
+            }
+        }
     }
 
     void check_postconditions(const Descriptor& params,

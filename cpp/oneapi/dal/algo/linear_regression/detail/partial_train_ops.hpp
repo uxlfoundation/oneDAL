@@ -60,6 +60,24 @@ struct partial_train_ops {
         if (data.get_row_count() != responses.get_row_count()) {
             throw domain_error(msg::input_data_rc_neq_input_responses_rc());
         }
+
+        // The kernels add the block to the previous xtx and xty in place and trust their sizes.
+        const auto& prev_xtx = input.get_prev().get_partial_xtx();
+        const auto& prev_xty = input.get_prev().get_partial_xty();
+        const std::int64_t ext_feature_count =
+            data.get_column_count() + std::int64_t(params.get_compute_intercept());
+        if (prev_xtx.has_data() && (prev_xtx.get_row_count() != ext_feature_count ||
+                                    prev_xtx.get_column_count() != ext_feature_count)) {
+            throw invalid_argument(msg::input_data_cc_neq_partial_result_cc());
+        }
+        if (prev_xty.has_data()) {
+            if (prev_xty.get_column_count() != ext_feature_count) {
+                throw invalid_argument(msg::input_data_cc_neq_partial_result_cc());
+            }
+            if (prev_xty.get_row_count() != responses.get_column_count()) {
+                throw invalid_argument(msg::input_responses_cc_neq_partial_result_cc());
+            }
+        }
     }
 
     void check_postconditions(const Descriptor& params,
