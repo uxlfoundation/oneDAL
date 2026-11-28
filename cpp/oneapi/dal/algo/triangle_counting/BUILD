@@ -21,6 +21,21 @@ dal_test_suite(
     framework = "catch2",
     srcs = glob([
         "test/*.cpp",
+    ],
+    exclude = [
+        "test/*_gpu_test.cpp",
+    ]),
+    dal_deps = [
+        ":triangle_counting",
+    ],
+)
+
+dal_test_suite(
+    name = "gpu_tests",
+    framework = "catch2",
+    compile_as = [ "dpc++" ],
+    srcs = glob([
+        "test/*_gpu_test.cpp",
     ]),
     dal_deps = [
         ":triangle_counting",
