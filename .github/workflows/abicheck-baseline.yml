@@ -1,0 +1,132 @@
+#===============================================================================
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+# Attaches to a release tag the abicheck baseline-set that ci.yml's abicheck job reads.
+# Rotation and rationale: .github/abicheck/README.md.
+name: Publish Abicheck Baseline
+
+on:
+  workflow_dispatch:
+    inputs:
+      baseline_tag:
+        description: "oneDAL release tag to publish as the abicheck baseline"
+        required: true
+        default: "2026.0.0"
+  release:
+    types: [published]
+
+permissions:
+  contents: write   # gh release upload only
+
+env:
+  # Bump when the extractor or the library list changes, and move ci.yml with it;
+  # .github/abicheck/README.md.
+  ABICHECK_BASELINE_GENERATION: "1"
+  ABICHECK_AST_FRONTEND: clang   # clang -ast-dump=json, not castxml; same in both workflows
+  ABICHECK_ASSET_TEMPLATE: "abicheck-baseline-{profile}-gen{generation}.tar.zst"
+  TAG: ${{ inputs.baseline_tag || github.event.release.tag_name }}
+
+jobs:
+  PublishBaseline:
+    # Forks may dispatch it to publish onto their own releases.
+    if: github.repository == 'uxlfoundation/oneDAL' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      # The tag at the workspace root: the manifests record `git rev-parse HEAD`.
+      - name: Checkout oneDAL at the baseline tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+      - name: Install DPC++
+        run: .ci/env/apt.sh dpcpp
+      - name: Install MKL
+        run: .ci/env/apt.sh mkl
+
+      # Same targets and ISA as LinuxMakeDPCPP; re-point compiler/MKL/TBB at the tag's apt.sh
+      # pins, since setvars.sh picks newer runtime-only trees (README "Publish and rotate").
+      - name: Build daal + oneapi_c + oneapi_dpc (avx2)
+        run: |
+          set -eo pipefail
+          source /opt/intel/oneapi/setvars.sh
+          for c in compiler:intel-oneapi-compiler-dpcpp-cpp mkl:intel-oneapi-mkl-devel tbb:intel-oneapi-tbb-devel; do
+            v=$(sed -n "s/.*${c#*:}=\([0-9]*\.[0-9]*\)\..*/\1/p" .ci/env/apt.sh | head -1)
+            source "/opt/intel/oneapi/${c%%:*}/${v:?no pin for $c}/env/vars.sh"
+          done
+          for t in daal oneapi_c oneapi_dpc; do
+            .ci/scripts/build.sh --compiler icx --optimizations avx2 --target $t
+            rm -rf __work
+          done
+
+      # The library and header list lives in .github/abicheck/targets.json, shared with ci.yml.
+      # A release tag can predate it (on `release`, github.sha is the tag), so read the default branch's.
+      - name: Checkout the abicheck config of the default branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: __abicheck_cfg
+          sparse-checkout: .github/abicheck
+          persist-credentials: false
+      - name: Expand the library list
+        id: targets
+        run: |
+          set -euo pipefail
+          libs=$(jq -c '.include as $i | .libdir as $d | (.headers | map("\($i)/\(.)") | join(" ")) as $h
+            | [.libraries[] | {name: ., artifact: "\($d)/\(.)", header: $h, include: $i}]' \
+            __abicheck_cfg/.github/abicheck/targets.json)
+          echo "libraries=${libs}" >> "$GITHUB_OUTPUT"
+          rm -rf __abicheck_cfg
+
+      - name: Build the header-depth baseline-set
+        id: bset-headers
+        uses: abicheck/abicheck/actions/baseline@597e47ae7cf9657f4ea987175bf9463d70dba594 # v0.8.0
+        with:
+          output-dir: __abi_baseline_headers
+          project-ref: ${{ env.TAG }}
+          profile: linux-x86_64-icx-avx2-nodbg-headers
+          depth: headers
+          baseline-generation: ${{ env.ABICHECK_BASELINE_GENERATION }}
+          snapshot-compression: zstd
+          libraries: ${{ steps.targets.outputs.libraries }}
+
+      - name: Package the header-depth baseline-set
+        id: archive-headers
+        uses: abicheck/abicheck/actions/stage-baseline@597e47ae7cf9657f4ea987175bf9463d70dba594 # v0.8.0
+        with:
+          baseline-path: ${{ steps.bset-headers.outputs.baseline-path }}
+          asset-name-template: ${{ env.ABICHECK_ASSET_TEMPLATE }}
+          profile: linux-x86_64-icx-avx2-nodbg-headers
+          generation: ${{ env.ABICHECK_BASELINE_GENERATION }}
+
+      # No --clobber: a published set is immutable; republish = bump the generation.
+      - name: Publish baseline-set archives to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ARCHIVE: ${{ steps.archive-headers.outputs.archive-path }}
+        run: gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" "$ARCHIVE"
+
+      # Copy these into ABICHECK_BASELINE_DIGEST in ci.yml when rotating.
+      - name: Report the archive digests
+        env:
+          ARCHIVE: ${{ steps.archive-headers.outputs.archive-path }}
+          SHA: ${{ steps.archive-headers.outputs.archive-sha256 }}
+        run: |
+          {
+            echo "| asset | sha256 |"
+            echo "|---|---|"
+            echo "| \`${ARCHIVE}\` | \`sha256:${SHA}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,14 @@
+{
+  "_comment": "Single source for the libraries and public headers abicheck covers. Read by ci.yml (LinuxAbicheckScan) and abicheck-baseline.yml; paths are relative to the repo root. Adding a header or library here updates both the baseline and the gate.",
+  "include": "__release_lnx/daal/latest/include",
+  "headers": ["daal.h", "oneapi/dal.hpp"],
+  "libdir": "__release_lnx/daal/latest/lib/intel64",
+  "libraries": [
+    "libonedal.so",
+    "libonedal_core.so",
+    "libonedal_dpc.so",
+    "libonedal_parameters.so",
+    "libonedal_parameters_dpc.so",
+    "libonedal_thread.so"
+  ]
+}
