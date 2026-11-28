@@ -107,6 +107,24 @@ sycl::event gemm(sycl::queue& queue,
     return gemm<Float>(queue, transpose_a, a, b, c, Float(1), Float(0), dependencies);
 }
 
+/// Analyzes the sparse matrix A for the later calls of `gemm` with the same operation and
+/// layouts, so that oneMKL can pick a faster algorithm. The handle keeps the result.
+///
+/// @tparam bo      Data layout of the dense matrix B in the later `gemm` calls.
+/// @tparam co      Data layout of the dense matrix C in the later `gemm` calls.
+///
+/// @param queue        The SYCL* queue object.
+/// @param transpose_a  The operation on A in the later `gemm` calls.
+/// @param a            Handle to object containing sparse matrix A.
+/// @param columns      Number of columns of B and C in the later `gemm` calls.
+/// @param dependencies Events indicating availability of the matrix A.
+template <ndorder bo, ndorder co>
+sycl::event optimize_gemm(sycl::queue& queue,
+                          transpose transpose_a,
+                          sparse_matrix_handle& a,
+                          std::int64_t columns,
+                          const event_vector& dependencies = {});
+
 #endif // ifdef ONEDAL_DATA_PARALLEL
 
 } // namespace oneapi::dal::backend::primitives

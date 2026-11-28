@@ -65,6 +65,24 @@ sycl::event gemm(sycl::queue& queue,
     return sycl::event();
 }
 
+template <ndorder bo, ndorder co>
+sycl::event optimize_gemm(sycl::queue& queue,
+                          transpose transpose_a,
+                          sparse_matrix_handle& a,
+                          std::int64_t columns,
+                          const event_vector& dependencies) {
+    // The same mapping of the dense layouts to an operation on B as in `gemm`.
+    const auto transpose_b =
+        (co == ndorder::c) ? f_order_as_transposed(bo) : c_order_as_transposed(bo);
+    return mkl::sparse::optimize_gemm(queue,
+                                      order_as_layout(co),
+                                      transpose_to_mkl(transpose_a),
+                                      transpose_b,
+                                      dal::detail::get_impl(a).get(),
+                                      columns,
+                                      dependencies);
+}
+
 #define INSTANTIATE(F, bo, co)                                                    \
     template ONEDAL_EXPORT sycl::event gemm<F, bo, co>(sycl::queue & queue,       \
                                                        transpose transpose_a,     \
@@ -83,5 +101,17 @@ INSTANTIATE_FLOAT(ndorder::c, ndorder::c)
 INSTANTIATE_FLOAT(ndorder::c, ndorder::f)
 INSTANTIATE_FLOAT(ndorder::f, ndorder::c)
 INSTANTIATE_FLOAT(ndorder::f, ndorder::f)
+
+#define INSTANTIATE_OPTIMIZE(bo, co)                                                   \
+    template ONEDAL_EXPORT sycl::event optimize_gemm<bo, co>(sycl::queue & queue,      \
+                                                             transpose transpose_a,    \
+                                                             sparse_matrix_handle & a, \
+                                                             std::int64_t columns,     \
+                                                             const event_vector& deps);
+
+INSTANTIATE_OPTIMIZE(ndorder::c, ndorder::c)
+INSTANTIATE_OPTIMIZE(ndorder::c, ndorder::f)
+INSTANTIATE_OPTIMIZE(ndorder::f, ndorder::c)
+INSTANTIATE_OPTIMIZE(ndorder::f, ndorder::f)
 
 } // namespace oneapi::dal::backend::primitives
