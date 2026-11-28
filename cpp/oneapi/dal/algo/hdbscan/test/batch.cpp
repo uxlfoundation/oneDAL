@@ -374,6 +374,46 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 }
 
 TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan trees: same hierarchy as brute force over many Boruvka rounds",
+                     "[hdbscan][batch][single_linkage_tree]",
+                     hdbscan_tree_types) {
+    using Float = std::tuple_element_t<0, TestType>;
+    using Method = std::tuple_element_t<1, TestType>;
+    // The float32 brute force takes euclidean distances from a GEMM, so it is not a reference.
+    // The GPU tree search is covered by the cpu-vs-gpu cases below.
+    SKIP_IF((!std::is_same_v<Float, double>));
+    SKIP_IF(!this->get_policy().is_cpu());
+
+    // Touching blobs, so the MST needs many rounds with components of every size.
+    constexpr std::int64_t per_cluster = 250;
+    constexpr std::int64_t cluster_count = 4;
+    constexpr std::int64_t column_count = 3;
+    constexpr std::int64_t row_count = per_cluster * cluster_count;
+    const auto data = te::make_blobs<Float>(per_cluster,
+                                            cluster_count,
+                                            column_count,
+                                            /*separation=*/Float(1.0),
+                                            /*spread=*/Float(1.0));
+    const auto x = homogen_table::wrap(data.data(), row_count, column_count);
+
+    const auto metric = GENERATE(distance_metric::euclidean, distance_metric::manhattan);
+    const std::int64_t min_samples = GENERATE(2, 10);
+    CAPTURE(metric, min_samples);
+
+    const auto options = result_options::responses | result_options::single_linkage_tree;
+    const auto ref_desc = hdbscan::descriptor<Float, hdbscan::method::brute_force>(10, min_samples)
+                              .set_metric(metric)
+                              .set_result_options(options);
+    const auto desc = hdbscan::descriptor<Float, Method>(10, min_samples)
+                          .set_metric(metric)
+                          .set_result_options(options);
+    const auto ref_tree = this->get_single_linkage_tree(this->compute(ref_desc, x));
+    const auto tree = this->get_single_linkage_tree(this->compute(desc, x));
+
+    check_same_hierarchy(tree, ref_tree, row_count, 1e-9);
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
                      "hdbscan: non-finite input is rejected instead of truncating the MST",
                      "[hdbscan][batch]",
                      hdbscan_types) {
