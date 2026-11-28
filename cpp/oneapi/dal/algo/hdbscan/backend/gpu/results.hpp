@@ -46,12 +46,27 @@ inline array<T> to_device_array(sycl::queue& queue, const array<T>& host) {
     return pr::ndarray<T, 1>::wrap(host).to_device(queue).flatten(queue);
 }
 
+/// Copy a host table to a new device table.
+///
+/// @tparam Float Element type
+///
+/// @param[in] queue The SYCL queue
+/// @param[in] host  Host table
+///
+/// @return Device table with the same shape and contents
+template <typename Float>
+inline table to_device_table(sycl::queue& queue, const table& host) {
+    const auto data =
+        row_accessor<const Float>(host).pull(queue, { 0, -1 }, sycl::usm::alloc::device);
+    return homogen_table::wrap(data, host.get_row_count(), host.get_column_count());
+}
+
 /// Extract the flat clusters from an MST and pack them, with the outputs `desc` asks for, into a
 /// oneAPI compute result.
 ///
 /// The extraction walks the dendrogram and the condensed tree in order, which one CPU core does
 /// far faster than one work-item, so it runs on host with the code of the CPU kernels. The
-/// responses, probabilities and single linkage tree are returned on device.
+/// results, cluster centers included, are returned on device.
 ///
 /// @tparam Float Floating-point type
 ///
@@ -113,6 +128,15 @@ inline result_t make_results_from_mst(sycl::queue& queue,
                             clusters.probabilities,
                             clusters.cluster_count,
                             results);
+        if (options.test(result_options::cluster_centers) &&
+            results.get_cluster_centers().has_data()) {
+            results.set_cluster_centers(
+                to_device_table<Float>(queue, results.get_cluster_centers()));
+        }
+        if (options.test(result_options::medoid_centers) &&
+            results.get_medoid_centers().has_data()) {
+            results.set_medoid_centers(to_device_table<Float>(queue, results.get_medoid_centers()));
+        }
     }
     return results;
 }
