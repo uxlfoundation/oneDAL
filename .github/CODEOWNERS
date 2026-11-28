@@ -25,6 +25,7 @@ cmake/         @Alexandr-Solovev
 deploy/        @homksei @ahuber21 @ethanglaser
 dev/           @homksei @ahuber21 @ethanglaser
 dev/bazel/     @Alexandr-Solovev
+dev/agent_evals/ @napetrov @homksei @ethanglaser
 MODULE.bazel*  @Alexandr-Solovev @napetrov @homksei @ahuber21 @ethanglaser @icfaust
 
 # C++ code

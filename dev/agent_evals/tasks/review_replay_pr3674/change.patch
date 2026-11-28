@@ -1,0 +1,110 @@
+From ef8e79e6609e4e1847875fa3bc87ce18f4bc0c6d Mon Sep 17 00:00:00 2001
+From: Dev Contributor <dev@example.com>
+Date: Thu, 25 Jun 2026 14:56:05 -0700
+Subject: [PATCH] Normalize forest sample weights
+
+Fixes test deselected in https://github.com/uxlfoundation/scikit-learn-intelex/pull/3231
+Accompanies https://github.com/uxlfoundation/scikit-learn-intelex/pull/3292
+---
+ ..._classification_train_dense_default_impl.i |  4 ++
+ .../forest/df_train_dense_default_impl.i      | 40 +++++++++++++++++++
+ .../df_regression_train_dense_default_impl.i  |  6 ++-
+ 3 files changed, 49 insertions(+), 1 deletion(-)
+
+diff --git a/cpp/daal/src/algorithms/dtrees/forest/classification/df_classification_train_dense_default_impl.i b/cpp/daal/src/algorithms/dtrees/forest/classification/df_classification_train_dense_default_impl.i
+index 2eb442b1..f301a11c 100644
+--- a/cpp/daal/src/algorithms/dtrees/forest/classification/df_classification_train_dense_default_impl.i
++++ b/cpp/daal/src/algorithms/dtrees/forest/classification/df_classification_train_dense_default_impl.i
+@@ -1799,6 +1799,10 @@ services::Status ClassificationTrainBatchKernel<algorithmFPType, method, cpu>::c
+         if (!s) return s;
+     }
+ 
++    const services::SharedPtr<NumericTable> normalizedWeights = normalizeWeights<algorithmFPType, cpu>(w, s);
++    if (!s) return s;
++    if (normalizedWeights) w = normalizedWeights.get();
++
+     if (par.splitter == decision_forest::training::SplitterMode::best)
+     {
+         s = computeForSpecificHelper<algorithmFPType, method, cpu,
+diff --git a/cpp/daal/src/algorithms/dtrees/forest/df_train_dense_default_impl.i b/cpp/daal/src/algorithms/dtrees/forest/df_train_dense_default_impl.i
+index 8e4b4fe3..b4892f00 100644
+--- a/cpp/daal/src/algorithms/dtrees/forest/df_train_dense_default_impl.i
++++ b/cpp/daal/src/algorithms/dtrees/forest/df_train_dense_default_impl.i
+@@ -33,6 +33,7 @@
+ #include "src/services/service_defines.h"
+ #include "src/algorithms/distributions/uniform/uniform_kernel.h"
+ #include "src/algorithms/dtrees/forest/df_hyperparameter_impl.h"
++#include "src/data_management/service_numeric_table.h"
+ 
+ using namespace daal::algorithms::dtrees::training::internal;
+ using namespace daal::algorithms::internal;
+@@ -47,6 +48,45 @@ namespace training
+ {
+ namespace internal
+ {
++// Rescale weights to max == 1: the fit should depend only on relative weights, but
++// the weighted-variance / impurity-decrease math is sensitive to absolute magnitude.
++template <typename algorithmFPType, CpuType cpu>
++services::SharedPtr<NumericTable> normalizeWeights(const NumericTable * weights, services::Status & s)
++{
++    services::SharedPtr<NumericTable> empty;
++    if (!weights) return empty;
++
++    const size_t nRows = weights->getNumberOfRows();
++    if (!nRows) return empty;
++
++    ReadRows<algorithmFPType, cpu> srcBlock(const_cast<NumericTable *>(weights), 0, nRows);
++    s |= srcBlock.status();
++    if (!s) return empty;
++    const algorithmFPType * src = srcBlock.get();
++
++    algorithmFPType maxWeight = 0;
++    for (size_t i = 0; i < nRows; ++i)
++    {
++        if (src[i] > maxWeight) maxWeight = src[i];
++    }
++    if (!(maxWeight > 0)) return empty;
++
++    services::SharedPtr<HomogenNumericTableCPU<algorithmFPType, cpu> > normalized =
++        HomogenNumericTableCPU<algorithmFPType, cpu>::create(1, nRows, &s);
++    if (!s) return empty;
++
++    WriteOnlyRows<algorithmFPType, cpu> dstBlock(normalized.get(), 0, nRows);
++    s |= dstBlock.status();
++    if (!s) return empty;
++    algorithmFPType * dst = dstBlock.get();
++
++    for (size_t i = 0; i < nRows; ++i)
++    {
++        dst[i] = src[i] / maxWeight;
++    }
++    return normalized;
++}
++
+ //////////////////////////////////////////////////////////////////////////////////////////
+ // Service class, it uses to keep information about nodes
+ //////////////////////////////////////////////////////////////////////////////////////////
+diff --git a/cpp/daal/src/algorithms/dtrees/forest/regression/df_regression_train_dense_default_impl.i b/cpp/daal/src/algorithms/dtrees/forest/regression/df_regression_train_dense_default_impl.i
+index 5a6b87b4..00a65469 100644
+--- a/cpp/daal/src/algorithms/dtrees/forest/regression/df_regression_train_dense_default_impl.i
++++ b/cpp/daal/src/algorithms/dtrees/forest/regression/df_regression_train_dense_default_impl.i
+@@ -1218,7 +1218,7 @@ bool OrderedRespHelperRandom<algorithmFPType, cpu>::findBestSplitOrderedFeature(
+     ImpurityData left;
+     ImpurityData right;
+     IndexType iBest = -1;
+-    algorithmFPType vBest;
++    intermSummFPType vBest;
+     intermSummFPType leftWeights  = 0.;
+     intermSummFPType rightWeights = 0.;
+     auto aResponse                = this->_aResponse.get();
+@@ -1567,6 +1567,10 @@ services::Status RegressionTrainBatchKernel<algorithmFPType, method, cpu>::compu
+         if (!s) return s;
+     }
+ 
++    const services::SharedPtr<NumericTable> normalizedWeights = normalizeWeights<algorithmFPType, cpu>(w, s);
++    if (!s) return s;
++    if (normalizedWeights) w = normalizedWeights.get();
++
+     if (par.splitter == decision_forest::training::SplitterMode::best)
+     {
+         s = computeForSpecificHelper<algorithmFPType, method, cpu,

@@ -1,0 +1,13 @@
+diff --git a/cpp/oneapi/dal/algo/subgraph_isomorphism/backend/cpu/compiler_adapt.hpp b/cpp/oneapi/dal/algo/subgraph_isomorphism/backend/cpu/compiler_adapt.hpp
+index 87efbf6..25fcbca 100644
+--- a/cpp/oneapi/dal/algo/subgraph_isomorphism/backend/cpu/compiler_adapt.hpp
++++ b/cpp/oneapi/dal/algo/subgraph_isomorphism/backend/cpu/compiler_adapt.hpp
+@@ -164,7 +164,7 @@ ONEDAL_FORCEINLINE std::int32_t ONEDAL_popcnt64<dal::backend::cpu_dispatch_avx2>
+         return 0;
+     std::uint64_t last_bit = 1;
+     std::int32_t bit_cnt = 0;
+-    for (std::int32_t i = 0; i < 64; i++) {
++    for (std::int32_t i = 0; i < 32; i++) {
+         if (a & last_bit) {
+             bit_cnt++;
+         }

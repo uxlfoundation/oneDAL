@@ -1,0 +1,13 @@
+diff --git a/cpp/daal/src/algorithms/service_kernel_math.h b/cpp/daal/src/algorithms/service_kernel_math.h
+index 23b10ba..407cb6e 100644
+--- a/cpp/daal/src/algorithms/service_kernel_math.h
++++ b/cpp/daal/src/algorithms/service_kernel_math.h
+@@ -606,7 +606,7 @@ protected:
+     {
+         daal::internal::MathInst<FPType, cpu> math;
+ 
+-        FPType d = 0;
++        float d = 0;
+ 
+         for (size_t i = 0; i < n; ++i)
+         {
