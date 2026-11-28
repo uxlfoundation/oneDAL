@@ -213,6 +213,43 @@ public:
         }
     }
 
+    /// Check that the core observation indices are the rows flagged as core, in increasing order,
+    /// and that the core observations are those rows of `x`.
+    static void check_core_outputs(const result_t &result,
+                                   const std::vector<float_t> &x,
+                                   std::int64_t column_count) {
+        const auto core_flags = row_accessor<const std::int32_t>(result.get_core_flags()).pull();
+        std::vector<std::int32_t> expected;
+        for (std::int64_t i = 0; i < core_flags.get_count(); i++) {
+            if (core_flags[i]) {
+                expected.push_back(std::int32_t(i));
+            }
+        }
+        const auto expected_count = std::int64_t(expected.size());
+
+        const table indices = result.get_core_observation_indices();
+        REQUIRE(indices.get_row_count() == expected_count);
+        if (expected_count == 0) {
+            return;
+        }
+        const auto idx = row_accessor<const std::int32_t>(indices).pull();
+        for (std::int64_t k = 0; k < expected_count; k++) {
+            CAPTURE(k);
+            REQUIRE(idx[k] == expected[k]);
+        }
+
+        const table observations = result.get_core_observations();
+        REQUIRE(observations.get_row_count() == expected_count);
+        REQUIRE(observations.get_column_count() == column_count);
+        const auto obs = row_accessor<const float_t>(observations).pull();
+        for (std::int64_t k = 0; k < expected_count; k++) {
+            for (std::int64_t j = 0; j < column_count; j++) {
+                CAPTURE(k, j);
+                REQUIRE(obs[k * column_count + j] == x[expected[k] * column_count + j]);
+            }
+        }
+    }
+
     void check_if_close(const table &left,
                         const table &right,
                         std::string name = "",
