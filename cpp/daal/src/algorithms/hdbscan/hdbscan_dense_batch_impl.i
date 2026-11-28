@@ -112,7 +112,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
 
     using algorithms::internal::PairwiseDistanceType;
     using algorithms::internal::EuclideanDistances;
-    using algorithms::internal::CosineDistances;
+    using algorithms::internal::ZeroRowCosineDistances;
 
     // Euclidean and cosine use the GEMM-based PairwiseDistances; the other metrics use the
     // functors in hdbscan_distance_utils.h.
@@ -128,26 +128,11 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(
     }
     else if (pairwiseDistance == PairwiseDistanceType::cosine)
     {
-        CosineDistances<algorithmFPType, cpu> dist(*ntData, *ntData);
+        // A zero-norm row is at distance 1 from every other row, as in scikit-learn; round-off can
+        // also move the diagonal off zero.
+        ZeroRowCosineDistances<algorithmFPType, cpu> dist(*ntData, *ntData);
         DAAL_CHECK_STATUS_VAR(dist.init());
         DAAL_CHECK_STATUS_VAR(dist.computeFull(distMatrix));
-        // A zero-norm row makes 1 - dot/(aa*bb) divide by zero. scikit-learn
-        // normalizes it to the zero vector instead, which puts it at distance 1
-        // from every other row; round-off can also move the diagonal off zero.
-        for (size_t i = 0; i < nRows; i++)
-        {
-            const algorithmFPType * row = data + i * nCols;
-            bool isZero                 = true;
-            for (size_t d = 0; d < nCols && isZero; d++) isZero = (row[d] == algorithmFPType(0));
-            if (isZero)
-            {
-                for (size_t j = 0; j < nRows; j++)
-                {
-                    distMatrix[i * nRows + j] = algorithmFPType(1);
-                    distMatrix[j * nRows + i] = algorithmFPType(1);
-                }
-            }
-        }
         for (size_t i = 0; i < nRows; i++) distMatrix[i * nRows + i] = algorithmFPType(0);
     }
     else if (pairwiseDistance == PairwiseDistanceType::manhattan)

@@ -542,8 +542,8 @@ public:
                                   FPType * const res) override
     {
         services::Status s = super::computeBatch(a, b, aOffset, aSize, bOffset, bSize, res);
-        // `init` stores the row norms. A norm is exactly zero only for a row without a direction,
-        // and any other row has a well-defined cosine, so there is no tolerance.
+        // `init` stores the row norms. A norm is zero for an all-zero row and for a row whose squared
+        // norm underflows; scikit-learn's normalize leaves both unscaled, so both are at distance 1.
         const FPType * const aNorms = this->normBufferA.get() + aOffset;
         const FPType * const bNorms = (&this->_a == &this->_b) ? this->normBufferA.get() + bOffset : this->normBufferB.get() + bOffset;
         for (size_t i = 0; i < aSize; i++)
