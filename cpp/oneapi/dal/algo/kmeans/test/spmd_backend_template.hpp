@@ -131,9 +131,9 @@ public:
                 const std::int64_t cluster_count = centroids.get_row_count();
                 const std::int64_t column_count = centroids.get_column_count();
                 std::int64_t min_value = cluster_count;
-                comm.allreduce(min_value, dal::preview::spmd::reduce_op::min);
+                comm.allreduce(min_value, dal::preview::spmd::reduce_op::min).wait();
                 std::int64_t max_value = cluster_count;
-                comm.allreduce(max_value, dal::preview::spmd::reduce_op::max);
+                comm.allreduce(max_value, dal::preview::spmd::reduce_op::max).wait();
                 REQUIRE(min_value == max_value);
 
                 auto arr_local = oneapi::dal::array<float_t>::zeros(this->get_queue(),
@@ -152,7 +152,7 @@ public:
                                         arr_temp.get_data(),
                                         sizeof(float_t) * cluster_count * column_count);
                 }
-                comm.bcast(arr_local);
+                comm.bcast(arr_local).wait();
                 if (rank != root_rank) {
                     auto front_centroids =
                         dal::homogen_table::wrap(arr_local, cluster_count, column_count);
@@ -163,18 +163,18 @@ public:
             SECTION("check iterations") {
                 auto comm = this->get_comm();
                 std::int64_t min_value = result.get_iteration_count();
-                comm.allreduce(min_value, dal::preview::spmd::reduce_op::min);
+                comm.allreduce(min_value, dal::preview::spmd::reduce_op::min).wait();
                 std::int64_t max_value = result.get_iteration_count();
-                comm.allreduce(max_value, dal::preview::spmd::reduce_op::max);
+                comm.allreduce(max_value, dal::preview::spmd::reduce_op::max).wait();
                 REQUIRE(min_value == max_value);
             }
 
             SECTION("check objective function") {
                 auto comm = this->get_comm();
                 float_t min_value = result.get_objective_function_value();
-                comm.allreduce(min_value, dal::preview::spmd::reduce_op::min);
+                comm.allreduce(min_value, dal::preview::spmd::reduce_op::min).wait();
                 float_t max_value = result.get_objective_function_value();
-                comm.allreduce(max_value, dal::preview::spmd::reduce_op::max);
+                comm.allreduce(max_value, dal::preview::spmd::reduce_op::max).wait();
                 REQUIRE(min_value == max_value);
             }
         }

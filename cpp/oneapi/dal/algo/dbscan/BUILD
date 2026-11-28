@@ -20,11 +20,13 @@ dal_module(
     ],
 )
 
+# The algorithm has no CPU SPMD kernel, so these tests have no host cases.
 dal_test_suite(
     name = "mpi_tests",
     mpi = True,
     mpi_ranks = 2,
     framework = "catch2",
+    compile_as = ["dpc++"],
     hdrs = glob([
         "test/data.hpp",
         "test/spmd_backend_fixture.hpp",
@@ -43,6 +45,7 @@ dal_test_suite(
     ccl = True,
     mpi_ranks = 2,
     framework = "catch2",
+    compile_as = ["dpc++"],
     hdrs = glob([
         "test/data.hpp",
         "test/spmd_backend_fixture.hpp",

@@ -16,9 +16,6 @@
 
 #pragma once
 
-// TODO host version
-#ifdef ONEDAL_DATA_PARALLEL
-
 // IMPORTANT! This file should not be included to any other non-ccl header,
 // otherwise it creates dependeny on CCL at the user's application compile time
 // TODO: In the future this can be solved via __has_include C++17 feature
@@ -27,6 +24,7 @@
 #include "oneapi/dal/detail/communicator.hpp"
 #include <mpi.h>
 #include <ccl.hpp>
+#include <cstring>
 
 namespace spmd = oneapi::dal::preview::spmd;
 
@@ -61,6 +59,28 @@ inline ccl::reduction make_ccl_reduce_op(const spmd::reduce_op& op) {
     }
 }
 
+/// oneCCL has no displacements: `allgatherv` packs the ranks one after another.
+///
+/// @param recv_counts  Number of elements received from each rank
+/// @param displs       Requested offset of each rank in the receive buffer, in elements
+/// @param rank_count   Number of ranks
+/// @return             Whether `displs` is the packed layout; true for `nullptr`
+inline bool is_packed_layout(const std::int64_t* recv_counts,
+                             const std::int64_t* displs,
+                             std::int64_t rank_count) {
+    if (!displs) {
+        return true;
+    }
+    std::int64_t offset = 0;
+    for (std::int64_t i = 0; i < rank_count; ++i) {
+        if (recv_counts[i] > 0 && displs[i] != offset) {
+            return false;
+        }
+        offset += recv_counts[i];
+    }
+    return true;
+}
+
 class ccl_request_impl : public spmd::request_iface {
 public:
     explicit ccl_request_impl(ccl::event&& request) {
@@ -93,6 +113,7 @@ private:
     ccl::communicator comm_;
 };
 
+#ifdef ONEDAL_DATA_PARALLEL
 class ccl_stream_wrapper {
 public:
     explicit ccl_stream_wrapper(ccl::stream&& stream) : stream_(std::move(stream)) {}
@@ -180,19 +201,51 @@ public:
 
         sycl::event::wait(deps);
 
-        std::vector<std::size_t> internal_recv_counts(this->get_rank_count());
-        for (std::int64_t i = 0; i < this->get_rank_count(); ++i) {
+        const std::int64_t rank_count = this->get_rank_count();
+        std::int64_t total_count = 0;
+        std::vector<std::size_t> internal_recv_counts(rank_count);
+        for (std::int64_t i = 0; i < rank_count; ++i) {
             internal_recv_counts[i] = integral_cast<std::size_t>(recv_counts[i]);
+            total_count += recv_counts[i];
         }
 
-        auto event = ccl::allgatherv(send_buf,
-                                     integral_cast<int>(send_count),
-                                     recv_buf,
-                                     internal_recv_counts,
-                                     make_ccl_data_type(dtype),
-                                     device_comm_->get_ref(),
-                                     stream_->get_ref());
-        return new ccl_request_impl{ std::move(event) };
+        if (is_packed_layout(recv_counts, displs_host, rank_count)) {
+            auto event = ccl::allgatherv(send_buf,
+                                         integral_cast<int>(send_count),
+                                         recv_buf,
+                                         internal_recv_counts,
+                                         make_ccl_data_type(dtype),
+                                         device_comm_->get_ref(),
+                                         stream_->get_ref());
+            return new ccl_request_impl{ std::move(event) };
+        }
+
+        const std::int64_t dtype_size = get_data_type_size(dtype);
+        const auto packed = array<byte_t>::empty(queue_,
+                                                 check_mul_overflow(dtype_size, total_count),
+                                                 sycl::usm::alloc::device);
+        ccl::allgatherv(send_buf,
+                        integral_cast<int>(send_count),
+                        packed.get_mutable_data(),
+                        internal_recv_counts,
+                        make_ccl_data_type(dtype),
+                        device_comm_->get_ref(),
+                        stream_->get_ref())
+            .wait();
+
+        std::vector<sycl::event> copy_events;
+        std::int64_t offset = 0;
+        for (std::int64_t i = 0; i < rank_count; ++i) {
+            if (recv_counts[i] > 0) {
+                copy_events.push_back(queue_.memcpy(recv_buf + dtype_size * displs_host[i],
+                                                    packed.get_data() + dtype_size * offset,
+                                                    dtype_size * recv_counts[i]));
+            }
+            offset += recv_counts[i];
+        }
+        // `packed` is freed on return, so the copies must be complete by then.
+        sycl::event::wait_and_throw(copy_events);
+        return nullptr;
     }
 
     /// `allreduce` that accepts USM pointers
@@ -267,15 +320,19 @@ private:
     std::int64_t rank_ = -1;
     std::int64_t rank_count_ = -1;
 };
+#endif
+
 template <typename MemoryAccessKind>
 struct ccl_interface_selector {
     using type = spmd::communicator_iface_base;
 };
 
+#ifdef ONEDAL_DATA_PARALLEL
 template <>
 struct ccl_interface_selector<spmd::device_memory_access::usm> {
     using type = ccl_device_communicator_impl;
 };
+#endif
 
 /// Implementation of the low-level SPMD communicator interface via MPI
 /// TODO: Currently message sizes are limited via `int` type.
@@ -301,6 +358,7 @@ public:
         host_comm_.reset(new ccl_comm_wrapper{ ccl::create_communicator(rank_count_, rank_, kvs) });
     }
 
+#ifdef ONEDAL_DATA_PARALLEL
     //    template<typename T = MemoryAccessKind, spmd::enable_if_device_memory_accessible_t<T>>
     explicit ccl_communicator_impl(sycl::queue& queue,
                                    ccl::shared_ptr_class<ccl::kvs> kvs,
@@ -313,6 +371,7 @@ public:
               default_root_(default_root) {
         host_comm_.reset(new ccl_comm_wrapper{ ccl::create_communicator(rank_count_, rank_, kvs) });
     }
+#endif
 
     std::int64_t get_rank() override {
         return rank_;
@@ -368,20 +427,43 @@ public:
                                     const std::int64_t* recv_counts,
                                     const std::int64_t* displs,
                                     const data_type& dtype) override {
+        std::int64_t total_count = 0;
         std::vector<std::size_t> internal_recv_counts(rank_count_);
         for (std::int64_t i = 0; i < rank_count_; i++) {
             internal_recv_counts[i] = integral_cast<std::size_t>(recv_counts[i]);
+            total_count += recv_counts[i];
         }
 
         ONEDAL_ASSERT(recv_buf);
 
-        auto event = ccl::allgatherv(send_buf,
-                                     integral_cast<std::size_t>(send_count),
-                                     recv_buf,
-                                     internal_recv_counts,
-                                     make_ccl_data_type(dtype),
-                                     host_comm_->get_ref());
-        return new ccl_request_impl{ std::move(event) };
+        if (is_packed_layout(recv_counts, displs, rank_count_)) {
+            auto event = ccl::allgatherv(send_buf,
+                                         integral_cast<std::size_t>(send_count),
+                                         recv_buf,
+                                         internal_recv_counts,
+                                         make_ccl_data_type(dtype),
+                                         host_comm_->get_ref());
+            return new ccl_request_impl{ std::move(event) };
+        }
+
+        const std::int64_t dtype_size = get_data_type_size(dtype);
+        const auto packed = array<byte_t>::empty(check_mul_overflow(dtype_size, total_count));
+        ccl::allgatherv(send_buf,
+                        integral_cast<std::size_t>(send_count),
+                        packed.get_mutable_data(),
+                        internal_recv_counts,
+                        make_ccl_data_type(dtype),
+                        host_comm_->get_ref())
+            .wait();
+
+        std::int64_t offset = 0;
+        for (std::int64_t i = 0; i < rank_count_; i++) {
+            std::memcpy(recv_buf + dtype_size * displs[i],
+                        packed.get_data() + dtype_size * offset,
+                        dtype_size * recv_counts[i]);
+            offset += recv_counts[i];
+        }
+        return nullptr;
     }
 
     spmd::request_iface* allreduce(const byte_t* send_buf,
@@ -446,6 +528,7 @@ private:
 template <typename MemoryAccessKind>
 class ccl_communicator : public spmd::communicator<MemoryAccessKind> {
 public:
+#ifdef ONEDAL_DATA_PARALLEL
     template <typename T = MemoryAccessKind,
               typename = spmd::enable_if_device_memory_accessible_t<T>>
     explicit ccl_communicator(sycl::queue& queue,
@@ -459,6 +542,7 @@ public:
                                                               rank,
                                                               rank_count,
                                                               default_root)) {}
+#endif
     explicit ccl_communicator(ccl::shared_ptr_class<ccl::kvs> kvs,
                               std::int64_t rank,
                               std::int64_t rank_count,
@@ -475,4 +559,3 @@ public:
 using v1::ccl_communicator;
 
 } // namespace oneapi::dal::detail
-#endif

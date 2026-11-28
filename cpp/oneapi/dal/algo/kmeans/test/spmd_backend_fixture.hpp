@@ -71,6 +71,12 @@ public:
         return descriptor_t{ cluster_count };
     }
 
+    /// Inference computes the objective function only on request, and the checks read it.
+    descriptor_t with_exact_objective(const descriptor_t& desc) const {
+        return descriptor_t{ desc }.set_result_options(
+            kmeans::result_options::compute_exact_objective_function);
+    }
+
     void exact_checks(const table& data,
                       const table& initial_centroids,
                       const table& ref_centroids,
@@ -96,7 +102,7 @@ public:
                            test_convergence);
 
         INFO("run inference");
-        const auto infer_result = this->infer(kmeans_desc, model, data);
+        const auto infer_result = this->infer(with_exact_objective(kmeans_desc), model, data);
         check_infer_result(kmeans_desc, infer_result, ref_responses, ref_objective_function);
     }
 
@@ -131,7 +137,7 @@ public:
                            ref_responses,
                            test_convergence);
         INFO("run inference");
-        const auto infer_result = this->infer(kmeans_desc, model, data);
+        const auto infer_result = this->infer(with_exact_objective(kmeans_desc), model, data);
         check_infer_result(kmeans_desc,
                            infer_result,
                            match_map,
@@ -339,7 +345,7 @@ public:
         REQUIRE(te::has_no_nans(model.get_centroids()));
 
         INFO("run inference");
-        const auto infer_result = this->infer(kmeans_desc, model, data);
+        const auto infer_result = this->infer(with_exact_objective(kmeans_desc), model, data);
         REQUIRE(te::has_no_nans(infer_result.get_responses()));
 
         auto dbi =
@@ -373,7 +379,7 @@ public:
         REQUIRE(te::has_no_nans(model.get_centroids()));
 
         INFO("run inference");
-        const auto infer_result = this->infer(kmeans_desc, model, data);
+        const auto infer_result = this->infer(with_exact_objective(kmeans_desc), model, data);
         REQUIRE(te::has_no_nans(infer_result.get_responses()));
 
         auto dbi =
@@ -414,7 +420,7 @@ public:
         const auto kmeans_desc = get_descriptor(model.get_cluster_count());
 
         INFO("run inference");
-        const auto infer_result = this->infer(kmeans_desc, model, data);
+        const auto infer_result = this->infer(with_exact_objective(kmeans_desc), model, data);
         check_infer_result(kmeans_desc, infer_result, ref_responses, ref_objective_function);
     }
 

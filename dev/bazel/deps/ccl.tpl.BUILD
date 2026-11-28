@@ -16,6 +16,12 @@ cc_library(
     srcs = [
         "lib/libccl.so.1.0",
     ],
+    # libccl.so needs the DPC++ runtime; a host link does not get it from -fsycl.
+    # Linux only: the Windows release build analyzes this target, and @opencl does not resolve there.
+    deps = select({
+        "@platforms//os:linux": ["@opencl//:opencl_binary"],
+        "//conditions:default": [],
+    }),
 )
 
 cc_library(

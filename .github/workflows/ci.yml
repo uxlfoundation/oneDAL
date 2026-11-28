@@ -149,6 +149,14 @@ jobs:
         run: |
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/dpc --build-system cmake
+      # After the examples, so that oneCCL and its MPI cannot change how the library is built or tested.
+      - name: Install oneCCL
+        run: .ci/env/apt.sh ccl
+      # Host oneCCL samples; libccl needs the DPC++ runtime, which only this job installs.
+      - name: oneapi/cpp/ccl samples
+        run: |
+            source /opt/intel/oneapi/setvars.sh
+            .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler icx --interface oneapi/cpp/ccl --build-system cmake
   LinuxABICheck:
     name: ABI Conformance(avx2)
     needs: LinuxMakeDPCPP

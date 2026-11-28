@@ -14,10 +14,10 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include <algorithm>
+
 #include "oneapi/dal/test/engine/ccl_global.hpp"
 #include "oneapi/dal/test/engine/fixtures.hpp"
-
-#ifdef ONEDAL_DATA_PARALLEL
 
 namespace oneapi::dal::test {
 
@@ -25,10 +25,18 @@ namespace te = dal::test::engine;
 
 class ccl_comm_test : public te::policy_fixture {
 public:
+#ifdef ONEDAL_DATA_PARALLEL
     using comm_t = spmd::communicator<spmd::device_memory_access::usm>;
+#else
+    using comm_t = spmd::communicator<spmd::device_memory_access::none>;
+#endif
 
     comm_t get_new_comm() {
+#ifdef ONEDAL_DATA_PARALLEL
         return te::get_global_ccl_device_communicator(get_queue());
+#else
+        return te::get_global_ccl_host_communicator();
+#endif
     }
 
     template <typename T>
@@ -42,6 +50,7 @@ public:
         comm.bcast(value).wait();
     }
 
+#ifdef ONEDAL_DATA_PARALLEL
     template <typename T>
     void test_bcast_on_device(T* buffer, std::int64_t count) {
         if (count > 1) {
@@ -55,6 +64,7 @@ public:
             copy_to_host(buffer, buffer_device.get_data(), 1);
         }
     }
+#endif
 
     template <typename T>
     void test_allreduce(T* buffer, std::int64_t count) {
@@ -66,6 +76,7 @@ public:
         get_new_comm().allreduce(value, spmd::reduce_op::sum).wait();
     }
 
+#ifdef ONEDAL_DATA_PARALLEL
     template <typename T>
     void test_allreduce_on_device(T* buffer, std::int64_t count) {
         if (count > 1) {
@@ -91,6 +102,7 @@ public:
             copy_to_host(buffer, buffer_device.get_data(), 1);
         }
     }
+#endif
 
     template <typename T>
     void test_allgatherv(T* send_buffer,
@@ -101,6 +113,7 @@ public:
         get_new_comm().allgatherv(send_buffer, send_count, recv_buffer, recv_counts, displs).wait();
     }
 
+#ifdef ONEDAL_DATA_PARALLEL
     template <typename T>
     void test_allgatherv_on_device(T* send_buf,
                                    std::int64_t send_count,
@@ -111,11 +124,10 @@ public:
         auto send_buffer_device = copy_to_device(send_buf, send_count);
         std::int64_t total_count = 0;
         for (std::int64_t i = 0; i < comm.get_rank_count(); i++) {
-            total_count += recv_counts[i];
+            total_count = std::max(total_count, displs[i] + recv_counts[i]);
         }
 
-        auto recv_buffer_device =
-            array<T>::empty(get_queue(), total_count, sycl::usm::alloc::device);
+        auto recv_buffer_device = copy_to_device(recv_buf, total_count);
 
         comm.allgatherv(get_queue(),
                         send_buffer_device.get_mutable_data(),
@@ -126,6 +138,7 @@ public:
             .wait();
         copy_to_host(recv_buf, recv_buffer_device.get_data(), total_count);
     }
+#endif
 
     template <typename T>
     void test_sendrecv_replace(T* buffer,
@@ -135,6 +148,7 @@ public:
         get_new_comm().sendrecv_replace(buffer, count, destination_rank, source_rank).wait();
     }
 
+#ifdef ONEDAL_DATA_PARALLEL
     template <typename T>
     void test_sendrecv_replace_on_device(T* buffer,
                                          std::int64_t count,
@@ -171,6 +185,7 @@ private:
     void copy_to_host(T* dst, const T* src, std::int64_t count) {
         dal::detail::memcpy_usm2host(get_queue(), dst, src, sizeof(T) * count);
     }
+#endif
 };
 
 TEST_M(ccl_comm_test, "bcast") {
@@ -326,6 +341,52 @@ TEST_M(ccl_comm_test, "allgatherv") {
     }
 }
 
+TEST_M(ccl_comm_test, "allgatherv with gaps between the ranks") {
+    auto comm = get_new_comm();
+    const std::int64_t granularity = 10;
+    const std::int64_t rank_count = comm.get_rank_count();
+    const std::int64_t rank = comm.get_rank();
+    constexpr float untouched = -1.0f;
+
+    std::vector<std::int64_t> recv_counts(rank_count);
+    std::vector<std::int64_t> displs(rank_count);
+    std::int64_t total_size = 0;
+    for (std::int64_t i = 0; i < rank_count; i++) {
+        recv_counts[i] = (i + 1) * granularity;
+        displs[i] = total_size + i + 1;
+        total_size = displs[i] + recv_counts[i];
+    }
+
+    std::vector<float> send_buffer(recv_counts[rank], float(rank));
+    std::vector<float> recv_buffer(total_size, untouched);
+    std::vector<float> final_buffer(total_size, untouched);
+    for (std::int64_t i = 0; i < rank_count; i++) {
+        std::fill_n(final_buffer.begin() + displs[i], recv_counts[i], float(i));
+    }
+
+    SECTION("host") {
+        test_allgatherv(send_buffer.data(),
+                        recv_counts[rank],
+                        recv_buffer.data(),
+                        recv_counts.data(),
+                        displs.data());
+    }
+
+#ifdef ONEDAL_DATA_PARALLEL
+    SECTION("device") {
+        test_allgatherv_on_device(send_buffer.data(),
+                                  recv_counts[rank],
+                                  recv_buffer.data(),
+                                  recv_counts.data(),
+                                  displs.data());
+    }
+#endif
+
+    for (std::int64_t i = 0; i < total_size; i++) {
+        REQUIRE(recv_buffer[i] == final_buffer[i]);
+    }
+}
+
 TEST_M(ccl_comm_test, "allgatherv_empty_rank") {
     auto comm = get_new_comm();
     const std::int64_t granularity = 10;
@@ -411,4 +472,3 @@ TEST_M(ccl_comm_test, "sendrecv_replace") {
 }
 
 } // namespace oneapi::dal::test
-#endif
