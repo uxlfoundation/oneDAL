@@ -405,6 +405,7 @@ dal_collect_test_suites(
     tests = [
         "@onedal//cpp/daal/src/algorithms/test:tests",
         "@onedal//cpp/daal/src/threading/test:tests",
+        "@onedal//cpp/daal/src/algorithms/linear_regression/test:tests",
     ],
 )
 
