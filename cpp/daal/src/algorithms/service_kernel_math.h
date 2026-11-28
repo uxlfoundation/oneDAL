@@ -33,6 +33,7 @@
 #include "data_management/features/defines.h"
 #include "services/error_handling.h"
 #include "src/data_management/service_numeric_table.h"
+#include "src/data_management/finiteness_checker.h"
 #include "src/services/service_data_utils.h"
 #include "src/services/service_allocators.h"
 #include "src/services/service_arrays.h"
@@ -913,6 +914,68 @@ PairwiseDistances<FPType, cpu> * createPairwiseDistances(const NumericTable & a,
     case PairwiseDistanceType::euclidean:
     default: return new EuclideanDistances<FPType, cpu>(a, b, true);
     }
+}
+
+/// Row-major copy of `table` with the column means subtracted. Shift-invariant distances keep their
+/// values, and norm-expanded euclidean distances no longer cancel the spread of data far from the origin.
+///
+/// @param[in]  table     Input table
+/// @param[out] values    Storage of the copy
+/// @param[out] centered  Table over `values`
+template <typename FPType, CpuType cpu>
+services::Status copyCentered(const NumericTable & table, TArrayScalable<FPType, cpu> & values, NumericTablePtr & centered)
+{
+    const size_t nRows = table.getNumberOfRows();
+    const size_t nCols = table.getNumberOfColumns();
+    DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nRows, nCols);
+    DAAL_CHECK_MALLOC(values.reset(nRows * nCols));
+
+    ReadRows<FPType, cpu> rows(const_cast<NumericTable &>(table), 0, nRows);
+    DAAL_CHECK_BLOCK_STATUS(rows);
+    const FPType * const src = rows.get();
+    FPType * const dst       = values.get();
+
+    const size_t blockSize = 4096;
+    const size_t nBlocks   = nRows / blockSize + !!(nRows % blockSize);
+    DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nBlocks, nCols);
+    TArrayScalable<double, cpu> blockSums(nBlocks * nCols);
+    TArrayScalable<FPType, cpu> means(nCols);
+    DAAL_CHECK_MALLOC(blockSums.get() && means.get());
+
+    daal::threader_for(nBlocks, 1, [&](size_t iBlock) {
+        const size_t begin = iBlock * blockSize;
+        const size_t end   = services::internal::min<cpu, size_t>(begin + blockSize, nRows);
+        double * const sum = blockSums.get() + iBlock * nCols;
+        for (size_t j = 0; j < nCols; j++) sum[j] = 0;
+        for (size_t i = begin; i < end; i++)
+        {
+            PRAGMA_OMP_SIMD
+            for (size_t j = 0; j < nCols; j++) sum[j] += src[i * nCols + j];
+        }
+    });
+    for (size_t j = 0; j < nCols; j++)
+    {
+        double sum = 0;
+        for (size_t iBlock = 0; iBlock < nBlocks; iBlock++) sum += blockSums.get()[iBlock * nCols + j];
+        // A column with a NaN or Inf stays uncentered, so the non-finite value affects its own row only.
+        const bool finite = !data_management::internal::valuesAreNotFinite(&sum, 1, false);
+        means.get()[j]    = static_cast<FPType>(nRows && finite ? sum / nRows : 0);
+    }
+
+    const FPType * const mean = means.get();
+    daal::threader_for(nBlocks, 1, [&](size_t iBlock) {
+        const size_t begin = iBlock * blockSize;
+        const size_t end   = services::internal::min<cpu, size_t>(begin + blockSize, nRows);
+        for (size_t i = begin; i < end; i++)
+        {
+            PRAGMA_OMP_SIMD
+            for (size_t j = 0; j < nCols; j++) dst[i * nCols + j] = src[i * nCols + j] - mean[j];
+        }
+    });
+
+    services::Status status;
+    centered = daal::internal::HomogenNumericTableCPU<FPType, cpu>::create(dst, nCols, nRows, &status);
+    return status;
 }
 
 template <typename FPType, CpuType cpu>
