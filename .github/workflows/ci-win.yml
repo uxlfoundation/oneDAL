@@ -518,7 +518,24 @@ jobs:
           path: oneapi
           key: ${{ steps.basekit.outputs.key }}
 
+      # An exact cache key identifies the toolkit version and component list.
+      # Check that the restored environment exposes the dependencies Make uses.
+      - name: Check restored oneAPI Base Toolkit
+        id: check-basekit
+        if: steps.cache-basekit.outputs.cache-hit == 'true'
+        shell: cmd
+        run: |
+          if not exist .\oneapi\setvars.bat exit /b 0
+          call .\oneapi\setvars.bat
+          if errorlevel 1 exit /b 0
+          if not defined MKLROOT exit /b 0
+          if not defined TBBROOT exit /b 0
+          if not exist "%MKLROOT%\include\mkl.h" exit /b 0
+          if not exist "%TBBROOT%\include\oneapi\tbb\version.h" exit /b 0
+          echo usable=true>>"%GITHUB_OUTPUT%"
+
       - name: Install oneAPI Base Toolkit
+        if: steps.check-basekit.outputs.usable != 'true'
         shell: cmd
         run: |
           set PATH=C:\msys64\usr\bin;%PATH%
