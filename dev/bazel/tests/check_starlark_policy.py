@@ -33,9 +33,6 @@ ALLOWED = {
     ("use_default_shell_env", "dev/bazel/release.bzl", "_copy"): (
         "cmd.exe needs SystemRoot; only set when the exec host is Windows"
     ),
-    ("use_default_shell_env", "dev/bazel/cc.bzl", "_compile_windows_resource"): (
-        "rc.exe/llvm-rc is resolved from PATH, not from the toolchain (dev/bazel/TODO.md)"
-    ),
 }
 
 # Execution requirements that opt an action out of the sandbox or the caches.

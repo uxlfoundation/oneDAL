@@ -285,7 +285,8 @@ def write_tool_identity(repo_ctx, tool_paths, version_tools = []):
     """
     lines = []
     repo_root = str(repo_ctx.path(".")) + "/"
-    sha256sum = None if "windows" in repo_ctx.os.name else repo_ctx.which("sha256sum")
+    is_windows = "windows" in repo_ctx.os.name
+    sha256sum = repo_ctx.which("certutil" if is_windows else "sha256sum")
     for tool in tool_paths:
         if not tool:
             continue
@@ -302,9 +303,16 @@ def write_tool_identity(repo_ctx, tool_paths, version_tools = []):
         # the action keys to it, so caches would not carry across machines.
         lines.append("tool: " + path.basename)
         if sha256sum:
-            result = repo_ctx.execute([sha256sum, str(path)])
-            if result.return_code == 0:
-                lines.append("sha256: " + result.stdout.split(" ")[0])
+            if is_windows:
+                # certutil prints a header line, the hex digest, then a status line.
+                result = repo_ctx.execute([sha256sum, "-hashfile", str(path), "SHA256"])
+                out = result.stdout.splitlines()
+                digest = out[1].replace(" ", "").strip() if len(out) > 1 else ""
+            else:
+                result = repo_ctx.execute([sha256sum, str(path)])
+                digest = result.stdout.split(" ")[0]
+            if result.return_code == 0 and digest:
+                lines.append("sha256: " + digest)
         if tool in version_tools:
             result = repo_ctx.execute([str(path), "--version"])
 

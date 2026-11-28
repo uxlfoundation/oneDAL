@@ -54,7 +54,8 @@ def _find_llvm_tool(repo_ctx, cc_path, name, fallback):
 
     @param cc_path   Path of icx.
     @param name      LLVM tool, such as `lld-link`.
-    @param fallback  MSVC tool to use when `name` is not found, such as `link`.
+    @param fallback  MSVC tool to use when `name` is not found, such as `link`. Empty: no
+                     fallback, and an empty result when `name` is not found.
     @return          Path of the tool to use.
     """
     path, found = find_tool(repo_ctx, name, mandatory = False)
@@ -63,11 +64,26 @@ def _find_llvm_tool(repo_ctx, cc_path, name, fallback):
     bundled = repo_ctx.path(cc_path).dirname.get_child("compiler").get_child(name + ".exe")
     if bundled.exists:
         return str(bundled)
+    if not fallback:
+        return ""
     print("{} not found; falling back to MSVC {}.exe, which is not long-path aware".format(
         name,
         fallback,
     ))
     path, _ = find_tool(repo_ctx, fallback, mandatory = True)
+    return path
+
+def _find_resource_compiler(repo_ctx, compiler_id, cc_path = ""):
+    """Finds the Windows resource compiler, which rc_toolchain.bzl registers for the rules.
+
+    clang-cl uses LLVM's `llvm-rc`, looked up as the other LLVM tools are, without an MSVC
+    fallback (`rc.exe` is not the same tool). icx and MSVC use `rc.exe` of the Windows SDK, which
+    the configure-time PATH has as it has `link.exe`. Empty when not found: only a target that
+    links a version resource fails, during analysis.
+    """
+    if compiler_id == "clang":
+        return _find_llvm_tool(repo_ctx, cc_path, "llvm-rc", "")
+    path, _ = find_tool(repo_ctx, "rc.exe", mandatory = False)
     return path
 
 def _find_tools_icx(repo_ctx):
@@ -198,9 +214,18 @@ def _configure_cc_toolchain_win_cl(repo_ctx):
         template = template,
         symlink = symlink,
     ))
+
+    # rc.exe is outside the execroot: its identity file keys WindowsResource actions, as
+    # the LLVM toolchain's does.
+    rc_path = _find_resource_compiler(repo_ctx, "cl")
+    rc_identity = write_tool_identity(repo_ctx, [rc_path])
     repo_ctx.template(
         "BUILD",
         Label("@onedal//dev/bazel/toolchains:cc_toolchain_win.tpl.BUILD"),
+        {
+            "%{rc_path}": rc_path.replace("\\", "/"),
+            "%{rc_deps}": get_starlark_list([":" + rc_identity]),
+        },
     )
 
 def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
@@ -208,6 +233,7 @@ def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
     repo_ctx.file(TEST_CPP_FILE, "int main() { return 0; }")
 
     tools = (_find_tools_icx(repo_ctx) if compiler_id == "icx" else _find_tools_clang(repo_ctx))
+    rc_path = _find_resource_compiler(repo_ctx, compiler_id, tools.cc)
 
     # INCLUDE covers MSVC, the SDK and oneAPI, but not the builtin headers of the compiler package.
     builtin_include_directories = []
@@ -323,7 +349,7 @@ def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
 
     tool_identity = write_tool_identity(
         repo_ctx,
-        [tools.cc, tools.cc_link, tools.ar],
+        [tools.cc, tools.cc_link, tools.ar, rc_path],
         version_tools = [tools.cc],
     )
     repo_ctx.template(
@@ -392,6 +418,7 @@ def _configure_cc_toolchain_win_llvm(repo_ctx, reqs, compiler_id):
             "%{env_include}": repo_ctx.os.environ.get("INCLUDE", "").replace("\\", "/"),
             "%{env_lib}": repo_ctx.os.environ.get("LIB", "").replace("\\", "/"),
             "%{env_path}": _action_path(repo_ctx, tools.cc).replace("\\", "/"),
+            "%{rc_path}": rc_path.replace("\\", "/"),
         },
     )
 

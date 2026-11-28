@@ -15,3 +15,6 @@
 #===============================================================================
 
 package(default_visibility = ["//visibility:public"])
+
+# The Windows resource compiler (rc_toolchain.bzl), registered by the Windows toolchain repository.
+toolchain_type(name = "rc_toolchain_type")

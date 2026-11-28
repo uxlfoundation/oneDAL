@@ -17,6 +17,7 @@
 package(default_visibility = ["//visibility:public"])
 
 load("@onedal//dev/bazel/toolchains:cc_toolchain_config_win.bzl", "cc_toolchain_config")
+load("@onedal//dev/bazel/toolchains:rc_toolchain.bzl", "RC_TOOLCHAIN_TYPE", "rc_toolchain")
 load("@rules_cc//cc:defs.bzl", "cc_toolchain")
 
 filegroup(
@@ -108,4 +109,24 @@ toolchain(
     ],
     toolchain = ":%{cc_toolchain_identifier}",
     toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+)
+
+rc_toolchain(
+    name = "rc_tool",
+    files = [":compiler_deps"],
+    rc_path = "%{rc_path}",
+)
+
+toolchain(
+    name = "rc_toolchain_win",
+    exec_compatible_with = [
+        "@platforms//cpu:%{host_cpu_constraint}",
+        "@platforms//os:windows",
+    ],
+    target_compatible_with = [
+        "@platforms//cpu:%{target_cpu_constraint}",
+        "@platforms//os:windows",
+    ],
+    toolchain = ":rc_tool",
+    toolchain_type = RC_TOOLCHAIN_TYPE,
 )
